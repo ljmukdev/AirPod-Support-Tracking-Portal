@@ -2,6 +2,22 @@
 
 let barcodeScanningActive = false;
 
+// Check if Tesseract is available when script loads
+window.addEventListener('load', () => {
+    if (typeof Tesseract === 'undefined') {
+        console.error('❌ Tesseract.js failed to load. OCR will not work.');
+        const ocrStatus = document.getElementById('ocrStatus');
+        if (ocrStatus) {
+            ocrStatus.style.display = 'block';
+            ocrStatus.style.background = '#f8d7da';
+            ocrStatus.style.color = '#721c24';
+            ocrStatus.textContent = '❌ OCR library failed to load. Please refresh the page.';
+        }
+    } else {
+        console.log('✅ Tesseract.js loaded successfully');
+    }
+});
+
 // Initialize OCR button
 const imageUpload = document.getElementById('imageUpload');
 const scanImageButton = document.getElementById('scanImageButton');
