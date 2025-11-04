@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="LJM AirPod Support - Confirm understanding before opening package">
+    <title>Important - Please Read | LJM AirPod Support</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <header class="header">
+        <a href="index.html" class="home-link">Home</a>
+        <h1>LJM</h1>
+    </header>
+
+    <main class="container">
+        <h2 style="text-align: center; margin: 30px 0;">Important - Please Read Before Opening</h2>
+
+        <div class="warning-box">
+            <h3>⚠️ DO NOT OPEN THE PACKAGE YET</h3>
+            <p>Your replacement <span id="partType">AirPod</span> is sealed for hygiene and quality.</p>
+            <p><strong>Once opened, this item cannot be returned or exchanged.</strong></p>
+            <p>Please carefully review the pairing instructions on the next page before proceeding.</p>
+        </div>
+
+        <div class="card">
+            <h3>Before You Open</h3>
+            <ul style="margin: 20px 0; padding-left: 20px; line-height: 1.8;">
+                <li>Make sure you have your iPhone or iPad nearby</li>
+                <li>Ensure your device is updated to the latest iOS/iPadOS</li>
+                <li>Have your existing AirPods ready (if applicable)</li>
+                <li>Read through all pairing instructions carefully</li>
+            </ul>
+        </div>
+
+        <form id="confirmationForm">
+            <div class="confirmation-checkbox">
+                <label for="confirmCheckbox">
+                    <input 
+                        type="checkbox" 
+                        id="confirmCheckbox" 
+                        name="confirmCheckbox" 
+                        required
+                    >
+                    <span>
+                        I understand the pairing process and agree that opening the package 
+                        voids any return eligibility for compatibility issues. I have read 
+                        and will follow the pairing instructions carefully.
+                    </span>
+                </label>
+            </div>
+
+            <div id="errorMessage" class="error-message"></div>
+            <div class="spinner" id="spinner"></div>
+
+            <button 
+                type="submit" 
+                class="button" 
+                id="viewInstructionsButton"
+                disabled
+            >
+                View Pairing Instructions
+            </button>
+
+            <a href="troubleshooting.html" class="button button-secondary" style="text-decoration: none; display: block;">
+                I Need Help First
+            </a>
+        </form>
+    </main>
+
+    <footer class="footer">
+        <p>&copy; 2024 LJM. All rights reserved.</p>
+    </footer>
+
+    <script src="js/main.js"></script>
+</body>
+</html>
+

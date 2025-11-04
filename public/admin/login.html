@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login | LJM AirPod Support</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <style>
+        .login-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--secondary-gray);
+            padding: 20px;
+        }
+        .login-card {
+            background-color: var(--background-white);
+            padding: 40px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            max-width: 400px;
+            width: 100%;
+        }
+        .login-card h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: var(--primary-navy);
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <h1>LJM Admin Panel</h1>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input 
+                        type="text" 
+                        id="username" 
+                        name="username" 
+                        required
+                        autocomplete="username"
+                        autofocus
+                    >
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password" 
+                        required
+                        autocomplete="current-password"
+                    >
+                </div>
+                <div id="errorMessage" class="error-message"></div>
+                <button type="submit" class="button" id="loginButton">
+                    Login
+                </button>
+                <div class="spinner" id="spinner"></div>
+            </form>
+            <div style="text-align: center; margin-top: 20px;">
+                <a href="../index.html" style="color: var(--accent-teal); text-decoration: none;">
+                    Back to Customer Site
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/admin.js"></script>
+</body>
+</html>
+

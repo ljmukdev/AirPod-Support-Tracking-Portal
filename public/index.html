@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="LJM AirPod Support - Enter your security code to get started">
+    <title>LJM AirPod Support</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <header class="header">
+        <h1>LJM</h1>
+    </header>
+
+    <main class="container">
+        <div style="text-align: center; margin: 40px 0;">
+            <h2>Welcome to LJM AirPod Support</h2>
+            <p style="font-size: 1.1rem; color: #666; margin-top: 10px;">
+                Let's get your replacement AirPod working
+            </p>
+        </div>
+
+        <div class="card">
+            <form id="barcodeForm">
+                <div class="form-group">
+                    <label for="securityBarcode">Enter your security code from the package</label>
+                    <input 
+                        type="text" 
+                        id="securityBarcode" 
+                        name="securityBarcode" 
+                        placeholder="Enter security code"
+                        required
+                        autocomplete="off"
+                        autofocus
+                    >
+                </div>
+                <div id="errorMessage" class="error-message"></div>
+                <button type="submit" class="button" id="submitButton">
+                    Continue
+                </button>
+                <div class="spinner" id="spinner"></div>
+            </form>
+        </div>
+
+        <div style="text-align: center; margin-top: 30px;">
+            <a href="troubleshooting.html" style="color: var(--accent-teal); text-decoration: none;">
+                Need Help?
+            </a>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <p>&copy; 2024 LJM. All rights reserved.</p>
+    </footer>
+
+    <script src="js/main.js"></script>
+</body>
+</html>
+
