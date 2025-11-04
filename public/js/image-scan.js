@@ -62,13 +62,20 @@ if (scanImageButton) {
             // Parse extracted text
             const extractedData = parseOCRText(text);
             
+            console.log('Extracted data:', extractedData);
+            console.log('Full OCR text:', text);
+            
             // Auto-fill form fields
+            let filledFields = [];
+            
             if (extractedData.serialNumber) {
                 document.getElementById('serialNumber').value = extractedData.serialNumber;
+                filledFields.push('Serial Number');
             }
             
             if (extractedData.partNumber) {
                 document.getElementById('partModelNumber').value = extractedData.partNumber;
+                filledFields.push('Part Number');
             }
             
             // Try to match part number to existing parts
@@ -76,7 +83,14 @@ if (scanImageButton) {
                 await tryMatchPartNumber(extractedData.partNumber);
             }
             
-            showOCRStatus('✅ Data extracted successfully!', 'success');
+            // Show success message with what was found
+            if (filledFields.length > 0) {
+                showOCRStatus(`✅ Extracted: ${filledFields.join(', ')}`, 'success');
+            } else {
+                showOCRStatus('⚠️ Could not extract serial or part number. Please check the image quality or enter manually.', 'error');
+                // Show OCR text for debugging
+                console.log('OCR Text for manual review:', text);
+            }
             
         } catch (error) {
             console.error('OCR Error:', error);
@@ -95,46 +109,87 @@ function parseOCRText(text) {
         partNumber: null
     };
     
-    // Common patterns for serial numbers (alphanumeric, 10-20 chars)
+    // Clean up text - remove extra whitespace
+    const cleanText = text.replace(/\s+/g, ' ').trim();
+    
+    // Common patterns for serial numbers (Apple serials are typically 12 characters, alphanumeric)
     const serialPatterns = [
+        // Explicit serial number labels
         /Serial\s*(?:Number|No|#)?\s*:?\s*([A-Z0-9]{10,20})/i,
         /S\/N\s*:?\s*([A-Z0-9]{10,20})/i,
         /SN\s*:?\s*([A-Z0-9]{10,20})/i,
-        /([A-Z0-9]{12,20})/ // Generic long alphanumeric (likely serial)
+        /Serial\s*:?\s*([A-Z0-9]{10,20})/i,
+        // Apple serial number format (typically 12 chars, like: GTCJ85TF18JQ, C8K9L2M3N4P5)
+        /([A-Z0-9]{12})\b/g, // 12 character alphanumeric (Apple standard)
+        // Generic long alphanumeric sequences (likely serials)
+        /([A-Z0-9]{15,20})\b/g // Longer sequences
     ];
     
-    // Common patterns for part/model numbers (usually start with A, M, or similar)
+    // Common patterns for part/model numbers (Apple part numbers start with A)
     const partPatterns = [
-        /(?:Part|Model|P\/N|PN)\s*(?:Number|No|#)?\s*:?\s*([A-Z0-9\-]+)/i,
-        /(A\d{4}(?:[-/]\w+)?)/, // Apple part numbers like A1523, A2968-L
-        /(M[A-Z0-9]{5,})/i, // Model numbers starting with M
-        /(?:Model|Part)\s*:?\s*([A-Z0-9\-]+)/i
+        // Explicit part/model number labels
+        /(?:Part|Model|P\/N|PN|Part\s*Number|Model\s*Number)\s*(?:Number|No|#)?\s*:?\s*([A-Z0-9\-]+)/i,
+        // Apple part numbers like A1523, A1722, A2031, A2968, A2968-L, etc.
+        /\b(A\d{4}(?:[-/]\w+)?)\b/,
+        // Service kit numbers like 661-17164
+        /\b(661-\d{5})\b/,
+        // Model numbers starting with M
+        /\b(M[A-Z0-9]{5,})\b/i,
+        // Any A#### pattern (Apple part number)
+        /(A\d{4})/g
     ];
     
-    // Try to find serial number
+    // Try to find serial number - prioritize explicit labels first
     for (const pattern of serialPatterns) {
-        const match = text.match(pattern);
-        if (match && match[1]) {
-            extracted.serialNumber = match[1].trim();
-            break;
+        const matches = [...cleanText.matchAll(pattern)];
+        for (const match of matches) {
+            const candidate = match[1] || match[0];
+            if (candidate && candidate.length >= 10) {
+                // Apple serials are typically 12 chars, but can vary
+                // Filter out common false positives
+                if (!candidate.includes('A') || candidate.length === 12) {
+                    extracted.serialNumber = candidate.trim();
+                    break;
+                }
+            }
         }
+        if (extracted.serialNumber) break;
     }
     
-    // Try to find part number
+    // Try to find part number - prioritize explicit labels first
     for (const pattern of partPatterns) {
-        const match = text.match(pattern);
-        if (match && match[1]) {
-            extracted.partNumber = match[1].trim();
-            break;
+        const matches = [...cleanText.matchAll(pattern)];
+        for (const match of matches) {
+            const candidate = match[1] || match[0];
+            if (candidate) {
+                // Apple part numbers are typically A#### or A####-X format
+                if (candidate.match(/^A\d{4}/) || candidate.match(/^661-/)) {
+                    extracted.partNumber = candidate.trim();
+                    break;
+                }
+            }
+        }
+        if (extracted.partNumber) break;
+    }
+    
+    // If no structured match for part number, look for any A#### pattern
+    if (!extracted.partNumber) {
+        const applePartMatches = cleanText.match(/\b(A\d{4}(?:[-/]\w+)?)\b/g);
+        if (applePartMatches && applePartMatches.length > 0) {
+            // Filter out if it's likely a serial (too long or doesn't match Apple part format)
+            const bestMatch = applePartMatches.find(m => m.length <= 10 || m.includes('-'));
+            if (bestMatch) {
+                extracted.partNumber = bestMatch.trim();
+            }
         }
     }
     
-    // If no structured match, look for Apple-style part numbers (A####)
-    if (!extracted.partNumber) {
-        const applePartMatch = text.match(/(A\d{4}(?:[-/]\w+)?)/);
-        if (applePartMatch) {
-            extracted.partNumber = applePartMatch[1];
-        }
+    // Clean up extracted values
+    if (extracted.serialNumber) {
+        extracted.serialNumber = extracted.serialNumber.replace(/[^A-Z0-9]/g, '').substring(0, 20);
+    }
+    if (extracted.partNumber) {
+        extracted.partNumber = extracted.partNumber.trim();
     }
     
     return extracted;
