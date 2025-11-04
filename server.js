@@ -328,6 +328,15 @@ function checkRateLimit(ip) {
     return true;
 }
 
+// Check if database is connected
+function requireDB(req, res, next) {
+    if (!db) {
+        console.error('Database not connected. MongoDB connection failed.');
+        return res.status(503).json({ error: 'Database not available. Please check MongoDB connection.' });
+    }
+    next();
+}
+
 // Authentication middleware
 function requireAuth(req, res, next) {
     if (req.session && req.session.authenticated) {
@@ -382,7 +391,7 @@ app.get('/api/admin/check-auth', (req, res) => {
 });
 
 // Add new product (Admin only)
-app.post('/api/admin/product', requireAuth, async (req, res) => {
+app.post('/api/admin/product', requireAuth, requireDB, async (req, res) => {
     const { serial_number, security_barcode, part_type, generation, part_model_number, notes, ebay_order_number } = req.body;
     
     if (!serial_number || !security_barcode || !part_type) {
@@ -424,7 +433,7 @@ app.post('/api/admin/product', requireAuth, async (req, res) => {
 });
 
 // Get all products (Admin only, paginated)
-app.get('/api/admin/products', requireAuth, async (req, res) => {
+app.get('/api/admin/products', requireAuth, requireDB, async (req, res) => {
     const limit = parseInt(req.query.limit) || 50;
     const offset = parseInt(req.query.offset) || 0;
     
@@ -453,7 +462,7 @@ app.get('/api/admin/products', requireAuth, async (req, res) => {
 });
 
 // Delete product (Admin only)
-app.delete('/api/admin/product/:id', requireAuth, async (req, res) => {
+app.delete('/api/admin/product/:id', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;
     
     try {
@@ -475,7 +484,7 @@ app.delete('/api/admin/product/:id', requireAuth, async (req, res) => {
 });
 
 // Verify customer barcode (Public)
-app.post('/api/verify-barcode', async (req, res) => {
+app.post('/api/verify-barcode', requireDB, async (req, res) => {
     const { security_barcode } = req.body;
     const ip = req.ip || req.connection.remoteAddress;
     
@@ -511,7 +520,7 @@ app.post('/api/verify-barcode', async (req, res) => {
 });
 
 // Log confirmation (Public)
-app.post('/api/confirm-understanding', async (req, res) => {
+app.post('/api/confirm-understanding', requireDB, async (req, res) => {
     const { security_barcode } = req.body;
     
     if (!security_barcode) {
@@ -541,7 +550,7 @@ app.post('/api/confirm-understanding', async (req, res) => {
 });
 
 // Get product info by barcode (for confirmation page)
-app.get('/api/product-info/:barcode', async (req, res) => {
+app.get('/api/product-info/:barcode', requireDB, async (req, res) => {
     const { barcode } = req.params;
     
     try {
@@ -566,7 +575,7 @@ app.get('/api/product-info/:barcode', async (req, res) => {
 });
 
 // Get all parts (for admin form)
-app.get('/api/admin/parts', requireAuth, async (req, res) => {
+app.get('/api/admin/parts', requireAuth, requireDB, async (req, res) => {
     try {
         const parts = await db.collection('airpod_parts')
             .find({})
@@ -587,7 +596,7 @@ app.get('/api/admin/parts', requireAuth, async (req, res) => {
 });
 
 // Get parts by generation
-app.get('/api/admin/parts/:generation', requireAuth, async (req, res) => {
+app.get('/api/admin/parts/:generation', requireAuth, requireDB, async (req, res) => {
     const generation = decodeURIComponent(req.params.generation);
     
     try {
@@ -610,7 +619,7 @@ app.get('/api/admin/parts/:generation', requireAuth, async (req, res) => {
 });
 
 // Add new part
-app.post('/api/admin/part', requireAuth, async (req, res) => {
+app.post('/api/admin/part', requireAuth, requireDB, async (req, res) => {
     const { generation, part_name, part_model_number, part_type, notes, display_order } = req.body;
     
     if (!generation || !part_name || !part_model_number || !part_type) {
@@ -648,7 +657,7 @@ app.post('/api/admin/part', requireAuth, async (req, res) => {
 });
 
 // Update part
-app.put('/api/admin/part/:id', requireAuth, async (req, res) => {
+app.put('/api/admin/part/:id', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;
     const { generation, part_name, part_model_number, part_type, notes, display_order } = req.body;
     
@@ -695,7 +704,7 @@ app.put('/api/admin/part/:id', requireAuth, async (req, res) => {
 });
 
 // Delete part
-app.delete('/api/admin/part/:id', requireAuth, async (req, res) => {
+app.delete('/api/admin/part/:id', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;
     
     try {
@@ -717,7 +726,7 @@ app.delete('/api/admin/part/:id', requireAuth, async (req, res) => {
 });
 
 // Get all generations
-app.get('/api/admin/generations', requireAuth, async (req, res) => {
+app.get('/api/admin/generations', requireAuth, requireDB, async (req, res) => {
     try {
         const generations = await db.collection('airpod_parts').distinct('generation');
         res.json({ generations: generations.sort() });
