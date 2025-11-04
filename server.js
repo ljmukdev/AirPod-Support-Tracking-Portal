@@ -1,5 +1,5 @@
 const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
+const { MongoClient, ObjectId } = require('mongodb');
 const bodyParser = require('body-parser');
 const session = require('express-session');
 const path = require('path');
@@ -27,115 +27,92 @@ app.use(session({
     }
 }));
 
-// Initialize SQLite database
-// Use Railway's persistent volume path if available, otherwise use current directory
-const DB_PATH = process.env.DATABASE_PATH || './database.sqlite';
-const db = new sqlite3.Database(DB_PATH, (err) => {
-    if (err) {
-        console.error('Error opening database:', err.message);
-        console.error('Database path:', DB_PATH);
-    } else {
-        console.log('Connected to SQLite database at:', DB_PATH);
-        initializeDatabase();
-    }
-});
+// MongoDB connection
+let db;
+const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URL || process.env.MONGO_PUBLIC_URL;
 
-// Create tables if they don't exist
-function initializeDatabase() {
-    db.run(`CREATE TABLE IF NOT EXISTS products (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        serial_number TEXT NOT NULL,
-        security_barcode TEXT UNIQUE NOT NULL,
-        part_type TEXT NOT NULL,
-        generation TEXT,
-        part_model_number TEXT,
-        notes TEXT,
-        ebay_order_number TEXT,
-        date_added DATETIME DEFAULT CURRENT_TIMESTAMP,
-        confirmation_checked BOOLEAN DEFAULT 0,
-        confirmation_date DATETIME
-    )`, (err) => {
-        if (err) {
-            console.error('Error creating table:', err.message);
-        } else {
-            console.log('Database initialized');
-            // Add new columns if they don't exist (for existing databases)
-            db.run(`ALTER TABLE products ADD COLUMN generation TEXT`, () => {});
-            db.run(`ALTER TABLE products ADD COLUMN part_model_number TEXT`, () => {});
-            db.run(`ALTER TABLE products ADD COLUMN notes TEXT`, () => {});
-            db.run(`ALTER TABLE products ADD COLUMN ebay_order_number TEXT`, () => {});
-        }
+if (!MONGODB_URI) {
+    console.error('MongoDB URI not found! Please set MONGODB_URI, MONGO_URL, or MONGO_PUBLIC_URL environment variable.');
+    process.exit(1);
+}
+
+MongoClient.connect(MONGODB_URI)
+    .then(client => {
+        console.log('Connected to MongoDB');
+        db = client.db();
+        initializeDatabase();
+    })
+    .catch(err => {
+        console.error('MongoDB connection error:', err);
+        process.exit(1);
     });
-    
-    // Create parts table for managing AirPod parts database
-    db.run(`CREATE TABLE IF NOT EXISTS airpod_parts (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        generation TEXT NOT NULL,
-        part_name TEXT NOT NULL,
-        part_model_number TEXT NOT NULL,
-        part_type TEXT NOT NULL,
-        notes TEXT,
-        display_order INTEGER DEFAULT 0,
-        date_added DATETIME DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(generation, part_name)
-    )`, (err) => {
-        if (err) {
-            console.error('Error creating airpod_parts table:', err.message);
-        } else {
-            console.log('AirPod parts table initialized');
-            // Check if table is empty and populate with initial data
-            db.get('SELECT COUNT(*) as count FROM airpod_parts', (err, row) => {
-                if (!err && row && row.count === 0) {
-                    populateInitialParts();
-                }
-            });
+
+// Initialize database collections and indexes
+async function initializeDatabase() {
+    try {
+        // Create indexes for products collection
+        await db.collection('products').createIndex({ security_barcode: 1 }, { unique: true });
+        await db.collection('products').createIndex({ date_added: -1 });
+        
+        // Create indexes for airpod_parts collection
+        await db.collection('airpod_parts').createIndex({ generation: 1, part_name: 1 }, { unique: true });
+        await db.collection('airpod_parts').createIndex({ generation: 1, display_order: 1 });
+        
+        console.log('Database indexes created');
+        
+        // Check if parts collection is empty and populate
+        const partsCount = await db.collection('airpod_parts').countDocuments();
+        if (partsCount === 0) {
+            await populateInitialParts();
         }
-    });
+    } catch (err) {
+        console.error('Database initialization error:', err);
+    }
 }
 
 // Populate initial parts data
-function populateInitialParts() {
+async function populateInitialParts() {
     const initialParts = [
         // AirPods (1st Gen)
-        {generation: 'AirPods (1st Gen)', part_name: 'Standard AirPods earbuds (Left)', part_model_number: 'A1523', part_type: 'left', notes: 'Basic model numbers', display_order: 1},
-        {generation: 'AirPods (1st Gen)', part_name: 'Standard AirPods earbuds (Right)', part_model_number: 'A1722', part_type: 'right', notes: 'Basic model numbers', display_order: 2},
-        {generation: 'AirPods (1st Gen)', part_name: 'Charging Case (Lightning)', part_model_number: 'A1602', part_type: 'case', notes: 'Works with gen 1 & gen 2', display_order: 3},
+        {generation: 'AirPods (1st Gen)', part_name: 'Standard AirPods earbuds (Left)', part_model_number: 'A1523', part_type: 'left', notes: 'Basic model numbers', display_order: 1, date_added: new Date()},
+        {generation: 'AirPods (1st Gen)', part_name: 'Standard AirPods earbuds (Right)', part_model_number: 'A1722', part_type: 'right', notes: 'Basic model numbers', display_order: 2, date_added: new Date()},
+        {generation: 'AirPods (1st Gen)', part_name: 'Charging Case (Lightning)', part_model_number: 'A1602', part_type: 'case', notes: 'Works with gen 1 & gen 2', display_order: 3, date_added: new Date()},
         // AirPods (2nd Gen)
-        {generation: 'AirPods (2nd Gen)', part_name: 'Standard AirPods earbuds (Left)', part_model_number: 'A2031', part_type: 'left', notes: 'Model numbers', display_order: 1},
-        {generation: 'AirPods (2nd Gen)', part_name: 'Standard AirPods earbuds (Right)', part_model_number: 'A2032', part_type: 'right', notes: 'Model numbers', display_order: 2},
-        {generation: 'AirPods (2nd Gen)', part_name: 'Charging Case (Wireless)', part_model_number: 'A1938', part_type: 'case', notes: 'Qi Wireless case for gen1/2', display_order: 3},
-        {generation: 'AirPods (2nd Gen)', part_name: 'Charging Case (Lightning)', part_model_number: 'A1602', part_type: 'case', notes: 'Lightning case - works with gen 1 & gen 2', display_order: 4},
+        {generation: 'AirPods (2nd Gen)', part_name: 'Standard AirPods earbuds (Left)', part_model_number: 'A2031', part_type: 'left', notes: 'Model numbers', display_order: 1, date_added: new Date()},
+        {generation: 'AirPods (2nd Gen)', part_name: 'Standard AirPods earbuds (Right)', part_model_number: 'A2032', part_type: 'right', notes: 'Model numbers', display_order: 2, date_added: new Date()},
+        {generation: 'AirPods (2nd Gen)', part_name: 'Charging Case (Wireless)', part_model_number: 'A1938', part_type: 'case', notes: 'Qi Wireless case for gen1/2', display_order: 3, date_added: new Date()},
+        {generation: 'AirPods (2nd Gen)', part_name: 'Charging Case (Lightning)', part_model_number: 'A1602', part_type: 'case', notes: 'Lightning case - works with gen 1 & gen 2', display_order: 4, date_added: new Date()},
         // AirPods (3rd Gen)
-        {generation: 'AirPods (3rd Gen)', part_name: 'Earbuds (Left)', part_model_number: 'A2564', part_type: 'left', notes: 'Genuine Apple part listing', display_order: 1},
-        {generation: 'AirPods (3rd Gen)', part_name: 'Earbuds (Right)', part_model_number: 'A2565', part_type: 'right', notes: 'Genuine Apple part listing', display_order: 2},
-        {generation: 'AirPods (3rd Gen)', part_name: 'Charging Case (MagSafe)', part_model_number: 'A2566', part_type: 'case', notes: 'MagSafe case, gen3', display_order: 3},
-        {generation: 'AirPods (3rd Gen)', part_name: 'Charging Case (Lightning)', part_model_number: 'A2566-L', part_type: 'case', notes: 'Lightning case for gen3', display_order: 4},
+        {generation: 'AirPods (3rd Gen)', part_name: 'Earbuds (Left)', part_model_number: 'A2564', part_type: 'left', notes: 'Genuine Apple part listing', display_order: 1, date_added: new Date()},
+        {generation: 'AirPods (3rd Gen)', part_name: 'Earbuds (Right)', part_model_number: 'A2565', part_type: 'right', notes: 'Genuine Apple part listing', display_order: 2, date_added: new Date()},
+        {generation: 'AirPods (3rd Gen)', part_name: 'Charging Case (MagSafe)', part_model_number: 'A2566', part_type: 'case', notes: 'MagSafe case, gen3', display_order: 3, date_added: new Date()},
+        {generation: 'AirPods (3rd Gen)', part_name: 'Charging Case (Lightning)', part_model_number: 'A2566-L', part_type: 'case', notes: 'Lightning case for gen3', display_order: 4, date_added: new Date()},
         // AirPods (4th Gen) standard
-        {generation: 'AirPods (4th Gen) standard line (non-Pro)', part_name: 'Earbuds (Left)', part_model_number: 'A3050', part_type: 'left', notes: 'Non-ANC variant', display_order: 1},
-        {generation: 'AirPods (4th Gen) standard line (non-Pro)', part_name: 'Earbuds (Right)', part_model_number: 'A3053 / A3054', part_type: 'right', notes: 'Non-ANC variant (multiple model numbers)', display_order: 2},
-        {generation: 'AirPods (4th Gen) standard line (non-Pro)', part_name: 'Charging Case', part_model_number: 'A3058', part_type: 'case', notes: 'Case for standard gen4', display_order: 3},
+        {generation: 'AirPods (4th Gen) standard line (non-Pro)', part_name: 'Earbuds (Left)', part_model_number: 'A3050', part_type: 'left', notes: 'Non-ANC variant', display_order: 1, date_added: new Date()},
+        {generation: 'AirPods (4th Gen) standard line (non-Pro)', part_name: 'Earbuds (Right)', part_model_number: 'A3053 / A3054', part_type: 'right', notes: 'Non-ANC variant (multiple model numbers)', display_order: 2, date_added: new Date()},
+        {generation: 'AirPods (4th Gen) standard line (non-Pro)', part_name: 'Charging Case', part_model_number: 'A3058', part_type: 'case', notes: 'Case for standard gen4', display_order: 3, date_added: new Date()},
         // AirPods (4th Gen) ANC
-        {generation: 'AirPods (4th Gen) standard line (ANC version)', part_name: 'Earbuds (Left)', part_model_number: 'A3055', part_type: 'left', notes: 'ANC version of standard line', display_order: 1},
-        {generation: 'AirPods (4th Gen) standard line (ANC version)', part_name: 'Earbuds (Right)', part_model_number: 'A3056 / A3057', part_type: 'right', notes: 'ANC version of standard line (multiple model numbers)', display_order: 2},
-        {generation: 'AirPods (4th Gen) standard line (ANC version)', part_name: 'Charging Case', part_model_number: 'A3059', part_type: 'case', notes: 'ANC case', display_order: 3},
+        {generation: 'AirPods (4th Gen) standard line (ANC version)', part_name: 'Earbuds (Left)', part_model_number: 'A3055', part_type: 'left', notes: 'ANC version of standard line', display_order: 1, date_added: new Date()},
+        {generation: 'AirPods (4th Gen) standard line (ANC version)', part_name: 'Earbuds (Right)', part_model_number: 'A3056 / A3057', part_type: 'right', notes: 'ANC version of standard line (multiple model numbers)', display_order: 2, date_added: new Date()},
+        {generation: 'AirPods (4th Gen) standard line (ANC version)', part_name: 'Charging Case', part_model_number: 'A3059', part_type: 'case', notes: 'ANC case', display_order: 3, date_added: new Date()},
         // AirPods Pro (1st Gen)
-        {generation: 'AirPods Pro (1st Gen)', part_name: 'Earbuds (Right)', part_model_number: 'A2083', part_type: 'right', notes: 'Identified in teardown', display_order: 1},
-        {generation: 'AirPods Pro (1st Gen)', part_name: 'Earbuds (Left)', part_model_number: 'A2084', part_type: 'left', notes: 'Identified in teardown', display_order: 2},
-        {generation: 'AirPods Pro (1st Gen)', part_name: 'Charging Case', part_model_number: 'A2190', part_type: 'case', notes: 'MagSafe case first Pro', display_order: 3},
-        {generation: 'AirPods Pro (1st Gen)', part_name: 'Charging Case (Lightning)', part_model_number: 'A2190-L', part_type: 'case', notes: 'Lightning case for Pro 1st Gen', display_order: 4},
-        {generation: 'AirPods Pro (1st Gen)', part_name: 'Service Kit Replacement Pods (Left)', part_model_number: '661-17164', part_type: 'left', notes: 'Internal service kit', display_order: 5},
-        {generation: 'AirPods Pro (1st Gen)', part_name: 'Service Kit Replacement Pods (Right)', part_model_number: '661-17165', part_type: 'right', notes: 'Internal service kit', display_order: 6},
+        {generation: 'AirPods Pro (1st Gen)', part_name: 'Earbuds (Right)', part_model_number: 'A2083', part_type: 'right', notes: 'Identified in teardown', display_order: 1, date_added: new Date()},
+        {generation: 'AirPods Pro (1st Gen)', part_name: 'Earbuds (Left)', part_model_number: 'A2084', part_type: 'left', notes: 'Identified in teardown', display_order: 2, date_added: new Date()},
+        {generation: 'AirPods Pro (1st Gen)', part_name: 'Charging Case', part_model_number: 'A2190', part_type: 'case', notes: 'MagSafe case first Pro', display_order: 3, date_added: new Date()},
+        {generation: 'AirPods Pro (1st Gen)', part_name: 'Charging Case (Lightning)', part_model_number: 'A2190-L', part_type: 'case', notes: 'Lightning case for Pro 1st Gen', display_order: 4, date_added: new Date()},
+        {generation: 'AirPods Pro (1st Gen)', part_name: 'Service Kit Replacement Pods (Left)', part_model_number: '661-17164', part_type: 'left', notes: 'Internal service kit', display_order: 5, date_added: new Date()},
+        {generation: 'AirPods Pro (1st Gen)', part_name: 'Service Kit Replacement Pods (Right)', part_model_number: '661-17165', part_type: 'right', notes: 'Internal service kit', display_order: 6, date_added: new Date()},
         // AirPods Pro (2nd Gen)
-        {generation: 'AirPods Pro (2nd Gen)', part_name: 'Charging Case (USB-C MagSafe)', part_model_number: 'A2968', part_type: 'case', notes: 'USB-C version', display_order: 1},
-        {generation: 'AirPods Pro (2nd Gen)', part_name: 'Charging Case (Lightning)', part_model_number: 'A2968-L', part_type: 'case', notes: 'Lightning version (compatibility case)', display_order: 2}
+        {generation: 'AirPods Pro (2nd Gen)', part_name: 'Charging Case (USB-C MagSafe)', part_model_number: 'A2968', part_type: 'case', notes: 'USB-C version', display_order: 1, date_added: new Date()},
+        {generation: 'AirPods Pro (2nd Gen)', part_name: 'Charging Case (Lightning)', part_model_number: 'A2968-L', part_type: 'case', notes: 'Lightning version (compatibility case)', display_order: 2, date_added: new Date()}
     ];
     
-    const stmt = db.prepare('INSERT INTO airpod_parts (generation, part_name, part_model_number, part_type, notes, display_order) VALUES (?, ?, ?, ?, ?, ?)');
-    initialParts.forEach(part => {
-        stmt.run(part.generation, part.part_name, part.part_model_number, part.part_type, part.notes, part.display_order);
-    });
-    stmt.finalize();
-    console.log('Initial AirPod parts data populated');
+    try {
+        await db.collection('airpod_parts').insertMany(initialParts);
+        console.log('Initial AirPod parts data populated');
+    } catch (err) {
+        console.error('Error populating initial parts:', err);
+    }
 }
 
 // Rate limiting for barcode verification (simple in-memory store)
@@ -211,7 +188,7 @@ app.get('/api/admin/check-auth', (req, res) => {
 });
 
 // Add new product (Admin only)
-app.post('/api/admin/product', requireAuth, (req, res) => {
+app.post('/api/admin/product', requireAuth, async (req, res) => {
     const { serial_number, security_barcode, part_type, generation, part_model_number, notes, ebay_order_number } = req.body;
     
     if (!serial_number || !security_barcode || !part_type) {
@@ -222,76 +199,89 @@ app.post('/api/admin/product', requireAuth, (req, res) => {
         return res.status(400).json({ error: 'Part type must be left, right, or case' });
     }
     
-    db.run(
-        'INSERT INTO products (serial_number, security_barcode, part_type, generation, part_model_number, notes, ebay_order_number) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [
-            serial_number.trim(), 
-            security_barcode.trim(), 
-            part_type.toLowerCase(),
-            generation ? generation.trim() : null,
-            part_model_number ? part_model_number.trim() : null,
-            notes ? notes.trim() : null,
-            ebay_order_number ? ebay_order_number.trim() : null
-        ],
-        function(err) {
-            if (err) {
-                if (err.message.includes('UNIQUE constraint')) {
-                    res.status(409).json({ error: 'Security barcode already exists' });
-                } else {
-                    res.status(500).json({ error: 'Database error: ' + err.message });
-                }
-            } else {
-                res.json({ 
-                    success: true, 
-                    message: 'Product added successfully',
-                    id: this.lastID 
-                });
-            }
+    try {
+        const product = {
+            serial_number: serial_number.trim(),
+            security_barcode: security_barcode.trim(),
+            part_type: part_type.toLowerCase(),
+            generation: generation ? generation.trim() : null,
+            part_model_number: part_model_number ? part_model_number.trim() : null,
+            notes: notes ? notes.trim() : null,
+            ebay_order_number: ebay_order_number ? ebay_order_number.trim() : null,
+            date_added: new Date(),
+            confirmation_checked: false,
+            confirmation_date: null
+        };
+        
+        const result = await db.collection('products').insertOne(product);
+        res.json({ 
+            success: true, 
+            message: 'Product added successfully',
+            id: result.insertedId.toString()
+        });
+    } catch (err) {
+        if (err.code === 11000) { // MongoDB duplicate key error
+            res.status(409).json({ error: 'Security barcode already exists' });
+        } else {
+            console.error('Database error:', err);
+            res.status(500).json({ error: 'Database error: ' + err.message });
         }
-    );
+    }
 });
 
 // Get all products (Admin only, paginated)
-app.get('/api/admin/products', requireAuth, (req, res) => {
+app.get('/api/admin/products', requireAuth, async (req, res) => {
     const limit = parseInt(req.query.limit) || 50;
     const offset = parseInt(req.query.offset) || 0;
     
-    db.all(
-        'SELECT * FROM products ORDER BY date_added DESC LIMIT ? OFFSET ?',
-        [limit, offset],
-        (err, rows) => {
-            if (err) {
-                res.status(500).json({ error: 'Database error: ' + err.message });
-            } else {
-                db.get('SELECT COUNT(*) as total FROM products', (err, countRow) => {
-                    if (err) {
-                        res.json({ products: rows, total: rows.length });
-                    } else {
-                        res.json({ products: rows, total: countRow.total });
-                    }
-                });
-            }
-        }
-    );
+    try {
+        const products = await db.collection('products')
+            .find({})
+            .sort({ date_added: -1 })
+            .limit(limit)
+            .skip(offset)
+            .toArray();
+        
+        const total = await db.collection('products').countDocuments();
+        
+        // Convert MongoDB ObjectId to string for JSON response
+        const productsWithStringIds = products.map(product => ({
+            ...product,
+            id: product._id.toString(),
+            _id: undefined
+        }));
+        
+        res.json({ products: productsWithStringIds, total });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
 });
 
 // Delete product (Admin only)
-app.delete('/api/admin/product/:id', requireAuth, (req, res) => {
-    const id = parseInt(req.params.id);
+app.delete('/api/admin/product/:id', requireAuth, async (req, res) => {
+    const id = req.params.id;
     
-    db.run('DELETE FROM products WHERE id = ?', [id], function(err) {
-        if (err) {
-            res.status(500).json({ error: 'Database error: ' + err.message });
-        } else if (this.changes === 0) {
+    try {
+        if (!ObjectId.isValid(id)) {
+            return res.status(400).json({ error: 'Invalid product ID' });
+        }
+        
+        const result = await db.collection('products').deleteOne({ _id: new ObjectId(id) });
+        
+        if (result.deletedCount === 0) {
             res.status(404).json({ error: 'Product not found' });
         } else {
             res.json({ success: true, message: 'Product deleted successfully' });
         }
-    });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
 });
 
 // Verify customer barcode (Public)
-app.post('/api/verify-barcode', (req, res) => {
+app.post('/api/verify-barcode', async (req, res) => {
     const { security_barcode } = req.body;
     const ip = req.ip || req.connection.remoteAddress;
     
@@ -304,104 +294,129 @@ app.post('/api/verify-barcode', (req, res) => {
         return res.status(429).json({ error: 'Too many attempts. Please try again later.' });
     }
     
-    db.get(
-        'SELECT id, serial_number, security_barcode, part_type FROM products WHERE security_barcode = ?',
-        [security_barcode.trim()],
-        (err, row) => {
-            if (err) {
-                res.status(500).json({ error: 'Database error: ' + err.message });
-            } else if (!row) {
-                res.status(404).json({ error: 'Invalid security code. Please check and try again.' });
-            } else {
-                res.json({ 
-                    success: true, 
-                    part_type: row.part_type,
-                    serial_number: row.serial_number
-                });
-            }
+    try {
+        const product = await db.collection('products').findOne({ 
+            security_barcode: security_barcode.trim() 
+        });
+        
+        if (!product) {
+            res.status(404).json({ error: 'Invalid security code. Please check and try again.' });
+        } else {
+            res.json({ 
+                success: true, 
+                part_type: product.part_type,
+                serial_number: product.serial_number,
+                generation: product.generation,
+                part_model_number: product.part_model_number
+            });
         }
-    );
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
 });
 
 // Log confirmation (Public)
-app.post('/api/confirm-understanding', (req, res) => {
+app.post('/api/confirm-understanding', async (req, res) => {
     const { security_barcode } = req.body;
     
     if (!security_barcode) {
         return res.status(400).json({ error: 'Security barcode is required' });
     }
     
-    db.run(
-        'UPDATE products SET confirmation_checked = 1, confirmation_date = CURRENT_TIMESTAMP WHERE security_barcode = ?',
-        [security_barcode.trim()],
-        function(err) {
-            if (err) {
-                res.status(500).json({ error: 'Database error: ' + err.message });
-            } else if (this.changes === 0) {
-                res.status(404).json({ error: 'Security barcode not found' });
-            } else {
-                res.json({ success: true, message: 'Confirmation logged' });
+    try {
+        const result = await db.collection('products').updateOne(
+            { security_barcode: security_barcode.trim() },
+            { 
+                $set: { 
+                    confirmation_checked: true, 
+                    confirmation_date: new Date() 
+                } 
             }
+        );
+        
+        if (result.matchedCount === 0) {
+            res.status(404).json({ error: 'Security barcode not found' });
+        } else {
+            res.json({ success: true, message: 'Confirmation logged' });
         }
-    );
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
 });
 
 // Get product info by barcode (for confirmation page)
-app.get('/api/product-info/:barcode', (req, res) => {
+app.get('/api/product-info/:barcode', async (req, res) => {
     const { barcode } = req.params;
     
-    db.get(
-        'SELECT part_type, serial_number, generation, part_model_number FROM products WHERE security_barcode = ?',
-        [barcode.trim()],
-        (err, row) => {
-            if (err) {
-                res.status(500).json({ error: 'Database error: ' + err.message });
-            } else if (!row) {
-                res.status(404).json({ error: 'Product not found' });
-            } else {
-                res.json({ 
-                    part_type: row.part_type,
-                    serial_number: row.serial_number,
-                    generation: row.generation,
-                    part_model_number: row.part_model_number
-                });
-            }
+    try {
+        const product = await db.collection('products').findOne({ 
+            security_barcode: barcode.trim() 
+        });
+        
+        if (!product) {
+            res.status(404).json({ error: 'Product not found' });
+        } else {
+            res.json({ 
+                part_type: product.part_type,
+                serial_number: product.serial_number,
+                generation: product.generation,
+                part_model_number: product.part_model_number
+            });
         }
-    );
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
 });
 
 // Get all parts (for admin form)
-app.get('/api/admin/parts', requireAuth, (req, res) => {
-    db.all(
-        'SELECT * FROM airpod_parts ORDER BY generation, display_order, part_name',
-        (err, rows) => {
-            if (err) {
-                res.status(500).json({ error: 'Database error: ' + err.message });
-            } else {
-                res.json({ parts: rows });
-            }
-        }
-    );
+app.get('/api/admin/parts', requireAuth, async (req, res) => {
+    try {
+        const parts = await db.collection('airpod_parts')
+            .find({})
+            .sort({ generation: 1, display_order: 1, part_name: 1 })
+            .toArray();
+        
+        const partsWithStringIds = parts.map(part => ({
+            ...part,
+            id: part._id.toString(),
+            _id: undefined
+        }));
+        
+        res.json({ parts: partsWithStringIds });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
 });
 
 // Get parts by generation
-app.get('/api/admin/parts/:generation', requireAuth, (req, res) => {
+app.get('/api/admin/parts/:generation', requireAuth, async (req, res) => {
     const generation = decodeURIComponent(req.params.generation);
-    db.all(
-        'SELECT * FROM airpod_parts WHERE generation = ? ORDER BY display_order, part_name',
-        [generation],
-        (err, rows) => {
-            if (err) {
-                res.status(500).json({ error: 'Database error: ' + err.message });
-            } else {
-                res.json({ parts: rows });
-            }
-        }
-    );
+    
+    try {
+        const parts = await db.collection('airpod_parts')
+            .find({ generation })
+            .sort({ display_order: 1, part_name: 1 })
+            .toArray();
+        
+        const partsWithStringIds = parts.map(part => ({
+            ...part,
+            id: part._id.toString(),
+            _id: undefined
+        }));
+        
+        res.json({ parts: partsWithStringIds });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
 });
 
 // Add new part
-app.post('/api/admin/part', requireAuth, (req, res) => {
+app.post('/api/admin/part', requireAuth, async (req, res) => {
     const { generation, part_name, part_model_number, part_type, notes, display_order } = req.body;
     
     if (!generation || !part_name || !part_model_number || !part_type) {
@@ -414,35 +429,33 @@ app.post('/api/admin/part', requireAuth, (req, res) => {
     
     console.log('Adding new part:', { generation, part_name, part_model_number, part_type });
     
-    db.run(
-        'INSERT INTO airpod_parts (generation, part_name, part_model_number, part_type, notes, display_order) VALUES (?, ?, ?, ?, ?, ?)',
-        [
-            generation.trim(),
-            part_name.trim(),
-            part_model_number.trim(),
-            part_type.toLowerCase(),
-            notes ? notes.trim() : null,
-            display_order || 0
-        ],
-        function(err) {
-            if (err) {
-                console.error('Database insert error:', err);
-                if (err.message.includes('UNIQUE constraint')) {
-                    res.status(409).json({ error: 'A part with this generation and name already exists' });
-                } else {
-                    res.status(500).json({ error: 'Database error: ' + err.message });
-                }
-            } else {
-                console.log('Part added successfully, id:', this.lastID);
-                res.json({ success: true, message: 'Part added successfully', id: this.lastID });
-            }
+    try {
+        const part = {
+            generation: generation.trim(),
+            part_name: part_name.trim(),
+            part_model_number: part_model_number.trim(),
+            part_type: part_type.toLowerCase(),
+            notes: notes ? notes.trim() : null,
+            display_order: display_order || 0,
+            date_added: new Date()
+        };
+        
+        const result = await db.collection('airpod_parts').insertOne(part);
+        console.log('Part added successfully, id:', result.insertedId.toString());
+        res.json({ success: true, message: 'Part added successfully', id: result.insertedId.toString() });
+    } catch (err) {
+        console.error('Database insert error:', err);
+        if (err.code === 11000) {
+            res.status(409).json({ error: 'A part with this generation and name already exists' });
+        } else {
+            res.status(500).json({ error: 'Database error: ' + err.message });
         }
-    );
+    }
 });
 
 // Update part
-app.put('/api/admin/part/:id', requireAuth, (req, res) => {
-    const id = parseInt(req.params.id);
+app.put('/api/admin/part/:id', requireAuth, async (req, res) => {
+    const id = req.params.id;
     const { generation, part_name, part_model_number, part_type, notes, display_order } = req.body;
     
     if (!generation || !part_name || !part_model_number || !part_type) {
@@ -455,59 +468,69 @@ app.put('/api/admin/part/:id', requireAuth, (req, res) => {
     
     console.log('Updating part:', { id, generation, part_name, part_model_number, part_type });
     
-    db.run(
-        'UPDATE airpod_parts SET generation = ?, part_name = ?, part_model_number = ?, part_type = ?, notes = ?, display_order = ? WHERE id = ?',
-        [
-            generation.trim(),
-            part_name.trim(),
-            part_model_number.trim(),
-            part_type.toLowerCase(),
-            notes ? notes.trim() : null,
-            display_order || 0,
-            id
-        ],
-        function(err) {
-            if (err) {
-                console.error('Database update error:', err);
-                res.status(500).json({ error: 'Database error: ' + err.message });
-            } else if (this.changes === 0) {
-                console.log('Part not found for update, id:', id);
-                res.status(404).json({ error: 'Part not found' });
-            } else {
-                console.log('Part updated successfully, changes:', this.changes);
-                res.json({ success: true, message: 'Part updated successfully' });
-            }
+    try {
+        if (!ObjectId.isValid(id)) {
+            return res.status(400).json({ error: 'Invalid part ID' });
         }
-    );
+        
+        const result = await db.collection('airpod_parts').updateOne(
+            { _id: new ObjectId(id) },
+            {
+                $set: {
+                    generation: generation.trim(),
+                    part_name: part_name.trim(),
+                    part_model_number: part_model_number.trim(),
+                    part_type: part_type.toLowerCase(),
+                    notes: notes ? notes.trim() : null,
+                    display_order: display_order || 0
+                }
+            }
+        );
+        
+        if (result.matchedCount === 0) {
+            console.log('Part not found for update, id:', id);
+            res.status(404).json({ error: 'Part not found' });
+        } else {
+            console.log('Part updated successfully, matched:', result.matchedCount);
+            res.json({ success: true, message: 'Part updated successfully' });
+        }
+    } catch (err) {
+        console.error('Database update error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
 });
 
 // Delete part
-app.delete('/api/admin/part/:id', requireAuth, (req, res) => {
-    const id = parseInt(req.params.id);
+app.delete('/api/admin/part/:id', requireAuth, async (req, res) => {
+    const id = req.params.id;
     
-    db.run('DELETE FROM airpod_parts WHERE id = ?', [id], function(err) {
-        if (err) {
-            res.status(500).json({ error: 'Database error: ' + err.message });
-        } else if (this.changes === 0) {
+    try {
+        if (!ObjectId.isValid(id)) {
+            return res.status(400).json({ error: 'Invalid part ID' });
+        }
+        
+        const result = await db.collection('airpod_parts').deleteOne({ _id: new ObjectId(id) });
+        
+        if (result.deletedCount === 0) {
             res.status(404).json({ error: 'Part not found' });
         } else {
             res.json({ success: true, message: 'Part deleted successfully' });
         }
-    });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
 });
 
 // Get all generations
-app.get('/api/admin/generations', requireAuth, (req, res) => {
-    db.all(
-        'SELECT DISTINCT generation FROM airpod_parts ORDER BY generation',
-        (err, rows) => {
-            if (err) {
-                res.status(500).json({ error: 'Database error: ' + err.message });
-            } else {
-                res.json({ generations: rows.map(r => r.generation) });
-            }
-        }
-    );
+app.get('/api/admin/generations', requireAuth, async (req, res) => {
+    try {
+        const generations = await db.collection('airpod_parts').distinct('generation');
+        res.json({ generations: generations.sort() });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
 });
 
 // Serve admin pages
@@ -545,13 +568,6 @@ app.listen(PORT, () => {
 
 // Graceful shutdown
 process.on('SIGINT', () => {
-    db.close((err) => {
-        if (err) {
-            console.error('Error closing database:', err.message);
-        } else {
-            console.log('Database connection closed');
-        }
-        process.exit(0);
-    });
+    console.log('Shutting down server...');
+    process.exit(0);
 });
-
