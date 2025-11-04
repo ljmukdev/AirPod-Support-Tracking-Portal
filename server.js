@@ -66,21 +66,40 @@ function getMongoConnectionString() {
 const MONGODB_URI = getMongoConnectionString();
 
 if (!MONGODB_URI) {
-    console.error('MongoDB connection string not found or contains unresolved template variables!');
-    console.error('\nPlease set one of:');
-    console.error('  - MONGODB_URI (full connection string, must be resolved)');
-    console.error('  - MONGO_URL (must be resolved)');
-    console.error('  - MONGO_PUBLIC_URL (must be resolved)');
-    console.error('  - MONGOHOST + MONGOUSER + MONGOPASSWORD (all must be resolved)');
+    console.error('╔════════════════════════════════════════════════════════════════╗');
+    console.error('║  MONGODB CONNECTION STRING NOT FOUND!                          ║');
+    console.error('╚════════════════════════════════════════════════════════════════╝');
+    console.error('\n📋 STEP-BY-STEP FIX:');
+    console.error('\n1. Go to Railway Dashboard → Your MongoDB Service → Variables tab');
+    console.error('2. Find the connection string variable (MONGO_URL, MONGODB_URI, etc.)');
+    console.error('3. Copy the FULL connection string (starts with mongodb://)');
+    console.error('4. Go to Your App Service → Variables tab');
+    console.error('5. Add new variable:');
+    console.error('   Name: MONGODB_URI');
+    console.error('   Value: (paste the full connection string)');
+    console.error('\n💡 Example connection string format:');
+    console.error('   mongodb://username:password@host:port/database');
     console.error('\n⚠️  Template variables like ${MONGOUSER} are not supported.');
-    console.error('   Railway should auto-resolve these when services are connected.');
-    console.error('\nAvailable MongoDB environment variables:');
+    console.error('   You need the ACTUAL resolved values, not templates.');
+    console.error('\n📊 Current MongoDB environment variables:');
     const mongoVars = Object.keys(process.env).filter(k => k.includes('MONGO'));
-    mongoVars.forEach(key => {
-        const value = process.env[key];
-        const isTemplate = value && value.includes('${');
-        console.error(`   ${key} = ${isTemplate ? '[TEMPLATE - NOT RESOLVED]' : value ? '[SET]' : '[NOT SET]'}`);
-    });
+    if (mongoVars.length === 0) {
+        console.error('   ❌ No MongoDB variables found at all!');
+    } else {
+        mongoVars.forEach(key => {
+            const value = process.env[key];
+            const isTemplate = value && typeof value === 'string' && value.includes('${');
+            if (isTemplate) {
+                console.error(`   ⚠️  ${key} = [TEMPLATE - NOT RESOLVED] "${value.substring(0, 50)}..."`);
+            } else if (value) {
+                console.error(`   ✅ ${key} = [RESOLVED] (${value.length} chars)`);
+            } else {
+                console.error(`   ❌ ${key} = [NOT SET]`);
+            }
+        });
+    }
+    console.error('\n🔧 After adding MONGODB_URI, Railway will auto-redeploy.');
+    console.error('   Check logs again - you should see "✅ Connected to MongoDB successfully"');
     process.exit(1);
 }
 
