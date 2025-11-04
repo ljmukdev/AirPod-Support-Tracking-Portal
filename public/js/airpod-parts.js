@@ -32,6 +32,11 @@ const airpodParts = {
             partModelNumber: 'A1938',
             partType: 'case',
             notes: 'Qi Wireless case for gen1/2'
+        },
+        'Charging Case (Lightning)': {
+            partModelNumber: 'A1602',
+            partType: 'case',
+            notes: 'Lightning case - works with gen 1 & gen 2'
         }
     },
     'AirPods (3rd Gen)': {
@@ -49,6 +54,11 @@ const airpodParts = {
             partModelNumber: 'A2566',
             partType: 'case',
             notes: 'MagSafe case, gen3'
+        },
+        'Charging Case (Lightning)': {
+            partModelNumber: 'A2566-L',
+            partType: 'case',
+            notes: 'Lightning case for gen3'
         }
     },
     'AirPods (4th Gen) standard line (non-Pro)': {
@@ -101,6 +111,11 @@ const airpodParts = {
             partType: 'case',
             notes: 'MagSafe case first Pro'
         },
+        'Charging Case (Lightning)': {
+            partModelNumber: 'A2190-L',
+            partType: 'case',
+            notes: 'Lightning case for Pro 1st Gen'
+        },
         'Service Kit Replacement Pods (Left)': {
             partModelNumber: '661-17164',
             partType: 'left',
@@ -117,6 +132,11 @@ const airpodParts = {
             partModelNumber: 'A2968',
             partType: 'case',
             notes: 'USB-C version'
+        },
+        'Charging Case (Lightning)': {
+            partModelNumber: 'A2968-L',
+            partType: 'case',
+            notes: 'Lightning version (compatibility case)'
         }
     }
 };
