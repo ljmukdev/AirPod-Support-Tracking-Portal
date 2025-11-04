@@ -13,9 +13,17 @@ app.set('trust proxy', 1);
 // Middleware
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+
+// Handle favicon requests gracefully (suppress 404 errors)
+app.get('/favicon.ico', (req, res) => {
+    res.status(204).end(); // No Content
+});
+
 app.use(express.static('public'));
 
 // Session configuration
+// Note: MemoryStore warning is expected in development. For production with multiple instances,
+// consider using Redis or MongoDB session store (requires additional setup).
 app.use(session({
     secret: process.env.SESSION_SECRET || 'LJM_SECURE_SESSION_KEY_2024',
     resave: false,
