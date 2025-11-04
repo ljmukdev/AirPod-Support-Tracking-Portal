@@ -130,6 +130,7 @@ if (productForm) {
         const partType = document.getElementById('partType').value;
         const partModelNumber = document.getElementById('partModelNumber').value.trim();
         const notes = document.getElementById('notes').value.trim();
+        const ebayOrderNumber = document.getElementById('ebayOrderNumber').value.trim();
         const addProductButton = document.getElementById('addProductButton');
         
         if (!serialNumber || !securityBarcode || !generation || !partSelection || !partType) {
@@ -152,7 +153,8 @@ if (productForm) {
                     part_type: partType,
                     generation: generation,
                     part_model_number: partModelNumber,
-                    notes: notes || null
+                    notes: notes || null,
+                    ebay_order_number: ebayOrderNumber || null
                 })
             });
             
@@ -191,7 +193,7 @@ async function loadProducts() {
         
         if (response.ok && data.products) {
             if (data.products.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px;">No products found</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 20px;">No products found</td></tr>';
                 return;
             }
             
@@ -215,6 +217,7 @@ async function loadProducts() {
                         <td>${escapeHtml(product.generation || '')}</td>
                         <td>${escapeHtml(product.part_model_number || '')}</td>
                         <td>${partTypeMap[product.part_type] || product.part_type}</td>
+                        <td>${escapeHtml(product.ebay_order_number || '')}</td>
                         <td>${formattedDate}</td>
                         <td>${confirmationStatus}</td>
                         <td>
@@ -226,11 +229,11 @@ async function loadProducts() {
                 `;
             }).join('');
         } else {
-            tableBody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px; color: red;">Error loading products</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 20px; color: red;">Error loading products</td></tr>';
         }
     } catch (error) {
         console.error('Load products error:', error);
-        tableBody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px; color: red;">Network error. Please refresh the page.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 20px; color: red;">Network error. Please refresh the page.</td></tr>';
     }
 }
 

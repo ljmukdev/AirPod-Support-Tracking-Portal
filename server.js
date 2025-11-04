@@ -47,6 +47,7 @@ function initializeDatabase() {
         generation TEXT,
         part_model_number TEXT,
         notes TEXT,
+        ebay_order_number TEXT,
         date_added DATETIME DEFAULT CURRENT_TIMESTAMP,
         confirmation_checked BOOLEAN DEFAULT 0,
         confirmation_date DATETIME
@@ -59,6 +60,7 @@ function initializeDatabase() {
             db.run(`ALTER TABLE products ADD COLUMN generation TEXT`, () => {});
             db.run(`ALTER TABLE products ADD COLUMN part_model_number TEXT`, () => {});
             db.run(`ALTER TABLE products ADD COLUMN notes TEXT`, () => {});
+            db.run(`ALTER TABLE products ADD COLUMN ebay_order_number TEXT`, () => {});
         }
     });
     
@@ -207,7 +209,7 @@ app.get('/api/admin/check-auth', (req, res) => {
 
 // Add new product (Admin only)
 app.post('/api/admin/product', requireAuth, (req, res) => {
-    const { serial_number, security_barcode, part_type, generation, part_model_number, notes } = req.body;
+    const { serial_number, security_barcode, part_type, generation, part_model_number, notes, ebay_order_number } = req.body;
     
     if (!serial_number || !security_barcode || !part_type) {
         return res.status(400).json({ error: 'Serial number, security barcode, and part type are required' });
@@ -218,14 +220,15 @@ app.post('/api/admin/product', requireAuth, (req, res) => {
     }
     
     db.run(
-        'INSERT INTO products (serial_number, security_barcode, part_type, generation, part_model_number, notes) VALUES (?, ?, ?, ?, ?, ?)',
+        'INSERT INTO products (serial_number, security_barcode, part_type, generation, part_model_number, notes, ebay_order_number) VALUES (?, ?, ?, ?, ?, ?, ?)',
         [
             serial_number.trim(), 
             security_barcode.trim(), 
             part_type.toLowerCase(),
             generation ? generation.trim() : null,
             part_model_number ? part_model_number.trim() : null,
-            notes ? notes.trim() : null
+            notes ? notes.trim() : null,
+            ebay_order_number ? ebay_order_number.trim() : null
         ],
         function(err) {
             if (err) {
