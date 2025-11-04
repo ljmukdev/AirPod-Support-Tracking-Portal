@@ -175,38 +175,69 @@ if (!MONGODB_URI) {
 console.log('Attempting MongoDB connection...');
 console.log('Connection string format:', MONGODB_URI.substring(0, 20) + '...' + (MONGODB_URI.includes('@') ? ' (with auth)' : ' (no auth)'));
 
-MongoClient.connect(MONGODB_URI)
-    .then(client => {
-        console.log('✅ Connected to MongoDB successfully');
-        // Use the database name from connection string or default
-        const dbName = process.env.MONGODATABASE || process.env.MONGODB_DATABASE || 'AutoRestockDB';
-        db = client.db(dbName);
-        initializeDatabase();
-    })
+// Try connecting with multiple authSource options
+async function tryConnect() {
+    const MONGOUSER = process.env.MONGOUSER;
+    const MONGOPASSWORD = process.env.MONGOPASSWORD;
+    const MONGOHOST = process.env.MONGOHOST;
+    const MONGOPORT = process.env.MONGOPORT || '27017';
+    const database = process.env.MONGODATABASE || process.env.MONGODB_DATABASE || 'AutoRestockDB';
+    const encodedPassword = encodeURIComponent(MONGOPASSWORD);
+    
+    // Try different authSource options
+    const authOptions = [
+        { authSource: 'admin', desc: 'admin (standard)' },
+        { authSource: 'AutoRestockDB', desc: 'AutoRestockDB (database name)' },
+        { authSource: null, desc: 'no authSource' }
+    ];
+    
+    for (const option of authOptions) {
+        const authSourceParam = option.authSource ? `?authSource=${option.authSource}` : '';
+        const connectionString = `mongodb://${MONGOUSER}:${encodedPassword}@${MONGOHOST}:${MONGOPORT}/${database}${authSourceParam}`;
+        
+        try {
+            console.log(`Trying connection with authSource: ${option.desc}...`);
+            const client = await MongoClient.connect(connectionString);
+            console.log(`✅ Connected to MongoDB successfully using authSource: ${option.desc}`);
+            db = client.db(database);
+            await initializeDatabase();
+            return; // Success, exit function
+        } catch (err) {
+            if (err.message.includes('Authentication failed') || err.message.includes('auth')) {
+                console.log(`❌ Failed with ${option.desc}: ${err.message}`);
+                continue; // Try next option
+            } else {
+                // Other error, throw it
+                throw err;
+            }
+        }
+    }
+    
+    // If we get here, all auth options failed
+    throw new Error('All authentication methods failed');
+}
+
+tryConnect()
     .catch(err => {
         console.error('❌ MongoDB connection error:', err.message);
-        console.error('Connection string (first 50 chars):', MONGODB_URI.substring(0, 50));
         
-        // If authentication failed, provide troubleshooting steps
-        if (err.message.includes('Authentication failed') || err.message.includes('auth')) {
-            console.error('\n🔧 AUTHENTICATION FAILED - Troubleshooting Steps:');
-            console.error('\n1. ✅ Verify credentials in Railway MongoDB service:');
-            console.error('   - Go to MongoDB service → Variables');
-            console.error('   - Check MONGO_INITDB_ROOT_USERNAME (should match MONGOUSER)');
-            console.error('   - Check MONGO_INITDB_ROOT_PASSWORD (should match MONGOPASSWORD)');
-            console.error('\n2. ✅ Add MONGODATABASE variable to your App service:');
-            console.error('   Name: MONGODATABASE');
-            console.error('   Value: AutoRestockDB (or your actual database name)');
-            console.error('\n3. ✅ Try these alternative authSource options:');
-            console.error('   - Current: authSource=admin');
-            console.error('   - Alternative: Remove authSource or use authSource=railway');
-            console.error('\n4. 📋 Current connection details:');
-            console.error(`   User: ${process.env.MONGOUSER || 'NOT SET'}`);
-            console.error(`   Host: ${process.env.MONGOHOST || 'NOT SET'}`);
-            console.error(`   Port: ${process.env.MONGOPORT || 'NOT SET'}`);
-            console.error(`   Database: ${process.env.MONGODATABASE || 'AutoRestockDB (default)'}`);
-            console.error('\n💡 TIP: Railway MongoDB typically uses authSource=admin for authentication');
-        }
+        // Provide troubleshooting steps
+        console.error('\n🔧 AUTHENTICATION FAILED - Troubleshooting Steps:');
+        console.error('\n1. ✅ Double-check credentials in Railway MongoDB service:');
+        console.error('   - Go to MongoDB service → Variables');
+        console.error('   - Verify MONGO_INITDB_ROOT_USERNAME matches your MONGOUSER');
+        console.error('   - Verify MONGO_INITDB_ROOT_PASSWORD matches your MONGOPASSWORD');
+        console.error('   - Check for any extra spaces or quotes in the password');
+        console.error('\n2. ✅ Verify your App service variables:');
+        console.error(`   MONGOUSER = "${process.env.MONGOUSER || 'NOT SET'}"`);
+        console.error(`   MONGOPASSWORD = "${process.env.MONGOPASSWORD ? '[SET - ' + process.env.MONGOPASSWORD.length + ' chars]' : 'NOT SET'}"`);
+        console.error(`   MONGOHOST = "${process.env.MONGOHOST || 'NOT SET'}"`);
+        console.error(`   MONGOPORT = "${process.env.MONGOPORT || 'NOT SET'}"`);
+        console.error(`   MONGODATABASE = "${process.env.MONGODATABASE || 'AutoRestockDB (default)'}"`);
+        console.error('\n3. 💡 TIP: Copy the EXACT password from MongoDB service variables');
+        console.error('   - No extra spaces');
+        console.error('   - No quotes around the value');
+        console.error('   - Check if password has special characters that need handling');
         
         process.exit(1);
     });
