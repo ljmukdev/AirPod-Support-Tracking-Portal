@@ -30,31 +30,33 @@ app.use(session({
 // MongoDB connection
 let db;
 
+// Helper to check if a value is a resolved variable (not a template string)
+function isResolved(value) {
+    return value && typeof value === 'string' && !value.includes('${') && value.length > 0;
+}
+
 // Build MongoDB connection string from various Railway environment variables
 function getMongoConnectionString() {
-    // Try full connection string first
-    if (process.env.MONGODB_URI) {
-        return process.env.MONGODB_URI;
-    }
-    if (process.env.MONGO_URL) {
-        return process.env.MONGO_URL;
-    }
-    if (process.env.MONGO_PUBLIC_URL) {
-        return process.env.MONGO_PUBLIC_URL;
+    // Try full connection string first (only if it's resolved, not a template)
+    const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URL || process.env.MONGO_PUBLIC_URL;
+    if (mongoUri && isResolved(mongoUri)) {
+        return mongoUri;
     }
     
-    // Try building from individual components (Railway MongoDB format)
+    // Try building from individual components (only if they're resolved)
     const MONGOUSER = process.env.MONGOUSER || process.env.MONGODB_USER;
     const MONGOPASSWORD = process.env.MONGOPASSWORD || process.env.MONGODB_PASSWORD;
     const MONGOHOST = process.env.MONGOHOST || process.env.MONGODB_HOST;
     const MONGOPORT = process.env.MONGOPORT || process.env.MONGODB_PORT || '27017';
     const MONGODATABASE = process.env.MONGODATABASE || process.env.MONGODB_DATABASE || 'admin';
     
-    if (MONGOHOST) {
-        if (MONGOUSER && MONGOPASSWORD) {
-            return `mongodb://${MONGOUSER}:${encodeURIComponent(MONGOPASSWORD)}@${MONGOHOST}:${MONGOPORT}/${MONGODATABASE}?authSource=admin`;
-        } else {
-            return `mongodb://${MONGOHOST}:${MONGOPORT}/${MONGODATABASE}`;
+    // Only build connection string if all required components are resolved (not templates)
+    if (MONGOHOST && isResolved(MONGOHOST)) {
+        if (MONGOUSER && MONGOPASSWORD && isResolved(MONGOUSER) && isResolved(MONGOPASSWORD)) {
+            return `mongodb://${MONGOUSER}:${encodeURIComponent(MONGOPASSWORD)}@${MONGOHOST}:${MONGOPORT}/${MONGODATABASE || 'admin'}?authSource=admin`;
+        } else if (!MONGOUSER || !MONGOPASSWORD) {
+            // No auth
+            return `mongodb://${MONGOHOST}:${MONGOPORT}/${MONGODATABASE || 'admin'}`;
         }
     }
     
@@ -64,13 +66,21 @@ function getMongoConnectionString() {
 const MONGODB_URI = getMongoConnectionString();
 
 if (!MONGODB_URI) {
-    console.error('MongoDB connection string not found!');
-    console.error('Please set one of:');
-    console.error('  - MONGODB_URI (full connection string)');
-    console.error('  - MONGO_URL');
-    console.error('  - MONGO_PUBLIC_URL');
-    console.error('  - MONGOHOST + MONGOUSER + MONGOPASSWORD (individual components)');
-    console.error('\nAvailable environment variables:', Object.keys(process.env).filter(k => k.includes('MONGO')));
+    console.error('MongoDB connection string not found or contains unresolved template variables!');
+    console.error('\nPlease set one of:');
+    console.error('  - MONGODB_URI (full connection string, must be resolved)');
+    console.error('  - MONGO_URL (must be resolved)');
+    console.error('  - MONGO_PUBLIC_URL (must be resolved)');
+    console.error('  - MONGOHOST + MONGOUSER + MONGOPASSWORD (all must be resolved)');
+    console.error('\n⚠️  Template variables like ${MONGOUSER} are not supported.');
+    console.error('   Railway should auto-resolve these when services are connected.');
+    console.error('\nAvailable MongoDB environment variables:');
+    const mongoVars = Object.keys(process.env).filter(k => k.includes('MONGO'));
+    mongoVars.forEach(key => {
+        const value = process.env[key];
+        const isTemplate = value && value.includes('${');
+        console.error(`   ${key} = ${isTemplate ? '[TEMPLATE - NOT RESOLVED]' : value ? '[SET]' : '[NOT SET]'}`);
+    });
     process.exit(1);
 }
 
