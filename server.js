@@ -87,7 +87,7 @@ function getMongoConnectionString() {
     let MONGOPASSWORD = process.env.MONGOPASSWORD || process.env.MONGODB_PASSWORD || process.env.MONGO_INITDB_ROOT_PASSWORD;
     let MONGOHOST = process.env.MONGOHOST || process.env.MONGODB_HOST || process.env.RAILWAY_PRIVATE_DOMAIN;
     let MONGOPORT = process.env.MONGOPORT || process.env.MONGODB_PORT || process.env.RAILWAY_TCP_PROXY_PORT || '27017';
-    const MONGODATABASE = process.env.MONGODATABASE || process.env.MONGODB_DATABASE || 'admin';
+    const MONGODATABASE = process.env.MONGODATABASE || process.env.MONGODB_DATABASE || 'railway';
     
     // Resolve any template variables in individual components
     if (MONGOUSER && MONGOUSER.includes('${')) {
@@ -106,7 +106,12 @@ function getMongoConnectionString() {
     // Only build connection string if all required components are resolved (not templates)
     if (MONGOHOST && isResolved(MONGOHOST)) {
         if (MONGOUSER && MONGOPASSWORD && isResolved(MONGOUSER) && isResolved(MONGOPASSWORD)) {
-            return `mongodb://${MONGOUSER}:${encodeURIComponent(MONGOPASSWORD)}@${MONGOHOST}:${MONGOPORT}/${MONGODATABASE || 'admin'}?authSource=admin`;
+            // Try multiple authSource options - Railway MongoDB might use 'admin' or the database name
+            const encodedPassword = encodeURIComponent(MONGOPASSWORD);
+            const database = MONGODATABASE || 'admin';
+            
+            // Try with authSource=admin first (most common)
+            return `mongodb://${MONGOUSER}:${encodedPassword}@${MONGOHOST}:${MONGOPORT}/${database}?authSource=admin`;
         } else if (!MONGOUSER || !MONGOPASSWORD) {
             // No auth
             return `mongodb://${MONGOHOST}:${MONGOPORT}/${MONGODATABASE || 'admin'}`;
@@ -171,12 +176,26 @@ console.log('Connection string format:', MONGODB_URI.substring(0, 20) + '...' + 
 MongoClient.connect(MONGODB_URI)
     .then(client => {
         console.log('✅ Connected to MongoDB successfully');
-        db = client.db();
+        // Use the database name from connection string or default
+        const dbName = process.env.MONGODATABASE || process.env.MONGODB_DATABASE || 'railway';
+        db = client.db(dbName);
         initializeDatabase();
     })
     .catch(err => {
         console.error('❌ MongoDB connection error:', err.message);
         console.error('Connection string (first 50 chars):', MONGODB_URI.substring(0, 50));
+        
+        // If authentication failed, try alternative connection strings
+        if (err.message.includes('Authentication failed') || err.message.includes('auth')) {
+            console.error('\n🔧 Authentication failed. Trying alternative connection methods...');
+            console.error('\nPossible fixes:');
+            console.error('1. Check if password is correct in Railway MongoDB service');
+            console.error('2. Try adding MONGODATABASE variable with value: railway');
+            console.error('3. Verify MONGOUSER matches the username in MongoDB service');
+            console.error('\nCurrent connection string format:');
+            console.error(`   mongodb://${process.env.MONGOUSER || 'USER'}:***@${process.env.MONGOHOST || 'HOST'}:${process.env.MONGOPORT || 'PORT'}/...`);
+        }
+        
         process.exit(1);
     });
 
