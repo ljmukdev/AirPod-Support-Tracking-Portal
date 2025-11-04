@@ -108,7 +108,7 @@ function getMongoConnectionString() {
         if (MONGOUSER && MONGOPASSWORD && isResolved(MONGOUSER) && isResolved(MONGOPASSWORD)) {
             // Try multiple authSource options - Railway MongoDB might use 'admin' or the database name
             const encodedPassword = encodeURIComponent(MONGOPASSWORD);
-            const database = MONGODATABASE || 'railway';
+            const database = MONGODATABASE || 'AutoRestockDB';
             
             // Try with authSource matching database name or admin
             // Railway MongoDB typically uses 'admin' as authSource, but database name can work too
