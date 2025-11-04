@@ -28,11 +28,14 @@ app.use(session({
 }));
 
 // Initialize SQLite database
-const db = new sqlite3.Database('./database.sqlite', (err) => {
+// Use Railway's persistent volume path if available, otherwise use current directory
+const DB_PATH = process.env.DATABASE_PATH || './database.sqlite';
+const db = new sqlite3.Database(DB_PATH, (err) => {
     if (err) {
         console.error('Error opening database:', err.message);
+        console.error('Database path:', DB_PATH);
     } else {
-        console.log('Connected to SQLite database');
+        console.log('Connected to SQLite database at:', DB_PATH);
         initializeDatabase();
     }
 });
@@ -409,6 +412,8 @@ app.post('/api/admin/part', requireAuth, (req, res) => {
         return res.status(400).json({ error: 'Part type must be left, right, or case' });
     }
     
+    console.log('Adding new part:', { generation, part_name, part_model_number, part_type });
+    
     db.run(
         'INSERT INTO airpod_parts (generation, part_name, part_model_number, part_type, notes, display_order) VALUES (?, ?, ?, ?, ?, ?)',
         [
@@ -421,12 +426,14 @@ app.post('/api/admin/part', requireAuth, (req, res) => {
         ],
         function(err) {
             if (err) {
+                console.error('Database insert error:', err);
                 if (err.message.includes('UNIQUE constraint')) {
                     res.status(409).json({ error: 'A part with this generation and name already exists' });
                 } else {
                     res.status(500).json({ error: 'Database error: ' + err.message });
                 }
             } else {
+                console.log('Part added successfully, id:', this.lastID);
                 res.json({ success: true, message: 'Part added successfully', id: this.lastID });
             }
         }
@@ -446,6 +453,8 @@ app.put('/api/admin/part/:id', requireAuth, (req, res) => {
         return res.status(400).json({ error: 'Part type must be left, right, or case' });
     }
     
+    console.log('Updating part:', { id, generation, part_name, part_model_number, part_type });
+    
     db.run(
         'UPDATE airpod_parts SET generation = ?, part_name = ?, part_model_number = ?, part_type = ?, notes = ?, display_order = ? WHERE id = ?',
         [
@@ -459,10 +468,13 @@ app.put('/api/admin/part/:id', requireAuth, (req, res) => {
         ],
         function(err) {
             if (err) {
+                console.error('Database update error:', err);
                 res.status(500).json({ error: 'Database error: ' + err.message });
             } else if (this.changes === 0) {
+                console.log('Part not found for update, id:', id);
                 res.status(404).json({ error: 'Part not found' });
             } else {
+                console.log('Part updated successfully, changes:', this.changes);
                 res.json({ success: true, message: 'Part updated successfully' });
             }
         }
