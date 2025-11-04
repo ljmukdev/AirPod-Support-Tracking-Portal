@@ -1,10 +1,11 @@
 // Dashboard Parts Loader - Loads parts from API instead of hardcoded data
 
-// Use existing API_BASE if available, otherwise declare it
+// Define API_BASE globally if not already defined
 if (typeof window.API_BASE === 'undefined') {
     window.API_BASE = '';
 }
-const API_BASE = window.API_BASE;
+// Reference the global API_BASE
+var API_BASE = window.API_BASE;
 
 // Load parts from API and populate dropdowns
 let partsData = {};
