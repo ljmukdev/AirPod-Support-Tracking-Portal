@@ -61,6 +61,76 @@ function initializeDatabase() {
             db.run(`ALTER TABLE products ADD COLUMN notes TEXT`, () => {});
         }
     });
+    
+    // Create parts table for managing AirPod parts database
+    db.run(`CREATE TABLE IF NOT EXISTS airpod_parts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        generation TEXT NOT NULL,
+        part_name TEXT NOT NULL,
+        part_model_number TEXT NOT NULL,
+        part_type TEXT NOT NULL,
+        notes TEXT,
+        display_order INTEGER DEFAULT 0,
+        date_added DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(generation, part_name)
+    )`, (err) => {
+        if (err) {
+            console.error('Error creating airpod_parts table:', err.message);
+        } else {
+            console.log('AirPod parts table initialized');
+            // Check if table is empty and populate with initial data
+            db.get('SELECT COUNT(*) as count FROM airpod_parts', (err, row) => {
+                if (!err && row && row.count === 0) {
+                    populateInitialParts();
+                }
+            });
+        }
+    });
+}
+
+// Populate initial parts data
+function populateInitialParts() {
+    const initialParts = [
+        // AirPods (1st Gen)
+        {generation: 'AirPods (1st Gen)', part_name: 'Standard AirPods earbuds (Left)', part_model_number: 'A1523', part_type: 'left', notes: 'Basic model numbers', display_order: 1},
+        {generation: 'AirPods (1st Gen)', part_name: 'Standard AirPods earbuds (Right)', part_model_number: 'A1722', part_type: 'right', notes: 'Basic model numbers', display_order: 2},
+        {generation: 'AirPods (1st Gen)', part_name: 'Charging Case (Lightning)', part_model_number: 'A1602', part_type: 'case', notes: 'Works with gen 1 & gen 2', display_order: 3},
+        // AirPods (2nd Gen)
+        {generation: 'AirPods (2nd Gen)', part_name: 'Standard AirPods earbuds (Left)', part_model_number: 'A2031', part_type: 'left', notes: 'Model numbers', display_order: 1},
+        {generation: 'AirPods (2nd Gen)', part_name: 'Standard AirPods earbuds (Right)', part_model_number: 'A2032', part_type: 'right', notes: 'Model numbers', display_order: 2},
+        {generation: 'AirPods (2nd Gen)', part_name: 'Charging Case (Wireless)', part_model_number: 'A1938', part_type: 'case', notes: 'Qi Wireless case for gen1/2', display_order: 3},
+        {generation: 'AirPods (2nd Gen)', part_name: 'Charging Case (Lightning)', part_model_number: 'A1602', part_type: 'case', notes: 'Lightning case - works with gen 1 & gen 2', display_order: 4},
+        // AirPods (3rd Gen)
+        {generation: 'AirPods (3rd Gen)', part_name: 'Earbuds (Left)', part_model_number: 'A2564', part_type: 'left', notes: 'Genuine Apple part listing', display_order: 1},
+        {generation: 'AirPods (3rd Gen)', part_name: 'Earbuds (Right)', part_model_number: 'A2565', part_type: 'right', notes: 'Genuine Apple part listing', display_order: 2},
+        {generation: 'AirPods (3rd Gen)', part_name: 'Charging Case (MagSafe)', part_model_number: 'A2566', part_type: 'case', notes: 'MagSafe case, gen3', display_order: 3},
+        {generation: 'AirPods (3rd Gen)', part_name: 'Charging Case (Lightning)', part_model_number: 'A2566-L', part_type: 'case', notes: 'Lightning case for gen3', display_order: 4},
+        // AirPods (4th Gen) standard
+        {generation: 'AirPods (4th Gen) standard line (non-Pro)', part_name: 'Earbuds (Left)', part_model_number: 'A3050', part_type: 'left', notes: 'Non-ANC variant', display_order: 1},
+        {generation: 'AirPods (4th Gen) standard line (non-Pro)', part_name: 'Earbuds (Right)', part_model_number: 'A3053 / A3054', part_type: 'right', notes: 'Non-ANC variant (multiple model numbers)', display_order: 2},
+        {generation: 'AirPods (4th Gen) standard line (non-Pro)', part_name: 'Charging Case', part_model_number: 'A3058', part_type: 'case', notes: 'Case for standard gen4', display_order: 3},
+        // AirPods (4th Gen) ANC
+        {generation: 'AirPods (4th Gen) standard line (ANC version)', part_name: 'Earbuds (Left)', part_model_number: 'A3055', part_type: 'left', notes: 'ANC version of standard line', display_order: 1},
+        {generation: 'AirPods (4th Gen) standard line (ANC version)', part_name: 'Earbuds (Right)', part_model_number: 'A3056 / A3057', part_type: 'right', notes: 'ANC version of standard line (multiple model numbers)', display_order: 2},
+        {generation: 'AirPods (4th Gen) standard line (ANC version)', part_name: 'Charging Case', part_model_number: 'A3059', part_type: 'case', notes: 'ANC case', display_order: 3},
+        // AirPods Pro (1st Gen)
+        {generation: 'AirPods Pro (1st Gen)', part_name: 'Earbuds (Right)', part_model_number: 'A2083', part_type: 'right', notes: 'Identified in teardown', display_order: 1},
+        {generation: 'AirPods Pro (1st Gen)', part_name: 'Earbuds (Left)', part_model_number: 'A2084', part_type: 'left', notes: 'Identified in teardown', display_order: 2},
+        {generation: 'AirPods Pro (1st Gen)', part_name: 'Charging Case', part_model_number: 'A2190', part_type: 'case', notes: 'MagSafe case first Pro', display_order: 3},
+        {generation: 'AirPods Pro (1st Gen)', part_name: 'Charging Case (Lightning)', part_model_number: 'A2190-L', part_type: 'case', notes: 'Lightning case for Pro 1st Gen', display_order: 4},
+        {generation: 'AirPods Pro (1st Gen)', part_name: 'Service Kit Replacement Pods (Left)', part_model_number: '661-17164', part_type: 'left', notes: 'Internal service kit', display_order: 5},
+        {generation: 'AirPods Pro (1st Gen)', part_name: 'Service Kit Replacement Pods (Right)', part_model_number: '661-17165', part_type: 'right', notes: 'Internal service kit', display_order: 6},
+        // AirPods Pro (2nd Gen)
+        {generation: 'AirPods Pro (2nd Gen)', part_name: 'Charging Case (USB-C MagSafe)', part_model_number: 'A2968', part_type: 'case', notes: 'USB-C version', display_order: 1},
+        {generation: 'AirPods Pro (2nd Gen)', part_name: 'Charging Case (Lightning)', part_model_number: 'A2968-L', part_type: 'case', notes: 'Lightning version (compatibility case)', display_order: 2}
+    ];
+    
+    const stmt = db.prepare('INSERT INTO airpod_parts (generation, part_name, part_model_number, part_type, notes, display_order) VALUES (?, ?, ?, ?, ?, ?)');
+    initialParts.forEach(part => {
+        stmt.run(part.generation, part.part_name, part.part_model_number, part.part_type, part.notes, part.display_order);
+    });
+    stmt.finalize();
+    console.log('Initial AirPod parts data populated');
 }
 
 // Rate limiting for barcode verification (simple in-memory store)
@@ -294,6 +364,137 @@ app.get('/api/product-info/:barcode', (req, res) => {
     );
 });
 
+// Get all parts (for admin form)
+app.get('/api/admin/parts', requireAuth, (req, res) => {
+    db.all(
+        'SELECT * FROM airpod_parts ORDER BY generation, display_order, part_name',
+        (err, rows) => {
+            if (err) {
+                res.status(500).json({ error: 'Database error: ' + err.message });
+            } else {
+                res.json({ parts: rows });
+            }
+        }
+    );
+});
+
+// Get parts by generation
+app.get('/api/admin/parts/:generation', requireAuth, (req, res) => {
+    const generation = decodeURIComponent(req.params.generation);
+    db.all(
+        'SELECT * FROM airpod_parts WHERE generation = ? ORDER BY display_order, part_name',
+        [generation],
+        (err, rows) => {
+            if (err) {
+                res.status(500).json({ error: 'Database error: ' + err.message });
+            } else {
+                res.json({ parts: rows });
+            }
+        }
+    );
+});
+
+// Add new part
+app.post('/api/admin/part', requireAuth, (req, res) => {
+    const { generation, part_name, part_model_number, part_type, notes, display_order } = req.body;
+    
+    if (!generation || !part_name || !part_model_number || !part_type) {
+        return res.status(400).json({ error: 'Generation, part name, part model number, and part type are required' });
+    }
+    
+    if (!['left', 'right', 'case'].includes(part_type.toLowerCase())) {
+        return res.status(400).json({ error: 'Part type must be left, right, or case' });
+    }
+    
+    db.run(
+        'INSERT INTO airpod_parts (generation, part_name, part_model_number, part_type, notes, display_order) VALUES (?, ?, ?, ?, ?, ?)',
+        [
+            generation.trim(),
+            part_name.trim(),
+            part_model_number.trim(),
+            part_type.toLowerCase(),
+            notes ? notes.trim() : null,
+            display_order || 0
+        ],
+        function(err) {
+            if (err) {
+                if (err.message.includes('UNIQUE constraint')) {
+                    res.status(409).json({ error: 'A part with this generation and name already exists' });
+                } else {
+                    res.status(500).json({ error: 'Database error: ' + err.message });
+                }
+            } else {
+                res.json({ success: true, message: 'Part added successfully', id: this.lastID });
+            }
+        }
+    );
+});
+
+// Update part
+app.put('/api/admin/part/:id', requireAuth, (req, res) => {
+    const id = parseInt(req.params.id);
+    const { generation, part_name, part_model_number, part_type, notes, display_order } = req.body;
+    
+    if (!generation || !part_name || !part_model_number || !part_type) {
+        return res.status(400).json({ error: 'Generation, part name, part model number, and part type are required' });
+    }
+    
+    if (!['left', 'right', 'case'].includes(part_type.toLowerCase())) {
+        return res.status(400).json({ error: 'Part type must be left, right, or case' });
+    }
+    
+    db.run(
+        'UPDATE airpod_parts SET generation = ?, part_name = ?, part_model_number = ?, part_type = ?, notes = ?, display_order = ? WHERE id = ?',
+        [
+            generation.trim(),
+            part_name.trim(),
+            part_model_number.trim(),
+            part_type.toLowerCase(),
+            notes ? notes.trim() : null,
+            display_order || 0,
+            id
+        ],
+        function(err) {
+            if (err) {
+                res.status(500).json({ error: 'Database error: ' + err.message });
+            } else if (this.changes === 0) {
+                res.status(404).json({ error: 'Part not found' });
+            } else {
+                res.json({ success: true, message: 'Part updated successfully' });
+            }
+        }
+    );
+});
+
+// Delete part
+app.delete('/api/admin/part/:id', requireAuth, (req, res) => {
+    const id = parseInt(req.params.id);
+    
+    db.run('DELETE FROM airpod_parts WHERE id = ?', [id], function(err) {
+        if (err) {
+            res.status(500).json({ error: 'Database error: ' + err.message });
+        } else if (this.changes === 0) {
+            res.status(404).json({ error: 'Part not found' });
+        } else {
+            res.json({ success: true, message: 'Part deleted successfully' });
+        }
+    });
+});
+
+// Get all generations
+app.get('/api/admin/generations', requireAuth, (req, res) => {
+    db.all(
+        'SELECT DISTINCT generation FROM airpod_parts ORDER BY generation',
+        (err, rows) => {
+            if (err) {
+                res.status(500).json({ error: 'Database error: ' + err.message });
+            } else {
+                res.json({ generations: rows.map(r => r.generation) });
+            }
+        }
+    );
+});
+
 // Serve admin pages
 app.get('/admin/login', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin', 'login.html'));
@@ -301,6 +502,10 @@ app.get('/admin/login', (req, res) => {
 
 app.get('/admin/dashboard', requireAuthHTML, (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin', 'dashboard.html'));
+});
+
+app.get('/admin/parts', requireAuthHTML, (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'admin', 'parts.html'));
 });
 
 // Catch all route - serve index.html for SPA-like behavior
