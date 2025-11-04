@@ -120,11 +120,15 @@ if (productForm) {
         
         const serialNumber = document.getElementById('serialNumber').value.trim();
         const securityBarcode = document.getElementById('securityBarcode').value.trim();
+        const generation = document.getElementById('generation').value;
+        const partSelection = document.getElementById('partSelection').value;
         const partType = document.getElementById('partType').value;
+        const partModelNumber = document.getElementById('partModelNumber').value.trim();
+        const notes = document.getElementById('notes').value.trim();
         const addProductButton = document.getElementById('addProductButton');
         
-        if (!serialNumber || !securityBarcode || !partType) {
-            showError('All fields are required');
+        if (!serialNumber || !securityBarcode || !generation || !partSelection || !partType) {
+            showError('Serial number, security barcode, generation, part selection, and part type are required');
             return;
         }
         
@@ -140,7 +144,10 @@ if (productForm) {
                 body: JSON.stringify({
                     serial_number: serialNumber,
                     security_barcode: securityBarcode,
-                    part_type: partType
+                    part_type: partType,
+                    generation: generation,
+                    part_model_number: partModelNumber,
+                    notes: notes || null
                 })
             });
             
@@ -149,6 +156,11 @@ if (productForm) {
             if (response.ok && data.success) {
                 showSuccess('Product added successfully!');
                 productForm.reset();
+                // Reset part selection dropdown
+                const partSelectionSelect = document.getElementById('partSelection');
+                if (partSelectionSelect) {
+                    partSelectionSelect.innerHTML = '<option value="">Select part</option>';
+                }
                 loadProducts(); // Reload the products table
             } else {
                 showError(data.error || 'Failed to add product');
@@ -174,7 +186,7 @@ async function loadProducts() {
         
         if (response.ok && data.products) {
             if (data.products.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">No products found</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px;">No products found</td></tr>';
                 return;
             }
             
@@ -193,8 +205,10 @@ async function loadProducts() {
                 
                 return `
                     <tr>
-                        <td>${escapeHtml(product.serial_number)}</td>
+                        <td>${escapeHtml(product.serial_number || '')}</td>
                         <td>${escapeHtml(product.security_barcode)}</td>
+                        <td>${escapeHtml(product.generation || '')}</td>
+                        <td>${escapeHtml(product.part_model_number || '')}</td>
                         <td>${partTypeMap[product.part_type] || product.part_type}</td>
                         <td>${formattedDate}</td>
                         <td>${confirmationStatus}</td>
@@ -207,11 +221,11 @@ async function loadProducts() {
                 `;
             }).join('');
         } else {
-            tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: red;">Error loading products</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px; color: red;">Error loading products</td></tr>';
         }
     } catch (error) {
         console.error('Load products error:', error);
-        tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: red;">Network error. Please refresh the page.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px; color: red;">Network error. Please refresh the page.</td></tr>';
     }
 }
 

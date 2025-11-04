@@ -17,7 +17,11 @@ app.use(session({
     secret: process.env.SESSION_SECRET || 'LJM_SECURE_SESSION_KEY_2024',
     resave: false,
     saveUninitialized: false,
-    cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 } // 24 hours
+    cookie: { 
+        secure: process.env.NODE_ENV === 'production', // Use secure cookies in production (HTTPS)
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        httpOnly: true
+    }
 }));
 
 // Initialize SQLite database
@@ -37,6 +41,9 @@ function initializeDatabase() {
         serial_number TEXT NOT NULL,
         security_barcode TEXT UNIQUE NOT NULL,
         part_type TEXT NOT NULL,
+        generation TEXT,
+        part_model_number TEXT,
+        notes TEXT,
         date_added DATETIME DEFAULT CURRENT_TIMESTAMP,
         confirmation_checked BOOLEAN DEFAULT 0,
         confirmation_date DATETIME
@@ -45,6 +52,10 @@ function initializeDatabase() {
             console.error('Error creating table:', err.message);
         } else {
             console.log('Database initialized');
+            // Add new columns if they don't exist (for existing databases)
+            db.run(`ALTER TABLE products ADD COLUMN generation TEXT`, () => {});
+            db.run(`ALTER TABLE products ADD COLUMN part_model_number TEXT`, () => {});
+            db.run(`ALTER TABLE products ADD COLUMN notes TEXT`, () => {});
         }
     });
 }
@@ -115,10 +126,10 @@ app.get('/api/admin/check-auth', (req, res) => {
 
 // Add new product (Admin only)
 app.post('/api/admin/product', requireAuth, (req, res) => {
-    const { serial_number, security_barcode, part_type } = req.body;
+    const { serial_number, security_barcode, part_type, generation, part_model_number, notes } = req.body;
     
     if (!serial_number || !security_barcode || !part_type) {
-        return res.status(400).json({ error: 'All fields are required' });
+        return res.status(400).json({ error: 'Serial number, security barcode, and part type are required' });
     }
     
     if (!['left', 'right', 'case'].includes(part_type.toLowerCase())) {
@@ -126,8 +137,15 @@ app.post('/api/admin/product', requireAuth, (req, res) => {
     }
     
     db.run(
-        'INSERT INTO products (serial_number, security_barcode, part_type) VALUES (?, ?, ?)',
-        [serial_number.trim(), security_barcode.trim(), part_type.toLowerCase()],
+        'INSERT INTO products (serial_number, security_barcode, part_type, generation, part_model_number, notes) VALUES (?, ?, ?, ?, ?, ?)',
+        [
+            serial_number.trim(), 
+            security_barcode.trim(), 
+            part_type.toLowerCase(),
+            generation ? generation.trim() : null,
+            part_model_number ? part_model_number.trim() : null,
+            notes ? notes.trim() : null
+        ],
         function(err) {
             if (err) {
                 if (err.message.includes('UNIQUE constraint')) {
@@ -246,7 +264,7 @@ app.get('/api/product-info/:barcode', (req, res) => {
     const { barcode } = req.params;
     
     db.get(
-        'SELECT part_type, serial_number FROM products WHERE security_barcode = ?',
+        'SELECT part_type, serial_number, generation, part_model_number FROM products WHERE security_barcode = ?',
         [barcode.trim()],
         (err, row) => {
             if (err) {
@@ -256,7 +274,9 @@ app.get('/api/product-info/:barcode', (req, res) => {
             } else {
                 res.json({ 
                     part_type: row.part_type,
-                    serial_number: row.serial_number
+                    serial_number: row.serial_number,
+                    generation: row.generation,
+                    part_model_number: row.part_model_number
                 });
             }
         }
