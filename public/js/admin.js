@@ -1,6 +1,10 @@
 // Admin Panel JavaScript
 
-const API_BASE = '';
+// Use existing API_BASE if available, otherwise declare it
+if (typeof window.API_BASE === 'undefined') {
+    window.API_BASE = '';
+}
+const API_BASE = window.API_BASE;
 
 // Utility functions
 function showError(message, elementId = 'errorMessage') {
