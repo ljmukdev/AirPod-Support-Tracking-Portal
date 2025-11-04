@@ -40,24 +40,48 @@ if (scanImageButton) {
             return;
         }
         
+        // Check if Tesseract is loaded
+        if (typeof Tesseract === 'undefined') {
+            showOCRStatus('❌ OCR library not loaded. Please refresh the page.', 'error');
+            console.error('Tesseract.js not found. Make sure the script is loaded.');
+            return;
+        }
+        
         scanImageButton.disabled = true;
         scanImageButton.textContent = 'Processing...';
         ocrStatus.style.display = 'block';
-        ocrStatus.textContent = 'Extracting text from image...';
+        ocrStatus.textContent = 'Loading OCR engine...';
         ocrStatus.style.background = '#fff3cd';
         ocrStatus.style.color = '#856404';
         
         try {
-            // Use Tesseract.js for OCR
+            console.log('Starting OCR with Tesseract.js...');
+            ocrStatus.textContent = 'Initializing OCR engine...';
+            
+            // Use Tesseract.js for OCR with better error handling
             const { data: { text } } = await Tesseract.recognize(file, 'eng', {
                 logger: m => {
-                    if (m.status === 'recognizing text') {
-                        ocrStatus.textContent = `Processing: ${Math.round(m.progress * 100)}%`;
+                    console.log('Tesseract progress:', m);
+                    if (m.status === 'loading tesseract core') {
+                        ocrStatus.textContent = 'Loading OCR engine...';
+                    } else if (m.status === 'initializing tesseract') {
+                        ocrStatus.textContent = 'Initializing OCR...';
+                    } else if (m.status === 'loading language traineddata') {
+                        ocrStatus.textContent = 'Loading language data...';
+                    } else if (m.status === 'initializing api') {
+                        ocrStatus.textContent = 'Preparing OCR...';
+                    } else if (m.status === 'recognizing text') {
+                        ocrStatus.textContent = `Processing image: ${Math.round(m.progress * 100)}%`;
                     }
                 }
             });
             
-            console.log('OCR Text:', text);
+            console.log('OCR Text extracted:', text);
+            
+            if (!text || text.trim().length === 0) {
+                showOCRStatus('⚠️ No text found in image. Try a clearer photo or better lighting.', 'error');
+                return;
+            }
             
             // Parse extracted text
             const extractedData = parseOCRText(text);
@@ -87,14 +111,31 @@ if (scanImageButton) {
             if (filledFields.length > 0) {
                 showOCRStatus(`✅ Extracted: ${filledFields.join(', ')}`, 'success');
             } else {
-                showOCRStatus('⚠️ Could not extract serial or part number. Please check the image quality or enter manually.', 'error');
+                showOCRStatus('⚠️ Could not extract serial or part number. Check browser console for OCR text.', 'error');
                 // Show OCR text for debugging
-                console.log('OCR Text for manual review:', text);
+                console.log('=== Full OCR Text (for manual review) ===');
+                console.log(text);
+                console.log('=== End OCR Text ===');
             }
             
         } catch (error) {
             console.error('OCR Error:', error);
-            showOCRStatus('❌ Error extracting text. Please enter manually.', 'error');
+            console.error('Error details:', {
+                message: error.message,
+                stack: error.stack,
+                name: error.name
+            });
+            
+            let errorMessage = '❌ Error extracting text. ';
+            if (error.message.includes('Failed to fetch')) {
+                errorMessage += 'Could not load OCR engine. Check your internet connection.';
+            } else if (error.message.includes('Tesseract')) {
+                errorMessage += 'OCR engine error. Please try again or enter manually.';
+            } else {
+                errorMessage += 'Please check the console for details or enter manually.';
+            }
+            
+            showOCRStatus(errorMessage, 'error');
         } finally {
             scanImageButton.disabled = false;
             scanImageButton.textContent = 'Extract Data from Image';

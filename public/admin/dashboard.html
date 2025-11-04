@@ -188,8 +188,12 @@
     </div>
 
     <!-- OCR and Barcode Scanning Libraries -->
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.4/dist/tesseract.min.js"></script>
-    <script src="https://unpkg.com/quagga@0.12.1/dist/quagga.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.4/dist/tesseract.min.js" 
+            onerror="console.error('Failed to load Tesseract.js')"
+            onload="console.log('Tesseract.js loaded successfully')"></script>
+    <script src="https://unpkg.com/quagga@0.12.1/dist/quagga.min.js"
+            onerror="console.error('Failed to load QuaggaJS')"
+            onload="console.log('QuaggaJS loaded successfully')"></script>
     
     <script src="../js/admin.js"></script>
     <script src="../js/dashboard-parts.js"></script>

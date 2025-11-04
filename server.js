@@ -173,7 +173,6 @@ if (!MONGODB_URI) {
 }
 
 console.log('Attempting MongoDB connection...');
-console.log('Connection string format:', MONGODB_URI.substring(0, 20) + '...' + (MONGODB_URI.includes('@') ? ' (with auth)' : ' (no auth)'));
 
 // Try connecting with multiple authSource options
 async function tryConnect() {
