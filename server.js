@@ -7,6 +7,9 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust proxy (needed for Railway/Heroku)
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -85,6 +88,14 @@ function requireAuth(req, res, next) {
         return next();
     }
     res.status(401).json({ error: 'Unauthorized' });
+}
+
+// Authentication middleware for HTML pages (redirects to login)
+function requireAuthHTML(req, res, next) {
+    if (req.session && req.session.authenticated) {
+        return next();
+    }
+    res.redirect('/admin/login');
 }
 
 // API Routes
@@ -288,7 +299,7 @@ app.get('/admin/login', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin', 'login.html'));
 });
 
-app.get('/admin/dashboard', requireAuth, (req, res) => {
+app.get('/admin/dashboard', requireAuthHTML, (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin', 'dashboard.html'));
 });
 
