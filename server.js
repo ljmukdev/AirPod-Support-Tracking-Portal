@@ -29,21 +29,63 @@ app.use(session({
 
 // MongoDB connection
 let db;
-const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URL || process.env.MONGO_PUBLIC_URL;
+
+// Build MongoDB connection string from various Railway environment variables
+function getMongoConnectionString() {
+    // Try full connection string first
+    if (process.env.MONGODB_URI) {
+        return process.env.MONGODB_URI;
+    }
+    if (process.env.MONGO_URL) {
+        return process.env.MONGO_URL;
+    }
+    if (process.env.MONGO_PUBLIC_URL) {
+        return process.env.MONGO_PUBLIC_URL;
+    }
+    
+    // Try building from individual components (Railway MongoDB format)
+    const MONGOUSER = process.env.MONGOUSER || process.env.MONGODB_USER;
+    const MONGOPASSWORD = process.env.MONGOPASSWORD || process.env.MONGODB_PASSWORD;
+    const MONGOHOST = process.env.MONGOHOST || process.env.MONGODB_HOST;
+    const MONGOPORT = process.env.MONGOPORT || process.env.MONGODB_PORT || '27017';
+    const MONGODATABASE = process.env.MONGODATABASE || process.env.MONGODB_DATABASE || 'admin';
+    
+    if (MONGOHOST) {
+        if (MONGOUSER && MONGOPASSWORD) {
+            return `mongodb://${MONGOUSER}:${encodeURIComponent(MONGOPASSWORD)}@${MONGOHOST}:${MONGOPORT}/${MONGODATABASE}?authSource=admin`;
+        } else {
+            return `mongodb://${MONGOHOST}:${MONGOPORT}/${MONGODATABASE}`;
+        }
+    }
+    
+    return null;
+}
+
+const MONGODB_URI = getMongoConnectionString();
 
 if (!MONGODB_URI) {
-    console.error('MongoDB URI not found! Please set MONGODB_URI, MONGO_URL, or MONGO_PUBLIC_URL environment variable.');
+    console.error('MongoDB connection string not found!');
+    console.error('Please set one of:');
+    console.error('  - MONGODB_URI (full connection string)');
+    console.error('  - MONGO_URL');
+    console.error('  - MONGO_PUBLIC_URL');
+    console.error('  - MONGOHOST + MONGOUSER + MONGOPASSWORD (individual components)');
+    console.error('\nAvailable environment variables:', Object.keys(process.env).filter(k => k.includes('MONGO')));
     process.exit(1);
 }
 
+console.log('Attempting MongoDB connection...');
+console.log('Connection string format:', MONGODB_URI.substring(0, 20) + '...' + (MONGODB_URI.includes('@') ? ' (with auth)' : ' (no auth)'));
+
 MongoClient.connect(MONGODB_URI)
     .then(client => {
-        console.log('Connected to MongoDB');
+        console.log('✅ Connected to MongoDB successfully');
         db = client.db();
         initializeDatabase();
     })
     .catch(err => {
-        console.error('MongoDB connection error:', err);
+        console.error('❌ MongoDB connection error:', err.message);
+        console.error('Connection string (first 50 chars):', MONGODB_URI.substring(0, 50));
         process.exit(1);
     });
 
