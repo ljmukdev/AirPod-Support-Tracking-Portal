@@ -87,7 +87,7 @@ function getMongoConnectionString() {
     let MONGOPASSWORD = process.env.MONGOPASSWORD || process.env.MONGODB_PASSWORD || process.env.MONGO_INITDB_ROOT_PASSWORD;
     let MONGOHOST = process.env.MONGOHOST || process.env.MONGODB_HOST || process.env.RAILWAY_PRIVATE_DOMAIN;
     let MONGOPORT = process.env.MONGOPORT || process.env.MONGODB_PORT || process.env.RAILWAY_TCP_PROXY_PORT || '27017';
-    const MONGODATABASE = process.env.MONGODATABASE || process.env.MONGODB_DATABASE || 'railway';
+    const MONGODATABASE = process.env.MONGODATABASE || process.env.MONGODB_DATABASE || 'AutoRestockDB';
     
     // Resolve any template variables in individual components
     if (MONGOUSER && MONGOUSER.includes('${')) {
@@ -110,13 +110,13 @@ function getMongoConnectionString() {
             const encodedPassword = encodeURIComponent(MONGOPASSWORD);
             const database = MONGODATABASE || 'railway';
             
-            // Try with authSource=railway first (Railway's default), then admin
-            // Railway MongoDB typically uses the database name as authSource
-            const authSource = process.env.MONGO_AUTH_SOURCE || database;
+            // Try with authSource matching database name or admin
+            // Railway MongoDB typically uses 'admin' as authSource, but database name can work too
+            const authSource = process.env.MONGO_AUTH_SOURCE || 'admin';
             return `mongodb://${MONGOUSER}:${encodedPassword}@${MONGOHOST}:${MONGOPORT}/${database}?authSource=${authSource}`;
         } else if (!MONGOUSER || !MONGOPASSWORD) {
             // No auth
-            return `mongodb://${MONGOHOST}:${MONGOPORT}/${MONGODATABASE || 'railway'}`;
+            return `mongodb://${MONGOHOST}:${MONGOPORT}/${MONGODATABASE || 'AutoRestockDB'}`;
         }
     }
     
@@ -179,7 +179,7 @@ MongoClient.connect(MONGODB_URI)
     .then(client => {
         console.log('✅ Connected to MongoDB successfully');
         // Use the database name from connection string or default
-        const dbName = process.env.MONGODATABASE || process.env.MONGODB_DATABASE || 'railway';
+        const dbName = process.env.MONGODATABASE || process.env.MONGODB_DATABASE || 'AutoRestockDB';
         db = client.db(dbName);
         initializeDatabase();
     })
@@ -196,7 +196,7 @@ MongoClient.connect(MONGODB_URI)
             console.error('   - Check MONGO_INITDB_ROOT_PASSWORD (should match MONGOPASSWORD)');
             console.error('\n2. ✅ Add MONGODATABASE variable to your App service:');
             console.error('   Name: MONGODATABASE');
-            console.error('   Value: railway');
+            console.error('   Value: AutoRestockDB (or your actual database name)');
             console.error('\n3. ✅ Try these alternative authSource options:');
             console.error('   - Current: authSource=admin');
             console.error('   - Alternative: Remove authSource or use authSource=railway');
@@ -204,8 +204,8 @@ MongoClient.connect(MONGODB_URI)
             console.error(`   User: ${process.env.MONGOUSER || 'NOT SET'}`);
             console.error(`   Host: ${process.env.MONGOHOST || 'NOT SET'}`);
             console.error(`   Port: ${process.env.MONGOPORT || 'NOT SET'}`);
-            console.error(`   Database: ${process.env.MONGODATABASE || 'railway (default)'}`);
-            console.error('\n💡 TIP: Sometimes Railway MongoDB needs authSource=railway instead of authSource=admin');
+            console.error(`   Database: ${process.env.MONGODATABASE || 'AutoRestockDB (default)'}`);
+            console.error('\n💡 TIP: Railway MongoDB typically uses authSource=admin for authentication');
         }
         
         process.exit(1);
