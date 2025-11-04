@@ -56,11 +56,23 @@ if (scanImageButton) {
             return;
         }
         
-        // Check if Tesseract is loaded
+        // Check if Tesseract is loaded - wait a bit if still loading
         if (typeof Tesseract === 'undefined') {
-            showOCRStatus('❌ OCR library not loaded. Please refresh the page.', 'error');
-            console.error('Tesseract.js not found. Make sure the script is loaded.');
-            return;
+            // Wait up to 2 seconds for Tesseract to load
+            let waited = 0;
+            while (typeof Tesseract === 'undefined' && waited < 2000) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                waited += 100;
+            }
+            
+            if (typeof Tesseract === 'undefined') {
+                showOCRStatus('❌ OCR library not loaded. Please refresh the page or check your internet connection.', 'error');
+                console.error('Tesseract.js not found. Check browser console for script loading errors.');
+                if (window.tesseractError) {
+                    console.error('Tesseract loading error:', window.tesseractError);
+                }
+                return;
+            }
         }
         
         scanImageButton.disabled = true;

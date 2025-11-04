@@ -188,9 +188,14 @@
     </div>
 
     <!-- OCR and Barcode Scanning Libraries -->
+    <script>
+        // Ensure Tesseract loads before other scripts
+        window.tesseractLoaded = false;
+        window.tesseractError = null;
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.4/dist/tesseract.min.js" 
-            onerror="console.error('Failed to load Tesseract.js')"
-            onload="console.log('Tesseract.js loaded successfully')"></script>
+            onerror="window.tesseractError = new Error('Failed to load Tesseract.js'); console.error('Failed to load Tesseract.js')"
+            onload="window.tesseractLoaded = true; console.log('Tesseract.js loaded successfully')"></script>
     <script src="https://unpkg.com/quagga@0.12.1/dist/quagga.min.js"
             onerror="console.error('Failed to load QuaggaJS')"
             onload="console.log('QuaggaJS loaded successfully')"></script>
