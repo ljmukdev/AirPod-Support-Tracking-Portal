@@ -264,12 +264,13 @@ function parseOCRText(text) {
     const cleanText = text.replace(/\s+/g, ' ').trim();
     
     // Common patterns for serial numbers (Apple serials are typically 12 characters, alphanumeric)
+    // Note: All patterns must have 'g' flag for matchAll() to work
     const serialPatterns = [
         // Explicit serial number labels
-        /Serial\s*(?:Number|No|#)?\s*:?\s*([A-Z0-9]{10,20})/i,
-        /S\/N\s*:?\s*([A-Z0-9]{10,20})/i,
-        /SN\s*:?\s*([A-Z0-9]{10,20})/i,
-        /Serial\s*:?\s*([A-Z0-9]{10,20})/i,
+        /Serial\s*(?:Number|No|#)?\s*:?\s*([A-Z0-9]{10,20})/gi,
+        /S\/N\s*:?\s*([A-Z0-9]{10,20})/gi,
+        /SN\s*:?\s*([A-Z0-9]{10,20})/gi,
+        /Serial\s*:?\s*([A-Z0-9]{10,20})/gi,
         // Apple serial number format (typically 12 chars, like: GTCJ85TF18JQ, C8K9L2M3N4P5)
         /([A-Z0-9]{12})\b/g, // 12 character alphanumeric (Apple standard)
         // Generic long alphanumeric sequences (likely serials)
@@ -277,15 +278,16 @@ function parseOCRText(text) {
     ];
     
     // Common patterns for part/model numbers (Apple part numbers start with A)
+    // Note: All patterns must have 'g' flag for matchAll() to work
     const partPatterns = [
         // Explicit part/model number labels
-        /(?:Part|Model|P\/N|PN|Part\s*Number|Model\s*Number)\s*(?:Number|No|#)?\s*:?\s*([A-Z0-9\-]+)/i,
+        /(?:Part|Model|P\/N|PN|Part\s*Number|Model\s*Number)\s*(?:Number|No|#)?\s*:?\s*([A-Z0-9\-]+)/gi,
         // Apple part numbers like A1523, A1722, A2031, A2968, A2968-L, etc.
-        /\b(A\d{4}(?:[-/]\w+)?)\b/,
+        /\b(A\d{4}(?:[-/]\w+)?)\b/g,
         // Service kit numbers like 661-17164
-        /\b(661-\d{5})\b/,
+        /\b(661-\d{5})\b/g,
         // Model numbers starting with M
-        /\b(M[A-Z0-9]{5,})\b/i,
+        /\b(M[A-Z0-9]{5,})\b/gi,
         // Any A#### pattern (Apple part number)
         /(A\d{4})/g
     ];
