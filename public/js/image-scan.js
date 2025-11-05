@@ -117,10 +117,28 @@ if (scanImageButton) {
         
         try {
             console.log('Starting OCR with Tesseract.js...');
+            console.log('File details:', {
+                name: file.name,
+                type: file.type,
+                size: file.size + ' bytes',
+                lastModified: new Date(file.lastModified).toISOString()
+            });
+            
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                throw new Error('File is not an image. Please select an image file.');
+            }
+            
+            // Validate file size (max 10MB)
+            if (file.size > 10 * 1024 * 1024) {
+                throw new Error('Image is too large. Please use an image smaller than 10MB.');
+            }
+            
             ocrStatus.textContent = 'Initializing OCR engine...';
             
             // Use Tesseract.js for OCR with better error handling
-            const { data: { text } } = await Tesseract.recognize(file, 'eng', {
+            // Add timeout wrapper to catch hanging requests
+            const ocrPromise = Tesseract.recognize(file, 'eng', {
                 logger: m => {
                     console.log('Tesseract progress:', m);
                     if (m.status === 'loading tesseract core') {
@@ -184,17 +202,41 @@ if (scanImageButton) {
             console.error('Error details:', {
                 message: error.message,
                 stack: error.stack,
-                name: error.name
+                name: error.name,
+                file: file ? file.name : 'no file',
+                fileType: file ? file.type : 'no file',
+                fileSize: file ? file.size : 'no file'
             });
             
             let errorMessage = '❌ Error extracting text. ';
-            if (error.message.includes('Failed to fetch')) {
-                errorMessage += 'Could not load OCR engine. Check your internet connection.';
-            } else if (error.message.includes('Tesseract')) {
-                errorMessage += 'OCR engine error. Please try again or enter manually.';
+            
+            // More specific error messages
+            if (error.message && error.message.includes('Failed to fetch')) {
+                errorMessage += 'Could not load OCR engine. Check your internet connection and try again.';
+            } else if (error.message && error.message.includes('Tesseract')) {
+                errorMessage += 'OCR engine error. Please refresh the page and try again.';
+            } else if (error.message && error.message.includes('network')) {
+                errorMessage += 'Network error. Please check your internet connection.';
+            } else if (error.message && error.message.includes('Worker')) {
+                errorMessage += 'OCR worker failed to initialize. Please refresh the page.';
+            } else if (error.message) {
+                errorMessage += `Error: ${error.message}. Check browser console for details.`;
             } else {
-                errorMessage += 'Please check the console for details or enter manually.';
+                errorMessage += 'Unknown error occurred. Check browser console (F12) for details.';
             }
+            
+            // Show full error in console for debugging
+            console.error('=== FULL OCR ERROR ===');
+            console.error('Error object:', error);
+            console.error('Error message:', error.message);
+            console.error('Error stack:', error.stack);
+            console.error('File info:', file ? {
+                name: file.name,
+                type: file.type,
+                size: file.size + ' bytes'
+            } : 'No file');
+            console.error('Tesseract available:', typeof Tesseract !== 'undefined');
+            console.error('=====================');
             
             showOCRStatus(errorMessage, 'error');
         } finally {
