@@ -339,11 +339,7 @@ async function initializeStripe() {
         
         if (!config.publishableKey) {
             // Payment features disabled - this is OK, app will work without payments
-            // Only log to console if in development/debug mode
-            if (window.location.hostname === 'localhost' || window.location.hostname.includes('127.0.0.1')) {
-                console.warn('⚠️  Stripe publishable key not available - payment features disabled');
-                console.warn('   To enable payments, add STRIPE_PUBLISHABLE_KEY to Railway environment variables');
-            }
+            // Silently return - no console warnings needed in production
             return;
         }
         
@@ -384,7 +380,7 @@ async function initializeStripe() {
             }
         });
         
-        console.log('Stripe initialized successfully - card element will mount when payment section is shown');
+        // Stripe initialized successfully - card element will mount when payment section is shown
     } catch (error) {
         console.error('Error initializing Stripe:', error);
         showError('Payment system unavailable. Please contact support.');
