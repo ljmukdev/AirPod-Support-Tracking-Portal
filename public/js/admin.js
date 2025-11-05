@@ -247,7 +247,18 @@ if (productForm) {
                 body: formData // Don't set Content-Type header, browser will set it with boundary
             });
             
-            const data = await response.json();
+            // Log response for debugging
+            const responseText = await response.text();
+            let data;
+            try {
+                data = JSON.parse(responseText);
+            } catch (e) {
+                console.error('Failed to parse response:', responseText);
+                showError('Server error: ' + responseText);
+                return;
+            }
+            
+            console.log('Server response:', data);
             
             if (response.ok && data.success) {
                 showSuccess('Product added successfully!');
