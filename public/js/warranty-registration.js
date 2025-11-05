@@ -274,6 +274,9 @@ function updateTotalPrice() {
         if (paymentSection) {
             paymentSection.style.display = 'block';
             paymentSection.style.visibility = 'visible';
+            // Show Process Payment button
+            const processPaymentButton = document.getElementById('processPaymentButton');
+            if (processPaymentButton) processPaymentButton.style.display = 'inline-block';
             // Ensure Stripe Elements is mounted if not already mounted
             if (stripe && cardElement) {
                 // Check if already mounted
@@ -321,6 +324,9 @@ function updateTotalPrice() {
             paymentSection.style.display = 'none';
             paymentSection.style.visibility = 'hidden';
         }
+        // Hide Process Payment button
+        const processPaymentButton = document.getElementById('processPaymentButton');
+        if (processPaymentButton) processPaymentButton.style.display = 'none';
     }
 }
 
@@ -387,6 +393,209 @@ async function initializeStripe() {
     }
 }
 
+// Process payment when "Process Payment" button is clicked
+async function processPayment() {
+    hideMessages();
+    
+    const processPaymentButton = document.getElementById('processPaymentButton');
+    const registerFreeWarranty = document.getElementById('registerFreeWarranty');
+    
+    if (!registerFreeWarranty || !registerFreeWarranty.checked) {
+        showError('Please register for warranty first.');
+        return;
+    }
+    
+    // Validate form first
+    const customerName = document.getElementById('customerName').value.trim();
+    const customerEmail = document.getElementById('customerEmail').value.trim();
+    const customerPhone = document.getElementById('customerPhone').value.trim();
+    const extendedWarranty = document.querySelector('input[name="extendedWarranty"]:checked');
+    const acceptTerms = document.getElementById('acceptTerms').checked;
+    
+    // Address fields (required for payment)
+    const addressLine1 = document.getElementById('addressLine1').value.trim();
+    const addressLine2 = document.getElementById('addressLine2').value.trim();
+    const city = document.getElementById('city').value.trim();
+    const postcode = document.getElementById('postcode').value.trim().toUpperCase();
+    const country = document.getElementById('country').value;
+    
+    if (!customerName || !customerEmail) {
+        showError('Please fill in all required fields before processing payment.');
+        return;
+    }
+    
+    if (!acceptTerms) {
+        showError('You must accept the Terms & Conditions to continue.');
+        return;
+    }
+    
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(customerEmail)) {
+        showError('Please enter a valid email address.');
+        return;
+    }
+    
+    if (!extendedWarranty || extendedWarranty.value === 'none') {
+        showError('Please select an extended warranty option.');
+        return;
+    }
+    
+    // Validate billing address (required for payment)
+    if (!addressLine1 || !city || !postcode || !country) {
+        showError('Please fill in all required billing address fields before processing payment.');
+        return;
+    }
+    
+    if (!stripe || !cardElement) {
+        showError('Payment system is not configured. Please contact support.');
+        return;
+    }
+    
+    const securityBarcode = sessionStorage.getItem('securityBarcode');
+    if (!securityBarcode) {
+        showError('Session expired. Please start over.');
+        window.location.href = 'index.html';
+        return;
+    }
+    
+    const selectedWarrantyPrice = warrantyPrices[extendedWarranty.value] || 0;
+    if (selectedWarrantyPrice <= 0) {
+        showError('Invalid warranty selection.');
+        return;
+    }
+    
+    processPaymentButton.disabled = true;
+    showSpinner();
+    
+    const paymentProcessingEl = document.getElementById('paymentProcessing');
+    if (paymentProcessingEl) paymentProcessingEl.style.display = 'block';
+    
+    try {
+        // Create payment intent on the server
+        const createIntentResponse = await fetch(`${API_BASE}/api/stripe/create-payment-intent`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                amount: Math.round(selectedWarrantyPrice * 100), // Amount in cents
+                currency: 'gbp',
+                description: `Extended warranty for AirPod part ${securityBarcode}`
+            })
+        });
+        const intentData = await createIntentResponse.json();
+        
+        if (!createIntentResponse.ok || !intentData.clientSecret) {
+            showError(intentData.error || 'Failed to initiate payment. Please try again.');
+            processPaymentButton.disabled = false;
+            hideSpinner();
+            if (paymentProcessingEl) paymentProcessingEl.style.display = 'none';
+            return;
+        }
+        
+        // Confirm the card payment with billing address
+        const { paymentIntent, error } = await stripe.confirmCardPayment(intentData.clientSecret, {
+            payment_method: {
+                card: cardElement,
+                billing_details: {
+                    name: customerName,
+                    email: customerEmail,
+                    phone: customerPhone || undefined,
+                    address: {
+                        line1: addressLine1,
+                        line2: addressLine2 || undefined,
+                        city: city,
+                        postal_code: postcode,
+                        country: country
+                    }
+                },
+            }
+        });
+        
+        if (error) {
+            showError(error.message);
+            if (cardErrors) {
+                cardErrors.textContent = error.message;
+                cardErrors.style.display = 'block';
+            }
+            processPaymentButton.disabled = false;
+            hideSpinner();
+            if (paymentProcessingEl) paymentProcessingEl.style.display = 'none';
+            return;
+        }
+        
+        if (paymentIntent.status === 'succeeded') {
+            // Store payment intent ID in sessionStorage
+            sessionStorage.setItem('paymentIntentId', paymentIntent.id);
+            sessionStorage.setItem('paymentProcessed', 'true');
+            
+            console.log('Stripe payment succeeded:', paymentIntent.id);
+            showSuccess('Payment processed successfully! Redirecting to pairing instructions...');
+            
+            // Register warranty and redirect to pairing page
+            try {
+                const marketingConsent = document.getElementById('marketingConsent').checked;
+                
+                const response = await fetch(`${API_BASE}/api/warranty/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        security_barcode: securityBarcode,
+                        customer_name: customerName,
+                        customer_email: customerEmail,
+                        customer_phone: customerPhone || null,
+                        billing_address: {
+                            line1: addressLine1,
+                            line2: addressLine2 || null,
+                            city: city,
+                            postcode: postcode,
+                            country: country
+                        },
+                        extended_warranty: extendedWarranty.value,
+                        marketing_consent: marketingConsent,
+                        warranty_price: selectedWarrantyPrice,
+                        payment_intent_id: paymentIntent.id
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    // Store warranty registration status
+                    sessionStorage.setItem('warrantyRegistered', 'true');
+                    sessionStorage.setItem('warrantyId', data.warranty_id);
+                    
+                    // Redirect to pairing page after 1.5 seconds
+                    setTimeout(() => {
+                        window.location.href = 'confirmation.html';
+                    }, 1500);
+                } else {
+                    showError(data.error || 'Payment succeeded but warranty registration failed. Please contact support.');
+                    processPaymentButton.disabled = false;
+                    hideSpinner();
+                }
+            } catch (regError) {
+                console.error('Warranty registration error:', regError);
+                showError('Payment succeeded but warranty registration failed. Please contact support.');
+                processPaymentButton.disabled = false;
+                hideSpinner();
+            }
+        } else {
+            showError('Payment failed or was not successful. Please try again.');
+            processPaymentButton.disabled = false;
+            hideSpinner();
+        }
+    } catch (paymentError) {
+        console.error('Payment processing error:', paymentError);
+        showError('An error occurred during payment. Please try again or contact support.');
+        processPaymentButton.disabled = false;
+        hideSpinner();
+    } finally {
+        if (paymentProcessingEl) paymentProcessingEl.style.display = 'none';
+    }
+}
+
 // Handle form submission
 const warrantyForm = document.getElementById('warrantyForm');
 if (warrantyForm) {
@@ -409,13 +618,20 @@ if (warrantyForm) {
             return;
         }
         
-        // User wants to register warranty - validate and process
+        // User wants to register warranty - validate
         const customerName = document.getElementById('customerName').value.trim();
         const customerEmail = document.getElementById('customerEmail').value.trim();
         const customerPhone = document.getElementById('customerPhone').value.trim();
         const extendedWarranty = document.querySelector('input[name="extendedWarranty"]:checked').value;
         const marketingConsent = document.getElementById('marketingConsent').checked;
         const acceptTerms = document.getElementById('acceptTerms').checked;
+        
+        // Address fields (optional for free warranty, but should be present if payment was processed)
+        const addressLine1 = document.getElementById('addressLine1').value.trim();
+        const addressLine2 = document.getElementById('addressLine2').value.trim();
+        const city = document.getElementById('city').value.trim();
+        const postcode = document.getElementById('postcode').value.trim().toUpperCase();
+        const country = document.getElementById('country').value;
         
         // Validation
         if (!customerName || !customerEmail) {
@@ -435,6 +651,15 @@ if (warrantyForm) {
             return;
         }
         
+        // If extended warranty is selected, check if payment was processed
+        if (extendedWarranty !== 'none') {
+            const paymentProcessed = sessionStorage.getItem('paymentProcessed');
+            if (paymentProcessed !== 'true') {
+                showError('Please click "Process Payment" to complete your extended warranty purchase before continuing.');
+                return;
+            }
+        }
+        
         submitButton.disabled = true;
         showSpinner();
         
@@ -445,90 +670,17 @@ if (warrantyForm) {
             return;
         }
         
-        let paymentIntentId = null;
         const selectedWarrantyPrice = warrantyPrices[extendedWarranty] || 0;
+        const paymentIntentId = extendedWarranty !== 'none' ? sessionStorage.getItem('paymentIntentId') : null;
         
-        // Process payment if extended warranty is selected
-        if (extendedWarranty !== 'none' && selectedWarrantyPrice > 0) {
-            // Process payment if extended warranty is selected
-            if (!stripe || !cardElement) {
-                showError('Payment system is not configured. Please contact support to enable extended warranty purchases, or select "No Extended Warranty" to continue with the free 30-day warranty.');
-                submitButton.disabled = false;
-                hideSpinner();
-                return;
-            }
-            
-            const paymentProcessingEl = document.getElementById('paymentProcessing');
-            if (paymentProcessingEl) paymentProcessingEl.style.display = 'block';
-            
-            try {
-                // Create payment intent on the server
-                const createIntentResponse = await fetch(`${API_BASE}/api/stripe/create-payment-intent`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        amount: Math.round(selectedWarrantyPrice * 100), // Amount in cents
-                        currency: 'gbp',
-                        description: `Extended warranty for AirPod part ${securityBarcode}`
-                    })
-                });
-                const intentData = await createIntentResponse.json();
-                
-                if (!createIntentResponse.ok || !intentData.clientSecret) {
-                    showError(intentData.error || 'Failed to initiate payment. Please try again.');
-                    submitButton.disabled = false;
-                    hideSpinner();
-                    if (paymentProcessingEl) paymentProcessingEl.style.display = 'none';
-                    return;
-                }
-                
-                // Confirm the card payment
-                const { paymentIntent, error } = await stripe.confirmCardPayment(intentData.clientSecret, {
-                    payment_method: {
-                        card: cardElement,
-                        billing_details: {
-                            name: customerName,
-                            email: customerEmail,
-                            phone: customerPhone || undefined
-                        },
-                    }
-                });
-                
-                if (error) {
-                    showError(error.message);
-                    if (cardErrors) {
-                        cardErrors.textContent = error.message;
-                        cardErrors.style.display = 'block';
-                    }
-                    submitButton.disabled = false;
-                    hideSpinner();
-                    if (paymentProcessingEl) paymentProcessingEl.style.display = 'none';
-                    return;
-                }
-                
-                if (paymentIntent.status === 'succeeded') {
-                    paymentIntentId = paymentIntent.id;
-                    console.log('Stripe payment succeeded:', paymentIntentId);
-                } else {
-                    showError('Payment failed or was not successful. Please try again.');
-                    submitButton.disabled = false;
-                    hideSpinner();
-                    if (paymentProcessingEl) paymentProcessingEl.style.display = 'none';
-                    return;
-                }
-            } catch (paymentError) {
-                console.error('Payment processing error:', paymentError);
-                showError('An error occurred during payment. Please try again or contact support.');
-                submitButton.disabled = false;
-                hideSpinner();
-                const paymentProcessingEl = document.getElementById('paymentProcessing');
-                if (paymentProcessingEl) paymentProcessingEl.style.display = 'none';
-                return;
-            } finally {
-                const paymentProcessingEl = document.getElementById('paymentProcessing');
-                if (paymentProcessingEl) paymentProcessingEl.style.display = 'none';
-            }
-        }
+        // Build billing address object (may be null for free warranty)
+        const billingAddress = (addressLine1 && city && postcode && country) ? {
+            line1: addressLine1,
+            line2: addressLine2 || null,
+            city: city,
+            postcode: postcode,
+            country: country
+        } : null;
         
         try {
             const response = await fetch(`${API_BASE}/api/warranty/register`, {
@@ -541,10 +693,11 @@ if (warrantyForm) {
                     customer_name: customerName,
                     customer_email: customerEmail,
                     customer_phone: customerPhone || null,
+                    billing_address: billingAddress,
                     extended_warranty: extendedWarranty,
                     marketing_consent: marketingConsent,
                     warranty_price: selectedWarrantyPrice,
-                    payment_intent_id: paymentIntentId // Pass payment intent ID to backend
+                    payment_intent_id: paymentIntentId
                 })
             });
             
@@ -556,6 +709,10 @@ if (warrantyForm) {
                 // Store warranty registration status
                 sessionStorage.setItem('warrantyRegistered', 'true');
                 sessionStorage.setItem('warrantyId', data.warranty_id);
+                
+                // Clear payment flags
+                sessionStorage.removeItem('paymentProcessed');
+                sessionStorage.removeItem('paymentIntentId');
                 
                 // Redirect to confirmation page after 1.5 seconds
                 setTimeout(() => {
@@ -574,6 +731,14 @@ if (warrantyForm) {
         }
     });
 }
+
+// Setup Process Payment button handler
+document.addEventListener('DOMContentLoaded', function() {
+    const processPaymentButton = document.getElementById('processPaymentButton');
+    if (processPaymentButton) {
+        processPaymentButton.addEventListener('click', processPayment);
+    }
+});
 
 // Setup warranty option click handlers
 document.querySelectorAll('.warranty-option').forEach(option => {
@@ -595,6 +760,7 @@ document.querySelectorAll('input[name="extendedWarranty"]').forEach(radio => {
 function toggleWarrantySections() {
     const registerFreeWarranty = document.getElementById('registerFreeWarranty');
     const customerInfoSection = document.getElementById('customerInfoSection');
+    const billingAddressSection = document.getElementById('billingAddressSection');
     const extendedWarrantySection = document.getElementById('extendedWarrantySection');
     const marketingSection = document.getElementById('marketingSection');
     const termsSection = document.getElementById('termsSection');
@@ -612,6 +778,10 @@ function toggleWarrantySections() {
         if (customerInfoSection) {
             customerInfoSection.style.display = 'block';
             customerInfoSection.style.visibility = 'visible';
+        }
+        if (billingAddressSection) {
+            billingAddressSection.style.display = 'block';
+            billingAddressSection.style.visibility = 'visible';
         }
         if (extendedWarrantySection) {
             extendedWarrantySection.style.display = 'block';
@@ -631,6 +801,7 @@ function toggleWarrantySections() {
     } else {
         // Hide sections (user doesn't want free warranty)
         if (customerInfoSection) customerInfoSection.style.display = 'none';
+        if (billingAddressSection) billingAddressSection.style.display = 'none';
         if (extendedWarrantySection) extendedWarrantySection.style.display = 'none';
         if (marketingSection) marketingSection.style.display = 'none';
         if (termsSection) termsSection.style.display = 'none';

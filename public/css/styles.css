@@ -74,6 +74,38 @@ h3 {
     align-items: center;
     justify-content: center;
     gap: 15px;
+    position: relative;
+}
+
+/* Version Display */
+.version-display {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    font-size: 0.7rem;
+    color: rgba(0, 0, 0, 0.4);
+    font-family: 'Courier New', monospace;
+    z-index: 1000;
+    padding: 4px 8px;
+    background-color: rgba(255, 255, 255, 0.7);
+    border-radius: 4px;
+    backdrop-filter: blur(4px);
+    transition: opacity 0.3s ease;
+    user-select: none;
+    pointer-events: none;
+}
+
+.version-display:hover {
+    opacity: 0.6;
+}
+
+@media (max-width: 768px) {
+    .version-display {
+        font-size: 0.65rem;
+        top: 5px;
+        right: 5px;
+        padding: 3px 6px;
+    }
 }
 
 .header-logo {
@@ -671,23 +703,3 @@ html {
     padding: 20px;
     margin-top: 8px;
 }
-
-Mounting volume on: /var/lib/containers/railwayapp/bind-mounts/1995603f-8358-4131-8a2b-bd25e3d1b328/vol_3sz4k8me27ccuc6k
-Starting Container
-🔍 Searching for Railway volume mount point...
-✅ Found volume via RAILWAY_VOLUME_MOUNT_PATH: /data
-📦 Using Railway persistent volume for uploads: /data/uploads
-   Volume mount path: /data
-💾 Uploads directory configured: /data/uploads
-   Absolute path: /data/uploads
-Warning: connect.session() MemoryStore is not
-designed for a production environment, as it will leak
-memory, and will not scale past a single process.
-Attempting MongoDB connection...
-Trying connection with authSource: admin (standard)...
-LJM AirPod Support Server running on http://localhost:8080
-Admin panel: http://localhost:8080/admin/login
-✅ Connected to MongoDB successfully using authSource: admin (standard)
-Database indexes created
-💾 Multer saving to: /data/uploads (absolute: /data/uploads)
-Product updated successfully, ID: 690b64c799b78c64f4f0d449

@@ -1,0 +1,40 @@
+{
+  "version": "1.2.0",
+  "build": "2024-12-19",
+  "revision": "001",
+  "changelog": [
+    {
+      "version": "1.2.0",
+      "date": "2024-12-19",
+      "changes": [
+        "Added billing address collection for payment compliance",
+        "Separated payment processing into dedicated 'Process Payment' button",
+        "Improved Stripe integration with Address Verification System (AVS)",
+        "Enhanced form validation and user flow"
+      ]
+    },
+    {
+      "version": "1.1.0",
+      "date": "2024-12-19",
+      "changes": [
+        "Implemented Stripe payment integration for extended warranties",
+        "Added dynamic warranty pricing management",
+        "Added warranty registration flow with free and extended options",
+        "Marketing consent checkbox default checked"
+      ]
+    },
+    {
+      "version": "1.0.0",
+      "date": "2024-12-18",
+      "changes": [
+        "Initial release",
+        "Admin panel for product management",
+        "Customer portal with barcode verification",
+        "Pairing instructions for AirPod parts",
+        "OCR image recognition for serial numbers",
+        "Railway persistent volume integration"
+      ]
+    }
+  ]
+}
+

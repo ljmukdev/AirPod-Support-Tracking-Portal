@@ -1497,6 +1497,39 @@ app.post('/api/admin/warranty-pricing', requireAuth, requireDB, async (req, res)
     }
 });
 
+// Version API endpoint (Public)
+app.get('/api/version', (req, res) => {
+    try {
+        const fs = require('fs');
+        const path = require('path');
+        const versionPath = path.join(__dirname, 'version.json');
+        
+        if (fs.existsSync(versionPath)) {
+            const versionData = JSON.parse(fs.readFileSync(versionPath, 'utf8'));
+            res.json({
+                version: versionData.version,
+                build: versionData.build,
+                revision: versionData.revision
+            });
+        } else {
+            // Fallback to package.json version
+            const packageJson = require('./package.json');
+            res.json({
+                version: packageJson.version || '1.0.0',
+                build: new Date().toISOString().split('T')[0],
+                revision: '000'
+            });
+        }
+    } catch (err) {
+        console.error('Error reading version:', err);
+        res.json({
+            version: '1.0.0',
+            build: new Date().toISOString().split('T')[0],
+            revision: '000'
+        });
+    }
+});
+
 // Stripe API endpoints
 
 // Get Stripe publishable key (Public)
@@ -1569,6 +1602,7 @@ app.post('/api/warranty/register', requireDB, async (req, res) => {
         customer_name,
         customer_email,
         customer_phone,
+        billing_address,
         extended_warranty,
         marketing_consent,
         warranty_price,
@@ -1679,6 +1713,13 @@ app.post('/api/warranty/register', requireDB, async (req, res) => {
             customer_name: customer_name.trim(),
             customer_email: customer_email.trim().toLowerCase(),
             customer_phone: customer_phone ? customer_phone.trim() : null,
+            billing_address: billing_address ? {
+                line1: billing_address.line1 ? billing_address.line1.trim() : null,
+                line2: billing_address.line2 ? billing_address.line2.trim() : null,
+                city: billing_address.city ? billing_address.city.trim() : null,
+                postcode: billing_address.postcode ? billing_address.postcode.trim().toUpperCase() : null,
+                country: billing_address.country ? billing_address.country.trim().toUpperCase() : null
+            } : null,
             standard_warranty_start: registrationDate,
             standard_warranty_end: standardWarrantyEnd,
             extended_warranty: extended_warranty || 'none',
