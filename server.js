@@ -1501,16 +1501,24 @@ app.post('/api/admin/warranty-pricing', requireAuth, requireDB, async (req, res)
 
 // Get Stripe publishable key (Public)
 app.get('/api/stripe/config', (req, res) => {
-    const publishableKey = process.env.STRIPE_PUBLISHABLE_KEY;
-    if (!publishableKey) {
-        // Return 200 with null key instead of 500 error
-        // Frontend will handle this gracefully
-        return res.json({ 
+    try {
+        const publishableKey = process.env.STRIPE_PUBLISHABLE_KEY;
+        if (!publishableKey) {
+            // Return 200 with null key instead of 500 error
+            // Frontend will handle this gracefully
+            return res.status(200).json({ 
+                publishableKey: null,
+                error: 'Stripe not configured. Please add STRIPE_PUBLISHABLE_KEY to Railway environment variables.'
+            });
+        }
+        res.status(200).json({ publishableKey });
+    } catch (error) {
+        console.error('Error in /api/stripe/config:', error);
+        res.status(200).json({ 
             publishableKey: null,
-            error: 'Stripe not configured. Please add STRIPE_PUBLISHABLE_KEY to Railway environment variables.'
+            error: 'Error loading Stripe configuration: ' + error.message
         });
     }
-    res.json({ publishableKey });
 });
 
 // Create payment intent (Public - but amount verified on server)
