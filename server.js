@@ -22,26 +22,46 @@ app.get('/favicon.ico', (req, res) => {
 });
 
 // Determine uploads directory
-// Check for Railway persistent volume mount point, otherwise use local public/uploads
-// Railway volumes are typically mounted at /data or a custom path
-const RAILWAY_VOLUME_PATH = process.env.RAILWAY_VOLUME_MOUNT_PATH || process.env.UPLOADS_VOLUME_PATH;
+// Railway volumes: Check environment variable first, then try common mount paths
+// Railway automatically provides RAILWAY_VOLUME_MOUNT_PATH when a volume is mounted
+const RAILWAY_VOLUME_PATH = process.env.RAILWAY_VOLUME_MOUNT_PATH || 
+                             process.env.UPLOADS_VOLUME_PATH ||
+                             (process.env.RAILWAY_ENVIRONMENT ? '/data' : null);
 let uploadsDir;
+let usingVolume = false;
 
-if (RAILWAY_VOLUME_PATH) {
+if (RAILWAY_VOLUME_PATH && fs.existsSync(RAILWAY_VOLUME_PATH)) {
     // Use Railway persistent volume
     uploadsDir = path.join(RAILWAY_VOLUME_PATH, 'uploads');
+    usingVolume = true;
     console.log('📦 Using Railway persistent volume for uploads:', uploadsDir);
+    console.log('   Volume mount path:', RAILWAY_VOLUME_PATH);
 } else {
     // Use local public/uploads directory
     uploadsDir = path.join(__dirname, 'public', 'uploads');
     console.log('📁 Using local directory for uploads:', uploadsDir);
+    if (RAILWAY_VOLUME_PATH) {
+        console.log('   ⚠️  Volume path specified but not found:', RAILWAY_VOLUME_PATH);
+        console.log('   💡 Make sure the volume is mounted correctly in Railway');
+    }
 }
 
 // Ensure uploads directory exists
 if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-    console.log('✅ Created uploads directory:', uploadsDir);
+    try {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+        console.log('✅ Created uploads directory:', uploadsDir);
+    } catch (err) {
+        console.error('❌ Failed to create uploads directory:', err.message);
+        // Fallback to public/uploads if volume creation fails
+        uploadsDir = path.join(__dirname, 'public', 'uploads');
+        fs.mkdirSync(uploadsDir, { recursive: true });
+        console.log('📁 Fallback to local directory:', uploadsDir);
+    }
 }
+
+// Store uploadsDir for use in routes
+global.uploadsDir = uploadsDir;
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -94,7 +114,7 @@ const handleMulterError = (err, req, res, next) => {
 app.get('/uploads/:filename', (req, res) => {
     const filename = req.params.filename;
     // Use the same uploadsDir that we configured above (works with both local and Railway volume)
-    const filePath = path.join(uploadsDir, filename);
+    const filePath = path.join(global.uploadsDir || uploadsDir, filename);
     
     // Check if file exists before trying to serve it
     fs.access(filePath, fs.constants.F_OK, (err) => {
