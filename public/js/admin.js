@@ -402,13 +402,19 @@ async function addWatermarkToImage(file) {
                 // Draw original image
                 ctx.drawImage(img, 0, 0);
                 
-                // Create watermark logo (white "LJM" text in dark circle)
-                // Size: 10% of smaller dimension, but minimum 60px, maximum 200px
-                const minDimension = Math.min(canvas.width, canvas.height);
-                const logoSize = Math.max(60, Math.min(200, minDimension * 0.1));
+                // Add grey border around the entire image
+                const borderWidth = 3;
+                ctx.strokeStyle = '#999999'; // Grey color
+                ctx.lineWidth = borderWidth;
+                ctx.strokeRect(borderWidth / 2, borderWidth / 2, canvas.width - borderWidth, canvas.height - borderWidth);
                 
-                // Padding from edges - ensure logo is fully visible
-                const padding = Math.max(20, logoSize * 0.2);
+                // Create watermark logo (white "LJM" text in dark circle)
+                // Size: 12% of smaller dimension, but minimum 80px, maximum 180px
+                const minDimension = Math.min(canvas.width, canvas.height);
+                const logoSize = Math.max(80, Math.min(180, minDimension * 0.12));
+                
+                // Padding from edges - ensure logo is fully visible (30px minimum)
+                const padding = Math.max(30, logoSize * 0.15);
                 
                 // Position: bottom right corner, fully within canvas bounds
                 const logoX = canvas.width - logoSize - padding;
@@ -417,56 +423,32 @@ async function addWatermarkToImage(file) {
                 const centerY = logoY + logoSize / 2;
                 const radius = logoSize / 2;
                 
-                // Ensure logo is within bounds
-                if (logoX < 0 || logoY < 0 || centerX + radius > canvas.width || centerY + radius > canvas.height) {
-                    // Fallback: use smaller size if it doesn't fit
-                    const safeLogoSize = Math.min(logoSize, (canvas.width - padding * 2) / 2, (canvas.height - padding * 2) / 2);
-                    const safeLogoX = canvas.width - safeLogoSize - padding;
-                    const safeLogoY = canvas.height - safeLogoSize - padding;
-                    const safeCenterX = safeLogoX + safeLogoSize / 2;
-                    const safeCenterY = safeLogoY + safeLogoSize / 2;
-                    const safeRadius = safeLogoSize / 2;
-                    
-                    // Draw dark circle background
-                    ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-                    ctx.beginPath();
-                    ctx.arc(safeCenterX, safeCenterY, safeRadius, 0, Math.PI * 2);
-                    ctx.fill();
-                    
-                    // Draw white circle border
-                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
-                    ctx.lineWidth = Math.max(2, safeLogoSize * 0.04);
-                    ctx.beginPath();
-                    ctx.arc(safeCenterX, safeCenterY, safeRadius - ctx.lineWidth / 2, 0, Math.PI * 2);
-                    ctx.stroke();
-                    
-                    // Draw "LJM" text
-                    ctx.fillStyle = 'rgba(255, 255, 255, 1)';
-                    ctx.font = `bold ${safeLogoSize * 0.35}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText('LJM', safeCenterX, safeCenterY);
-                } else {
-                    // Draw dark circle background
-                    ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-                    ctx.beginPath();
-                    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-                    ctx.fill();
-                    
-                    // Draw white circle border
-                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
-                    ctx.lineWidth = Math.max(2, logoSize * 0.04);
-                    ctx.beginPath();
-                    ctx.arc(centerX, centerY, radius - ctx.lineWidth / 2, 0, Math.PI * 2);
-                    ctx.stroke();
-                    
-                    // Draw "LJM" text
-                    ctx.fillStyle = 'rgba(255, 255, 255, 1)';
-                    ctx.font = `bold ${logoSize * 0.35}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText('LJM', centerX, centerY);
-                }
+                // Save context for transparency
+                ctx.save();
+                ctx.globalAlpha = 0.6; // Faded/transparent watermark
+                
+                // Draw dark circle background (more opaque for visibility)
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Draw white circle border (more visible)
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.lineWidth = Math.max(3, logoSize * 0.05);
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius - ctx.lineWidth / 2, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // Draw "LJM" text (white, bold)
+                ctx.fillStyle = 'rgba(255, 255, 255, 1)';
+                ctx.font = `bold ${logoSize * 0.4}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('LJM', centerX, centerY);
+                
+                // Restore context
+                ctx.restore();
                 
                 // Convert canvas to blob
                 canvas.toBlob((blob) => {
@@ -529,6 +511,8 @@ function renderPhotoPreviews() {
                 img.style.height = '150px';
                 img.style.objectFit = 'cover';
                 img.style.display = 'block';
+                img.style.border = '3px solid #999999'; // Grey border
+                img.style.borderRadius = '4px';
                 
                 const removeBtn = document.createElement('button');
                 removeBtn.textContent = '×';
