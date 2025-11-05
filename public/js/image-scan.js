@@ -1152,8 +1152,11 @@ async function startBarcodeScanning() {
         Quagga.onDetected((result) => {
             const code = result.codeResult.code;
             if (code) {
-                barcodeScan.value = code;
-                showOCRStatus(`✅ Barcode scanned: ${code}`, 'success');
+                const upperCode = code.toUpperCase();
+                barcodeScan.value = upperCode;
+                // Trigger input event to auto-fill security barcode field
+                barcodeScan.dispatchEvent(new Event('input'));
+                showOCRStatus(`✅ Barcode scanned: ${upperCode}`, 'success');
                 stopBarcodeScanning();
             }
         });
