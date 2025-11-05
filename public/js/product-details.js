@@ -112,18 +112,48 @@ function populateProductInfo(data, securityBarcode) {
         photosGrid.innerHTML = '';
         
         data.photos.forEach((photoPath, index) => {
+            // Ensure photoPath is a string and properly formatted
+            if (!photoPath || typeof photoPath !== 'string') {
+                console.warn('Invalid photo path:', photoPath);
+                return;
+            }
+            
+            // Construct full image URL
+            // If photoPath already starts with /, use it directly, otherwise add API_BASE
+            const imageUrl = photoPath.startsWith('/') 
+                ? (API_BASE || '') + photoPath 
+                : (API_BASE || '') + '/' + photoPath;
+            
             const photoItem = document.createElement('div');
             photoItem.className = 'photo-item';
             photoItem.onclick = () => openPhotoModal(photoPath);
             
             const img = document.createElement('img');
-            img.src = API_BASE + photoPath;
+            img.src = imageUrl;
             img.alt = `Product photo ${index + 1}`;
             img.loading = 'lazy';
+            
+            // Add error handling for image loading
+            img.onerror = function() {
+                console.error('Failed to load image:', imageUrl);
+                this.style.display = 'none';
+                // Optionally show a placeholder or error message
+                const errorMsg = document.createElement('div');
+                errorMsg.style.padding = '20px';
+                errorMsg.style.textAlign = 'center';
+                errorMsg.style.color = '#999';
+                errorMsg.textContent = 'Image not available';
+                photoItem.appendChild(errorMsg);
+            };
+            
+            // Log for debugging
+            console.log('Loading photo:', imageUrl);
             
             photoItem.appendChild(img);
             photosGrid.appendChild(photoItem);
         });
+    } else {
+        console.log('No photos found for product. Photos array:', data.photos);
     }
 }
 
@@ -131,7 +161,17 @@ function populateProductInfo(data, securityBarcode) {
 function openPhotoModal(photoPath) {
     const modal = document.getElementById('photoModal');
     const modalImage = document.getElementById('modalImage');
-    modalImage.src = API_BASE + photoPath;
+    
+    // Construct full image URL (same logic as above)
+    const imageUrl = photoPath.startsWith('/') 
+        ? (API_BASE || '') + photoPath 
+        : (API_BASE || '') + '/' + photoPath;
+    
+    modalImage.src = imageUrl;
+    modalImage.onerror = function() {
+        console.error('Failed to load modal image:', imageUrl);
+        this.alt = 'Image not available';
+    };
     modal.classList.add('active');
 }
 
