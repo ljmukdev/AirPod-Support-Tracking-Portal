@@ -115,9 +115,35 @@ function populateFieldsFromPart(part) {
                 partSelectionSelect.dispatchEvent(new Event('change'));
             } else {
                 // If dropdown option not found, manually set values
-                partModelNumberInput.value = part.part_model_number || '';
-                partTypeSelect.value = part.part_type || '';
-                notesInput.value = part.notes || '';
+                // First ensure partModelNumber is set
+                if (part.part_model_number) {
+                    partModelNumberInput.value = part.part_model_number;
+                }
+                // Set part type
+                if (part.part_type) {
+                    partTypeSelect.value = part.part_type;
+                }
+                // Set notes
+                if (part.notes) {
+                    notesInput.value = part.notes;
+                }
+                // Try to find part by model number in current generation
+                const currentGenParts = partsData[part.generation] || [];
+                const matchingPart = currentGenParts.find(p => 
+                    p.part_model_number === part.part_model_number
+                );
+                if (matchingPart) {
+                    // Create option if it doesn't exist
+                    const option = document.createElement('option');
+                    option.value = matchingPart.part_name;
+                    option.textContent = matchingPart.part_name;
+                    option.dataset.modelNumber = matchingPart.part_model_number;
+                    option.dataset.partType = matchingPart.part_type;
+                    option.dataset.notes = matchingPart.notes || '';
+                    partSelectionSelect.appendChild(option);
+                    partSelectionSelect.value = matchingPart.part_name;
+                    partSelectionSelect.dispatchEvent(new Event('change'));
+                }
             }
         }, 100);
     }

@@ -195,8 +195,29 @@ if (productForm) {
         const productPhotos = document.getElementById('productPhotos');
         const addProductButton = document.getElementById('addProductButton');
         
-        if (!serialNumber || !securityBarcode || !generation || !partSelection || !partType) {
-            showError('Serial number, security barcode, generation, part selection, and part type are required');
+        // Validation - check required fields
+        if (!serialNumber) {
+            showError('Serial number is required');
+            return;
+        }
+        if (!securityBarcode) {
+            showError('Security barcode is required');
+            return;
+        }
+        if (!partModelNumber) {
+            showError('Part/Model number is required');
+            return;
+        }
+        if (!generation) {
+            showError('Generation is required');
+            return;
+        }
+        if (!partSelection) {
+            showError('Part selection is required');
+            return;
+        }
+        if (!partType) {
+            showError('Part type is required');
             return;
         }
         
@@ -382,46 +403,70 @@ async function addWatermarkToImage(file) {
                 ctx.drawImage(img, 0, 0);
                 
                 // Create watermark logo (white "LJM" text in dark circle)
-                const logoSize = Math.min(canvas.width, canvas.height) * 0.15; // 15% of smaller dimension
-                const padding = logoSize * 0.3;
+                // Size: 10% of smaller dimension, but minimum 60px, maximum 200px
+                const minDimension = Math.min(canvas.width, canvas.height);
+                const logoSize = Math.max(60, Math.min(200, minDimension * 0.1));
+                
+                // Padding from edges - ensure logo is fully visible
+                const padding = Math.max(20, logoSize * 0.2);
+                
+                // Position: bottom right corner, fully within canvas bounds
                 const logoX = canvas.width - logoSize - padding;
                 const logoY = canvas.height - logoSize - padding;
+                const centerX = logoX + logoSize / 2;
+                const centerY = logoY + logoSize / 2;
+                const radius = logoSize / 2;
                 
-                // Draw dark circle background
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-                ctx.beginPath();
-                ctx.arc(
-                    logoX + logoSize / 2,
-                    logoY + logoSize / 2,
-                    logoSize / 2,
-                    0,
-                    Math.PI * 2
-                );
-                ctx.fill();
-                
-                // Draw white circle border
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-                ctx.lineWidth = logoSize * 0.05;
-                ctx.beginPath();
-                ctx.arc(
-                    logoX + logoSize / 2,
-                    logoY + logoSize / 2,
-                    logoSize / 2 - ctx.lineWidth / 2,
-                    0,
-                    Math.PI * 2
-                );
-                ctx.stroke();
-                
-                // Draw "LJM" text
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-                ctx.font = `bold ${logoSize * 0.4}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(
-                    'LJM',
-                    logoX + logoSize / 2,
-                    logoY + logoSize / 2
-                );
+                // Ensure logo is within bounds
+                if (logoX < 0 || logoY < 0 || centerX + radius > canvas.width || centerY + radius > canvas.height) {
+                    // Fallback: use smaller size if it doesn't fit
+                    const safeLogoSize = Math.min(logoSize, (canvas.width - padding * 2) / 2, (canvas.height - padding * 2) / 2);
+                    const safeLogoX = canvas.width - safeLogoSize - padding;
+                    const safeLogoY = canvas.height - safeLogoSize - padding;
+                    const safeCenterX = safeLogoX + safeLogoSize / 2;
+                    const safeCenterY = safeLogoY + safeLogoSize / 2;
+                    const safeRadius = safeLogoSize / 2;
+                    
+                    // Draw dark circle background
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+                    ctx.beginPath();
+                    ctx.arc(safeCenterX, safeCenterY, safeRadius, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Draw white circle border
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+                    ctx.lineWidth = Math.max(2, safeLogoSize * 0.04);
+                    ctx.beginPath();
+                    ctx.arc(safeCenterX, safeCenterY, safeRadius - ctx.lineWidth / 2, 0, Math.PI * 2);
+                    ctx.stroke();
+                    
+                    // Draw "LJM" text
+                    ctx.fillStyle = 'rgba(255, 255, 255, 1)';
+                    ctx.font = `bold ${safeLogoSize * 0.35}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('LJM', safeCenterX, safeCenterY);
+                } else {
+                    // Draw dark circle background
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Draw white circle border
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+                    ctx.lineWidth = Math.max(2, logoSize * 0.04);
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, radius - ctx.lineWidth / 2, 0, Math.PI * 2);
+                    ctx.stroke();
+                    
+                    // Draw "LJM" text
+                    ctx.fillStyle = 'rgba(255, 255, 255, 1)';
+                    ctx.font = `bold ${logoSize * 0.35}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('LJM', centerX, centerY);
+                }
                 
                 // Convert canvas to blob
                 canvas.toBlob((blob) => {
