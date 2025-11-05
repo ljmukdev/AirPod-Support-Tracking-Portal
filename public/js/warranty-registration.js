@@ -271,10 +271,56 @@ function updateTotalPrice() {
         const price = warrantyPrices[selectedWarranty.value];
         if (totalPriceSection) totalPriceSection.style.display = 'block';
         if (totalPriceEl) totalPriceEl.textContent = `£${price.toFixed(2)}`;
-        if (paymentSection) paymentSection.style.display = 'block';
+        if (paymentSection) {
+            paymentSection.style.display = 'block';
+            paymentSection.style.visibility = 'visible';
+            // Ensure Stripe Elements is mounted if not already mounted
+            if (stripe && cardElement) {
+                // Check if already mounted
+                const cardElementDiv = document.getElementById('card-element');
+                if (cardElementDiv && !cardElementDiv.querySelector('.StripeElement')) {
+                    try {
+                        cardElement.mount('#card-element');
+                        console.log('Stripe card element mounted');
+                    } catch (err) {
+                        console.error('Error mounting Stripe card element:', err);
+                        // Try to recreate if mount fails
+                        if (stripe) {
+                            const elements = stripe.elements();
+                            cardElement = elements.create('card', {
+                                style: {
+                                    base: {
+                                        fontSize: '16px',
+                                        color: '#424770',
+                                        '::placeholder': {
+                                            color: '#aab7c4',
+                                        },
+                                    },
+                                    invalid: {
+                                        color: '#9e2146',
+                                    },
+                                },
+                            });
+                            cardElement.mount('#card-element');
+                            cardElement.on('change', ({error}) => {
+                                if (error && cardErrors) {
+                                    cardErrors.textContent = error.message;
+                                    cardErrors.style.display = 'block';
+                                } else if (cardErrors) {
+                                    cardErrors.style.display = 'none';
+                                }
+                            });
+                        }
+                    }
+                }
+            }
+        }
     } else {
         if (totalPriceSection) totalPriceSection.style.display = 'none';
-        if (paymentSection) paymentSection.style.display = 'none';
+        if (paymentSection) {
+            paymentSection.style.display = 'none';
+            paymentSection.style.visibility = 'hidden';
+        }
     }
 }
 
@@ -309,20 +355,25 @@ async function initializeStripe() {
             },
         });
         
-        cardElement.mount('#card-element');
+        // Don't mount immediately - wait until payment section is shown
+        // This prevents mounting issues when element is hidden
         cardErrors = document.getElementById('card-errors');
         
-        // Handle real-time validation errors
+        // Set up error handler (will be used when mounted)
         cardElement.on('change', ({error}) => {
             if (error) {
-                cardErrors.textContent = error.message;
-                cardErrors.style.display = 'block';
+                if (cardErrors) {
+                    cardErrors.textContent = error.message;
+                    cardErrors.style.display = 'block';
+                }
             } else {
-                cardErrors.style.display = 'none';
+                if (cardErrors) {
+                    cardErrors.style.display = 'none';
+                }
             }
         });
         
-        console.log('Stripe initialized successfully');
+        console.log('Stripe initialized successfully - card element will mount when payment section is shown');
     } catch (error) {
         console.error('Error initializing Stripe:', error);
         showError('Payment system unavailable. Please contact support.');
@@ -568,6 +619,8 @@ function toggleWarrantySections() {
             termsSection.style.visibility = 'visible';
         }
         if (acceptTerms) acceptTerms.required = true;
+        // Update payment section visibility based on selected warranty
+        updateTotalPrice();
     } else {
         // Hide sections (user doesn't want free warranty)
         if (customerInfoSection) customerInfoSection.style.display = 'none';
