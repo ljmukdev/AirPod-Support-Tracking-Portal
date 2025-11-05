@@ -125,6 +125,8 @@ const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         // Always use the current uploadsDir (set at startup)
         const currentUploadsDir = global.uploadsDir || uploadsDir;
+        const absolutePath = path.resolve(currentUploadsDir);
+        
         // Ensure directory exists
         if (!fs.existsSync(currentUploadsDir)) {
             try {
@@ -136,10 +138,18 @@ const storage = multer.diskStorage({
                 const fallbackDir = path.join(__dirname, 'public', 'uploads');
                 fs.mkdirSync(fallbackDir, { recursive: true });
                 console.log(`💾 Using fallback directory: ${fallbackDir}`);
+                // Update global for consistency
+                global.uploadsDir = fallbackDir;
+                global.uploadsDirAbsolute = path.resolve(fallbackDir);
                 return cb(null, fallbackDir);
             }
         }
-        console.log(`💾 Multer saving to: ${currentUploadsDir}`);
+        
+        // Update global to ensure consistency
+        global.uploadsDir = currentUploadsDir;
+        global.uploadsDirAbsolute = absolutePath;
+        
+        console.log(`💾 Multer saving to: ${currentUploadsDir} (absolute: ${absolutePath})`);
         cb(null, currentUploadsDir);
     },
     filename: (req, file, cb) => {
