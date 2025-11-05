@@ -417,12 +417,23 @@ app.use((req, res, next) => {
     next();
 });
 
+// Add cache-busting middleware for HTML files
+app.use((req, res, next) => {
+    // Don't cache HTML files - always fetch fresh version
+    if (req.path.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+    }
+    next();
+});
+
 app.use(express.static('public', {
     index: false, // Don't serve index.html for directories
     dotfiles: 'ignore', // Ignore dotfiles
     etag: true,
     lastModified: true,
-    maxAge: '1d' // Cache for 1 day
+    maxAge: process.env.NODE_ENV === 'production' ? '1d' : '0' // Cache for 1 day in production, no cache in development
 }));
 
 // Session configuration
