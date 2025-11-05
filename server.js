@@ -1297,6 +1297,114 @@ app.post('/api/confirm-understanding', requireDB, async (req, res) => {
     }
 });
 
+// Register warranty (Public)
+app.post('/api/warranty/register', requireDB, async (req, res) => {
+    const {
+        security_barcode,
+        customer_name,
+        customer_email,
+        customer_phone,
+        extended_warranty,
+        marketing_consent,
+        warranty_price
+    } = req.body;
+    
+    // Validation
+    if (!security_barcode || !customer_name || !customer_email) {
+        return res.status(400).json({ 
+            error: 'Security barcode, customer name, and email are required' 
+        });
+    }
+    
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(customer_email)) {
+        return res.status(400).json({ error: 'Invalid email address' });
+    }
+    
+    // Verify product exists
+    try {
+        const product = await db.collection('products').findOne({ 
+            security_barcode: security_barcode.trim() 
+        });
+        
+        if (!product) {
+            return res.status(404).json({ error: 'Product not found' });
+        }
+        
+        // Check if warranty already registered for this product
+        const existingWarranty = await db.collection('warranties').findOne({
+            security_barcode: security_barcode.trim()
+        });
+        
+        if (existingWarranty) {
+            return res.status(409).json({ 
+                error: 'Warranty already registered for this product',
+                warranty_id: existingWarranty.warranty_id
+            });
+        }
+        
+        // Generate unique warranty ID
+        const warrantyId = 'WR-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+        
+        // Calculate warranty dates
+        const registrationDate = new Date();
+        const standardWarrantyEnd = new Date(registrationDate);
+        standardWarrantyEnd.setDate(standardWarrantyEnd.getDate() + 30); // 30 days
+        
+        let extendedWarrantyEnd = null;
+        if (extended_warranty && extended_warranty !== 'none') {
+            extendedWarrantyEnd = new Date(standardWarrantyEnd);
+            const months = extended_warranty === '3months' ? 3 : extended_warranty === '6months' ? 6 : 12;
+            extendedWarrantyEnd.setMonth(extendedWarrantyEnd.getMonth() + months);
+        }
+        
+        const warranty = {
+            warranty_id: warrantyId,
+            security_barcode: security_barcode.trim(),
+            product_id: product._id.toString(),
+            customer_name: customer_name.trim(),
+            customer_email: customer_email.trim().toLowerCase(),
+            customer_phone: customer_phone ? customer_phone.trim() : null,
+            standard_warranty_start: registrationDate,
+            standard_warranty_end: standardWarrantyEnd,
+            extended_warranty: extended_warranty || 'none',
+            extended_warranty_end: extendedWarrantyEnd,
+            warranty_price: warranty_price || 0,
+            marketing_consent: marketing_consent || false,
+            registration_date: registrationDate,
+            status: 'active',
+            claims_count: 0,
+            last_claim_date: null
+        };
+        
+        const result = await db.collection('warranties').insertOne(warranty);
+        
+        console.log(`✅ Warranty registered: ${warrantyId} for product ${security_barcode}`);
+        console.log(`   Customer: ${customer_name} (${customer_email})`);
+        console.log(`   Extended warranty: ${extended_warranty || 'none'} (£${warranty_price || 0})`);
+        
+        res.json({
+            success: true,
+            message: 'Warranty registered successfully',
+            warranty_id: warrantyId,
+            warranty: {
+                id: warrantyId,
+                standard_end: standardWarrantyEnd,
+                extended_end: extendedWarrantyEnd,
+                price: warranty_price || 0
+            }
+        });
+    } catch (err) {
+        if (err.code === 11000) {
+            res.status(409).json({ error: 'Warranty ID conflict. Please try again.' });
+        } else {
+            console.error('Database error:', err);
+            res.status(500).json({ error: 'Database error: ' + err.message });
+        }
+    }
+});
+
 // Get product info by barcode (for confirmation page)
 app.get('/api/product-info/:barcode', requireDB, async (req, res) => {
     const { barcode } = req.params;
