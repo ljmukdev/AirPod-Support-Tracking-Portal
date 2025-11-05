@@ -430,6 +430,21 @@ h3 {
     border-bottom: none;
 }
 
+.edit-button {
+    background-color: var(--accent-teal);
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.2s;
+}
+
+.edit-button:hover {
+    background-color: var(--accent-teal-hover);
+}
+
 .delete-button {
     background-color: #dc3545;
     color: var(--background-white);
