@@ -1,12 +1,13 @@
 {
   "version": "1.2.0",
   "build": "2024-12-19",
-  "revision": "005",
+  "revision": "006",
   "changelog": [
     {
       "version": "1.2.0",
       "date": "2024-12-19",
       "changes": [
+        "Updated support email address to airpodsupport@ljmuk.co.uk across all pages",
         "Updated confirmation text to reflect user confirmation of photo review",
         "Added warranty management page in admin panel with delete functionality",
         "Updated button text to 'Complete Payment and Progress to Pairing Instructions' when extended warranty selected",
