@@ -419,8 +419,21 @@ function parseOCRText(text) {
     // More aggressive search for noisy OCR - look for A followed by 4 digits anywhere
     if (!extracted.partNumber) {
         // Remove all non-alphanumeric and search for A#### pattern
-        const onlyAlphanumeric = originalText.replace(/[^A-Z0-9]/gi, '');
-        const partMatch = onlyAlphanumeric.match(/A\d{4}/i);
+        let onlyAlphanumeric = originalText.replace(/[^A-Z0-9]/gi, '');
+        
+        // Try original text first
+        let partMatch = onlyAlphanumeric.match(/A\d{4}/i);
+        
+        // If not found, try with OCR error corrections (O->0, I->1)
+        if (!partMatch) {
+            const corrected = onlyAlphanumeric
+                .replace(/A[Oo]/gi, 'A0')  // A followed by O becomes A0
+                .replace(/A\d[Oo]/gi, (m) => m.replace(/[Oo]/gi, '0'))  // A#O becomes A#0
+                .replace(/A\d{2}[Oo]/gi, (m) => m.replace(/[Oo]/gi, '0'))  // A##O becomes A##0
+                .replace(/A\d{3}[Oo]/gi, (m) => m.replace(/[Oo]/gi, '0')); // A###O becomes A###0
+            partMatch = corrected.match(/A\d{4}/i);
+        }
+        
         if (partMatch) {
             extracted.partNumber = partMatch[0].toUpperCase();
         }
@@ -428,13 +441,37 @@ function parseOCRText(text) {
     
     // More aggressive search for serial - look for 10-20 char alphanumeric sequences
     if (!extracted.serialNumber) {
-        const onlyAlphanumeric = originalText.replace(/[^A-Z0-9]/gi, '');
+        let onlyAlphanumeric = originalText.replace(/[^A-Z0-9]/gi, '');
+        
         // Find sequences of 10-20 alphanumeric characters
-        const serialMatch = onlyAlphanumeric.match(/[A-Z0-9]{10,20}/gi);
-        if (serialMatch) {
+        let serialMatch = onlyAlphanumeric.match(/[A-Z0-9]{10,20}/gi);
+        
+        // Also try looking specifically for 12-character sequences (Apple standard)
+        if (!serialMatch || serialMatch.length === 0) {
+            serialMatch = onlyAlphanumeric.match(/[A-Z0-9]{12}/gi);
+        }
+        
+        if (serialMatch && serialMatch.length > 0) {
             // Filter out if it looks like a part number (starts with A and is short)
-            const candidate = serialMatch[0].toUpperCase();
-            if (!(candidate.startsWith('A') && candidate.length <= 12 && candidate.match(/^A\d{4}/))) {
+            // Prefer 12-character sequences that don't start with A
+            const candidates = serialMatch.map(m => m.toUpperCase());
+            
+            // First try to find a 12-char sequence that doesn't start with A
+            let candidate = candidates.find(c => c.length === 12 && !c.startsWith('A'));
+            
+            // If not found, take the longest one that's not a part number
+            if (!candidate) {
+                candidate = candidates.find(c => 
+                    !(c.startsWith('A') && c.length <= 12 && c.match(/^A\d{4}/))
+                );
+            }
+            
+            // If still nothing, take the first 12-character match
+            if (!candidate) {
+                candidate = candidates.find(c => c.length === 12) || candidates[0];
+            }
+            
+            if (candidate) {
                 extracted.serialNumber = candidate;
             }
         }
