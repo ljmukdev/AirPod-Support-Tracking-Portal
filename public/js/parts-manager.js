@@ -82,12 +82,12 @@ async function loadParts() {
                     };
                     
                     html += `
-                        <div class="part-item">
+                        <div class="part-item" data-part-id="${escapeHtml(String(part.id))}">
                             <div class="part-item-header">
                                 <div class="part-item-title">${escapeHtml(part.part_name)}</div>
                                 <div class="part-item-actions">
-                                    <button class="edit-button" onclick="editPart(${part.id})">Edit</button>
-                                    <button class="delete-button" onclick="deletePart(${part.id})">Delete</button>
+                                    <button class="edit-button" data-action="edit" data-part-id="${escapeHtml(String(part.id))}">Edit</button>
+                                    <button class="delete-button" data-action="delete" data-part-id="${escapeHtml(String(part.id))}">Delete</button>
                                 </div>
                             </div>
                             <div class="part-item-details">
@@ -110,6 +110,21 @@ async function loadParts() {
             });
             
             partsList.innerHTML = html;
+            
+            // Attach event listeners to buttons
+            partsList.querySelectorAll('[data-action="edit"]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const partId = e.target.getAttribute('data-part-id');
+                    editPart(partId);
+                });
+            });
+            
+            partsList.querySelectorAll('[data-action="delete"]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const partId = e.target.getAttribute('data-part-id');
+                    deletePart(partId);
+                });
+            });
         } else {
             partsList.innerHTML = '<p style="text-align: center; padding: 40px; color: red;">Error loading parts</p>';
         }
@@ -214,11 +229,14 @@ if (partForm) {
 // Edit part
 async function editPart(id) {
     try {
+        // Convert id to string/number if needed
+        const partId = String(id);
+        
         const response = await fetch(`${API_BASE}/api/admin/parts`);
         const data = await response.json();
         
         if (response.ok && data.parts) {
-            const part = data.parts.find(p => p.id === id);
+            const part = data.parts.find(p => String(p.id) === partId);
             if (part) {
                 document.getElementById('partId').value = part.id;
                 document.getElementById('generation').value = part.generation;
@@ -262,7 +280,9 @@ async function deletePart(id) {
     }
     
     try {
-        const response = await fetch(`${API_BASE}/api/admin/part/${id}`, {
+        // Convert id to string for URL encoding
+        const partId = String(id);
+        const response = await fetch(`${API_BASE}/api/admin/part/${encodeURIComponent(partId)}`, {
             method: 'DELETE'
         });
         
@@ -271,7 +291,7 @@ async function deletePart(id) {
         if (response.ok && data.success) {
             showSuccess('Part deleted successfully');
             loadParts();
-            if (document.getElementById('partId').value == id) {
+            if (document.getElementById('partId').value == partId) {
                 cancelEdit();
             }
         } else {
@@ -283,7 +303,7 @@ async function deletePart(id) {
     }
 }
 
-// Make functions available globally
+// Make functions available globally (for backwards compatibility)
 window.editPart = editPart;
 window.deletePart = deletePart;
 
