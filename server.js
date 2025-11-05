@@ -434,12 +434,36 @@ app.get('/api/admin/check-auth', (req, res) => {
     }
 });
 
-// Add new product (Admin only)
-app.post('/api/admin/product', requireAuth, requireDB, async (req, res) => {
-    const { serial_number, security_barcode, part_type, generation, part_model_number, notes, ebay_order_number } = req.body;
+// Add new product (Admin only) - with photo upload support
+app.post('/api/admin/product', requireAuth, requireDB, upload.array('photos', 5), async (req, res) => {
+    // Multer parses FormData - text fields come through req.body
+    const serial_number = req.body.serial_number;
+    const security_barcode = req.body.security_barcode;
+    const part_type = req.body.part_type;
+    const generation = req.body.generation;
+    const part_model_number = req.body.part_model_number;
+    const notes = req.body.notes;
+    const ebay_order_number = req.body.ebay_order_number;
+    
+    // Log received data for debugging
+    console.log('Received product data:', {
+        serial_number: serial_number ? 'present' : 'missing',
+        security_barcode: security_barcode ? 'present' : 'missing',
+        part_type: part_type ? 'present' : 'missing',
+        generation: generation || 'not provided',
+        part_model_number: part_model_number || 'not provided',
+        files_count: req.files ? req.files.length : 0
+    });
     
     if (!serial_number || !security_barcode || !part_type) {
-        return res.status(400).json({ error: 'Serial number, security barcode, and part type are required' });
+        return res.status(400).json({ 
+            error: 'Serial number, security barcode, and part type are required',
+            received: {
+                serial_number: !!serial_number,
+                security_barcode: !!security_barcode,
+                part_type: !!part_type
+            }
+        });
     }
     
     if (!['left', 'right', 'case'].includes(part_type.toLowerCase())) {
