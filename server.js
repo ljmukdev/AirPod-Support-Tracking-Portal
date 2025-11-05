@@ -22,15 +22,47 @@ app.get('/favicon.ico', (req, res) => {
 });
 
 // Determine uploads directory
-// Railway volumes: Check environment variable first, then try common mount paths
-// Railway automatically provides RAILWAY_VOLUME_MOUNT_PATH when a volume is mounted
-const RAILWAY_VOLUME_PATH = process.env.RAILWAY_VOLUME_MOUNT_PATH || 
-                             process.env.UPLOADS_VOLUME_PATH ||
-                             (process.env.RAILWAY_ENVIRONMENT ? '/data' : null);
+// Railway volumes: Check multiple possible paths
+// Railway volumes can be mounted at various paths depending on configuration
+function findRailwayVolumePath() {
+    // Check environment variables first (Railway may set these)
+    if (process.env.RAILWAY_VOLUME_MOUNT_PATH && fs.existsSync(process.env.RAILWAY_VOLUME_MOUNT_PATH)) {
+        return process.env.RAILWAY_VOLUME_MOUNT_PATH;
+    }
+    if (process.env.UPLOADS_VOLUME_PATH && fs.existsSync(process.env.UPLOADS_VOLUME_PATH)) {
+        return process.env.UPLOADS_VOLUME_PATH;
+    }
+    
+    // Check common Railway volume mount paths
+    const commonPaths = ['/data', '/uploads', '/storage', '/mnt'];
+    for (const mountPath of commonPaths) {
+        if (fs.existsSync(mountPath)) {
+            // Check if it's actually a mount point (has .railway or is writable)
+            try {
+                fs.accessSync(mountPath, fs.constants.W_OK);
+                // Try to create a test file to verify it's writable
+                const testFile = path.join(mountPath, '.railway-test');
+                try {
+                    fs.writeFileSync(testFile, 'test');
+                    fs.unlinkSync(testFile);
+                    return mountPath;
+                } catch (e) {
+                    // Not writable, continue searching
+                }
+            } catch (e) {
+                // Not accessible, continue searching
+            }
+        }
+    }
+    
+    return null;
+}
+
+const RAILWAY_VOLUME_PATH = findRailwayVolumePath();
 let uploadsDir;
 let usingVolume = false;
 
-if (RAILWAY_VOLUME_PATH && fs.existsSync(RAILWAY_VOLUME_PATH)) {
+if (RAILWAY_VOLUME_PATH) {
     // Use Railway persistent volume
     uploadsDir = path.join(RAILWAY_VOLUME_PATH, 'uploads');
     usingVolume = true;
@@ -40,10 +72,8 @@ if (RAILWAY_VOLUME_PATH && fs.existsSync(RAILWAY_VOLUME_PATH)) {
     // Use local public/uploads directory
     uploadsDir = path.join(__dirname, 'public', 'uploads');
     console.log('📁 Using local directory for uploads:', uploadsDir);
-    if (RAILWAY_VOLUME_PATH) {
-        console.log('   ⚠️  Volume path specified but not found:', RAILWAY_VOLUME_PATH);
-        console.log('   💡 Make sure the volume is mounted correctly in Railway');
-    }
+    console.log('   ⚠️  No Railway volume detected - files will be ephemeral');
+    console.log('   💡 To use persistent storage, mount a volume and set RAILWAY_VOLUME_MOUNT_PATH');
 }
 
 // Ensure uploads directory exists
