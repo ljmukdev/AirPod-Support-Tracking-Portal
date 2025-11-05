@@ -429,6 +429,25 @@ async function loadProducts() {
                 trackingDisplay = `<span style="color: var(--accent-teal); font-weight: 500;">${escapeHtml(product.tracking_number)}</span>${trackingDate ? '<br><small style="color: #666;">' + trackingDate + '</small>' : ''}`;
             }
             
+            // Format photos
+            let photosDisplay = '<span style="color: #999;">No photos</span>';
+            if (product.photos && product.photos.length > 0) {
+                const photoCount = product.photos.length;
+                const firstPhoto = product.photos[0];
+                const photoUrl = firstPhoto.startsWith('/') ? firstPhoto : '/' + firstPhoto;
+                photosDisplay = `
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="position: relative; width: 40px; height: 40px; flex-shrink: 0;">
+                            <img src="${photoUrl}" 
+                                 alt="Product photo" 
+                                 style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd; background: #f5f5f5;"
+                                 onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\'width:40px;height:40px;background:#f5f5f5;border:1px solid #ddd;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:18px;color:#999\\'>📷</div>';">
+                        </div>
+                        <span style="color: var(--accent-teal); font-size: 0.85rem;">${photoCount} photo${photoCount > 1 ? 's' : ''}</span>
+                    </div>
+                `;
+            }
+            
             return `
                 <tr data-product-id="${escapeHtml(String(product.id))}">
                     <td>${escapeHtml(product.serial_number || '')}</td>
@@ -437,6 +456,7 @@ async function loadProducts() {
                     <td>${escapeHtml(product.part_model_number || '')}</td>
                     <td>${partTypeMap[product.part_type] || product.part_type}</td>
                     <td>${escapeHtml(product.ebay_order_number || '')}</td>
+                    <td>${photosDisplay}</td>
                     <td>${formattedDate}</td>
                     <td>${trackingDisplay}</td>
                     <td>${confirmationStatus}</td>
