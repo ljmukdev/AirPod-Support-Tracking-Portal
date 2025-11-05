@@ -1511,32 +1511,32 @@ app.post('/api/admin/warranty-pricing', requireAuth, requireDB, async (req, res)
 // Version API endpoint (Public)
 app.get('/api/version', (req, res) => {
     try {
-        const fs = require('fs');
         const path = require('path');
         const versionPath = path.join(__dirname, 'version.json');
         
         if (fs.existsSync(versionPath)) {
             const versionData = JSON.parse(fs.readFileSync(versionPath, 'utf8'));
             res.json({
-                version: versionData.version,
-                build: versionData.build,
-                revision: versionData.revision
+                version: versionData.version || '1.2.0',
+                build: versionData.build || new Date().toISOString().split('T')[0],
+                revision: versionData.revision || '001'
             });
         } else {
             // Fallback to package.json version
             const packageJson = require('./package.json');
             res.json({
-                version: packageJson.version || '1.0.0',
+                version: packageJson.version || '1.2.0',
                 build: new Date().toISOString().split('T')[0],
-                revision: '000'
+                revision: '001'
             });
         }
     } catch (err) {
         console.error('Error reading version:', err);
-        res.json({
-            version: '1.0.0',
+        // Always return a valid response, never fail
+        res.status(200).json({
+            version: '1.2.0',
             build: new Date().toISOString().split('T')[0],
-            revision: '000'
+            revision: '001'
         });
     }
 });
