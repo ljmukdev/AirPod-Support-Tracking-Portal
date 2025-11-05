@@ -1183,13 +1183,10 @@ if (barcodeScan) {
     barcodeScan.addEventListener('input', (e) => {
         // When barcode is entered, auto-fill security barcode field
         const securityBarcodeField = document.getElementById('securityBarcode');
-        if (securityBarcodeField && code) {
-            securityBarcodeField.value = code.toUpperCase();
+        if (securityBarcodeField && e.target.value) {
+            securityBarcodeField.value = e.target.value.toUpperCase();
             // Trigger input event to ensure uppercase conversion is applied
             securityBarcodeField.dispatchEvent(new Event('input'));
-        }
-        if (securityBarcodeField && e.target.value) {
-            securityBarcodeField.value = e.target.value;
         }
     });
 }
