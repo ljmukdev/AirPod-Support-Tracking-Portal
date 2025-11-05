@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="LJM AirPod Support - Your Product Details">
+    <title>Your Product Details | LJM AirPod Support</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        .product-details-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .product-header {
+            text-align: center;
+            margin: 30px 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: white;
+            border-radius: 12px;
+        }
+        .product-info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        .info-card {
+            background: var(--background-white);
+            padding: 20px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+        }
+        .info-card h3 {
+            margin-top: 0;
+            color: var(--accent-teal);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .info-card p {
+            margin: 10px 0 0 0;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+        .photos-section {
+            margin: 40px 0;
+        }
+        .photos-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .photo-item {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .photo-item:hover {
+            transform: scale(1.05);
+        }
+        .photo-item img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            display: block;
+        }
+        .photo-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            justify-content: center;
+            align-items: center;
+        }
+        .photo-modal.active {
+            display: flex;
+        }
+        .photo-modal img {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+        }
+        .photo-modal-close {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            color: white;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .certificate-section {
+            margin: 40px 0;
+            background: var(--background-white);
+            padding: 40px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+        }
+        .certificate {
+            border: 3px solid #007AFF;
+            padding: 40px;
+            background: white;
+            text-align: center;
+            position: relative;
+        }
+        .certificate-header {
+            margin-bottom: 30px;
+        }
+        .certificate-header h2 {
+            color: #007AFF;
+            margin: 0;
+            font-size: 2rem;
+        }
+        .certificate-header p {
+            color: #666;
+            margin: 5px 0;
+        }
+        .certificate-content {
+            margin: 30px 0;
+            text-align: left;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .certificate-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .certificate-item:last-child {
+            border-bottom: none;
+        }
+        .certificate-item-label {
+            font-weight: 600;
+            color: #333;
+        }
+        .certificate-item-value {
+            color: #666;
+        }
+        .certificate-footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #007AFF;
+        }
+        .certificate-footer p {
+            margin: 5px 0;
+            font-size: 0.9rem;
+            color: #666;
+        }
+        .print-button {
+            margin-top: 20px;
+        }
+        @media print {
+            .header, .footer, .button, .print-button {
+                display: none;
+            }
+            .certificate-section {
+                box-shadow: none;
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <a href="index.html" class="home-link">Home</a>
+        <h1>LJM</h1>
+    </header>
+
+    <main class="container product-details-container">
+        <div id="loadingMessage" style="text-align: center; padding: 40px;">
+            <div class="spinner active"></div>
+            <p>Loading product details...</p>
+        </div>
+
+        <div id="productDetails" style="display: none;">
+            <div class="product-header">
+                <h2>Your Product Details</h2>
+                <p id="productType">Loading...</p>
+            </div>
+
+            <div class="product-info-grid">
+                <div class="info-card">
+                    <h3>Serial Number</h3>
+                    <p id="serialNumber">-</p>
+                </div>
+                <div class="info-card">
+                    <h3>Part Model Number</h3>
+                    <p id="partModelNumber">-</p>
+                </div>
+                <div class="info-card">
+                    <h3>Generation</h3>
+                    <p id="generation">-</p>
+                </div>
+                <div class="info-card">
+                    <h3>Security Code</h3>
+                    <p id="securityCode">-</p>
+                </div>
+            </div>
+
+            <div class="photos-section" id="photosSection" style="display: none;">
+                <h2 style="margin-bottom: 10px;">Product Photos</h2>
+                <p style="color: #666; margin-bottom: 20px;">Click on any photo to view in full size</p>
+                <div class="photos-grid" id="photosGrid"></div>
+            </div>
+
+            <div class="certificate-section">
+                <div class="certificate">
+                    <div class="certificate-header">
+                        <h2>Certificate of Testing</h2>
+                        <p>Quality Assurance & Functionality Verification</p>
+                    </div>
+                    <div class="certificate-content">
+                        <div class="certificate-item">
+                            <span class="certificate-item-label">Product Type:</span>
+                            <span class="certificate-item-value" id="certPartType">-</span>
+                        </div>
+                        <div class="certificate-item">
+                            <span class="certificate-item-label">Serial Number:</span>
+                            <span class="certificate-item-value" id="certSerialNumber">-</span>
+                        </div>
+                        <div class="certificate-item">
+                            <span class="certificate-item-label">Part Model:</span>
+                            <span class="certificate-item-value" id="certPartModel">-</span>
+                        </div>
+                        <div class="certificate-item">
+                            <span class="certificate-item-label">Generation:</span>
+                            <span class="certificate-item-value" id="certGeneration">-</span>
+                        </div>
+                        <div class="certificate-item">
+                            <span class="certificate-item-label">Test Date:</span>
+                            <span class="certificate-item-value" id="certTestDate">-</span>
+                        </div>
+                    </div>
+                    <div class="certificate-footer">
+                        <p><strong>Testing Status:</strong> ✅ PASSED</p>
+                        <p>This product has been thoroughly tested and verified for functionality.</p>
+                        <p>All components are operational and meet quality standards.</p>
+                        <p style="margin-top: 20px; font-size: 0.85rem;">
+                            <strong>LJM Quality Assurance</strong><br>
+                            <span id="certDateAdded">-</span>
+                        </p>
+                    </div>
+                </div>
+                <button onclick="window.print()" class="button print-button">
+                    🖨️ Print Certificate
+                </button>
+            </div>
+
+            <div style="text-align: center; margin: 40px 0;">
+                <a href="confirmation.html" class="button">
+                    Continue to Pairing Instructions
+                </a>
+            </div>
+        </div>
+
+        <div id="errorMessage" class="error-message" style="display: none;"></div>
+    </main>
+
+    <!-- Photo Modal -->
+    <div id="photoModal" class="photo-modal">
+        <span class="photo-modal-close" onclick="closePhotoModal()">&times;</span>
+        <img id="modalImage" src="" alt="Product photo">
+    </div>
+
+    <footer class="footer">
+        <p>&copy; 2024 LJM. All rights reserved.</p>
+    </footer>
+
+    <script src="js/product-details.js"></script>
+</body>
+</html>
+

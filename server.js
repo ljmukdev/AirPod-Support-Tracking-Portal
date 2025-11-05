@@ -3,6 +3,8 @@ const { MongoClient, ObjectId } = require('mongodb');
 const bodyParser = require('body-parser');
 const session = require('express-session');
 const path = require('path');
+const multer = require('multer');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -17,6 +19,40 @@ app.use(bodyParser.urlencoded({ extended: true }));
 // Handle favicon requests gracefully (suppress 404 errors)
 app.get('/favicon.ico', (req, res) => {
     res.status(204).end(); // No Content
+});
+
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, 'public', 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, uploadsDir);
+    },
+    filename: (req, file, cb) => {
+        // Generate unique filename: timestamp-random-originalname
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const ext = path.extname(file.originalname);
+        cb(null, `product-${uniqueSuffix}${ext}`);
+    }
+});
+
+const upload = multer({
+    storage: storage,
+    limits: {
+        fileSize: 10 * 1024 * 1024 // 10MB max
+    },
+    fileFilter: (req, file, cb) => {
+        // Accept only images
+        if (file.mimetype.startsWith('image/')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only image files are allowed'));
+        }
+    }
 });
 
 app.use(express.static('public'));
@@ -411,6 +447,15 @@ app.post('/api/admin/product', requireAuth, requireDB, async (req, res) => {
     }
     
     try {
+        // Process uploaded photos
+        const photos = [];
+        if (req.files && req.files.length > 0) {
+            req.files.forEach(file => {
+                // Store relative path from public folder
+                photos.push(`/uploads/${file.filename}`);
+            });
+        }
+        
         const product = {
             serial_number: serial_number.trim(),
             security_barcode: security_barcode.trim(),
@@ -419,6 +464,7 @@ app.post('/api/admin/product', requireAuth, requireDB, async (req, res) => {
             part_model_number: part_model_number ? part_model_number.trim() : null,
             notes: notes ? notes.trim() : null,
             ebay_order_number: ebay_order_number ? ebay_order_number.trim() : null,
+            photos: photos, // Array of photo paths
             date_added: new Date(),
             confirmation_checked: false,
             confirmation_date: null
@@ -518,7 +564,11 @@ app.post('/api/verify-barcode', requireDB, async (req, res) => {
                 part_type: product.part_type,
                 serial_number: product.serial_number,
                 generation: product.generation,
-                part_model_number: product.part_model_number
+                part_model_number: product.part_model_number,
+                photos: product.photos || [],
+                ebay_order_number: product.ebay_order_number || null,
+                date_added: product.date_added,
+                notes: product.notes || null
             });
         }
     } catch (err) {
@@ -573,7 +623,11 @@ app.get('/api/product-info/:barcode', requireDB, async (req, res) => {
                 part_type: product.part_type,
                 serial_number: product.serial_number,
                 generation: product.generation,
-                part_model_number: product.part_model_number
+                part_model_number: product.part_model_number,
+                photos: product.photos || [],
+                ebay_order_number: product.ebay_order_number || null,
+                date_added: product.date_added,
+                notes: product.notes || null
             });
         }
     } catch (err) {
