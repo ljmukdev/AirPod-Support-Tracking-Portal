@@ -160,7 +160,8 @@ function loadProductInfo() {
 }
 
 // Handle warranty choice selection (free, extended, or skip)
-function selectWarrantyOption(choice) {
+// Make it globally accessible for onclick handlers
+window.selectWarrantyOption = function(choice) {
     const choiceOptions = document.getElementById('warrantyChoiceOptions');
     const warrantyForm = document.getElementById('warrantyForm');
     const registerFreeWarranty = document.getElementById('registerFreeWarranty');
