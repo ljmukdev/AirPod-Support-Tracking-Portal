@@ -10,6 +10,7 @@ var API_BASE = window.API_BASE;
 // Load parts from API and populate dropdowns
 let partsData = {};
 let generations = [];
+let allParts = []; // Store flat list of all parts for searching
 
 async function loadPartsData() {
     try {
@@ -17,6 +18,9 @@ async function loadPartsData() {
         const data = await response.json();
         
         if (response.ok && data.parts) {
+            // Store flat list for searching
+            allParts = data.parts;
+            
             // Group parts by generation
             partsData = {};
             generations = [];
@@ -45,6 +49,77 @@ async function loadPartsData() {
         }
     } catch (error) {
         console.error('Error loading parts:', error);
+    }
+}
+
+// Search for part by model number and auto-populate fields
+function searchPartByModelNumber(modelNumber) {
+    if (!modelNumber || modelNumber.trim().length === 0) {
+        return null;
+    }
+    
+    const searchTerm = modelNumber.trim().toUpperCase();
+    
+    // Try exact match first
+    let match = allParts.find(part => 
+        part.part_model_number && 
+        part.part_model_number.toUpperCase() === searchTerm
+    );
+    
+    // If no exact match, try partial match
+    if (!match) {
+        match = allParts.find(part => 
+            part.part_model_number && 
+            part.part_model_number.toUpperCase().includes(searchTerm)
+        );
+    }
+    
+    // Also check if the search term is contained in any part number
+    if (!match) {
+        match = allParts.find(part => 
+            part.part_model_number && 
+            searchTerm.includes(part.part_model_number.toUpperCase())
+        );
+    }
+    
+    return match;
+}
+
+// Auto-populate fields from part data
+function populateFieldsFromPart(part) {
+    if (!part) return;
+    
+    const generationSelect = document.getElementById('generation');
+    const partSelectionSelect = document.getElementById('partSelection');
+    const partModelNumberInput = document.getElementById('partModelNumber');
+    const partTypeSelect = document.getElementById('partType');
+    const notesInput = document.getElementById('notes');
+    
+    // Set generation
+    if (generationSelect && part.generation) {
+        generationSelect.value = part.generation;
+        // Trigger change event to populate part selection dropdown
+        generationSelect.dispatchEvent(new Event('change'));
+        
+        // Wait a bit for dropdown to populate, then set part selection
+        setTimeout(() => {
+            // Find and select the matching part in the dropdown
+            const options = Array.from(partSelectionSelect.options);
+            const matchingOption = options.find(opt => 
+                opt.value === part.part_name || 
+                opt.dataset.modelNumber === part.part_model_number
+            );
+            
+            if (matchingOption) {
+                partSelectionSelect.value = matchingOption.value;
+                partSelectionSelect.dispatchEvent(new Event('change'));
+            } else {
+                // If dropdown option not found, manually set values
+                partModelNumberInput.value = part.part_model_number || '';
+                partTypeSelect.value = part.part_type || '';
+                notesInput.value = part.notes || '';
+            }
+        }, 100);
     }
 }
 
@@ -107,6 +182,56 @@ if (generationSelect && partSelectionSelect) {
         } else {
             partModelNumberInput.value = '';
             notesInput.value = '';
+        }
+    });
+}
+
+// Auto-populate from part number input
+if (partModelNumberInput) {
+    let searchTimeout;
+    
+    partModelNumberInput.addEventListener('input', (e) => {
+        const modelNumber = e.target.value.trim();
+        
+        // Clear previous timeout
+        clearTimeout(searchTimeout);
+        
+        // Only search if we have at least 3 characters (e.g., "A29")
+        if (modelNumber.length >= 3) {
+            // Debounce the search
+            searchTimeout = setTimeout(() => {
+                const matchedPart = searchPartByModelNumber(modelNumber);
+                
+                if (matchedPart) {
+                    // Only auto-populate if fields are empty or user wants to override
+                    // Check if generation is already set and matches
+                    const currentGeneration = generationSelect.value;
+                    const currentPartSelection = partSelectionSelect.value;
+                    
+                    // If fields are empty or user is clearly searching, auto-populate
+                    if (!currentGeneration || !currentPartSelection || 
+                        currentGeneration === matchedPart.generation) {
+                        populateFieldsFromPart(matchedPart);
+                    }
+                }
+            }, 500); // Wait 500ms after user stops typing
+        } else if (modelNumber.length === 0) {
+            // Clear fields if input is cleared
+            generationSelect.value = '';
+            partSelectionSelect.innerHTML = '<option value="">Select part</option>';
+            partTypeSelect.value = '';
+            notesInput.value = '';
+        }
+    });
+    
+    // Also check on blur (when user leaves the field)
+    partModelNumberInput.addEventListener('blur', (e) => {
+        const modelNumber = e.target.value.trim();
+        if (modelNumber.length >= 3) {
+            const matchedPart = searchPartByModelNumber(modelNumber);
+            if (matchedPart) {
+                populateFieldsFromPart(matchedPart);
+            }
         }
     });
 }
