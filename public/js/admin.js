@@ -325,7 +325,7 @@ async function loadProducts() {
                 };
                 
                 return `
-                    <tr>
+                    <tr data-product-id="${escapeHtml(String(product.id))}">
                         <td>${escapeHtml(product.serial_number || '')}</td>
                         <td>${escapeHtml(product.security_barcode)}</td>
                         <td>${escapeHtml(product.generation || '')}</td>
@@ -335,13 +335,23 @@ async function loadProducts() {
                         <td>${formattedDate}</td>
                         <td>${confirmationStatus}</td>
                         <td>
-                            <button class="delete-button" onclick="deleteProduct(${product.id})">
+                            <button class="delete-button" data-action="delete" data-product-id="${escapeHtml(String(product.id))}">
                                 Delete
                             </button>
                         </td>
                     </tr>
                 `;
             }).join('');
+            
+            // Attach event listeners to delete buttons
+            tableBody.querySelectorAll('[data-action="delete"]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const productId = e.target.getAttribute('data-product-id');
+                    if (productId) {
+                        deleteProduct(productId);
+                    }
+                });
+            });
         } else {
             tableBody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 20px; color: red;">Error loading products</td></tr>';
         }
@@ -353,12 +363,14 @@ async function loadProducts() {
 
 // Delete product
 async function deleteProduct(id) {
-    if (!confirm('Are you sure you want to delete this product?')) {
+    if (!confirm('Are you sure you want to delete this product? This action cannot be undone.')) {
         return;
     }
     
     try {
-        const response = await fetch(`${API_BASE}/api/admin/product/${id}`, {
+        // Convert id to string and encode for URL
+        const productId = String(id);
+        const response = await fetch(`${API_BASE}/api/admin/product/${encodeURIComponent(productId)}`, {
             method: 'DELETE'
         });
         
@@ -366,7 +378,7 @@ async function deleteProduct(id) {
         
         if (response.ok && data.success) {
             showSuccess('Product deleted successfully');
-            loadProducts();
+            loadProducts(); // Reload the table
         } else {
             showError(data.error || 'Failed to delete product');
         }
