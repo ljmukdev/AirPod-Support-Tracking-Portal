@@ -134,11 +134,19 @@ if (scanImageButton) {
                 throw new Error('Image is too large. Please use an image smaller than 10MB.');
             }
             
+            ocrStatus.textContent = 'Preprocessing image...';
+            
+            // Preprocess image to improve OCR accuracy
+            const processedFile = await preprocessImage(file);
+            
             ocrStatus.textContent = 'Initializing OCR engine...';
             
-            // Use Tesseract.js for OCR with better error handling
+            // Use Tesseract.js for OCR with better error handling and optimized settings
             // Add timeout wrapper to catch hanging requests
-            const ocrPromise = Tesseract.recognize(file, 'eng', {
+            const ocrPromise = Tesseract.recognize(processedFile, 'eng', {
+                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-/:',
+                tessedit_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK,
+                tessedit_ocr_engine_mode: Tesseract.OEM.LSTM_ONLY
                 logger: m => {
                     console.log('Tesseract progress:', m);
                     if (m.status === 'loading tesseract core') {
@@ -250,6 +258,76 @@ if (scanImageButton) {
             scanImageButton.disabled = false;
             scanImageButton.textContent = 'Extract Data from Image';
         }
+    });
+}
+
+// Preprocess image to improve OCR accuracy
+async function preprocessImage(file) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        img.onload = () => {
+            // Set canvas size to match image
+            canvas.width = img.width;
+            canvas.height = img.height;
+            
+            // Draw image to canvas
+            ctx.drawImage(img, 0, 0);
+            
+            // Get image data
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+            
+            // Apply image enhancements:
+            // 1. Increase contrast
+            // 2. Convert to grayscale if needed
+            // 3. Enhance edges
+            
+            for (let i = 0; i < data.length; i += 4) {
+                // Get RGB values
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+                
+                // Convert to grayscale (weighted average)
+                const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+                
+                // Increase contrast (simple linear contrast enhancement)
+                const contrast = 1.5; // Increase contrast by 50%
+                const enhanced = ((gray - 128) * contrast) + 128;
+                
+                // Clamp values
+                const final = Math.max(0, Math.min(255, enhanced));
+                
+                // Set all channels to the enhanced grayscale value
+                data[i] = final;     // R
+                data[i + 1] = final; // G
+                data[i + 2] = final; // B
+                // Alpha channel stays the same
+            }
+            
+            // Put processed image data back
+            ctx.putImageData(imageData, 0, 0);
+            
+            // Convert canvas to blob
+            canvas.toBlob((blob) => {
+                resolve(blob || file); // Fallback to original file if conversion fails
+            }, file.type || 'image/jpeg', 0.95);
+        };
+        
+        img.onerror = () => {
+            // If image processing fails, use original file
+            resolve(file);
+        };
+        
+        // Load image from file
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
     });
 }
 
