@@ -338,8 +338,12 @@ async function initializeStripe() {
         const config = await response.json();
         
         if (!config.publishableKey) {
-            console.warn('⚠️  Stripe publishable key not available - payment features disabled');
-            console.warn('   To enable payments, add STRIPE_PUBLISHABLE_KEY to Railway environment variables');
+            // Payment features disabled - this is OK, app will work without payments
+            // Only log to console if in development/debug mode
+            if (window.location.hostname === 'localhost' || window.location.hostname.includes('127.0.0.1')) {
+                console.warn('⚠️  Stripe publishable key not available - payment features disabled');
+                console.warn('   To enable payments, add STRIPE_PUBLISHABLE_KEY to Railway environment variables');
+            }
             return;
         }
         
@@ -452,7 +456,7 @@ if (warrantyForm) {
         if (extendedWarranty !== 'none' && selectedWarrantyPrice > 0) {
             // Process payment if extended warranty is selected
             if (!stripe || !cardElement) {
-                showError('Payment system not initialized. Please refresh or contact support.');
+                showError('Payment system is not configured. Please contact support to enable extended warranty purchases, or select "No Extended Warranty" to continue with the free 30-day warranty.');
                 submitButton.disabled = false;
                 hideSpinner();
                 return;
