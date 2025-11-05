@@ -841,46 +841,42 @@ async function addWatermarkToImage(file) {
                 ctx.strokeRect(borderWidth / 2, borderWidth / 2, canvas.width - borderWidth, canvas.height - borderWidth);
                 
                 // Create watermark logo (white "LJM" text in dark circle)
-                // Size: 10% of smaller dimension, but minimum 100px, maximum 200px
-                const minDimension = Math.min(canvas.width, canvas.height);
-                const logoSize = Math.max(100, Math.min(200, minDimension * 0.1));
-                
-                // Padding from edges - ensure logo is fully visible (40px from right and bottom)
-                const paddingX = 40;
-                const paddingY = 40;
-                
-                // Position: bottom right corner - calculate center point
-                const centerX = canvas.width - paddingX - (logoSize / 2);
-                const centerY = canvas.height - paddingY - (logoSize / 2);
+                // Size: 8-12% of image width, but minimum 80px, maximum 250px
+                const logoSize = Math.max(80, Math.min(250, canvas.width * 0.1));
                 const radius = logoSize / 2;
                 
-                // Ensure logo fits within canvas bounds
-                const maxX = canvas.width - paddingX;
-                const maxY = canvas.height - paddingY;
-                const finalCenterX = Math.min(centerX, maxX - radius);
-                const finalCenterY = Math.min(centerY, maxY - radius);
-                const finalRadius = Math.min(radius, finalCenterX - paddingX, finalCenterY - paddingY);
+                // Padding from edges - 30px from right and bottom
+                const padding = 30;
                 
-                // Save context for transparency
+                // Position: bottom right corner
+                // Center of circle positioned at (width - padding - radius, height - padding - radius)
+                const centerX = canvas.width - padding - radius;
+                const centerY = canvas.height - padding - radius;
+                
+                // Ensure logo doesn't go outside canvas bounds
+                const finalCenterX = Math.max(radius + padding, Math.min(centerX, canvas.width - radius));
+                const finalCenterY = Math.max(radius + padding, Math.min(centerY, canvas.height - radius));
+                const finalRadius = Math.min(radius, finalCenterX - padding, finalCenterY - padding, (canvas.width - padding * 2) / 2, (canvas.height - padding * 2) / 2);
+                
+                // Save context for watermark
                 ctx.save();
-                ctx.globalAlpha = 0.65; // Faded/transparent watermark
                 
-                // Draw dark circle background (more opaque for visibility)
-                ctx.fillStyle = 'rgba(40, 40, 40, 0.9)';
+                // Draw dark circle background (semi-transparent but visible)
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.75)'; // Dark background, 75% opaque
                 ctx.beginPath();
                 ctx.arc(finalCenterX, finalCenterY, finalRadius, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // Draw white circle border (more visible)
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
-                ctx.lineWidth = Math.max(3, finalRadius * 0.08);
+                // Draw white circle border for better visibility
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.lineWidth = Math.max(2, finalRadius * 0.06);
                 ctx.beginPath();
                 ctx.arc(finalCenterX, finalCenterY, finalRadius - ctx.lineWidth / 2, 0, Math.PI * 2);
                 ctx.stroke();
                 
-                // Draw "LJM" text (white, bold) - ensure it's visible
-                ctx.fillStyle = 'rgba(255, 255, 255, 1)';
-                const fontSize = finalRadius * 0.5;
+                // Draw "LJM" text (white, bold) - ensure it's clearly visible
+                ctx.fillStyle = 'rgba(255, 255, 255, 1)'; // Fully opaque white text
+                const fontSize = Math.max(24, finalRadius * 0.45); // Larger text for visibility
                 ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
