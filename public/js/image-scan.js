@@ -144,9 +144,6 @@ if (scanImageButton) {
             // Use Tesseract.js for OCR with better error handling and optimized settings
             // Add timeout wrapper to catch hanging requests
             const ocrPromise = Tesseract.recognize(processedFile, 'eng', {
-                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-/:',
-                tessedit_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK,
-                tessedit_ocr_engine_mode: Tesseract.OEM.LSTM_ONLY
                 logger: m => {
                     console.log('Tesseract progress:', m);
                     if (m.status === 'loading tesseract core') {
