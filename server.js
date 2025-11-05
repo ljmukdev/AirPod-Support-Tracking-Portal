@@ -152,7 +152,18 @@ const storage = multer.diskStorage({
         // Verify directory is writable before saving
         try {
             fs.accessSync(currentUploadsDir, fs.constants.W_OK);
-            console.log(`💾 Multer saving to: ${currentUploadsDir} (absolute: ${absolutePath})`);
+            
+            // Try to write a test file to verify Railway volume is actually writable
+            const testFile = path.join(currentUploadsDir, `.write-test-${Date.now()}`);
+            try {
+                fs.writeFileSync(testFile, 'test');
+                fs.unlinkSync(testFile);
+                console.log(`💾 Multer saving to: ${currentUploadsDir} (absolute: ${absolutePath}) - Volume verified writable`);
+            } catch (testErr) {
+                console.error(`⚠️  Volume write test failed: ${testErr.message}`);
+                console.error(`   This may indicate Railway volume sync issues`);
+            }
+            
             cb(null, currentUploadsDir);
         } catch (permErr) {
             console.error(`❌ Directory not writable: ${currentUploadsDir}`);
