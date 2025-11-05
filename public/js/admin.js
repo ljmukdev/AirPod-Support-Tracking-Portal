@@ -192,6 +192,7 @@ if (productForm) {
         const partModelNumber = document.getElementById('partModelNumber').value.trim();
         const notes = document.getElementById('notes').value.trim();
         const ebayOrderNumber = document.getElementById('ebayOrderNumber').value.trim();
+        const productPhotos = document.getElementById('productPhotos');
         const addProductButton = document.getElementById('addProductButton');
         
         if (!serialNumber || !securityBarcode || !generation || !partSelection || !partType) {
@@ -203,20 +204,26 @@ if (productForm) {
         showSpinner();
         
         try {
+            // Use FormData to support file uploads
+            const formData = new FormData();
+            formData.append('serial_number', serialNumber);
+            formData.append('security_barcode', securityBarcode);
+            formData.append('part_type', partType);
+            formData.append('generation', generation);
+            formData.append('part_model_number', partModelNumber);
+            if (notes) formData.append('notes', notes);
+            if (ebayOrderNumber) formData.append('ebay_order_number', ebayOrderNumber);
+            
+            // Append photos if selected
+            if (productPhotos && productPhotos.files.length > 0) {
+                for (let i = 0; i < productPhotos.files.length; i++) {
+                    formData.append('photos', productPhotos.files[i]);
+                }
+            }
+            
             const response = await fetch(`${API_BASE}/api/admin/product`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    serial_number: serialNumber,
-                    security_barcode: securityBarcode,
-                    part_type: partType,
-                    generation: generation,
-                    part_model_number: partModelNumber,
-                    notes: notes || null,
-                    ebay_order_number: ebayOrderNumber || null
-                })
+                body: formData // Don't set Content-Type header, browser will set it with boundary
             });
             
             const data = await response.json();
