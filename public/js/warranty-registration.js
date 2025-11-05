@@ -264,22 +264,35 @@ function selectWarranty(value) {
 
 // Update total price display
 function updateTotalPrice() {
-    const registerFreeWarranty = document.getElementById('registerFreeWarranty');
-    if (!registerFreeWarranty || !registerFreeWarranty.checked) {
-        // Hide payment section if not registering free warranty
-        const paymentSection = document.getElementById('paymentSection');
+        const registerFreeWarranty = document.getElementById('registerFreeWarranty');
+        if (!registerFreeWarranty || !registerFreeWarranty.checked) {
+            // Hide payment section if not registering free warranty
+            const paymentSection = document.getElementById('paymentSection');
+            const totalPriceSection = document.getElementById('totalPriceSection');
+            if (paymentSection) paymentSection.style.display = 'none';
+            if (totalPriceSection) totalPriceSection.style.display = 'none';
+            // Update button text
+            const submitButtonText = document.getElementById('submitButtonText');
+            if (submitButtonText) submitButtonText.textContent = 'Continue to Pairing Instructions';
+            return;
+        }
+        
+        const selectedWarranty = document.querySelector('input[name="extendedWarranty"]:checked');
         const totalPriceSection = document.getElementById('totalPriceSection');
-        if (paymentSection) paymentSection.style.display = 'none';
-        if (totalPriceSection) totalPriceSection.style.display = 'none';
-        return;
-    }
-    
-    const selectedWarranty = document.querySelector('input[name="extendedWarranty"]:checked');
-    const totalPriceSection = document.getElementById('totalPriceSection');
-    const totalPriceEl = document.getElementById('totalPrice');
-    const paymentSection = document.getElementById('paymentSection');
-    
-    if (selectedWarranty && selectedWarranty.value !== 'none') {
+        const totalPriceEl = document.getElementById('totalPrice');
+        const paymentSection = document.getElementById('paymentSection');
+        
+        // Update button text based on warranty selection
+        const submitButtonText = document.getElementById('submitButtonText');
+        if (submitButtonText) {
+            if (selectedWarranty && selectedWarranty.value !== 'none') {
+                submitButtonText.textContent = 'Complete Payment and Progress to Pairing Instructions';
+            } else {
+                submitButtonText.textContent = 'Continue to Pairing Instructions';
+            }
+        }
+        
+        if (selectedWarranty && selectedWarranty.value !== 'none') {
         const price = warrantyPrices[selectedWarranty.value];
         if (totalPriceSection) totalPriceSection.style.display = 'block';
         if (totalPriceEl) totalPriceEl.textContent = `£${price.toFixed(2)}`;
