@@ -115,6 +115,10 @@ if (!fs.existsSync(uploadsDir)) {
 
 // Store uploadsDir for use in routes
 global.uploadsDir = uploadsDir;
+// Also store the absolute path for debugging
+global.uploadsDirAbsolute = path.resolve(uploadsDir);
+console.log(`💾 Uploads directory configured: ${uploadsDir}`);
+console.log(`   Absolute path: ${global.uploadsDirAbsolute}`);
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -183,8 +187,17 @@ const handleMulterError = (err, req, res, next) => {
 // This prevents Express static from throwing unhandled errors
 app.get('/uploads/:filename', (req, res) => {
     const filename = req.params.filename;
-    // Use the same uploadsDir that we configured above (works with both local and Railway volume)
-    const filePath = path.join(global.uploadsDir || uploadsDir, filename);
+    // CRITICAL: Use the same uploadsDir that Multer uses for saving files
+    // This must match exactly where files are saved
+    const currentUploadsDir = global.uploadsDir || uploadsDir;
+    const filePath = path.join(currentUploadsDir, filename);
+    
+    // Log for debugging
+    console.log(`🔍 Serving file request: ${filename}`);
+    console.log(`   Looking in: ${currentUploadsDir}`);
+    console.log(`   Absolute path: ${global.uploadsDirAbsolute || path.resolve(currentUploadsDir)}`);
+    console.log(`   Full path: ${filePath}`);
+    console.log(`   Global uploadsDir: ${global.uploadsDir || 'not set'}`);
     
     // Check if file exists before trying to serve it
     fs.access(filePath, fs.constants.F_OK, (err) => {
