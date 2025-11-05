@@ -362,6 +362,97 @@ const photoPreviewGrid = document.getElementById('photoPreviewGrid');
 // Store all selected files
 let selectedFiles = [];
 
+// Watermark function - adds LJM logo to bottom right corner
+async function addWatermarkToImage(file) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        const reader = new FileReader();
+        
+        reader.onload = (e) => {
+            img.onload = () => {
+                // Create canvas
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Set canvas size to match image
+                canvas.width = img.width;
+                canvas.height = img.height;
+                
+                // Draw original image
+                ctx.drawImage(img, 0, 0);
+                
+                // Create watermark logo (white "LJM" text in dark circle)
+                const logoSize = Math.min(canvas.width, canvas.height) * 0.15; // 15% of smaller dimension
+                const padding = logoSize * 0.3;
+                const logoX = canvas.width - logoSize - padding;
+                const logoY = canvas.height - logoSize - padding;
+                
+                // Draw dark circle background
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.beginPath();
+                ctx.arc(
+                    logoX + logoSize / 2,
+                    logoY + logoSize / 2,
+                    logoSize / 2,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.fill();
+                
+                // Draw white circle border
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.lineWidth = logoSize * 0.05;
+                ctx.beginPath();
+                ctx.arc(
+                    logoX + logoSize / 2,
+                    logoY + logoSize / 2,
+                    logoSize / 2 - ctx.lineWidth / 2,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.stroke();
+                
+                // Draw "LJM" text
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+                ctx.font = `bold ${logoSize * 0.4}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(
+                    'LJM',
+                    logoX + logoSize / 2,
+                    logoY + logoSize / 2
+                );
+                
+                // Convert canvas to blob
+                canvas.toBlob((blob) => {
+                    if (blob) {
+                        // Create new File object with same name and type
+                        const watermarkedFile = new File([blob], file.name, {
+                            type: file.type,
+                            lastModified: Date.now()
+                        });
+                        resolve(watermarkedFile);
+                    } else {
+                        reject(new Error('Failed to create watermarked image'));
+                    }
+                }, file.type || 'image/jpeg', 0.92);
+            };
+            
+            img.onerror = () => {
+                reject(new Error('Failed to load image'));
+            };
+            
+            img.src = e.target.result;
+        };
+        
+        reader.onerror = () => {
+            reject(new Error('Failed to read file'));
+        };
+        
+        reader.readAsDataURL(file);
+    });
+}
+
 // Function to render all photo previews
 function renderPhotoPreviews() {
     if (!photoPreviewGrid) return;
@@ -440,27 +531,56 @@ function updateFileInput() {
 }
 
 if (productPhotos && photoPreviewGrid) {
-    productPhotos.addEventListener('change', (e) => {
+    productPhotos.addEventListener('change', async (e) => {
         // Add new files to the existing array (don't replace)
         const newFiles = Array.from(e.target.files);
         
-        // Filter out duplicates by name and size
-        newFiles.forEach(newFile => {
+        // Show loading indicator
+        const loadingMsg = document.createElement('p');
+        loadingMsg.id = 'watermarkLoading';
+        loadingMsg.textContent = 'Adding watermark to photos...';
+        loadingMsg.style.color = '#666';
+        loadingMsg.style.fontSize = '0.85rem';
+        loadingMsg.style.marginTop = '10px';
+        if (!document.getElementById('watermarkLoading')) {
+            photoPreview.parentNode.insertBefore(loadingMsg, photoPreview);
+        }
+        
+        // Process each new file - add watermark and check for duplicates
+        for (const newFile of newFiles) {
+            // Check for duplicates
             const isDuplicate = selectedFiles.some(existingFile => 
                 existingFile.name === newFile.name && 
                 existingFile.size === newFile.size
             );
             
             if (!isDuplicate) {
-                selectedFiles.push(newFile);
+                try {
+                    // Add watermark to the image
+                    const watermarkedFile = await addWatermarkToImage(newFile);
+                    selectedFiles.push(watermarkedFile);
+                } catch (error) {
+                    console.error('Error adding watermark:', error);
+                    // If watermarking fails, add original file
+                    selectedFiles.push(newFile);
+                }
             }
-        });
+        }
+        
+        // Remove loading indicator
+        const loadingEl = document.getElementById('watermarkLoading');
+        if (loadingEl) {
+            loadingEl.remove();
+        }
         
         // Update the file input
         updateFileInput();
         
         // Render all previews
         renderPhotoPreviews();
+        
+        // Reset the input so same files can be selected again if needed
+        e.target.value = '';
     });
 }
 
