@@ -579,10 +579,28 @@ app.post('/api/admin/product', requireAuth, requireDB, (req, res, next) => {
         // Process uploaded photos
         const photos = [];
         if (req.files && req.files.length > 0) {
-            req.files.forEach(file => {
-                // Store relative path from public folder
-                photos.push(`/uploads/${file.filename}`);
+            console.log(`📸 Processing ${req.files.length} uploaded file(s)...`);
+            console.log(`   Upload directory: ${uploadsDir}`);
+            req.files.forEach((file, index) => {
+                // Verify file was actually saved
+                const savedPath = path.join(uploadsDir, file.filename);
+                if (fs.existsSync(savedPath)) {
+                    // Store relative path for serving
+                    photos.push(`/uploads/${file.filename}`);
+                    const stats = fs.statSync(savedPath);
+                    console.log(`   ✅ Photo ${index + 1} saved: ${file.filename} (${(stats.size / 1024).toFixed(1)} KB) at ${savedPath}`);
+                } else {
+                    console.error(`   ❌ Photo ${index + 1} NOT saved: ${file.filename}`);
+                    console.error(`      Expected at: ${savedPath}`);
+                    console.error(`      UploadsDir: ${uploadsDir}`);
+                    console.error(`      File object:`, {
+                        filename: file.filename,
+                        path: file.path,
+                        destination: file.destination
+                    });
+                }
             });
+            console.log(`📸 Total photos processed: ${photos.length}/${req.files.length}`);
         }
         
         const product = {
