@@ -21,10 +21,26 @@ app.get('/favicon.ico', (req, res) => {
     res.status(204).end(); // No Content
 });
 
+// Determine uploads directory
+// Check for Railway persistent volume mount point, otherwise use local public/uploads
+// Railway volumes are typically mounted at /data or a custom path
+const RAILWAY_VOLUME_PATH = process.env.RAILWAY_VOLUME_MOUNT_PATH || process.env.UPLOADS_VOLUME_PATH;
+let uploadsDir;
+
+if (RAILWAY_VOLUME_PATH) {
+    // Use Railway persistent volume
+    uploadsDir = path.join(RAILWAY_VOLUME_PATH, 'uploads');
+    console.log('📦 Using Railway persistent volume for uploads:', uploadsDir);
+} else {
+    // Use local public/uploads directory
+    uploadsDir = path.join(__dirname, 'public', 'uploads');
+    console.log('📁 Using local directory for uploads:', uploadsDir);
+}
+
 // Ensure uploads directory exists
-const uploadsDir = path.join(__dirname, 'public', 'uploads');
 if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
+    console.log('✅ Created uploads directory:', uploadsDir);
 }
 
 // Configure multer for file uploads
@@ -77,7 +93,8 @@ const handleMulterError = (err, req, res, next) => {
 // This prevents Express static from throwing unhandled errors
 app.get('/uploads/:filename', (req, res) => {
     const filename = req.params.filename;
-    const filePath = path.join(__dirname, 'public', 'uploads', filename);
+    // Use the same uploadsDir that we configured above (works with both local and Railway volume)
+    const filePath = path.join(uploadsDir, filename);
     
     // Check if file exists before trying to serve it
     fs.access(filePath, fs.constants.F_OK, (err) => {
