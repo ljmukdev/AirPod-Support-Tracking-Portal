@@ -1772,6 +1772,63 @@ app.post('/api/warranty/register', requireDB, async (req, res) => {
     }
 });
 
+// List all warranties (Admin only)
+app.get('/api/admin/warranties', requireAuth, requireDB, async (req, res) => {
+    try {
+        const warranties = await db.collection('warranties')
+            .find({})
+            .sort({ registration_date: -1 })
+            .limit(1000) // Limit to prevent overwhelming response
+            .toArray();
+        
+        // Format warranties for display
+        const formattedWarranties = warranties.map(warranty => ({
+            id: warranty._id.toString(),
+            warranty_id: warranty.warranty_id,
+            security_barcode: warranty.security_barcode,
+            customer_name: warranty.customer_name,
+            customer_email: warranty.customer_email,
+            customer_phone: warranty.customer_phone,
+            extended_warranty: warranty.extended_warranty,
+            warranty_price: warranty.warranty_price,
+            payment_status: warranty.payment_status,
+            status: warranty.status,
+            registration_date: warranty.registration_date,
+            standard_warranty_end: warranty.standard_warranty_end,
+            extended_warranty_end: warranty.extended_warranty_end,
+            marketing_consent: warranty.marketing_consent
+        }));
+        
+        res.json({ warranties: formattedWarranties });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Delete warranty (Admin only)
+app.delete('/api/admin/warranty/:id', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    
+    try {
+        if (!ObjectId.isValid(id)) {
+            return res.status(400).json({ error: 'Invalid warranty ID' });
+        }
+        
+        const result = await db.collection('warranties').deleteOne({ _id: new ObjectId(id) });
+        
+        if (result.deletedCount === 0) {
+            res.status(404).json({ error: 'Warranty not found' });
+        } else {
+            console.log(`✅ Warranty deleted: ${id}`);
+            res.json({ success: true, message: 'Warranty deleted successfully' });
+        }
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // Get product info by barcode (for confirmation page)
 app.get('/api/product-info/:barcode', requireDB, async (req, res) => {
     const { barcode } = req.params;
