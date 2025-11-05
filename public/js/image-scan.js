@@ -50,9 +50,10 @@ if (imageUpload) {
 // OCR Image Processing
 if (scanImageButton) {
     scanImageButton.addEventListener('click', async () => {
-        const file = imageUpload.files[0];
+        // Try to get file from either input (upload or camera)
+        const file = imageUpload?.files[0] || cameraCapture?.files[0];
         if (!file) {
-            showOCRStatus('Please select an image first', 'error');
+            showOCRStatus('Please upload an image or take a photo first', 'error');
             return;
         }
         

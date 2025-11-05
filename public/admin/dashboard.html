@@ -27,14 +27,29 @@
                 </p>
                 
                 <div class="form-group">
-                    <label for="imageUpload">Upload Photo (Part Label)</label>
-                    <input 
-                        type="file" 
-                        id="imageUpload" 
-                        name="imageUpload" 
+                    <label for="imageUpload">Upload or Take Photo (Part Label)</label>
+                    <p style="font-size: 0.85rem; color: #666; margin-bottom: 10px;">
+                        📸 Click to upload from device or take a photo with your camera
+                    </p>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <input
+                            type="file"
+                            id="imageUpload"
+                            name="imageUpload"
+                            accept="image/*"
+                            style="flex: 1; min-width: 200px; padding: 10px; border: 2px dashed #007AFF; border-radius: 8px; cursor: pointer;"
+                        >
+                        <button type="button" class="button button-secondary" id="takePhotoButton" style="width: auto; min-width: 140px;">
+                            📷 Take Photo
+                        </button>
+                    </div>
+                    <input
+                        type="file"
+                        id="cameraCapture"
+                        name="cameraCapture"
                         accept="image/*"
                         capture="environment"
-                        style="padding: 10px;"
+                        style="display: none;"
                     >
                     <button type="button" class="button button-secondary" id="scanImageButton" style="margin-top: 10px; width: auto;">
                         Extract Data from Image
