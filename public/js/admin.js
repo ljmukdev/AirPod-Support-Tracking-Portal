@@ -178,8 +178,115 @@ if (logoutButton) {
     });
 }
 
-// Product form
+// Product form - track if we're editing
+let editingProductId = null;
 const productForm = document.getElementById('productForm');
+const addProductButton = document.getElementById('addProductButton');
+const cancelEditButton = document.getElementById('cancelEditButton');
+
+// Edit product function
+async function editProduct(id) {
+    try {
+        // Get all products to find the one we're editing
+        const response = await fetch(`${API_BASE}/api/admin/products`);
+        const data = await response.json();
+        
+        if (response.ok && data.products) {
+            const product = data.products.find(p => String(p.id) === String(id));
+            if (product) {
+                // Store editing ID
+                editingProductId = product.id;
+                
+                // Populate form fields
+                document.getElementById('serialNumber').value = product.serial_number || '';
+                document.getElementById('securityBarcode').value = product.security_barcode || '';
+                document.getElementById('partModelNumber').value = product.part_model_number || '';
+                
+                // Set generation and trigger change to populate part selection
+                const generationSelect = document.getElementById('generation');
+                if (generationSelect && product.generation) {
+                    generationSelect.value = product.generation;
+                    generationSelect.dispatchEvent(new Event('change'));
+                    
+                    // Wait for dropdown to populate, then set part selection
+                    setTimeout(() => {
+                        const partSelectionSelect = document.getElementById('partSelection');
+                        if (partSelectionSelect) {
+                            // Find the option that matches the part model number
+                            const options = Array.from(partSelectionSelect.options);
+                            const matchingOption = options.find(opt => 
+                                opt.dataset.modelNumber === product.part_model_number
+                            );
+                            if (matchingOption) {
+                                partSelectionSelect.value = matchingOption.value;
+                                partSelectionSelect.dispatchEvent(new Event('change'));
+                            }
+                        }
+                    }, 200);
+                }
+                
+                // Set part type
+                const partTypeSelect = document.getElementById('partType');
+                if (partTypeSelect && product.part_type) {
+                    partTypeSelect.value = product.part_type;
+                }
+                
+                // Set notes and eBay order number
+                document.getElementById('notes').value = product.notes || '';
+                document.getElementById('ebayOrderNumber').value = product.ebay_order_number || '';
+                
+                // Update button text and show cancel button
+                if (addProductButton) {
+                    addProductButton.textContent = 'Update Product';
+                }
+                if (cancelEditButton) {
+                    cancelEditButton.style.display = 'inline-block';
+                }
+                
+                // Scroll to form
+                document.querySelector('.admin-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+                
+                showSuccess('Product loaded for editing. Make changes and click "Update Product"');
+            } else {
+                showError('Product not found');
+            }
+        }
+    } catch (error) {
+        console.error('Edit product error:', error);
+        showError('Failed to load product for editing');
+    }
+}
+
+// Cancel edit function
+function cancelEdit() {
+    editingProductId = null;
+    productForm.reset();
+    const partSelectionSelect = document.getElementById('partSelection');
+    if (partSelectionSelect) {
+        partSelectionSelect.innerHTML = '<option value="">Select part</option>';
+    }
+    if (addProductButton) {
+        addProductButton.textContent = 'Add Product';
+    }
+    // Hide cancel button
+    if (cancelEditButton) {
+        cancelEditButton.style.display = 'none';
+    }
+    // Clear photo preview
+    selectedFiles = [];
+    const photoPreview = document.getElementById('photoPreview');
+    if (photoPreview) {
+        photoPreview.style.display = 'none';
+        const photoPreviewGrid = document.getElementById('photoPreviewGrid');
+        if (photoPreviewGrid) {
+            photoPreviewGrid.innerHTML = '';
+        }
+    }
+    if (productPhotos) {
+        productPhotos.value = '';
+    }
+}
+
 if (productForm) {
     productForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -392,8 +499,14 @@ async function deleteProduct(id) {
     }
 }
 
-// Make deleteProduct available globally
+// Make functions available globally
 window.deleteProduct = deleteProduct;
+window.editProduct = editProduct;
+
+// Cancel edit button
+if (cancelEditButton) {
+    cancelEditButton.addEventListener('click', cancelEdit);
+}
 
 // Escape HTML to prevent XSS
 function escapeHtml(text) {
