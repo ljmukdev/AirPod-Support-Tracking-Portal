@@ -813,12 +813,27 @@ app.get('/api/product-info/:barcode', requireDB, async (req, res) => {
         if (!product) {
             res.status(404).json({ error: 'Product not found' });
         } else {
+            // Log photos for debugging
+            console.log('Product photos from DB:', product.photos);
+            
+            // Ensure photos array exists and is properly formatted
+            const photos = (product.photos || []).map(photo => {
+                // Ensure photo path starts with /uploads/
+                if (typeof photo === 'string') {
+                    // If it doesn't start with /, add it
+                    return photo.startsWith('/') ? photo : '/' + photo;
+                }
+                return photo;
+            });
+            
+            console.log('Formatted photos array:', photos);
+            
             res.json({ 
                 part_type: product.part_type,
                 serial_number: product.serial_number,
                 generation: product.generation,
                 part_model_number: product.part_model_number,
-                photos: product.photos || [],
+                photos: photos,
                 ebay_order_number: product.ebay_order_number || null,
                 date_added: product.date_added,
                 notes: product.notes || null
