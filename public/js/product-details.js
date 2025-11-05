@@ -104,6 +104,7 @@ function populateProductInfo(data, securityBarcode) {
     }
     
     // Display photos if available
+    console.log('Photos data received:', data.photos);
     if (data.photos && data.photos.length > 0) {
         const photosSection = document.getElementById('photosSection');
         const photosGrid = document.getElementById('photosGrid');
@@ -119,10 +120,21 @@ function populateProductInfo(data, securityBarcode) {
             }
             
             // Construct full image URL
-            // If photoPath already starts with /, use it directly, otherwise add API_BASE
-            const imageUrl = photoPath.startsWith('/') 
-                ? (API_BASE || '') + photoPath 
-                : (API_BASE || '') + '/' + photoPath;
+            // Photos are stored as /uploads/filename.jpg in database
+            // Express serves static files from 'public', so /uploads/file.jpg resolves to public/uploads/file.jpg
+            let imageUrl = photoPath;
+            
+            // If photoPath doesn't start with /, add it
+            if (!photoPath.startsWith('/')) {
+                imageUrl = '/' + photoPath;
+            }
+            
+            // If API_BASE is set (for proxied deployments), prepend it
+            if (API_BASE && API_BASE.trim() !== '') {
+                imageUrl = API_BASE + imageUrl;
+            }
+            
+            console.log(`Photo ${index + 1}: Original path: "${photoPath}", Final URL: "${imageUrl}"`);
             
             const photoItem = document.createElement('div');
             photoItem.className = 'photo-item';
@@ -133,21 +145,33 @@ function populateProductInfo(data, securityBarcode) {
             img.alt = `Product photo ${index + 1}`;
             img.loading = 'lazy';
             
+            // Add success handler to verify image loaded
+            img.onload = function() {
+                console.log('Successfully loaded image:', imageUrl);
+            };
+            
             // Add error handling for image loading
             img.onerror = function() {
                 console.error('Failed to load image:', imageUrl);
+                console.error('Tried to load from:', this.src);
+                console.error('Photo path from database:', photoPath);
+                
+                // Hide the broken image
                 this.style.display = 'none';
-                // Optionally show a placeholder or error message
+                
+                // Show error message
                 const errorMsg = document.createElement('div');
                 errorMsg.style.padding = '20px';
                 errorMsg.style.textAlign = 'center';
                 errorMsg.style.color = '#999';
-                errorMsg.textContent = 'Image not available';
+                errorMsg.style.backgroundColor = '#f5f5f5';
+                errorMsg.style.borderRadius = '4px';
+                errorMsg.innerHTML = `
+                    <p style="margin: 0 0 5px 0;">Image not available</p>
+                    <small style="color: #999; font-size: 0.8rem;">Path: ${photoPath}</small>
+                `;
                 photoItem.appendChild(errorMsg);
             };
-            
-            // Log for debugging
-            console.log('Loading photo:', imageUrl);
             
             photoItem.appendChild(img);
             photosGrid.appendChild(photoItem);
@@ -163,14 +187,22 @@ function openPhotoModal(photoPath) {
     const modalImage = document.getElementById('modalImage');
     
     // Construct full image URL (same logic as above)
-    const imageUrl = photoPath.startsWith('/') 
-        ? (API_BASE || '') + photoPath 
-        : (API_BASE || '') + '/' + photoPath;
+    let imageUrl = photoPath;
+    if (!photoPath.startsWith('/')) {
+        imageUrl = '/' + photoPath;
+    }
+    if (API_BASE && API_BASE.trim() !== '') {
+        imageUrl = API_BASE + imageUrl;
+    }
     
+    console.log('Opening modal with image URL:', imageUrl);
     modalImage.src = imageUrl;
     modalImage.onerror = function() {
         console.error('Failed to load modal image:', imageUrl);
         this.alt = 'Image not available';
+    };
+    modalImage.onload = function() {
+        console.log('Modal image loaded successfully:', imageUrl);
     };
     modal.classList.add('active');
 }
