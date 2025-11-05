@@ -392,24 +392,7 @@ app.use(express.static('public', {
     dotfiles: 'ignore', // Ignore dotfiles
     etag: true,
     lastModified: true,
-    maxAge: '1d', // Cache for 1 day
-    onNotFound: (path, res) => {
-        // Suppress logging for browser extension files
-        const browserExtensionFiles = [
-            'twint_ch.js',
-            'lkk_ch.js',
-            'support_parent.css'
-        ];
-        
-        const isBrowserExtensionFile = browserExtensionFiles.some(file => 
-            path.includes(file)
-        );
-        
-        if (!isBrowserExtensionFile) {
-            // Only log if it's not a browser extension file
-            console.log(`Static file not found: ${path}`);
-        }
-    }
+    maxAge: '1d' // Cache for 1 day
 }));
 
 // Session configuration
