@@ -149,8 +149,27 @@ const storage = multer.diskStorage({
         global.uploadsDir = currentUploadsDir;
         global.uploadsDirAbsolute = absolutePath;
         
-        console.log(`💾 Multer saving to: ${currentUploadsDir} (absolute: ${absolutePath})`);
-        cb(null, currentUploadsDir);
+        // Verify directory is writable before saving
+        try {
+            fs.accessSync(currentUploadsDir, fs.constants.W_OK);
+            console.log(`💾 Multer saving to: ${currentUploadsDir} (absolute: ${absolutePath})`);
+            cb(null, currentUploadsDir);
+        } catch (permErr) {
+            console.error(`❌ Directory not writable: ${currentUploadsDir}`);
+            console.error(`   Error: ${permErr.message}`);
+            // Try fallback
+            const fallbackDir = path.join(__dirname, 'public', 'uploads');
+            try {
+                fs.mkdirSync(fallbackDir, { recursive: true });
+                console.log(`💾 Using fallback directory: ${fallbackDir}`);
+                global.uploadsDir = fallbackDir;
+                global.uploadsDirAbsolute = path.resolve(fallbackDir);
+                cb(null, fallbackDir);
+            } catch (fallbackErr) {
+                console.error(`❌ Fallback directory also failed: ${fallbackErr.message}`);
+                cb(new Error(`Cannot write to uploads directory: ${permErr.message}`));
+            }
+        }
     },
     filename: (req, file, cb) => {
         // Generate unique filename: timestamp-random-originalname
