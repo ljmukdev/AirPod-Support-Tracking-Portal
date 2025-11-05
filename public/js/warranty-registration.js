@@ -885,6 +885,28 @@ function initializePage() {
         marketingConsent.checked = true;
     }
     
+    // Watch for form visibility changes and ensure billing address is shown
+    if (warrantyForm) {
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                    if (warrantyForm.classList.contains('active')) {
+                        // Form is now visible, ensure billing address is shown
+                        setTimeout(function() {
+                            const billingAddressSection = document.getElementById('billingAddressSection');
+                            if (billingAddressSection) {
+                                billingAddressSection.style.display = 'block';
+                                billingAddressSection.style.visibility = 'visible';
+                                console.log('Billing address section shown (form became active via observer)');
+                            }
+                        }, 200);
+                    }
+                }
+            });
+        });
+        observer.observe(warrantyForm, { attributes: true, attributeFilter: ['class'] });
+    }
+    
     // Wait a moment for DOM to be fully ready, then toggle sections
     setTimeout(() => {
         toggleWarrantySections();
