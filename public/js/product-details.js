@@ -152,15 +152,18 @@ function populateProductInfo(data, securityBarcode) {
             
             // Add error handling for image loading
             img.onerror = function() {
-                console.error('Failed to load image:', imageUrl);
-                console.error('Tried to load from:', this.src);
-                console.error('Photo path from database:', photoPath);
+                // Don't log errors for missing files (expected on Railway ephemeral filesystem)
+                // Only log if it's not a 404
+                if (this.src && !this.src.includes('404')) {
+                    console.warn('Failed to load image:', imageUrl);
+                }
                 
                 // Hide the broken image
                 this.style.display = 'none';
                 
                 // Show placeholder instead of error message
                 const placeholder = document.createElement('div');
+                placeholder.className = 'photo-placeholder';
                 placeholder.style.padding = '40px 20px';
                 placeholder.style.textAlign = 'center';
                 placeholder.style.color = '#999';
@@ -171,13 +174,21 @@ function populateProductInfo(data, securityBarcode) {
                 placeholder.style.alignItems = 'center';
                 placeholder.style.justifyContent = 'center';
                 placeholder.style.minHeight = '200px';
+                placeholder.style.width = '100%';
+                placeholder.style.border = '3px solid #999999';
                 placeholder.innerHTML = `
-                    <div style="font-size: 48px; margin-bottom: 10px;">📷</div>
-                    <p style="margin: 0; font-size: 0.9rem;">Photo unavailable</p>
+                    <div style="font-size: 48px; margin-bottom: 10px; opacity: 0.5;">📷</div>
+                    <p style="margin: 0; font-size: 0.9rem; color: #999;">Photo unavailable</p>
                     <small style="color: #bbb; font-size: 0.75rem; margin-top: 5px;">File may have been removed</small>
                 `;
+                
+                // Replace the photo item content
                 photoItem.innerHTML = '';
                 photoItem.appendChild(placeholder);
+                
+                // Remove click handler since there's no image to view
+                photoItem.onclick = null;
+                photoItem.style.cursor = 'default';
             };
             
             photoItem.appendChild(img);
