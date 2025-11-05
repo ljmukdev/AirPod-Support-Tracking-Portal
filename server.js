@@ -102,7 +102,24 @@ global.uploadsDir = uploadsDir;
 // Configure multer for file uploads
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, uploadsDir);
+        // Always use the current uploadsDir (set at startup)
+        const currentUploadsDir = global.uploadsDir || uploadsDir;
+        // Ensure directory exists
+        if (!fs.existsSync(currentUploadsDir)) {
+            try {
+                fs.mkdirSync(currentUploadsDir, { recursive: true });
+                console.log(`💾 Created uploads directory: ${currentUploadsDir}`);
+            } catch (err) {
+                console.error(`❌ Failed to create uploads directory: ${err.message}`);
+                // Use fallback
+                const fallbackDir = path.join(__dirname, 'public', 'uploads');
+                fs.mkdirSync(fallbackDir, { recursive: true });
+                console.log(`💾 Using fallback directory: ${fallbackDir}`);
+                return cb(null, fallbackDir);
+            }
+        }
+        console.log(`💾 Multer saving to: ${currentUploadsDir}`);
+        cb(null, currentUploadsDir);
     },
     filename: (req, file, cb) => {
         // Generate unique filename: timestamp-random-originalname
