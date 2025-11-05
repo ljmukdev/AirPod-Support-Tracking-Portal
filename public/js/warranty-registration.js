@@ -6,6 +6,11 @@ if (typeof window.API_BASE === 'undefined') {
 }
 var API_BASE = window.API_BASE;
 
+// Initialize Stripe (will be set after fetching publishable key)
+let stripe = null;
+let cardElement = null;
+let cardErrors = null;
+
 // Utility functions
 function showError(message) {
     const errorDiv = document.getElementById('errorMessage');
@@ -129,13 +134,67 @@ function updateTotalPrice() {
     const selectedWarranty = document.querySelector('input[name="extendedWarranty"]:checked');
     const totalPriceSection = document.getElementById('totalPriceSection');
     const totalPriceEl = document.getElementById('totalPrice');
+    const paymentSection = document.getElementById('paymentSection');
     
     if (selectedWarranty && selectedWarranty.value !== 'none') {
         const price = warrantyPrices[selectedWarranty.value];
         if (totalPriceSection) totalPriceSection.style.display = 'block';
         if (totalPriceEl) totalPriceEl.textContent = `£${price.toFixed(2)}`;
+        if (paymentSection) paymentSection.style.display = 'block';
     } else {
         if (totalPriceSection) totalPriceSection.style.display = 'none';
+        if (paymentSection) paymentSection.style.display = 'none';
+    }
+}
+
+// Initialize Stripe Elements
+async function initializeStripe() {
+    try {
+        // Fetch Stripe publishable key from server
+        const response = await fetch(`${API_BASE}/api/stripe/config`);
+        const config = await response.json();
+        
+        if (!config.publishableKey) {
+            console.error('Stripe publishable key not available');
+            return;
+        }
+        
+        stripe = Stripe(config.publishableKey);
+        
+        // Create card element
+        const elements = stripe.elements();
+        cardElement = elements.create('card', {
+            style: {
+                base: {
+                    fontSize: '16px',
+                    color: '#424770',
+                    '::placeholder': {
+                        color: '#aab7c4',
+                    },
+                },
+                invalid: {
+                    color: '#9e2146',
+                },
+            },
+        });
+        
+        cardElement.mount('#card-element');
+        cardErrors = document.getElementById('card-errors');
+        
+        // Handle real-time validation errors
+        cardElement.on('change', ({error}) => {
+            if (error) {
+                cardErrors.textContent = error.message;
+                cardErrors.style.display = 'block';
+            } else {
+                cardErrors.style.display = 'none';
+            }
+        });
+        
+        console.log('Stripe initialized successfully');
+    } catch (error) {
+        console.error('Error initializing Stripe:', error);
+        showError('Payment system unavailable. Please contact support.');
     }
 }
 
@@ -242,10 +301,14 @@ document.querySelectorAll('input[name="extendedWarranty"]').forEach(radio => {
     radio.addEventListener('change', updateTotalPrice);
 });
 
-// Load product info on page load
+// Load product info and initialize Stripe on page load
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', loadProductInfo);
+    document.addEventListener('DOMContentLoaded', () => {
+        loadProductInfo();
+        initializeStripe();
+    });
 } else {
     loadProductInfo();
+    initializeStripe();
 }
 

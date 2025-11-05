@@ -5,6 +5,7 @@ const session = require('express-session');
 const path = require('path');
 const multer = require('multer');
 const fs = require('fs');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -1319,7 +1320,8 @@ app.post('/api/warranty/register', requireDB, async (req, res) => {
         customer_phone,
         extended_warranty,
         marketing_consent,
-        warranty_price
+        warranty_price,
+        payment_intent_id
     } = req.body;
     
     // Validation
@@ -1372,6 +1374,40 @@ app.post('/api/warranty/register', requireDB, async (req, res) => {
             extendedWarrantyEnd.setMonth(extendedWarrantyEnd.getMonth() + months);
         }
         
+        // If extended warranty was purchased, verify payment
+        if (extended_warranty && extended_warranty !== 'none' && warranty_price > 0) {
+            if (!payment_intent_id) {
+                return res.status(400).json({ 
+                    error: 'Payment required for extended warranty' 
+                });
+            }
+            
+            // Verify payment intent was successful
+            try {
+                const paymentIntent = await stripe.paymentIntents.retrieve(payment_intent_id);
+                
+                if (paymentIntent.status !== 'succeeded') {
+                    return res.status(400).json({ 
+                        error: 'Payment not completed. Please complete payment first.' 
+                    });
+                }
+                
+                // Verify amount matches
+                if (paymentIntent.amount !== Math.round(warranty_price * 100)) {
+                    return res.status(400).json({ 
+                        error: 'Payment amount mismatch' 
+                    });
+                }
+                
+                console.log(`✅ Payment verified: ${paymentIntent.id} - £${(paymentIntent.amount / 100).toFixed(2)}`);
+            } catch (stripeErr) {
+                console.error('Stripe verification error:', stripeErr);
+                return res.status(400).json({ 
+                    error: 'Payment verification failed. Please contact support.' 
+                });
+            }
+        }
+        
         const warranty = {
             warranty_id: warrantyId,
             security_barcode: security_barcode.trim(),
@@ -1384,6 +1420,8 @@ app.post('/api/warranty/register', requireDB, async (req, res) => {
             extended_warranty: extended_warranty || 'none',
             extended_warranty_end: extendedWarrantyEnd,
             warranty_price: warranty_price || 0,
+            payment_intent_id: payment_intent_id || null,
+            payment_status: payment_intent_id ? 'paid' : 'free',
             marketing_consent: marketing_consent || false,
             registration_date: registrationDate,
             status: 'active',
