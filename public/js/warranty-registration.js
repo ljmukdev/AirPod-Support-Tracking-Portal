@@ -234,7 +234,7 @@ window.selectWarrantyOption = function(choice) {
             console.log('Billing address section made visible (extended warranty)');
         }
     }
-}
+};
 
 // Go back to warranty choice options
 function goBackToChoices() {
