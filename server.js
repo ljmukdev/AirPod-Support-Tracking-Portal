@@ -611,6 +611,19 @@ async function initializeDatabase() {
         await db.collection('airpod_parts').createIndex({ generation: 1, part_name: 1 }, { unique: true });
         await db.collection('airpod_parts').createIndex({ generation: 1, display_order: 1 });
         
+        // Create indexes for warranties collection
+        try {
+            await db.collection('warranties').createIndex({ security_barcode: 1 });
+            await db.collection('warranties').createIndex({ customer_email: 1 });
+            await db.collection('warranties').createIndex({ registration_date: -1 });
+            await db.collection('warranties').createIndex({ warranty_id: 1 }, { unique: true });
+        } catch (err) {
+            // Indexes may already exist, ignore error
+            if (!err.message.includes('already exists') && !err.message.includes('E11000')) {
+                console.error('Warning: Could not create warranty indexes:', err.message);
+            }
+        }
+        
         console.log('Database indexes created');
         
         // Check if parts collection is empty and populate
