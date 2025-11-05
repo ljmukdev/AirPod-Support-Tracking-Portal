@@ -173,9 +173,12 @@ const storage = multer.diskStorage({
     },
     filename: (req, file, cb) => {
         // Generate unique filename: timestamp-random-originalname
+        // Normalize extension to lowercase for consistency
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const ext = path.extname(file.originalname);
-        cb(null, `product-${uniqueSuffix}${ext}`);
+        const ext = path.extname(file.originalname).toLowerCase();
+        const filename = `product-${uniqueSuffix}${ext}`;
+        console.log(`   📝 Generated filename: ${filename} (from: ${file.originalname})`);
+        cb(null, filename);
     }
 });
 
@@ -807,32 +810,54 @@ app.post('/api/admin/product', requireAuth, requireDB, (req, res, next) => {
                 console.log(`      File size reported: ${file.size} bytes`);
                 
                 // Check if file exists with retry (Railway volumes may have async writes)
+                // Multer may report success before file is actually synced to Railway volume
                 let verifiedPath = null;
-                const maxRetries = 5;
-                const retryDelay = 200; // 200ms between retries
+                const maxRetries = 10; // Increased retries
+                const retryDelay = 500; // Increased delay to 500ms (Railway volumes may need more time)
+                
+                // Wait a bit first - Multer callback might fire before disk write completes
+                await new Promise(resolve => setTimeout(resolve, 100));
                 
                 for (let retry = 0; retry < maxRetries; retry++) {
+                    // Check both paths
                     if (fs.existsSync(actualSavedPath)) {
-                        verifiedPath = actualSavedPath;
-                        if (retry > 0) {
-                            console.log(`      ✅ Found at multer path (after ${retry} retries): ${actualSavedPath}`);
-                        } else {
-                            console.log(`      ✅ Found at multer path: ${actualSavedPath}`);
+                        // Verify it's actually a file and readable
+                        try {
+                            const stats = fs.statSync(actualSavedPath);
+                            if (stats.isFile() && stats.size > 0) {
+                                verifiedPath = actualSavedPath;
+                                if (retry > 0) {
+                                    console.log(`      ✅ Found at multer path (after ${retry} retries, ${(retry * retryDelay)}ms): ${actualSavedPath}`);
+                                } else {
+                                    console.log(`      ✅ Found at multer path: ${actualSavedPath}`);
+                                }
+                                break;
+                            }
+                        } catch (statErr) {
+                            // File exists but can't stat it - might still be writing
+                            console.log(`      ⏳ File exists but not ready (retry ${retry + 1}/${maxRetries}): ${statErr.message}`);
                         }
-                        break;
                     } else if (fs.existsSync(expectedPath)) {
-                        verifiedPath = expectedPath;
-                        if (retry > 0) {
-                            console.log(`      ✅ Found at expected path (after ${retry} retries): ${expectedPath}`);
-                        } else {
-                            console.log(`      ✅ Found at expected path: ${expectedPath}`);
+                        try {
+                            const stats = fs.statSync(expectedPath);
+                            if (stats.isFile() && stats.size > 0) {
+                                verifiedPath = expectedPath;
+                                if (retry > 0) {
+                                    console.log(`      ✅ Found at expected path (after ${retry} retries): ${expectedPath}`);
+                                } else {
+                                    console.log(`      ✅ Found at expected path: ${expectedPath}`);
+                                }
+                                break;
+                            }
+                        } catch (statErr) {
+                            console.log(`      ⏳ File exists but not ready (retry ${retry + 1}/${maxRetries}): ${statErr.message}`);
                         }
-                        break;
                     }
                     
                     if (retry < maxRetries - 1) {
-                        // Wait before retrying
-                        await new Promise(resolve => setTimeout(resolve, retryDelay));
+                        // Wait before retrying (exponential backoff)
+                        const delay = retryDelay * (retry + 1); // Increase delay with each retry
+                        await new Promise(resolve => setTimeout(resolve, delay));
                     }
                 }
                 
