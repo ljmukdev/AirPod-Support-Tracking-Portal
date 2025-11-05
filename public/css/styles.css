@@ -70,11 +70,60 @@ h3 {
     position: sticky;
     top: 0;
     z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+}
+
+.header-logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.logo-circle {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.2);
+    border: 2px solid rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.logo-text {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--background-white);
+    letter-spacing: 1px;
 }
 
 .header h1 {
     margin: 0;
     font-size: 1.75rem;
+}
+
+@media (max-width: 600px) {
+    .header {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .logo-circle {
+        width: 50px;
+        height: 50px;
+    }
+    
+    .logo-text {
+        font-size: 1.2rem;
+    }
+    
+    .header h1 {
+        font-size: 1.5rem;
+    }
 }
 
 .header .home-link {
@@ -87,6 +136,40 @@ h3 {
     padding: 8px 16px;
     border-radius: var(--border-radius);
     transition: background-color 0.3s ease;
+    z-index: 10;
+}
+
+/* Admin header logo */
+.admin-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+}
+
+.admin-header .header-logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.admin-header .logo-circle {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.2);
+    border: 2px solid rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.admin-header .logo-text {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--background-white);
+    letter-spacing: 1px;
 }
 
 .header .home-link:hover {
@@ -578,3 +661,22 @@ html {
     margin-top: 8px;
 }
 
+Mounting volume on: /var/lib/containers/railwayapp/bind-mounts/1995603f-8358-4131-8a2b-bd25e3d1b328/vol_3sz4k8me27ccuc6k
+Starting Container
+🔍 Searching for Railway volume mount point...
+✅ Found volume via RAILWAY_VOLUME_MOUNT_PATH: /data
+📦 Using Railway persistent volume for uploads: /data/uploads
+   Volume mount path: /data
+💾 Uploads directory configured: /data/uploads
+   Absolute path: /data/uploads
+Warning: connect.session() MemoryStore is not
+designed for a production environment, as it will leak
+memory, and will not scale past a single process.
+Attempting MongoDB connection...
+Trying connection with authSource: admin (standard)...
+LJM AirPod Support Server running on http://localhost:8080
+Admin panel: http://localhost:8080/admin/login
+✅ Connected to MongoDB successfully using authSource: admin (standard)
+Database indexes created
+💾 Multer saving to: /data/uploads (absolute: /data/uploads)
+Product updated successfully, ID: 690b64c799b78c64f4f0d449

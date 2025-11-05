@@ -841,8 +841,8 @@ async function addWatermarkToImage(file) {
                 ctx.strokeRect(borderWidth / 2, borderWidth / 2, canvas.width - borderWidth, canvas.height - borderWidth);
                 
                 // Create watermark logo (white "LJM" text in dark circle)
-                // Size: 8-12% of image width, but minimum 80px, maximum 250px
-                const logoSize = Math.max(80, Math.min(250, canvas.width * 0.1));
+                // Size: 15-20% of image width, but minimum 120px, maximum 350px (bigger logo)
+                const logoSize = Math.max(120, Math.min(350, canvas.width * 0.18));
                 const radius = logoSize / 2;
                 
                 // Padding from edges - 30px from right and bottom
