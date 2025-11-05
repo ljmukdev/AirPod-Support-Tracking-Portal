@@ -775,28 +775,71 @@ app.post('/api/admin/product', requireAuth, requireDB, (req, res, next) => {
             console.log(`   Global uploadsDir: ${global.uploadsDir || 'not set'}`);
             console.log(`   Local uploadsDir: ${uploadsDir}`);
             
-            req.files.forEach((file, index) => {
+            // Process files with retry mechanism for Railway volume async writes
+            for (let index = 0; index < req.files.length; index++) {
+                const file = req.files[index];
                 // Multer saves files and provides the actual path in file.path
-                // Use that instead of constructing the path
                 const actualSavedPath = file.path || path.join(currentUploadsDir, file.filename);
                 const expectedPath = path.join(currentUploadsDir, file.filename);
                 
                 console.log(`   File ${index + 1}: ${file.filename}`);
                 console.log(`      Multer says saved at: ${actualSavedPath}`);
                 console.log(`      Expected at: ${expectedPath}`);
+                console.log(`      File size reported: ${file.size} bytes`);
                 
-                // Check both paths (multer's path and our expected path)
+                // Check if file exists with retry (Railway volumes may have async writes)
                 let verifiedPath = null;
-                if (fs.existsSync(actualSavedPath)) {
-                    verifiedPath = actualSavedPath;
-                    console.log(`      ✅ Found at multer path: ${actualSavedPath}`);
-                } else if (fs.existsSync(expectedPath)) {
-                    verifiedPath = expectedPath;
-                    console.log(`      ✅ Found at expected path: ${expectedPath}`);
-                } else {
-                    console.error(`      ❌ NOT FOUND at either location!`);
+                const maxRetries = 5;
+                const retryDelay = 200; // 200ms between retries
+                
+                for (let retry = 0; retry < maxRetries; retry++) {
+                    if (fs.existsSync(actualSavedPath)) {
+                        verifiedPath = actualSavedPath;
+                        if (retry > 0) {
+                            console.log(`      ✅ Found at multer path (after ${retry} retries): ${actualSavedPath}`);
+                        } else {
+                            console.log(`      ✅ Found at multer path: ${actualSavedPath}`);
+                        }
+                        break;
+                    } else if (fs.existsSync(expectedPath)) {
+                        verifiedPath = expectedPath;
+                        if (retry > 0) {
+                            console.log(`      ✅ Found at expected path (after ${retry} retries): ${expectedPath}`);
+                        } else {
+                            console.log(`      ✅ Found at expected path: ${expectedPath}`);
+                        }
+                        break;
+                    }
+                    
+                    if (retry < maxRetries - 1) {
+                        // Wait before retrying
+                        await new Promise(resolve => setTimeout(resolve, retryDelay));
+                    }
+                }
+                
+                if (!verifiedPath) {
+                    console.error(`      ❌ NOT FOUND after ${maxRetries} attempts!`);
                     console.error(`         Checked: ${actualSavedPath}`);
                     console.error(`         Checked: ${expectedPath}`);
+                    console.error(`         Directory exists: ${fs.existsSync(currentUploadsDir)}`);
+                    console.error(`         Directory writable: ${fs.constants ? 'checking...' : 'unknown'}`);
+                    
+                    // Try to check directory permissions
+                    try {
+                        fs.accessSync(currentUploadsDir, fs.constants.W_OK);
+                        console.error(`         ✅ Directory is writable`);
+                    } catch (permErr) {
+                        console.error(`         ❌ Directory permission error: ${permErr.message}`);
+                    }
+                    
+                    // Try to list directory contents
+                    try {
+                        const dirContents = fs.readdirSync(currentUploadsDir);
+                        console.error(`         Directory contains ${dirContents.length} file(s):`, dirContents.slice(0, 5));
+                    } catch (dirErr) {
+                        console.error(`         ❌ Cannot read directory: ${dirErr.message}`);
+                    }
+                    
                     console.error(`         Multer file object:`, {
                         filename: file.filename,
                         path: file.path,
@@ -806,28 +849,32 @@ app.post('/api/admin/product', requireAuth, requireDB, (req, res, next) => {
                 }
                 
                 if (verifiedPath) {
-                    // Store relative path for serving
-                    photos.push(`/uploads/${file.filename}`);
-                    const stats = fs.statSync(verifiedPath);
-                    console.log(`      ✅ Photo verified: ${(stats.size / 1024).toFixed(1)} KB`);
-                    console.log(`      📍 Actual save location: ${verifiedPath}`);
-                    console.log(`      🌐 Will be served from: /uploads/${file.filename}`);
-                    
-                    // IMPORTANT: Ensure global.uploadsDir matches where file was actually saved
-                    const actualDir = path.dirname(verifiedPath);
-                    const expectedDir = path.resolve(currentUploadsDir);
-                    const actualDirResolved = path.resolve(actualDir);
-                    
-                    if (actualDirResolved !== expectedDir) {
-                        console.log(`      ⚠️  Path mismatch detected!`);
-                        console.log(`         Expected dir: ${expectedDir}`);
-                        console.log(`         Actual dir: ${actualDirResolved}`);
-                        console.log(`      🔧 Updating global.uploadsDir to match actual save location`);
-                        global.uploadsDir = actualDir;
-                        global.uploadsDirAbsolute = actualDirResolved;
+                    try {
+                        // Store relative path for serving
+                        photos.push(`/uploads/${file.filename}`);
+                        const stats = fs.statSync(verifiedPath);
+                        console.log(`      ✅ Photo verified: ${(stats.size / 1024).toFixed(1)} KB`);
+                        console.log(`      📍 Actual save location: ${verifiedPath}`);
+                        console.log(`      🌐 Will be served from: /uploads/${file.filename}`);
+                        
+                        // IMPORTANT: Ensure global.uploadsDir matches where file was actually saved
+                        const actualDir = path.dirname(verifiedPath);
+                        const expectedDir = path.resolve(currentUploadsDir);
+                        const actualDirResolved = path.resolve(actualDir);
+                        
+                        if (actualDirResolved !== expectedDir) {
+                            console.log(`      ⚠️  Path mismatch detected!`);
+                            console.log(`         Expected dir: ${expectedDir}`);
+                            console.log(`         Actual dir: ${actualDirResolved}`);
+                            console.log(`      🔧 Updating global.uploadsDir to match actual save location`);
+                            global.uploadsDir = actualDir;
+                            global.uploadsDirAbsolute = actualDirResolved;
+                        }
+                    } catch (statErr) {
+                        console.error(`      ❌ Error getting file stats: ${statErr.message}`);
                     }
                 }
-            });
+            }
             console.log(`📸 Total photos processed: ${photos.length}/${req.files.length}`);
         }
         
