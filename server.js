@@ -55,6 +55,21 @@ const upload = multer({
     }
 });
 
+// Multer error handler middleware
+const handleMulterError = (err, req, res, next) => {
+    if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+            // If no files are expected but some were sent, ignore it
+            return next();
+        }
+        return res.status(400).json({ error: 'File upload error: ' + err.message });
+    }
+    if (err) {
+        return res.status(400).json({ error: err.message });
+    }
+    next();
+};
+
 app.use(express.static('public'));
 
 // Session configuration
@@ -435,7 +450,7 @@ app.get('/api/admin/check-auth', (req, res) => {
 });
 
 // Add new product (Admin only) - with photo upload support
-app.post('/api/admin/product', requireAuth, requireDB, upload.array('photos', 5), async (req, res) => {
+app.post('/api/admin/product', requireAuth, requireDB, upload.array('photos', 5), handleMulterError, async (req, res) => {
     // Multer parses FormData - text fields come through req.body
     const serial_number = req.body.serial_number;
     const security_barcode = req.body.security_barcode;
