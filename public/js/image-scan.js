@@ -34,16 +34,272 @@ const stopBarcodeScanButton = document.getElementById('stopBarcodeScan');
 const barcodeScanner = document.getElementById('barcodeScanner');
 const barcodeVideo = document.getElementById('barcodeVideo');
 
-// Function to show image preview
+// Crop functionality variables
+let cropCanvas = null;
+let cropCtx = null;
+let cropImage = null;
+let isDrawing = false;
+let startX = 0;
+let startY = 0;
+let cropBox = { x: 0, y: 0, width: 0, height: 0 };
+let currentZoom = 1;
+let panOffset = { x: 0, y: 0 };
+let isPanning = false;
+let lastPanPoint = { x: 0, y: 0 };
+
+// Function to show image preview with cropping capability
 function showImagePreview(file) {
     if (file) {
         const reader = new FileReader();
         reader.onload = (event) => {
-            previewImg.src = event.target.result;
-            imagePreview.style.display = 'block';
+            // Initialize crop canvas
+            cropCanvas = document.getElementById('cropCanvas');
+            cropCtx = cropCanvas.getContext('2d');
+            cropImage = new Image();
+            
+            cropImage.onload = () => {
+                // Reset zoom and pan
+                currentZoom = 1;
+                panOffset = { x: 0, y: 0 };
+                cropBox = { x: 0, y: 0, width: 0, height: 0 };
+                
+                // Set canvas size (fit to container, max 800px width)
+                const maxWidth = Math.min(800, window.innerWidth - 100);
+                const scale = Math.min(maxWidth / cropImage.width, 1);
+                cropCanvas.width = cropImage.width * scale;
+                cropCanvas.height = cropImage.height * scale;
+                
+                // Draw image
+                drawImageOnCanvas();
+                
+                // Show preview
+                imagePreview.style.display = 'block';
+                
+                // Setup crop event listeners
+                setupCropListeners();
+            };
+            
+            cropImage.src = event.target.result;
         };
         reader.readAsDataURL(file);
     }
+}
+
+// Draw image on canvas with zoom and pan
+function drawImageOnCanvas() {
+    if (!cropCanvas || !cropCtx || !cropImage) return;
+    
+    cropCtx.clearRect(0, 0, cropCanvas.width, cropCanvas.height);
+    
+    // Calculate scaled dimensions
+    const scaledWidth = cropImage.width * currentZoom;
+    const scaledHeight = cropImage.height * currentZoom;
+    
+    // Calculate position with pan offset
+    const x = (cropCanvas.width - scaledWidth) / 2 + panOffset.x;
+    const y = (cropCanvas.height - scaledHeight) / 2 + panOffset.y;
+    
+    // Draw image
+    cropCtx.drawImage(cropImage, x, y, scaledWidth, scaledHeight);
+    
+    // Draw crop box if exists
+    if (cropBox.width > 0 && cropBox.height > 0) {
+        cropCtx.strokeStyle = '#007AFF';
+        cropCtx.lineWidth = 2;
+        cropCtx.setLineDash([5, 5]);
+        cropCtx.strokeRect(cropBox.x, cropBox.y, cropBox.width, cropBox.height);
+        
+        // Fill with semi-transparent overlay
+        cropCtx.fillStyle = 'rgba(0, 122, 255, 0.1)';
+        cropCtx.fillRect(cropBox.x, cropBox.y, cropBox.width, cropBox.height);
+        
+        cropCtx.setLineDash([]);
+    }
+}
+
+// Setup crop box drawing listeners
+function setupCropListeners() {
+    if (!cropCanvas) return;
+    
+    // Mouse down - start drawing crop box
+    cropCanvas.addEventListener('mousedown', (e) => {
+        const rect = cropCanvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        // Check if clicking inside existing crop box to pan
+        if (cropBox.width > 0 && cropBox.height > 0 &&
+            x >= cropBox.x && x <= cropBox.x + cropBox.width &&
+            y >= cropBox.y && y <= cropBox.y + cropBox.height) {
+            isPanning = true;
+            lastPanPoint = { x, y };
+        } else {
+            // Start new crop box
+            isDrawing = true;
+            startX = x;
+            startY = y;
+            cropBox = { x: x, y: y, width: 0, height: 0 };
+        }
+    });
+    
+    // Mouse move - update crop box
+    cropCanvas.addEventListener('mousemove', (e) => {
+        const rect = cropCanvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        if (isPanning && cropBox.width > 0) {
+            // Pan the crop box
+            const dx = x - lastPanPoint.x;
+            const dy = y - lastPanPoint.y;
+            cropBox.x += dx;
+            cropBox.y += dy;
+            lastPanPoint = { x, y };
+            drawImageOnCanvas();
+        } else if (isDrawing) {
+            // Update crop box dimensions
+            cropBox.width = x - startX;
+            cropBox.height = y - startY;
+            cropBox.x = Math.min(startX, x);
+            cropBox.y = Math.min(startY, y);
+            cropBox.width = Math.abs(cropBox.width);
+            cropBox.height = Math.abs(cropBox.height);
+            drawImageOnCanvas();
+        }
+    });
+    
+    // Mouse up - finish drawing
+    cropCanvas.addEventListener('mouseup', () => {
+        isDrawing = false;
+        isPanning = false;
+    });
+    
+    // Touch events for mobile
+    cropCanvas.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const rect = cropCanvas.getBoundingClientRect();
+        const x = touch.clientX - rect.left;
+        const y = touch.clientY - rect.top;
+        
+        if (cropBox.width > 0 && cropBox.height > 0 &&
+            x >= cropBox.x && x <= cropBox.x + cropBox.width &&
+            y >= cropBox.y && y <= cropBox.y + cropBox.height) {
+            isPanning = true;
+            lastPanPoint = { x, y };
+        } else {
+            isDrawing = true;
+            startX = x;
+            startY = y;
+            cropBox = { x: x, y: y, width: 0, height: 0 };
+        }
+    });
+    
+    cropCanvas.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const rect = cropCanvas.getBoundingClientRect();
+        const x = touch.clientX - rect.left;
+        const y = touch.clientY - rect.top;
+        
+        if (isPanning && cropBox.width > 0) {
+            const dx = x - lastPanPoint.x;
+            const dy = y - lastPanPoint.y;
+            cropBox.x += dx;
+            cropBox.y += dy;
+            lastPanPoint = { x, y };
+            drawImageOnCanvas();
+        } else if (isDrawing) {
+            cropBox.width = x - startX;
+            cropBox.height = y - startY;
+            cropBox.x = Math.min(startX, x);
+            cropBox.y = Math.min(startY, y);
+            cropBox.width = Math.abs(cropBox.width);
+            cropBox.height = Math.abs(cropBox.height);
+            drawImageOnCanvas();
+        }
+    });
+    
+    cropCanvas.addEventListener('touchend', () => {
+        isDrawing = false;
+        isPanning = false;
+    });
+}
+
+// Reset crop selection
+const resetCropButton = document.getElementById('resetCropButton');
+if (resetCropButton) {
+    resetCropButton.addEventListener('click', () => {
+        cropBox = { x: 0, y: 0, width: 0, height: 0 };
+        currentZoom = 1;
+        panOffset = { x: 0, y: 0 };
+        drawImageOnCanvas();
+    });
+}
+
+// Zoom controls
+const zoomInButton = document.getElementById('zoomInButton');
+const zoomOutButton = document.getElementById('zoomOutButton');
+
+if (zoomInButton) {
+    zoomInButton.addEventListener('click', () => {
+        currentZoom = Math.min(currentZoom * 1.2, 3);
+        drawImageOnCanvas();
+    });
+}
+
+if (zoomOutButton) {
+    zoomOutButton.addEventListener('click', () => {
+        currentZoom = Math.max(currentZoom / 1.2, 0.5);
+        drawImageOnCanvas();
+    });
+}
+
+// Get cropped image blob
+function getCroppedImageBlob() {
+    return new Promise((resolve) => {
+        if (!cropCanvas || !cropImage || cropBox.width === 0 || cropBox.height === 0) {
+            // No crop selected, return original
+            resolve(null);
+            return;
+        }
+        
+        // Calculate actual crop coordinates in original image
+        const scaledWidth = cropImage.width * currentZoom;
+        const scaledHeight = cropImage.height * currentZoom;
+        const x = (cropCanvas.width - scaledWidth) / 2 + panOffset.x;
+        const y = (cropCanvas.height - scaledHeight) / 2 + panOffset.y;
+        
+        // Calculate relative positions
+        const relX = (cropBox.x - x) / currentZoom;
+        const relY = (cropBox.y - y) / currentZoom;
+        const relWidth = cropBox.width / currentZoom;
+        const relHeight = cropBox.height / currentZoom;
+        
+        // Create temporary canvas for cropped image
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCanvas.width = relWidth;
+        tempCanvas.height = relHeight;
+        
+        // Draw cropped portion
+        tempCtx.drawImage(
+            cropImage,
+            Math.max(0, relX),
+            Math.max(0, relY),
+            Math.min(relWidth, cropImage.width - Math.max(0, relX)),
+            Math.min(relHeight, cropImage.height - Math.max(0, relY)),
+            0,
+            0,
+            relWidth,
+            relHeight
+        );
+        
+        // Convert to blob
+        tempCanvas.toBlob((blob) => {
+            resolve(blob);
+        }, 'image/jpeg', 0.95);
+    });
 }
 
 // Show image preview when file is selected via upload
@@ -136,8 +392,12 @@ if (scanImageButton) {
             
             ocrStatus.textContent = 'Preprocessing image...';
             
+            // Get cropped image if crop box is selected
+            const croppedBlob = await getCroppedImageBlob();
+            const imageToProcess = croppedBlob || file;
+            
             // Preprocess image to improve OCR accuracy
-            const processedFile = await preprocessImage(file);
+            const processedFile = await preprocessImage(imageToProcess);
             
             ocrStatus.textContent = 'Initializing OCR engine...';
             

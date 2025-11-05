@@ -55,7 +55,28 @@
                         Extract Data from Image
                     </button>
                     <div id="imagePreview" style="margin-top: 15px; display: none;">
-                        <img id="previewImg" style="max-width: 100%; border-radius: 8px; border: 2px solid #ddd;">
+                        <div style="margin-bottom: 10px;">
+                            <p style="font-size: 0.85rem; color: #666; margin-bottom: 8px;">
+                                📍 Draw a box around the text area (serial number & part number), then click "Extract Data"
+                            </p>
+                            <div style="position: relative; display: inline-block; max-width: 100%; border: 2px solid #007AFF; border-radius: 8px; overflow: hidden;">
+                                <canvas id="cropCanvas" style="max-width: 100%; display: block; cursor: crosshair;"></canvas>
+                                <div id="cropOverlay" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; display: none;">
+                                    <div id="cropBox" style="position: absolute; border: 2px dashed #007AFF; background: rgba(0, 122, 255, 0.1); pointer-events: none;"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <button type="button" class="button button-secondary" id="resetCropButton" style="width: auto; min-width: 120px;">
+                                🔄 Reset Selection
+                            </button>
+                            <button type="button" class="button button-secondary" id="zoomInButton" style="width: auto; min-width: 80px;">
+                                🔍 Zoom In
+                            </button>
+                            <button type="button" class="button button-secondary" id="zoomOutButton" style="width: auto; min-width: 80px;">
+                                🔍 Zoom Out
+                            </button>
+                        </div>
                     </div>
                 </div>
                 
