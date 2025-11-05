@@ -674,24 +674,46 @@ app.post('/api/admin/product', requireAuth, requireDB, (req, res, next) => {
         const photos = [];
         if (req.files && req.files.length > 0) {
             console.log(`📸 Processing ${req.files.length} uploaded file(s)...`);
-            console.log(`   Upload directory: ${uploadsDir}`);
+            const currentUploadsDir = global.uploadsDir || uploadsDir;
+            console.log(`   Upload directory: ${currentUploadsDir}`);
+            console.log(`   Global uploadsDir: ${global.uploadsDir || 'not set'}`);
+            console.log(`   Local uploadsDir: ${uploadsDir}`);
+            
             req.files.forEach((file, index) => {
-                // Verify file was actually saved
-                const savedPath = path.join(uploadsDir, file.filename);
-                if (fs.existsSync(savedPath)) {
-                    // Store relative path for serving
-                    photos.push(`/uploads/${file.filename}`);
-                    const stats = fs.statSync(savedPath);
-                    console.log(`   ✅ Photo ${index + 1} saved: ${file.filename} (${(stats.size / 1024).toFixed(1)} KB) at ${savedPath}`);
+                // Multer saves files and provides the actual path in file.path
+                // Use that instead of constructing the path
+                const actualSavedPath = file.path || path.join(currentUploadsDir, file.filename);
+                const expectedPath = path.join(currentUploadsDir, file.filename);
+                
+                console.log(`   File ${index + 1}: ${file.filename}`);
+                console.log(`      Multer says saved at: ${actualSavedPath}`);
+                console.log(`      Expected at: ${expectedPath}`);
+                
+                // Check both paths (multer's path and our expected path)
+                let verifiedPath = null;
+                if (fs.existsSync(actualSavedPath)) {
+                    verifiedPath = actualSavedPath;
+                    console.log(`      ✅ Found at multer path: ${actualSavedPath}`);
+                } else if (fs.existsSync(expectedPath)) {
+                    verifiedPath = expectedPath;
+                    console.log(`      ✅ Found at expected path: ${expectedPath}`);
                 } else {
-                    console.error(`   ❌ Photo ${index + 1} NOT saved: ${file.filename}`);
-                    console.error(`      Expected at: ${savedPath}`);
-                    console.error(`      UploadsDir: ${uploadsDir}`);
-                    console.error(`      File object:`, {
+                    console.error(`      ❌ NOT FOUND at either location!`);
+                    console.error(`         Checked: ${actualSavedPath}`);
+                    console.error(`         Checked: ${expectedPath}`);
+                    console.error(`         Multer file object:`, {
                         filename: file.filename,
                         path: file.path,
-                        destination: file.destination
+                        destination: file.destination,
+                        size: file.size
                     });
+                }
+                
+                if (verifiedPath) {
+                    // Store relative path for serving
+                    photos.push(`/uploads/${file.filename}`);
+                    const stats = fs.statSync(verifiedPath);
+                    console.log(`      ✅ Photo verified: ${(stats.size / 1024).toFixed(1)} KB`);
                 }
             });
             console.log(`📸 Total photos processed: ${photos.length}/${req.files.length}`);
