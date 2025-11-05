@@ -172,12 +172,36 @@ app.get('/uploads/:filename', (req, res) => {
     // Check if file exists before trying to serve it
     fs.access(filePath, fs.constants.F_OK, (err) => {
         if (err) {
-            // File doesn't exist (common on Railway due to ephemeral filesystem)
-            console.log(`File not found (ephemeral filesystem): ${filename}`);
+            // File doesn't exist - detailed debugging
+            const currentUploadsDir = global.uploadsDir || uploadsDir;
+            console.log(`❌ File not found: ${filename}`);
+            console.log(`   Searched in: ${currentUploadsDir}`);
+            console.log(`   Full path: ${filePath}`);
+            
+            // Check if directory exists and list contents
+            if (fs.existsSync(currentUploadsDir)) {
+                try {
+                    const files = fs.readdirSync(currentUploadsDir);
+                    console.log(`   ✅ Directory exists with ${files.length} file(s)`);
+                    if (files.length > 0) {
+                        console.log(`   Files in directory:`, files.slice(0, 10));
+                        // Check if filename matches any file (case-insensitive)
+                        const matchingFile = files.find(f => f.toLowerCase() === filename.toLowerCase());
+                        if (matchingFile) {
+                            console.log(`   ⚠️  Found similar file (case mismatch?): ${matchingFile}`);
+                        }
+                    }
+                } catch (dirErr) {
+                    console.error(`   ❌ Error reading directory:`, dirErr.message);
+                }
+            } else {
+                console.error(`   ❌ Uploads directory doesn't exist: ${currentUploadsDir}`);
+            }
+            
             // Return 404 with proper content type
             res.status(404).type('application/json').json({ 
                 error: 'File not found',
-                message: 'This file may have been removed due to container restart'
+                message: 'This file may have been removed or not uploaded correctly'
             });
         } else {
             // File exists, serve it
