@@ -571,6 +571,83 @@ app.get('/api/admin/products', requireAuth, requireDB, async (req, res) => {
     }
 });
 
+// Update product (Admin only)
+app.put('/api/admin/product/:id', requireAuth, requireDB, (req, res, next) => {
+    // Use multer middleware for file uploads (optional)
+    upload.array('photos', 5)(req, res, (err) => {
+        if (err) {
+            if (err.code === 'LIMIT_UNEXPECTED_FILE' && req.body && (req.body.serial_number || req.body.security_barcode)) {
+                console.log('Multer: Ignoring unexpected file field, continuing with form data');
+                return next();
+            }
+            return handleMulterError(err, req, res, next);
+        }
+        next();
+    });
+}, async (req, res) => {
+    const id = req.params.id;
+    
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid product ID' });
+    }
+    
+    const serial_number = req.body.serial_number;
+    const security_barcode = req.body.security_barcode;
+    const part_type = req.body.part_type;
+    const generation = req.body.generation;
+    const part_model_number = req.body.part_model_number;
+    const notes = req.body.notes;
+    const ebay_order_number = req.body.ebay_order_number;
+    
+    if (!serial_number || !security_barcode || !part_type) {
+        return res.status(400).json({ 
+            error: 'Serial number, security barcode, and part type are required'
+        });
+    }
+    
+    if (!['left', 'right', 'case'].includes(part_type.toLowerCase())) {
+        return res.status(400).json({ error: 'Part type must be left, right, or case' });
+    }
+    
+    try {
+        // Process uploaded photos if any
+        let photosUpdate = {};
+        if (req.files && req.files.length > 0) {
+            const newPhotos = req.files.map(file => `/uploads/${file.filename}`);
+            // Get existing photos and append new ones
+            const existingProduct = await db.collection('products').findOne({ _id: new ObjectId(id) });
+            const existingPhotos = existingProduct ? (existingProduct.photos || []) : [];
+            photosUpdate.photos = [...existingPhotos, ...newPhotos];
+        }
+        
+        const updateData = {
+            serial_number: serial_number.trim(),
+            security_barcode: security_barcode.trim(),
+            part_type: part_type.toLowerCase(),
+            generation: generation ? generation.trim() : null,
+            part_model_number: part_model_number ? part_model_number.trim() : null,
+            notes: notes ? notes.trim() : null,
+            ebay_order_number: ebay_order_number ? ebay_order_number.trim() : null,
+            ...photosUpdate
+        };
+        
+        const result = await db.collection('products').updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updateData }
+        );
+        
+        if (result.matchedCount === 0) {
+            res.status(404).json({ error: 'Product not found' });
+        } else {
+            console.log('Product updated successfully, ID:', id);
+            res.json({ success: true, message: 'Product updated successfully' });
+        }
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // Delete product (Admin only)
 app.delete('/api/admin/product/:id', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;

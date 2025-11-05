@@ -242,8 +242,14 @@ if (productForm) {
                 });
             }
             
-            const response = await fetch(`${API_BASE}/api/admin/product`, {
-                method: 'POST',
+            // Determine if we're updating or adding
+            const url = editingProductId 
+                ? `${API_BASE}/api/admin/product/${encodeURIComponent(String(editingProductId))}`
+                : `${API_BASE}/api/admin/product`;
+            const method = editingProductId ? 'PUT' : 'POST';
+            
+            const response = await fetch(url, {
+                method: method,
                 body: formData // Don't set Content-Type header, browser will set it with boundary
             });
             
@@ -261,27 +267,12 @@ if (productForm) {
             console.log('Server response:', data);
             
             if (response.ok && data.success) {
-                showSuccess('Product added successfully!');
-                productForm.reset();
-                // Reset part selection dropdown
-                const partSelectionSelect = document.getElementById('partSelection');
-                if (partSelectionSelect) {
-                    partSelectionSelect.innerHTML = '<option value="">Select part</option>';
+                if (editingProductId) {
+                    showSuccess('Product updated successfully!');
+                } else {
+                    showSuccess('Product added successfully!');
                 }
-                // Clear photo preview and reset selected files
-                selectedFiles = [];
-                const photoPreview = document.getElementById('photoPreview');
-                if (photoPreview) {
-                    photoPreview.style.display = 'none';
-                    const photoPreviewGrid = document.getElementById('photoPreviewGrid');
-                    if (photoPreviewGrid) {
-                        photoPreviewGrid.innerHTML = '';
-                    }
-                }
-                // Reset file input
-                if (productPhotos) {
-                    productPhotos.value = '';
-                }
+                cancelEdit(); // Reset form and clear edit mode
                 loadProducts(); // Reload the products table
             } else {
                 showError(data.error || 'Failed to add product');
@@ -335,6 +326,9 @@ async function loadProducts() {
                         <td>${formattedDate}</td>
                         <td>${confirmationStatus}</td>
                         <td>
+                            <button class="edit-button" data-action="edit" data-product-id="${escapeHtml(String(product.id))}" style="margin-right: 5px;">
+                                Edit
+                            </button>
                             <button class="delete-button" data-action="delete" data-product-id="${escapeHtml(String(product.id))}">
                                 Delete
                             </button>
@@ -349,6 +343,16 @@ async function loadProducts() {
                     const productId = e.target.getAttribute('data-product-id');
                     if (productId) {
                         deleteProduct(productId);
+                    }
+                });
+            });
+            
+            // Attach event listeners to edit buttons
+            tableBody.querySelectorAll('[data-action="edit"]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const productId = e.target.getAttribute('data-product-id');
+                    if (productId) {
+                        editProduct(productId);
                     }
                 });
             });
