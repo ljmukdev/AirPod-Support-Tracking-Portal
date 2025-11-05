@@ -131,6 +131,16 @@ function selectWarranty(value) {
 
 // Update total price display
 function updateTotalPrice() {
+    const registerFreeWarranty = document.getElementById('registerFreeWarranty');
+    if (!registerFreeWarranty || !registerFreeWarranty.checked) {
+        // Hide payment section if not registering free warranty
+        const paymentSection = document.getElementById('paymentSection');
+        const totalPriceSection = document.getElementById('totalPriceSection');
+        if (paymentSection) paymentSection.style.display = 'none';
+        if (totalPriceSection) totalPriceSection.style.display = 'none';
+        return;
+    }
+    
     const selectedWarranty = document.querySelector('input[name="extendedWarranty"]:checked');
     const totalPriceSection = document.getElementById('totalPriceSection');
     const totalPriceEl = document.getElementById('totalPrice');
@@ -206,6 +216,21 @@ if (warrantyForm) {
         hideMessages();
         
         const submitButton = document.getElementById('submitButton');
+        const registerFreeWarranty = document.getElementById('registerFreeWarranty').checked;
+        
+        // If user doesn't want free warranty, skip straight to pairing
+        if (!registerFreeWarranty) {
+            submitButton.disabled = true;
+            showSpinner();
+            
+            // Just redirect to confirmation page
+            setTimeout(() => {
+                window.location.href = 'confirmation.html';
+            }, 500);
+            return;
+        }
+        
+        // User wants to register warranty - validate and process
         const customerName = document.getElementById('customerName').value.trim();
         const customerEmail = document.getElementById('customerEmail').value.trim();
         const customerPhone = document.getElementById('customerPhone').value.trim();
@@ -301,14 +326,55 @@ document.querySelectorAll('input[name="extendedWarranty"]').forEach(radio => {
     radio.addEventListener('change', updateTotalPrice);
 });
 
+// Toggle sections based on free warranty registration checkbox
+function toggleWarrantySections() {
+    const registerFreeWarranty = document.getElementById('registerFreeWarranty');
+    const customerInfoSection = document.getElementById('customerInfoSection');
+    const extendedWarrantySection = document.getElementById('extendedWarrantySection');
+    const marketingSection = document.getElementById('marketingSection');
+    const termsSection = document.getElementById('termsSection');
+    const paymentSection = document.getElementById('paymentSection');
+    const acceptTerms = document.getElementById('acceptTerms');
+    
+    if (registerFreeWarranty && registerFreeWarranty.checked) {
+        // Show all sections
+        if (customerInfoSection) customerInfoSection.style.display = 'block';
+        if (extendedWarrantySection) extendedWarrantySection.style.display = 'block';
+        if (marketingSection) marketingSection.style.display = 'block';
+        if (termsSection) termsSection.style.display = 'block';
+        if (acceptTerms) acceptTerms.required = true;
+    } else {
+        // Hide sections (user doesn't want free warranty)
+        if (customerInfoSection) customerInfoSection.style.display = 'none';
+        if (extendedWarrantySection) extendedWarrantySection.style.display = 'none';
+        if (marketingSection) marketingSection.style.display = 'none';
+        if (termsSection) termsSection.style.display = 'none';
+        if (paymentSection) paymentSection.style.display = 'none';
+        if (acceptTerms) acceptTerms.required = false;
+        
+        // Reset extended warranty selection
+        const warrantyNone = document.getElementById('warrantyNone');
+        if (warrantyNone) warrantyNone.checked = true;
+        updateTotalPrice();
+    }
+}
+
+// Setup toggle listener
+const registerFreeWarrantyCheckbox = document.getElementById('registerFreeWarranty');
+if (registerFreeWarrantyCheckbox) {
+    registerFreeWarrantyCheckbox.addEventListener('change', toggleWarrantySections);
+}
+
 // Load product info and initialize Stripe on page load
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
         loadProductInfo();
         initializeStripe();
+        toggleWarrantySections(); // Initial toggle
     });
 } else {
     loadProductInfo();
     initializeStripe();
+    toggleWarrantySections(); // Initial toggle
 }
 

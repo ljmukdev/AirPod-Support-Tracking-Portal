@@ -1324,10 +1324,21 @@ app.post('/api/warranty/register', requireDB, async (req, res) => {
         payment_intent_id
     } = req.body;
     
+    // Check if user wants to register warranty (if they opted out, they might skip this)
+    // For now, we require basic info if they're calling this endpoint
+    // Frontend should handle skipping if they don't want warranty
+    
     // Validation
-    if (!security_barcode || !customer_name || !customer_email) {
+    if (!security_barcode) {
         return res.status(400).json({ 
-            error: 'Security barcode, customer name, and email are required' 
+            error: 'Security barcode is required' 
+        });
+    }
+    
+    // If registering warranty, require customer info
+    if (!customer_name || !customer_email) {
+        return res.status(400).json({ 
+            error: 'Customer name and email are required for warranty registration' 
         });
     }
     

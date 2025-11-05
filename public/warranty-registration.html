@@ -193,8 +193,8 @@
 
     <main class="container">
         <div class="warranty-banner">
-            <h2>🛡️ Register Your Free 30-Day Warranty</h2>
-            <p>Every purchase includes a free 30-day warranty covering manufacturing defects and functionality issues</p>
+            <h2>🛡️ Warranty Registration</h2>
+            <p>Register your free 30-day warranty and explore extended protection options</p>
         </div>
 
         <div class="card">
@@ -208,8 +208,35 @@
             </div>
 
             <form id="warrantyForm" class="warranty-form">
-                <!-- Customer Information Section -->
+                <!-- Free 30-Day Warranty Section -->
                 <div class="form-section">
+                    <h3>
+                        Free 30-Day Warranty
+                        <span class="free-badge">Included</span>
+                    </h3>
+                    <p style="color: #666; margin-bottom: 20px;">
+                        Every purchase includes a free 30-day warranty covering manufacturing defects and functionality issues.
+                    </p>
+                    <div class="checkbox-group">
+                        <label for="registerFreeWarranty">
+                            <input 
+                                type="checkbox" 
+                                id="registerFreeWarranty" 
+                                name="registerFreeWarranty"
+                                checked
+                            >
+                            <span>
+                                <strong>Yes, register my free 30-day warranty</strong> - I want to activate my warranty coverage and receive warranty confirmation.
+                            </span>
+                        </label>
+                    </div>
+                    <p style="font-size: 0.85rem; color: #999; margin-top: 10px; font-style: italic;">
+                        You can skip warranty registration, but we recommend registering to activate your coverage and receive important warranty information.
+                    </p>
+                </div>
+
+                <!-- Customer Information Section (shown only if registering warranty) -->
+                <div class="form-section" id="customerInfoSection">
                     <h3>Your Information</h3>
                     <div class="form-group">
                         <label for="customerName">Full Name <span style="color: red;">*</span></label>
@@ -248,8 +275,8 @@
                     </div>
                 </div>
 
-                <!-- Extended Warranty Section -->
-                <div class="form-section">
+                <!-- Extended Warranty Section (shown only if registering free warranty) -->
+                <div class="form-section" id="extendedWarrantySection">
                     <h3>
                         Extended Warranty Protection
                         <span class="warranty-badge">Optional</span>
@@ -353,10 +380,13 @@
 
                 <div style="text-align: center; margin-top: 30px;">
                     <button type="submit" class="button" id="submitButton" style="min-width: 200px;">
-                        Register Warranty & Continue
+                        Continue to Pairing Instructions
                     </button>
                     <div style="margin-top: 15px;">
-                        <a href="product-details.html" style="color: var(--accent-teal); text-decoration: none;">
+                        <a href="confirmation.html" class="button button-secondary" style="text-decoration: none; display: inline-block; margin-right: 10px;">
+                            Skip to Pairing Instructions
+                        </a>
+                        <a href="product-details.html" style="color: var(--accent-teal); text-decoration: none; display: inline-block;">
                             ← Back to Product Details
                         </a>
                     </div>
