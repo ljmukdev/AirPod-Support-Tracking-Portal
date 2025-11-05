@@ -520,9 +520,260 @@ async function deleteProduct(id) {
     }
 }
 
+// Tracking modal functionality
+let currentTrackingProductId = null;
+let trackingQuaggaActive = false;
+
+async function openTrackingModal(productId) {
+    currentTrackingProductId = productId;
+    const modal = document.getElementById('trackingModal');
+    const modalBody = document.getElementById('trackingModalBody');
+    const productInfo = document.getElementById('trackingProductInfo');
+    const trackingNumberInput = document.getElementById('trackingNumber');
+    const currentInfo = document.getElementById('trackingCurrentInfo');
+    const currentTrackingNumber = document.getElementById('currentTrackingNumber');
+    const currentTrackingDate = document.getElementById('currentTrackingDate');
+    
+    // Show modal
+    modal.style.display = 'block';
+    
+    // Clear previous data
+    trackingNumberInput.value = '';
+    document.getElementById('trackingError').style.display = 'none';
+    document.getElementById('trackingSuccess').style.display = 'none';
+    currentInfo.style.display = 'none';
+    
+    try {
+        // Load product details
+        const response = await fetch(`${API_BASE}/api/admin/product/${encodeURIComponent(String(productId))}`);
+        const data = await response.json();
+        
+        if (response.ok && data.product) {
+            const product = data.product;
+            
+            // Display product info
+            productInfo.innerHTML = `
+                <p style="margin: 0 0 8px 0;"><strong>Product:</strong> ${escapeHtml(product.generation || 'N/A')} - ${escapeHtml(product.part_model_number || 'N/A')}</p>
+                <p style="margin: 0 0 8px 0;"><strong>Serial:</strong> ${escapeHtml(product.serial_number || 'N/A')}</p>
+                <p style="margin: 0;"><strong>Security Barcode:</strong> ${escapeHtml(product.security_barcode || 'N/A')}</p>
+            `;
+            
+            // Show current tracking if exists
+            if (product.tracking_number) {
+                currentTrackingNumber.textContent = product.tracking_number;
+                if (product.tracking_date) {
+                    const date = new Date(product.tracking_date);
+                    currentTrackingDate.textContent = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                } else {
+                    currentTrackingDate.textContent = 'Unknown';
+                }
+                currentInfo.style.display = 'block';
+                trackingNumberInput.value = product.tracking_number;
+            } else {
+                currentInfo.style.display = 'none';
+            }
+        } else {
+            productInfo.innerHTML = '<p style="color: red;">Failed to load product details</p>';
+        }
+    } catch (error) {
+        console.error('Load product error:', error);
+        productInfo.innerHTML = '<p style="color: red;">Network error loading product</p>';
+    }
+}
+
+function closeTrackingModal() {
+    const modal = document.getElementById('trackingModal');
+    modal.style.display = 'none';
+    currentTrackingProductId = null;
+    
+    // Stop barcode scanner if active
+    if (trackingQuaggaActive) {
+        stopTrackingBarcodeScan();
+    }
+}
+
+async function saveTracking() {
+    if (!currentTrackingProductId) return;
+    
+    const trackingNumber = document.getElementById('trackingNumber').value.trim();
+    const errorDiv = document.getElementById('trackingError');
+    const successDiv = document.getElementById('trackingSuccess');
+    
+    // Clear previous messages
+    errorDiv.style.display = 'none';
+    successDiv.style.display = 'none';
+    
+    if (!trackingNumber) {
+        errorDiv.textContent = 'Please enter or scan a tracking number';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE}/api/admin/product/${encodeURIComponent(String(currentTrackingProductId))}/tracking`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ tracking_number: trackingNumber })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            successDiv.textContent = 'Tracking information saved successfully!';
+            successDiv.style.display = 'block';
+            
+            // Reload products table
+            setTimeout(() => {
+                loadProducts();
+                closeTrackingModal();
+            }, 1000);
+        } else {
+            errorDiv.textContent = data.error || 'Failed to save tracking information';
+            errorDiv.style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Save tracking error:', error);
+        errorDiv.textContent = 'Network error. Please try again.';
+        errorDiv.style.display = 'block';
+    }
+}
+
+// Barcode scanning for tracking
+function startTrackingBarcodeScan() {
+    const scannerDiv = document.getElementById('trackingBarcodeScanner');
+    const video = document.getElementById('trackingBarcodeVideo');
+    const canvas = document.getElementById('trackingBarcodeCanvas');
+    
+    scannerDiv.style.display = 'block';
+    video.style.display = 'block';
+    
+    if (typeof Quagga === 'undefined') {
+        alert('Barcode scanner library not loaded. Please refresh the page.');
+        return;
+    }
+    
+    trackingQuaggaActive = true;
+    
+    Quagga.init({
+        inputStream: {
+            name: "Live",
+            type: "LiveStream",
+            target: video,
+            constraints: {
+                width: 640,
+                height: 480,
+                facingMode: "environment" // Use back camera
+            }
+        },
+        decoder: {
+            readers: ["code_128_reader", "ean_reader", "ean_8_reader", "code_39_reader", "code_39_vin_reader", "codabar_reader", "upc_reader", "upc_e_reader", "i2of5_reader", "qr_reader", "datamatrix_reader"]
+        },
+        locator: {
+            halfSample: true,
+            patchSize: "medium"
+        }
+    }, function(err) {
+        if (err) {
+            console.error('Quagga initialization error:', err);
+            alert('Failed to initialize barcode scanner. Please check camera permissions.');
+            stopTrackingBarcodeScan();
+            return;
+        }
+        Quagga.start();
+    });
+    
+    Quagga.onDetected(function(result) {
+        const code = result.codeResult.code;
+        console.log('Barcode detected:', code);
+        
+        // Set tracking number and stop scanning
+        document.getElementById('trackingNumber').value = code.toUpperCase();
+        stopTrackingBarcodeScan();
+        
+        // Show success feedback
+        const successDiv = document.getElementById('trackingSuccess');
+        successDiv.textContent = 'Barcode scanned successfully!';
+        successDiv.style.display = 'block';
+        setTimeout(() => {
+            successDiv.style.display = 'none';
+        }, 2000);
+    });
+}
+
+function stopTrackingBarcodeScan() {
+    if (trackingQuaggaActive && typeof Quagga !== 'undefined') {
+        Quagga.stop();
+        trackingQuaggaActive = false;
+    }
+    
+    const scannerDiv = document.getElementById('trackingBarcodeScanner');
+    const video = document.getElementById('trackingBarcodeVideo');
+    scannerDiv.style.display = 'none';
+    video.style.display = 'none';
+}
+
+// Modal event listeners - set up when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupTrackingModalListeners);
+} else {
+    setupTrackingModalListeners();
+}
+
+function setupTrackingModalListeners() {
+    const modal = document.getElementById('trackingModal');
+    const closeBtn = document.getElementById('closeTrackingModal');
+    const cancelBtn = document.getElementById('cancelTracking');
+    const saveBtn = document.getElementById('saveTracking');
+    const scanBtn = document.getElementById('scanTrackingBarcode');
+    const stopScanBtn = document.getElementById('stopTrackingScan');
+    
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeTrackingModal);
+    }
+    
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', closeTrackingModal);
+    }
+    
+    if (saveBtn) {
+        saveBtn.addEventListener('click', saveTracking);
+    }
+    
+    if (scanBtn) {
+        scanBtn.addEventListener('click', startTrackingBarcodeScan);
+    }
+    
+    if (stopScanBtn) {
+        stopScanBtn.addEventListener('click', stopTrackingBarcodeScan);
+    }
+    
+    // Close modal when clicking outside
+    if (modal) {
+        window.addEventListener('click', function(event) {
+            if (event.target === modal) {
+                closeTrackingModal();
+            }
+        });
+    }
+    
+    // Auto-uppercase tracking number input
+    const trackingNumberInput = document.getElementById('trackingNumber');
+    if (trackingNumberInput) {
+        trackingNumberInput.addEventListener('input', function(e) {
+            const start = e.target.selectionStart;
+            const end = e.target.selectionEnd;
+            e.target.value = e.target.value.toUpperCase();
+            e.target.setSelectionRange(start, end);
+        });
+    }
+}
+
 // Make functions available globally
 window.deleteProduct = deleteProduct;
 window.editProduct = editProduct;
+window.openTrackingModal = openTrackingModal;
 
 // Cancel edit button
 if (cancelEditButton) {
