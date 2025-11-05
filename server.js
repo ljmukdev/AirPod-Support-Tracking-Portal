@@ -365,12 +365,51 @@ app.get('/uploads/:filename', (req, res) => {
 });
 
 // Serve static files from public directory (except uploads, handled above)
+// Add middleware to suppress 404 logging for browser extension files
+app.use((req, res, next) => {
+    const browserExtensionFiles = [
+        'twint_ch.js',
+        'lkk_ch.js',
+        'support_parent.css',
+        'twint_ch.min.js',
+        'lkk_ch.min.js'
+    ];
+    
+    const isBrowserExtensionFile = browserExtensionFiles.some(file => 
+        req.path && req.path.includes(file)
+    );
+    
+    if (isBrowserExtensionFile) {
+        // Silently return 404 for browser extension files
+        return res.status(404).end();
+    }
+    
+    next();
+});
+
 app.use(express.static('public', {
     index: false, // Don't serve index.html for directories
     dotfiles: 'ignore', // Ignore dotfiles
     etag: true,
     lastModified: true,
-    maxAge: '1d' // Cache for 1 day
+    maxAge: '1d', // Cache for 1 day
+    onNotFound: (path, res) => {
+        // Suppress logging for browser extension files
+        const browserExtensionFiles = [
+            'twint_ch.js',
+            'lkk_ch.js',
+            'support_parent.css'
+        ];
+        
+        const isBrowserExtensionFile = browserExtensionFiles.some(file => 
+            path.includes(file)
+        );
+        
+        if (!isBrowserExtensionFile) {
+            // Only log if it's not a browser extension file
+            console.log(`Static file not found: ${path}`);
+        }
+    }
 }));
 
 // Session configuration
