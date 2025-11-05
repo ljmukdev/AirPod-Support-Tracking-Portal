@@ -292,9 +292,12 @@ app.get('/uploads/:filename', async (req, res) => {
     console.log(`🔍 Serving file request: ${filename}`);
     
     // Retry logic for Railway volume sync delays
-    // Railway volumes can have significant sync delays (10-30+ seconds)
-    const maxRetries = 15; // Increased retries for Railway sync delays
-    const retryDelay = 1000; // Start with 1 second
+    // Railway volumes can have VERY significant sync delays (30-120+ seconds for network-mounted volumes)
+    const maxRetries = 50; // Very aggressive retries for Railway sync delays
+    const retryDelay = 2000; // Start with 2 seconds
+    
+    // Initial delay before first check - Railway volumes are network-mounted and async
+    await new Promise(resolve => setTimeout(resolve, 2000));
     
     for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
@@ -349,9 +352,12 @@ app.get('/uploads/:filename', async (req, res) => {
                 }
             }
             
-            // If not last attempt, wait and retry with exponential backoff (capped)
+            // If not last attempt, wait and retry with exponential backoff (capped higher)
             if (attempt < maxRetries - 1) {
-                const delay = Math.min(retryDelay * (attempt + 1), 5000); // Cap at 5 seconds per retry
+                const delay = Math.min(retryDelay * (attempt + 1), 10000); // Cap at 10 seconds per retry
+                if (attempt % 5 === 0 && attempt > 0) { // Log every 5th retry after first
+                    console.log(`   ⏳ Still waiting for file to sync (attempt ${attempt + 1}/${maxRetries}, ${delay}ms delay)...`);
+                }
                 await new Promise(resolve => setTimeout(resolve, delay));
                 continue;
             }
@@ -876,13 +882,15 @@ app.post('/api/admin/product', requireAuth, requireDB, (req, res, next) => {
                 
                 // Check if file exists with retry (Railway volumes may have async writes)
                 // Multer may report success before file is actually synced to Railway volume
-                // Railway volumes can have sync delays of 10-60+ seconds
+                // Railway volumes can have sync delays of 30-120+ seconds for network-mounted volumes
                 let verifiedPath = null;
-                const maxRetries = 20; // Increased retries for Railway sync delays
-                const retryDelay = 1000; // Start with 1 second delay
+                const maxRetries = 60; // Very aggressive retries for Railway sync delays (60 attempts)
+                const retryDelay = 2000; // Start with 2 second delay
                 
-                // Wait a bit first - Multer callback might fire before disk write completes
-                await new Promise(resolve => setTimeout(resolve, 100));
+                // CRITICAL: Wait longer initially - Railway volumes are network-mounted and async
+                // Files may not appear in directory listings for 10-30+ seconds after Multer reports success
+                console.log(`      ⏳ Waiting 3 seconds before first check (Railway volume sync delay)...`);
+                await new Promise(resolve => setTimeout(resolve, 3000));
                 
                 for (let retry = 0; retry < maxRetries; retry++) {
                     // Check both paths
@@ -921,9 +929,12 @@ app.post('/api/admin/product', requireAuth, requireDB, (req, res, next) => {
                     }
                     
                     if (retry < maxRetries - 1) {
-                        // Wait before retrying (exponential backoff with cap)
-                        // Railway volumes may need up to 60+ seconds to sync
-                        const delay = Math.min(retryDelay * (retry + 1), 5000); // Cap at 5 seconds per retry
+                        // Wait before retrying (exponential backoff with higher cap)
+                        // Railway volumes may need up to 120+ seconds to sync for network-mounted volumes
+                        const delay = Math.min(retryDelay * (retry + 1), 10000); // Cap at 10 seconds per retry
+                        if (retry % 5 === 0) { // Log every 5th retry
+                            console.log(`      ⏳ Still waiting for Railway volume sync (attempt ${retry + 1}/${maxRetries}, ${delay}ms delay)...`);
+                        }
                         await new Promise(resolve => setTimeout(resolve, delay));
                     }
                 }
