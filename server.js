@@ -5,7 +5,13 @@ const session = require('express-session');
 const path = require('path');
 const multer = require('multer');
 const fs = require('fs');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+// Initialize Stripe only if secret key is available
+let stripe = null;
+if (process.env.STRIPE_SECRET_KEY) {
+    stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+} else {
+    console.warn('⚠️  Stripe secret key not set - payment features will be disabled');
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -1497,7 +1503,12 @@ app.post('/api/admin/warranty-pricing', requireAuth, requireDB, async (req, res)
 app.get('/api/stripe/config', (req, res) => {
     const publishableKey = process.env.STRIPE_PUBLISHABLE_KEY;
     if (!publishableKey) {
-        return res.status(500).json({ error: 'Stripe not configured' });
+        // Return 200 with null key instead of 500 error
+        // Frontend will handle this gracefully
+        return res.json({ 
+            publishableKey: null,
+            error: 'Stripe not configured. Please add STRIPE_PUBLISHABLE_KEY to Railway environment variables.'
+        });
     }
     res.json({ publishableKey });
 });
@@ -1511,8 +1522,11 @@ app.post('/api/stripe/create-payment-intent', requireDB, async (req, res) => {
     }
     
     // Check if Stripe is configured
-    if (!process.env.STRIPE_SECRET_KEY) {
-        return res.status(500).json({ error: 'Payment system not configured. Please contact support.' });
+    if (!stripe || !process.env.STRIPE_SECRET_KEY) {
+        return res.status(503).json({ 
+            error: 'Payment system not configured',
+            message: 'Please add STRIPE_SECRET_KEY to Railway environment variables.'
+        });
     }
     
     try {

@@ -329,10 +329,17 @@ async function initializeStripe() {
     try {
         // Fetch Stripe publishable key from server
         const response = await fetch(`${API_BASE}/api/stripe/config`);
+        
+        if (!response.ok) {
+            console.warn('⚠️  Stripe configuration endpoint returned error:', response.status);
+            return;
+        }
+        
         const config = await response.json();
         
         if (!config.publishableKey) {
-            console.error('Stripe publishable key not available');
+            console.warn('⚠️  Stripe publishable key not available - payment features disabled');
+            console.warn('   To enable payments, add STRIPE_PUBLISHABLE_KEY to Railway environment variables');
             return;
         }
         
