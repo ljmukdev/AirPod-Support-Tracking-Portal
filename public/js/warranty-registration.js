@@ -189,6 +189,9 @@ function selectWarrantyOption(choice) {
         const warrantyNone = document.getElementById('warrantyNone');
         if (warrantyNone) warrantyNone.checked = true;
         updateTotalPrice();
+        // Ensure marketing checkbox is checked by default
+        const marketingConsent = document.getElementById('marketingConsent');
+        if (marketingConsent) marketingConsent.checked = true;
     } else if (choice === 'extended') {
         // Show extended warranty purchase form
         if (registerFreeWarranty) {
@@ -200,6 +203,9 @@ function selectWarrantyOption(choice) {
         if (extendedSection) {
             extendedSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
+        // Ensure marketing checkbox is checked by default
+        const marketingConsent = document.getElementById('marketingConsent');
+        if (marketingConsent) marketingConsent.checked = true;
     }
 }
 
@@ -213,6 +219,9 @@ function goBackToChoices() {
         warrantyForm.classList.remove('active');
         // Reset form
         document.getElementById('warrantyForm').reset();
+        // Re-check marketing consent checkbox after reset (default is checked)
+        const marketingConsent = document.getElementById('marketingConsent');
+        if (marketingConsent) marketingConsent.checked = true;
         const registerFreeWarranty = document.getElementById('registerFreeWarranty');
         if (registerFreeWarranty) registerFreeWarranty.checked = false;
         toggleWarrantySections();
@@ -596,6 +605,12 @@ function initializePage() {
     }
     if (choiceOptions) {
         choiceOptions.style.display = 'grid'; // Show choice options
+    }
+    
+    // Ensure marketing checkbox is checked by default
+    const marketingConsent = document.getElementById('marketingConsent');
+    if (marketingConsent) {
+        marketingConsent.checked = true;
     }
     
     // Wait a moment for DOM to be fully ready, then toggle sections

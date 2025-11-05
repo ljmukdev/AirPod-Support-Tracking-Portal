@@ -1491,6 +1491,55 @@ app.post('/api/admin/warranty-pricing', requireAuth, requireDB, async (req, res)
     }
 });
 
+// Stripe API endpoints
+
+// Get Stripe publishable key (Public)
+app.get('/api/stripe/config', (req, res) => {
+    const publishableKey = process.env.STRIPE_PUBLISHABLE_KEY;
+    if (!publishableKey) {
+        return res.status(500).json({ error: 'Stripe not configured' });
+    }
+    res.json({ publishableKey });
+});
+
+// Create payment intent (Public - but amount verified on server)
+app.post('/api/stripe/create-payment-intent', requireDB, async (req, res) => {
+    const { amount, currency = 'gbp', description } = req.body;
+    
+    if (!amount || amount <= 0) {
+        return res.status(400).json({ error: 'Invalid amount' });
+    }
+    
+    // Check if Stripe is configured
+    if (!process.env.STRIPE_SECRET_KEY) {
+        return res.status(500).json({ error: 'Payment system not configured. Please contact support.' });
+    }
+    
+    try {
+        const paymentIntent = await stripe.paymentIntents.create({
+            amount: Math.round(amount), // Amount in cents
+            currency: currency.toLowerCase(),
+            description: description || 'Extended warranty purchase',
+            automatic_payment_methods: {
+                enabled: true,
+            },
+        });
+        
+        console.log(`💳 Payment intent created: ${paymentIntent.id} - £${(amount / 100).toFixed(2)}`);
+        
+        res.json({
+            clientSecret: paymentIntent.client_secret,
+            paymentIntentId: paymentIntent.id
+        });
+    } catch (error) {
+        console.error('Stripe payment intent creation error:', error);
+        res.status(500).json({ 
+            error: 'Failed to create payment intent',
+            message: error.message 
+        });
+    }
+});
+
 // Register warranty (Public)
 app.post('/api/warranty/register', requireDB, async (req, res) => {
     const {
