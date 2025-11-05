@@ -216,6 +216,7 @@ app.get('/uploads/:filename', (req, res) => {
             const currentUploadsDir = global.uploadsDir || uploadsDir;
             console.log(`❌ File not found: ${filename}`);
             console.log(`   Searched in: ${currentUploadsDir}`);
+            console.log(`   Absolute path: ${global.uploadsDirAbsolute || path.resolve(currentUploadsDir)}`);
             console.log(`   Full path: ${filePath}`);
             
             // Check if directory exists and list contents
@@ -224,18 +225,38 @@ app.get('/uploads/:filename', (req, res) => {
                     const files = fs.readdirSync(currentUploadsDir);
                     console.log(`   ✅ Directory exists with ${files.length} file(s)`);
                     if (files.length > 0) {
-                        console.log(`   Files in directory:`, files.slice(0, 10));
+                        console.log(`   Files in directory (first 10):`, files.slice(0, 10));
                         // Check if filename matches any file (case-insensitive)
                         const matchingFile = files.find(f => f.toLowerCase() === filename.toLowerCase());
-                        if (matchingFile) {
+                        if (matchingFile && matchingFile !== filename) {
                             console.log(`   ⚠️  Found similar file (case mismatch?): ${matchingFile}`);
+                            // Try serving the matching file instead
+                            const correctedPath = path.join(currentUploadsDir, matchingFile);
+                            console.log(`   🔄 Attempting to serve corrected path: ${correctedPath}`);
+                            return res.sendFile(correctedPath, (sendErr) => {
+                                if (sendErr) {
+                                    console.error(`   ❌ Failed to serve corrected file:`, sendErr.message);
+                                    res.status(404).type('application/json').json({ 
+                                        error: 'File not found',
+                                        message: 'This file may have been removed or not uploaded correctly'
+                                    });
+                                }
+                            });
                         }
+                        // Check if requested file is in the list
+                        if (files.includes(filename)) {
+                            console.log(`   ⚠️  File EXISTS in directory but fs.access failed! Permission issue?`);
+                        }
+                    } else {
+                        console.log(`   ⚠️  Directory is empty - no files uploaded yet`);
                     }
                 } catch (dirErr) {
                     console.error(`   ❌ Error reading directory:`, dirErr.message);
                 }
             } else {
                 console.error(`   ❌ Uploads directory doesn't exist: ${currentUploadsDir}`);
+                console.error(`   📁 Checking if /data exists:`, fs.existsSync('/data'));
+                console.error(`   📁 Checking if /data/uploads exists:`, fs.existsSync('/data/uploads'));
             }
             
             // Return 404 with proper content type
@@ -862,11 +883,61 @@ app.put('/api/admin/product/:id', requireAuth, requireDB, (req, res, next) => {
         // Process uploaded photos if any
         let photosUpdate = {};
         if (req.files && req.files.length > 0) {
-            const newPhotos = req.files.map(file => `/uploads/${file.filename}`);
-            // Get existing photos and append new ones
+            console.log(`📸 Processing ${req.files.length} uploaded file(s) for update...`);
+            const currentUploadsDir = global.uploadsDir || uploadsDir;
+            console.log(`   Upload directory: ${currentUploadsDir}`);
+            
+            const verifiedPhotos = [];
+            req.files.forEach((file, index) => {
+                // Verify file was actually saved
+                const actualSavedPath = file.path || path.join(currentUploadsDir, file.filename);
+                const expectedPath = path.join(currentUploadsDir, file.filename);
+                
+                console.log(`   File ${index + 1}: ${file.filename}`);
+                console.log(`      Multer says saved at: ${actualSavedPath}`);
+                console.log(`      Expected at: ${expectedPath}`);
+                
+                // Check both paths
+                let verifiedPath = null;
+                if (fs.existsSync(actualSavedPath)) {
+                    verifiedPath = actualSavedPath;
+                    console.log(`      ✅ Found at multer path: ${actualSavedPath}`);
+                } else if (fs.existsSync(expectedPath)) {
+                    verifiedPath = expectedPath;
+                    console.log(`      ✅ Found at expected path: ${expectedPath}`);
+                } else {
+                    console.error(`      ❌ NOT FOUND at either location!`);
+                    console.error(`         Checked: ${actualSavedPath}`);
+                    console.error(`         Checked: ${expectedPath}`);
+                }
+                
+                if (verifiedPath) {
+                    verifiedPhotos.push(`/uploads/${file.filename}`);
+                    const stats = fs.statSync(verifiedPath);
+                    console.log(`      ✅ Photo verified: ${(stats.size / 1024).toFixed(1)} KB`);
+                    console.log(`      📍 Actual save location: ${verifiedPath}`);
+                    
+                    // Update global.uploadsDir if path mismatch
+                    const actualDir = path.dirname(verifiedPath);
+                    const expectedDir = path.resolve(currentUploadsDir);
+                    const actualDirResolved = path.resolve(actualDir);
+                    
+                    if (actualDirResolved !== expectedDir) {
+                        console.log(`      ⚠️  Path mismatch! Updating global.uploadsDir`);
+                        global.uploadsDir = actualDir;
+                        global.uploadsDirAbsolute = actualDirResolved;
+                    }
+                } else {
+                    console.error(`      ❌ Skipping file - not found on disk`);
+                }
+            });
+            
+            console.log(`📸 Total photos verified: ${verifiedPhotos.length}/${req.files.length}`);
+            
+            // Get existing photos and append new verified ones
             const existingProduct = await db.collection('products').findOne({ _id: new ObjectId(id) });
             const existingPhotos = existingProduct ? (existingProduct.photos || []) : [];
-            photosUpdate.photos = [...existingPhotos, ...newPhotos];
+            photosUpdate.photos = [...existingPhotos, ...verifiedPhotos];
         }
         
         const updateData = {
