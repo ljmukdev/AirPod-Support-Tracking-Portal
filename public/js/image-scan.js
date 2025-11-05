@@ -20,6 +20,8 @@ window.addEventListener('load', () => {
 
 // Initialize OCR button
 const imageUpload = document.getElementById('imageUpload');
+const cameraCapture = document.getElementById('cameraCapture');
+const takePhotoButton = document.getElementById('takePhotoButton');
 const scanImageButton = document.getElementById('scanImageButton');
 const imagePreview = document.getElementById('imagePreview');
 const previewImg = document.getElementById('previewImg');
@@ -32,17 +34,47 @@ const stopBarcodeScanButton = document.getElementById('stopBarcodeScan');
 const barcodeScanner = document.getElementById('barcodeScanner');
 const barcodeVideo = document.getElementById('barcodeVideo');
 
-// Show image preview when file is selected
+// Function to show image preview
+function showImagePreview(file) {
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            previewImg.src = event.target.result;
+            imagePreview.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+// Show image preview when file is selected via upload
 if (imageUpload) {
     imageUpload.addEventListener('change', (e) => {
         const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                previewImg.src = event.target.result;
-                imagePreview.style.display = 'block';
-            };
-            reader.readAsDataURL(file);
+        showImagePreview(file);
+        // Also update camera capture input if it exists
+        if (cameraCapture && file) {
+            // Transfer the file to camera capture input for consistency
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            cameraCapture.files = dataTransfer.files;
+        }
+    });
+}
+
+// Handle camera capture button click
+if (takePhotoButton && cameraCapture) {
+    takePhotoButton.addEventListener('click', () => {
+        cameraCapture.click();
+    });
+    
+    cameraCapture.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        showImagePreview(file);
+        // Also update regular upload input if it exists
+        if (imageUpload && file) {
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            imageUpload.files = dataTransfer.files;
         }
     });
 }
