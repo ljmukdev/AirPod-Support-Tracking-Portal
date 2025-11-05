@@ -398,25 +398,63 @@ function parseOCRText(text) {
         if (extracted.partNumber) break;
     }
     
-    // If no structured match for part number, look for any A#### pattern
+    // If no structured match for part number, look for any A#### pattern in both texts
     if (!extracted.partNumber) {
-        const applePartMatches = cleanText.match(/\b(A\d{4}(?:[-/]\w+)?)\b/g);
-        if (applePartMatches && applePartMatches.length > 0) {
-            // Filter out if it's likely a serial (too long or doesn't match Apple part format)
-            const bestMatch = applePartMatches.find(m => m.length <= 10 || m.includes('-'));
-            if (bestMatch) {
-                extracted.partNumber = bestMatch.trim();
+        for (const searchText of textsToSearch) {
+            const applePartMatches = searchText.match(/\b(A\d{4}(?:[-/]\w+)?)\b/g);
+            if (applePartMatches && applePartMatches.length > 0) {
+                // Filter out if it's likely a serial (too long or doesn't match Apple part format)
+                const bestMatch = applePartMatches.find(m => {
+                    const cleaned = m.trim().toUpperCase();
+                    return (cleaned.length >= 5 && cleaned.length <= 12) && cleaned.match(/^A\d{4}/);
+                });
+                if (bestMatch) {
+                    extracted.partNumber = bestMatch.trim().toUpperCase();
+                    break;
+                }
+            }
+        }
+    }
+    
+    // More aggressive search for noisy OCR - look for A followed by 4 digits anywhere
+    if (!extracted.partNumber) {
+        // Remove all non-alphanumeric and search for A#### pattern
+        const onlyAlphanumeric = originalText.replace(/[^A-Z0-9]/gi, '');
+        const partMatch = onlyAlphanumeric.match(/A\d{4}/i);
+        if (partMatch) {
+            extracted.partNumber = partMatch[0].toUpperCase();
+        }
+    }
+    
+    // More aggressive search for serial - look for 10-20 char alphanumeric sequences
+    if (!extracted.serialNumber) {
+        const onlyAlphanumeric = originalText.replace(/[^A-Z0-9]/gi, '');
+        // Find sequences of 10-20 alphanumeric characters
+        const serialMatch = onlyAlphanumeric.match(/[A-Z0-9]{10,20}/gi);
+        if (serialMatch) {
+            // Filter out if it looks like a part number (starts with A and is short)
+            const candidate = serialMatch[0].toUpperCase();
+            if (!(candidate.startsWith('A') && candidate.length <= 12 && candidate.match(/^A\d{4}/))) {
+                extracted.serialNumber = candidate;
             }
         }
     }
     
     // Clean up extracted values
     if (extracted.serialNumber) {
-        extracted.serialNumber = extracted.serialNumber.replace(/[^A-Z0-9]/g, '').substring(0, 20);
+        extracted.serialNumber = extracted.serialNumber.replace(/[^A-Z0-9]/g, '').substring(0, 20).toUpperCase();
     }
     if (extracted.partNumber) {
-        extracted.partNumber = extracted.partNumber.trim();
+        extracted.partNumber = extracted.partNumber.replace(/[^A-Z0-9\-]/g, '').trim().toUpperCase();
     }
+    
+    // Log what we found for debugging
+    console.log('Parsed results:', {
+        serialNumber: extracted.serialNumber,
+        partNumber: extracted.partNumber,
+        textLength: originalText.length,
+        textPreview: originalText.substring(0, 200)
+    });
     
     return extracted;
 }
