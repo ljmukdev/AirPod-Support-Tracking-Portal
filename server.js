@@ -73,7 +73,39 @@ const handleMulterError = (err, req, res, next) => {
     next();
 };
 
-app.use(express.static('public'));
+// Serve static files from public directory
+// This must come before API routes to avoid conflicts
+app.use(express.static('public', {
+    index: false, // Don't serve index.html for directories
+    dotfiles: 'ignore', // Ignore dotfiles
+    etag: true,
+    lastModified: true,
+    maxAge: '1d' // Cache for 1 day
+}));
+
+// Explicit route for uploads to handle errors gracefully
+app.get('/uploads/:filename', (req, res, next) => {
+    const filename = req.params.filename;
+    const filePath = path.join(__dirname, 'public', 'uploads', filename);
+    
+    // Check if file exists
+    fs.access(filePath, fs.constants.F_OK, (err) => {
+        if (err) {
+            console.log(`File not found: ${filePath}`);
+            // Return 404 instead of 500
+            res.status(404).json({ error: 'File not found' });
+        } else {
+            // File exists, let Express static middleware handle it
+            // But we've already checked, so serve it directly
+            res.sendFile(filePath, (err) => {
+                if (err) {
+                    console.error(`Error serving file ${filePath}:`, err);
+                    res.status(500).json({ error: 'Error serving file' });
+                }
+            });
+        }
+    });
+});
 
 // Session configuration
 // Note: MemoryStore warning is expected in development. For production with multiple instances,
