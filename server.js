@@ -27,27 +27,32 @@ app.get('/favicon.ico', (req, res) => {
 function findRailwayVolumePath() {
     // Check environment variables first (Railway may set these)
     if (process.env.RAILWAY_VOLUME_MOUNT_PATH && fs.existsSync(process.env.RAILWAY_VOLUME_MOUNT_PATH)) {
+        console.log('✅ Found volume via RAILWAY_VOLUME_MOUNT_PATH:', process.env.RAILWAY_VOLUME_MOUNT_PATH);
         return process.env.RAILWAY_VOLUME_MOUNT_PATH;
     }
     if (process.env.UPLOADS_VOLUME_PATH && fs.existsSync(process.env.UPLOADS_VOLUME_PATH)) {
+        console.log('✅ Found volume via UPLOADS_VOLUME_PATH:', process.env.UPLOADS_VOLUME_PATH);
         return process.env.UPLOADS_VOLUME_PATH;
     }
     
     // Check common Railway volume mount paths
+    // Note: Railway volumes are mounted at the path you specify in the dashboard
     const commonPaths = ['/data', '/uploads', '/storage', '/mnt'];
     for (const mountPath of commonPaths) {
         if (fs.existsSync(mountPath)) {
-            // Check if it's actually a mount point (has .railway or is writable)
+            // Check if it's actually a mount point and writable
             try {
                 fs.accessSync(mountPath, fs.constants.W_OK);
-                // Try to create a test file to verify it's writable
-                const testFile = path.join(mountPath, '.railway-test');
+                // Try to create a test file to verify it's writable and persistent
+                const testFile = path.join(mountPath, '.railway-volume-test');
                 try {
                     fs.writeFileSync(testFile, 'test');
                     fs.unlinkSync(testFile);
+                    console.log('✅ Found writable volume at:', mountPath);
                     return mountPath;
                 } catch (e) {
                     // Not writable, continue searching
+                    console.log(`   ⚠️  ${mountPath} exists but not writable`);
                 }
             } catch (e) {
                 // Not accessible, continue searching
@@ -55,6 +60,7 @@ function findRailwayVolumePath() {
         }
     }
     
+    console.log('   ℹ️  No Railway volume found, will use ephemeral storage');
     return null;
 }
 
