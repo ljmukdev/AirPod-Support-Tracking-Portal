@@ -75,8 +75,8 @@ if (barcodeForm) {
                 sessionStorage.setItem('securityBarcode', securityBarcode);
                 sessionStorage.setItem('partType', data.part_type);
                 
-                // Redirect to product details page first
-                window.location.href = `product-details.html?barcode=${encodeURIComponent(securityBarcode)}`;
+                // Redirect directly to warranty registration/choice page
+                window.location.href = `warranty-registration.html?barcode=${encodeURIComponent(securityBarcode)}`;
             } else {
                 showError(data.error || 'Invalid security code. Please check and try again.');
                 barcodeInput.focus();

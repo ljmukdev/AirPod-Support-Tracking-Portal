@@ -111,7 +111,69 @@ function loadProductInfo() {
         });
 }
 
-// Select warranty option
+// Handle warranty choice selection (free, extended, or skip)
+function selectWarrantyOption(choice) {
+    const choiceOptions = document.getElementById('warrantyChoiceOptions');
+    const warrantyForm = document.getElementById('warrantyForm');
+    const registerFreeWarranty = document.getElementById('registerFreeWarranty');
+    
+    if (choice === 'skip') {
+        // Skip directly to pairing instructions
+        window.location.href = 'confirmation.html';
+        return;
+    }
+    
+    // Hide choice options and show form
+    if (choiceOptions) choiceOptions.style.display = 'none';
+    if (warrantyForm) {
+        warrantyForm.classList.add('active');
+        // Scroll to form
+        warrantyForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    
+    if (choice === 'free') {
+        // Show free warranty registration form
+        if (registerFreeWarranty) {
+            registerFreeWarranty.checked = true;
+            toggleWarrantySections();
+        }
+        // Ensure extended warranty is set to 'none'
+        const warrantyNone = document.getElementById('warrantyNone');
+        if (warrantyNone) warrantyNone.checked = true;
+        updateTotalPrice();
+    } else if (choice === 'extended') {
+        // Show extended warranty purchase form
+        if (registerFreeWarranty) {
+            registerFreeWarranty.checked = true;
+            toggleWarrantySections();
+        }
+        // Focus on extended warranty section (don't auto-select any option)
+        const extendedSection = document.getElementById('extendedWarrantySection');
+        if (extendedSection) {
+            extendedSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+}
+
+// Go back to warranty choice options
+function goBackToChoices() {
+    const choiceOptions = document.getElementById('warrantyChoiceOptions');
+    const warrantyForm = document.getElementById('warrantyForm');
+    
+    if (choiceOptions) choiceOptions.style.display = 'grid';
+    if (warrantyForm) {
+        warrantyForm.classList.remove('active');
+        // Reset form
+        document.getElementById('warrantyForm').reset();
+        const registerFreeWarranty = document.getElementById('registerFreeWarranty');
+        if (registerFreeWarranty) registerFreeWarranty.checked = false;
+        toggleWarrantySections();
+    }
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Select warranty option (for extended warranty radio buttons)
 function selectWarranty(value) {
     // Update radio button
     const radio = document.getElementById(`warranty${value === 'none' ? 'None' : value === '3months' ? '3Months' : value === '6months' ? '6Months' : '12Months'}`);
@@ -123,7 +185,9 @@ function selectWarranty(value) {
     document.querySelectorAll('.warranty-option').forEach(option => {
         option.classList.remove('selected');
     });
-    event.currentTarget.classList.add('selected');
+    if (event && event.currentTarget) {
+        event.currentTarget.classList.add('selected');
+    }
     
     // Update total price display
     updateTotalPrice();
@@ -266,6 +330,91 @@ if (warrantyForm) {
             return;
         }
         
+        let paymentIntentId = null;
+        const selectedWarrantyPrice = warrantyPrices[extendedWarranty] || 0;
+        
+        // Process payment if extended warranty is selected
+        if (extendedWarranty !== 'none' && selectedWarrantyPrice > 0) {
+            // Process payment if extended warranty is selected
+            if (!stripe || !cardElement) {
+                showError('Payment system not initialized. Please refresh or contact support.');
+                submitButton.disabled = false;
+                hideSpinner();
+                return;
+            }
+            
+            const paymentProcessingEl = document.getElementById('paymentProcessing');
+            if (paymentProcessingEl) paymentProcessingEl.style.display = 'block';
+            
+            try {
+                // Create payment intent on the server
+                const createIntentResponse = await fetch(`${API_BASE}/api/stripe/create-payment-intent`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        amount: Math.round(selectedWarrantyPrice * 100), // Amount in cents
+                        currency: 'gbp',
+                        description: `Extended warranty for AirPod part ${securityBarcode}`
+                    })
+                });
+                const intentData = await createIntentResponse.json();
+                
+                if (!createIntentResponse.ok || !intentData.clientSecret) {
+                    showError(intentData.error || 'Failed to initiate payment. Please try again.');
+                    submitButton.disabled = false;
+                    hideSpinner();
+                    if (paymentProcessingEl) paymentProcessingEl.style.display = 'none';
+                    return;
+                }
+                
+                // Confirm the card payment
+                const { paymentIntent, error } = await stripe.confirmCardPayment(intentData.clientSecret, {
+                    payment_method: {
+                        card: cardElement,
+                        billing_details: {
+                            name: customerName,
+                            email: customerEmail,
+                            phone: customerPhone || undefined
+                        },
+                    }
+                });
+                
+                if (error) {
+                    showError(error.message);
+                    if (cardErrors) {
+                        cardErrors.textContent = error.message;
+                        cardErrors.style.display = 'block';
+                    }
+                    submitButton.disabled = false;
+                    hideSpinner();
+                    if (paymentProcessingEl) paymentProcessingEl.style.display = 'none';
+                    return;
+                }
+                
+                if (paymentIntent.status === 'succeeded') {
+                    paymentIntentId = paymentIntent.id;
+                    console.log('Stripe payment succeeded:', paymentIntentId);
+                } else {
+                    showError('Payment failed or was not successful. Please try again.');
+                    submitButton.disabled = false;
+                    hideSpinner();
+                    if (paymentProcessingEl) paymentProcessingEl.style.display = 'none';
+                    return;
+                }
+            } catch (paymentError) {
+                console.error('Payment processing error:', paymentError);
+                showError('An error occurred during payment. Please try again or contact support.');
+                submitButton.disabled = false;
+                hideSpinner();
+                const paymentProcessingEl = document.getElementById('paymentProcessing');
+                if (paymentProcessingEl) paymentProcessingEl.style.display = 'none';
+                return;
+            } finally {
+                const paymentProcessingEl = document.getElementById('paymentProcessing');
+                if (paymentProcessingEl) paymentProcessingEl.style.display = 'none';
+            }
+        }
+        
         try {
             const response = await fetch(`${API_BASE}/api/warranty/register`, {
                 method: 'POST',
@@ -279,7 +428,8 @@ if (warrantyForm) {
                     customer_phone: customerPhone || null,
                     extended_warranty: extendedWarranty,
                     marketing_consent: marketingConsent,
-                    warranty_price: warrantyPrices[extendedWarranty] || 0
+                    warranty_price: selectedWarrantyPrice,
+                    payment_intent_id: paymentIntentId // Pass payment intent ID to backend
                 })
             });
             
@@ -387,6 +537,18 @@ if (registerFreeWarrantyCheckbox) {
 function initializePage() {
     loadProductInfo();
     initializeStripe();
+    
+    // Ensure form is hidden initially (choice options shown)
+    const warrantyForm = document.getElementById('warrantyForm');
+    const choiceOptions = document.getElementById('warrantyChoiceOptions');
+    
+    if (warrantyForm) {
+        warrantyForm.classList.remove('active'); // Hide form initially
+    }
+    if (choiceOptions) {
+        choiceOptions.style.display = 'grid'; // Show choice options
+    }
+    
     // Wait a moment for DOM to be fully ready, then toggle sections
     setTimeout(() => {
         toggleWarrantySections();

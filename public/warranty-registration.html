@@ -178,6 +178,59 @@
             border-radius: var(--border-radius);
             margin: 20px 0;
         }
+        .warranty-choice-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        .warranty-choice-card {
+            border: 3px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: var(--background-white);
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .warranty-choice-card:hover {
+            border-color: var(--accent-teal);
+            box-shadow: 0 8px 25px rgba(0, 168, 232, 0.2);
+            transform: translateY(-5px);
+        }
+        .warranty-choice-card.selected {
+            border-color: var(--accent-teal);
+            background: rgba(0, 168, 232, 0.05);
+            box-shadow: 0 4px 15px rgba(0, 168, 232, 0.3);
+        }
+        .warranty-choice-card h3 {
+            margin: 0 0 15px 0;
+            color: var(--primary-navy);
+            font-size: 1.4rem;
+        }
+        .warranty-choice-card .icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+        .warranty-choice-card .description {
+            color: #666;
+            margin-bottom: 20px;
+            flex-grow: 1;
+        }
+        .warranty-choice-card .action-button {
+            margin-top: auto;
+        }
+        .form-container {
+            display: none;
+            margin-top: 30px;
+        }
+        .form-container.active {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -193,12 +246,12 @@
 
     <main class="container">
         <div class="warranty-banner">
-            <h2>🛡️ Warranty Registration</h2>
-            <p>Register your free 30-day warranty and explore extended protection options</p>
+            <h2>🛡️ Warranty Options</h2>
+            <p>Choose how you'd like to proceed with your warranty</p>
         </div>
 
         <div class="card">
-            <div style="text-align: center; margin-bottom: 20px;">
+            <div style="text-align: center; margin-bottom: 30px;">
                 <p style="font-size: 1.1rem; color: #666;">
                     <strong>Product:</strong> <span id="productInfo">Loading...</span>
                 </p>
@@ -207,7 +260,44 @@
                 </p>
             </div>
 
-            <form id="warrantyForm" class="warranty-form">
+            <!-- Warranty Choice Options -->
+            <div class="warranty-choice-options" id="warrantyChoiceOptions">
+                <div class="warranty-choice-card" onclick="selectWarrantyOption('free')">
+                    <div class="icon">🆓</div>
+                    <h3>Register Free Warranty</h3>
+                    <div class="description">
+                        Activate your free 30-day warranty covering manufacturing defects and functionality issues. Quick and easy registration.
+                    </div>
+                    <div class="action-button">
+                        <button type="button" class="button" style="width: 100%;">Register Free Warranty</button>
+                    </div>
+                </div>
+                
+                <div class="warranty-choice-card" onclick="selectWarrantyOption('extended')">
+                    <div class="icon">⭐</div>
+                    <h3>Purchase Extended Warranty</h3>
+                    <div class="description">
+                        Extend your protection with 3, 6, or 12-month extended warranty plans. Includes your free 30-day warranty plus additional coverage.
+                    </div>
+                    <div class="action-button">
+                        <button type="button" class="button" style="width: 100%;">View Extended Options</button>
+                    </div>
+                </div>
+                
+                <div class="warranty-choice-card" onclick="selectWarrantyOption('skip')">
+                    <div class="icon">➡️</div>
+                    <h3>Skip to Pairing</h3>
+                    <div class="description">
+                        Continue directly to pairing instructions. You can register your warranty later if needed.
+                    </div>
+                    <div class="action-button">
+                        <button type="button" class="button button-secondary" style="width: 100%;">Skip to Pairing Instructions</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Warranty Registration Form (shown when user selects free or extended) -->
+            <form id="warrantyForm" class="warranty-form form-container">
                 <!-- Free 30-Day Warranty Section -->
                 <div class="form-section">
                     <h3>
@@ -383,11 +473,11 @@
                         Continue to Pairing Instructions
                     </button>
                     <div style="margin-top: 15px;">
-                        <a href="confirmation.html" class="button button-secondary" style="text-decoration: none; display: inline-block; margin-right: 10px;">
+                        <button type="button" onclick="goBackToChoices()" class="button button-secondary" style="margin-right: 10px;">
+                            ← Back to Options
+                        </button>
+                        <a href="confirmation.html" style="color: var(--accent-teal); text-decoration: none; display: inline-block;">
                             Skip to Pairing Instructions
-                        </a>
-                        <a href="product-details.html" style="color: var(--accent-teal); text-decoration: none; display: inline-block;">
-                            ← Back to Product Details
                         </a>
                     </div>
                 </div>
