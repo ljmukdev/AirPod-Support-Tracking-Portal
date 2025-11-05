@@ -20,13 +20,28 @@ You need two keys from your Stripe account:
 
 ## Step 2: Add Keys to Railway Environment Variables
 
-1. Go to Railway Dashboard → Your App Service → **Variables** tab
-2. Add these two environment variables:
+**⚠️ IMPORTANT: Do NOT commit your Stripe keys to Git. Add them directly in Railway.**
 
-```
-STRIPE_PUBLISHABLE_KEY = pk_test_... (or pk_live_...)
-STRIPE_SECRET_KEY = sk_test_... (or sk_live_...)
-```
+1. Go to Railway Dashboard → Your App Service → **Variables** tab
+2. Click **"New Variable"** and add these two environment variables:
+
+**Variable 1:**
+- **Name:** `STRIPE_PUBLISHABLE_KEY`
+- **Value:** Your publishable key from Stripe Dashboard (starts with `pk_test_` for test mode)
+
+**Variable 2:**
+- **Name:** `STRIPE_SECRET_KEY`  
+- **Value:** Your secret key from Stripe Dashboard (starts with `sk_test_` for test mode)
+
+**Your Test Keys:**
+- Publishable Key: Available in your Stripe Dashboard under Developers → API keys
+- Secret Key: Available in your Stripe Dashboard (click "Reveal test key")
+
+**Security Notes:**
+- ✅ Add keys directly in Railway dashboard (never commit to Git)
+- ✅ Use TEST keys (`pk_test_` and `sk_test_`) for testing
+- ✅ When ready for production, use LIVE keys (`pk_live_` and `sk_live_`)
+- ❌ Never commit secret keys to Git (GitHub will block the push)
 
 **Important:**
 - Use **test keys** (`pk_test_` and `sk_test_`) for testing
