@@ -336,12 +336,30 @@ function toggleWarrantySections() {
     const paymentSection = document.getElementById('paymentSection');
     const acceptTerms = document.getElementById('acceptTerms');
     
-    if (registerFreeWarranty && registerFreeWarranty.checked) {
-        // Show all sections
-        if (customerInfoSection) customerInfoSection.style.display = 'block';
-        if (extendedWarrantySection) extendedWarrantySection.style.display = 'block';
-        if (marketingSection) marketingSection.style.display = 'block';
-        if (termsSection) termsSection.style.display = 'block';
+    // Ensure sections exist before toggling
+    if (!registerFreeWarranty) {
+        console.warn('registerFreeWarranty checkbox not found');
+        return;
+    }
+    
+    if (registerFreeWarranty.checked) {
+        // Show all sections (checkbox is checked)
+        if (customerInfoSection) {
+            customerInfoSection.style.display = 'block';
+            customerInfoSection.style.visibility = 'visible';
+        }
+        if (extendedWarrantySection) {
+            extendedWarrantySection.style.display = 'block';
+            extendedWarrantySection.style.visibility = 'visible';
+        }
+        if (marketingSection) {
+            marketingSection.style.display = 'block';
+            marketingSection.style.visibility = 'visible';
+        }
+        if (termsSection) {
+            termsSection.style.display = 'block';
+            termsSection.style.visibility = 'visible';
+        }
         if (acceptTerms) acceptTerms.required = true;
     } else {
         // Hide sections (user doesn't want free warranty)
@@ -366,15 +384,18 @@ if (registerFreeWarrantyCheckbox) {
 }
 
 // Load product info and initialize Stripe on page load
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        loadProductInfo();
-        initializeStripe();
-        toggleWarrantySections(); // Initial toggle
-    });
-} else {
+function initializePage() {
     loadProductInfo();
     initializeStripe();
-    toggleWarrantySections(); // Initial toggle
+    // Wait a moment for DOM to be fully ready, then toggle sections
+    setTimeout(() => {
+        toggleWarrantySections();
+    }, 100);
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializePage);
+} else {
+    initializePage();
 }
 
