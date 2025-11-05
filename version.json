@@ -1,15 +1,15 @@
 {
   "version": "1.2.0",
   "build": "2024-12-19",
-  "revision": "004",
+  "revision": "005",
   "changelog": [
     {
       "version": "1.2.0",
       "date": "2024-12-19",
       "changes": [
+        "Updated confirmation text to reflect user confirmation of photo review",
         "Added warranty management page in admin panel with delete functionality",
         "Updated button text to 'Complete Payment and Progress to Pairing Instructions' when extended warranty selected",
-        "Clarified confirmation text with improved wording and link to product photos",
         "Fixed billing address section visibility - moved inside payment section to appear directly after card number field",
         "Added billing address collection for payment compliance",
         "Separated payment processing into dedicated 'Process Payment' button",
