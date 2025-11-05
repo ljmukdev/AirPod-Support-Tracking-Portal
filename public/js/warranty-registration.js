@@ -192,6 +192,14 @@ function selectWarrantyOption(choice) {
         // Ensure marketing checkbox is checked by default
         const marketingConsent = document.getElementById('marketingConsent');
         if (marketingConsent) marketingConsent.checked = true;
+        
+        // Ensure billing address section is visible
+        const billingAddressSection = document.getElementById('billingAddressSection');
+        if (billingAddressSection) {
+            billingAddressSection.style.display = 'block';
+            billingAddressSection.style.visibility = 'visible';
+            console.log('Billing address section made visible (free warranty)');
+        }
     } else if (choice === 'extended') {
         // Show extended warranty purchase form
         if (registerFreeWarranty) {
@@ -206,6 +214,14 @@ function selectWarrantyOption(choice) {
         // Ensure marketing checkbox is checked by default
         const marketingConsent = document.getElementById('marketingConsent');
         if (marketingConsent) marketingConsent.checked = true;
+        
+        // Ensure billing address section is visible (required for extended warranty)
+        const billingAddressSection = document.getElementById('billingAddressSection');
+        if (billingAddressSection) {
+            billingAddressSection.style.display = 'block';
+            billingAddressSection.style.visibility = 'visible';
+            console.log('Billing address section made visible (extended warranty)');
+        }
     }
 }
 
@@ -793,6 +809,9 @@ function toggleWarrantySections() {
         if (billingAddressSection) {
             billingAddressSection.style.display = 'block';
             billingAddressSection.style.visibility = 'visible';
+            console.log('Billing address section shown');
+        } else {
+            console.warn('Billing address section element not found!');
         }
         if (extendedWarrantySection) {
             extendedWarrantySection.style.display = 'block';
