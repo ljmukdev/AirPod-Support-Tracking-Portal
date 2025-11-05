@@ -155,6 +155,13 @@ if (scanImageButton) {
                 }
             });
             
+            // Add timeout (60 seconds max)
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('OCR processing timed out after 60 seconds. Please try a smaller or clearer image.')), 60000);
+            });
+            
+            const { data: { text } } = await Promise.race([ocrPromise, timeoutPromise]);
+            
             console.log('OCR Text extracted:', text);
             
             if (!text || text.trim().length === 0) {
