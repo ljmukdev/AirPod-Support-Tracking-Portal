@@ -258,7 +258,7 @@ if (scanImageButton) {
     });
 }
 
-// Preprocess image to improve OCR accuracy
+// Preprocess image to improve OCR accuracy with advanced techniques
 async function preprocessImage(file) {
     return new Promise((resolve) => {
         const img = new Image();
@@ -266,43 +266,62 @@ async function preprocessImage(file) {
         const ctx = canvas.getContext('2d');
         
         img.onload = () => {
-            // Set canvas size to match image
-            canvas.width = img.width;
-            canvas.height = img.height;
+            // Scale up small images (OCR works better on larger images)
+            const minSize = 1000; // Minimum dimension for better OCR
+            let scale = 1;
+            if (img.width < minSize || img.height < minSize) {
+                scale = Math.max(minSize / img.width, minSize / img.height);
+            }
             
-            // Draw image to canvas
-            ctx.drawImage(img, 0, 0);
+            canvas.width = Math.floor(img.width * scale);
+            canvas.height = Math.floor(img.height * scale);
+            
+            // Use high-quality image rendering
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            
+            // Draw scaled image
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
             
             // Get image data
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const data = imageData.data;
+            const width = canvas.width;
+            const height = canvas.height;
             
-            // Apply image enhancements:
-            // 1. Increase contrast
-            // 2. Convert to grayscale if needed
-            // 3. Enhance edges
-            
+            // Step 1: Convert to grayscale with better algorithm
+            const grayscale = new Uint8Array(width * height);
             for (let i = 0; i < data.length; i += 4) {
-                // Get RGB values
                 const r = data[i];
                 const g = data[i + 1];
                 const b = data[i + 2];
-                
-                // Convert to grayscale (weighted average)
-                const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-                
-                // Increase contrast (simple linear contrast enhancement)
-                const contrast = 1.5; // Increase contrast by 50%
-                const enhanced = ((gray - 128) * contrast) + 128;
-                
-                // Clamp values
-                const final = Math.max(0, Math.min(255, enhanced));
-                
-                // Set all channels to the enhanced grayscale value
-                data[i] = final;     // R
-                data[i + 1] = final; // G
-                data[i + 2] = final; // B
-                // Alpha channel stays the same
+                // Luminance-based grayscale (better than simple average)
+                const gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+                grayscale[i / 4] = gray;
+            }
+            
+            // Step 2: Apply adaptive histogram equalization (improves contrast locally)
+            const equalized = applyAdaptiveHistogramEqualization(grayscale, width, height);
+            
+            // Step 3: Apply sharpening filter (enhances edges for better OCR)
+            const sharpened = applySharpening(equalized, width, height);
+            
+            // Step 4: Apply adaptive thresholding (better than simple threshold)
+            const thresholded = applyAdaptiveThreshold(sharpened, width, height);
+            
+            // Step 5: Denoise (remove small artifacts)
+            const denoised = applyDenoise(thresholded, width, height);
+            
+            // Step 6: Final contrast enhancement
+            const enhanced = applyContrastEnhancement(denoised, width, height);
+            
+            // Write back to image data
+            for (let i = 0; i < data.length; i += 4) {
+                const gray = enhanced[i / 4];
+                data[i] = gray;     // R
+                data[i + 1] = gray; // G
+                data[i + 2] = gray; // B
+                // Alpha stays the same
             }
             
             // Put processed image data back
@@ -311,7 +330,7 @@ async function preprocessImage(file) {
             // Convert canvas to blob
             canvas.toBlob((blob) => {
                 resolve(blob || file); // Fallback to original file if conversion fails
-            }, file.type || 'image/jpeg', 0.95);
+            }, file.type || 'image/jpeg', 0.98); // Higher quality
         };
         
         img.onerror = () => {
@@ -326,6 +345,176 @@ async function preprocessImage(file) {
         };
         reader.readAsDataURL(file);
     });
+}
+
+// Apply adaptive histogram equalization for better local contrast
+function applyAdaptiveHistogramEqualization(gray, width, height) {
+    const result = new Uint8Array(gray.length);
+    const tileSize = 8; // Size of local neighborhood
+    
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const idx = y * width + x;
+            
+            // Get local histogram
+            const hist = new Array(256).fill(0);
+            let count = 0;
+            
+            for (let dy = -tileSize; dy <= tileSize; dy++) {
+                for (let dx = -tileSize; dx <= tileSize; dx++) {
+                    const ny = y + dy;
+                    const nx = x + dx;
+                    if (ny >= 0 && ny < height && nx >= 0 && nx < width) {
+                        hist[gray[ny * width + nx]]++;
+                        count++;
+                    }
+                }
+            }
+            
+            // Calculate cumulative distribution
+            let sum = 0;
+            const cdf = new Array(256);
+            for (let i = 0; i < 256; i++) {
+                sum += hist[i];
+                cdf[i] = sum / count;
+            }
+            
+            // Apply transformation
+            result[idx] = Math.round(cdf[gray[idx]] * 255);
+        }
+    }
+    
+    return result;
+}
+
+// Apply sharpening filter to enhance edges
+function applySharpening(gray, width, height) {
+    const result = new Uint8Array(gray.length);
+    const kernel = [
+        0, -1, 0,
+        -1, 5, -1,
+        0, -1, 0
+    ];
+    
+    for (let y = 1; y < height - 1; y++) {
+        for (let x = 1; x < width - 1; x++) {
+            let sum = 0;
+            let ki = 0;
+            
+            for (let ky = -1; ky <= 1; ky++) {
+                for (let kx = -1; kx <= 1; kx++) {
+                    const idx = (y + ky) * width + (x + kx);
+                    sum += gray[idx] * kernel[ki++];
+                }
+            }
+            
+            const idx = y * width + x;
+            result[idx] = Math.max(0, Math.min(255, sum));
+        }
+    }
+    
+    // Copy edges
+    for (let y = 0; y < height; y++) {
+        result[y * width] = gray[y * width];
+        result[y * width + width - 1] = gray[y * width + width - 1];
+    }
+    for (let x = 0; x < width; x++) {
+        result[x] = gray[x];
+        result[(height - 1) * width + x] = gray[(height - 1) * width + x];
+    }
+    
+    return result;
+}
+
+// Apply adaptive thresholding (better than global threshold)
+function applyAdaptiveThreshold(gray, width, height) {
+    const result = new Uint8Array(gray.length);
+    const blockSize = 15; // Neighborhood size
+    const C = 10; // Constant subtracted from mean
+    
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const idx = y * width + x;
+            
+            // Calculate local mean
+            let sum = 0;
+            let count = 0;
+            
+            for (let dy = -blockSize; dy <= blockSize; dy++) {
+                for (let dx = -blockSize; dx <= blockSize; dx++) {
+                    const ny = y + dy;
+                    const nx = x + dx;
+                    if (ny >= 0 && ny < height && nx >= 0 && nx < width) {
+                        sum += gray[ny * width + nx];
+                        count++;
+                    }
+                }
+            }
+            
+            const mean = sum / count;
+            const threshold = mean - C;
+            
+            // Apply threshold
+            result[idx] = gray[idx] > threshold ? 255 : 0;
+        }
+    }
+    
+    return result;
+}
+
+// Apply denoising (remove small artifacts)
+function applyDenoise(gray, width, height) {
+    const result = new Uint8Array(gray.length);
+    
+    for (let y = 1; y < height - 1; y++) {
+        for (let x = 1; x < width - 1; x++) {
+            const idx = y * width + x;
+            
+            // Median filter (better than mean for removing noise)
+            const neighbors = [
+                gray[(y - 1) * width + (x - 1)],
+                gray[(y - 1) * width + x],
+                gray[(y - 1) * width + (x + 1)],
+                gray[y * width + (x - 1)],
+                gray[idx],
+                gray[y * width + (x + 1)],
+                gray[(y + 1) * width + (x - 1)],
+                gray[(y + 1) * width + x],
+                gray[(y + 1) * width + (x + 1)]
+            ];
+            
+            neighbors.sort((a, b) => a - b);
+            result[idx] = neighbors[4]; // Median value
+        }
+    }
+    
+    // Copy edges
+    for (let y = 0; y < height; y++) {
+        result[y * width] = gray[y * width];
+        result[y * width + width - 1] = gray[y * width + width - 1];
+    }
+    for (let x = 0; x < width; x++) {
+        result[x] = gray[x];
+        result[(height - 1) * width + x] = gray[(height - 1) * width + x];
+    }
+    
+    return result;
+}
+
+// Apply final contrast enhancement
+function applyContrastEnhancement(gray, width, height) {
+    const result = new Uint8Array(gray.length);
+    const contrast = 2.0; // Strong contrast enhancement
+    const brightness = 0; // No brightness adjustment
+    
+    for (let i = 0; i < gray.length; i++) {
+        let value = gray[i];
+        // Apply contrast and brightness
+        value = ((value / 255 - 0.5) * contrast + 0.5 + brightness) * 255;
+        result[i] = Math.max(0, Math.min(255, value));
+    }
+    
+    return result;
 }
 
 // Parse OCR text to extract serial numbers and part numbers
