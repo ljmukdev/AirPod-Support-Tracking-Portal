@@ -236,6 +236,15 @@ if (productForm) {
                 if (partSelectionSelect) {
                     partSelectionSelect.innerHTML = '<option value="">Select part</option>';
                 }
+                // Clear photo preview
+                const photoPreview = document.getElementById('photoPreview');
+                if (photoPreview) {
+                    photoPreview.style.display = 'none';
+                    const photoPreviewGrid = document.getElementById('photoPreviewGrid');
+                    if (photoPreviewGrid) {
+                        photoPreviewGrid.innerHTML = '';
+                    }
+                }
                 loadProducts(); // Reload the products table
             } else {
                 showError(data.error || 'Failed to add product');
@@ -338,6 +347,73 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// Photo preview functionality
+const productPhotos = document.getElementById('productPhotos');
+const photoPreview = document.getElementById('photoPreview');
+const photoPreviewGrid = document.getElementById('photoPreviewGrid');
+
+if (productPhotos && photoPreviewGrid) {
+    productPhotos.addEventListener('change', (e) => {
+        photoPreviewGrid.innerHTML = '';
+        
+        if (e.target.files.length > 0) {
+            photoPreview.style.display = 'block';
+            
+            Array.from(e.target.files).forEach((file, index) => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const div = document.createElement('div');
+                    div.style.position = 'relative';
+                    div.style.border = '2px solid #ddd';
+                    div.style.borderRadius = '8px';
+                    div.style.overflow = 'hidden';
+                    
+                    const img = document.createElement('img');
+                    img.src = event.target.result;
+                    img.style.width = '100%';
+                    img.style.height = '150px';
+                    img.style.objectFit = 'cover';
+                    img.style.display = 'block';
+                    
+                    const removeBtn = document.createElement('button');
+                    removeBtn.textContent = '×';
+                    removeBtn.style.position = 'absolute';
+                    removeBtn.style.top = '5px';
+                    removeBtn.style.right = '5px';
+                    removeBtn.style.background = 'rgba(255, 0, 0, 0.8)';
+                    removeBtn.style.color = 'white';
+                    removeBtn.style.border = 'none';
+                    removeBtn.style.borderRadius = '50%';
+                    removeBtn.style.width = '25px';
+                    removeBtn.style.height = '25px';
+                    removeBtn.style.cursor = 'pointer';
+                    removeBtn.style.fontSize = '18px';
+                    removeBtn.style.lineHeight = '1';
+                    removeBtn.onclick = () => {
+                        div.remove();
+                        // Remove file from input
+                        const dt = new DataTransfer();
+                        Array.from(productPhotos.files).forEach((f, i) => {
+                            if (i !== index) dt.items.add(f);
+                        });
+                        productPhotos.files = dt.files;
+                        if (productPhotos.files.length === 0) {
+                            photoPreview.style.display = 'none';
+                        }
+                    };
+                    
+                    div.appendChild(img);
+                    div.appendChild(removeBtn);
+                    photoPreviewGrid.appendChild(div);
+                };
+                reader.readAsDataURL(file);
+            });
+        } else {
+            photoPreview.style.display = 'none';
+        }
+    });
 }
 
 // Initialize dashboard
