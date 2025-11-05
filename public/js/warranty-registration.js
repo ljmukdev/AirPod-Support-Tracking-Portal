@@ -177,6 +177,16 @@ function selectWarrantyOption(choice) {
         warrantyForm.classList.add('active');
         // Scroll to form
         warrantyForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        
+        // Ensure billing address section is visible when form is shown
+        setTimeout(function() {
+            const billingAddressSection = document.getElementById('billingAddressSection');
+            if (billingAddressSection) {
+                billingAddressSection.style.display = 'block';
+                billingAddressSection.style.visibility = 'visible';
+                console.log('Billing address section shown (form activated)');
+            }
+        }, 100);
     }
     
     if (choice === 'free') {
