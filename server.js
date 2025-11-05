@@ -921,9 +921,19 @@ app.post('/api/admin/product', requireAuth, requireDB, (req, res, next) => {
                     try {
                         // Store relative path for serving
                         photos.push(`/uploads/${file.filename}`);
-                        const stats = fs.statSync(verifiedPath);
-                        console.log(`      ✅ Photo verified: ${(stats.size / 1024).toFixed(1)} KB`);
-                        console.log(`      📍 Actual save location: ${verifiedPath}`);
+                        
+                        // Try to get file stats (may fail if Railway volume hasn't synced yet)
+                        try {
+                            const stats = fs.statSync(verifiedPath);
+                            console.log(`      ✅ Photo verified: ${(stats.size / 1024).toFixed(1)} KB`);
+                            console.log(`      📍 Actual save location: ${verifiedPath}`);
+                        } catch (statErr) {
+                            // File path trusted but not yet synced - use Multer's reported size
+                            console.log(`      ⚠️  Photo path trusted (Railway sync pending): ${file.filename}`);
+                            console.log(`      📦 Multer reported size: ${(file.size / 1024).toFixed(1)} KB`);
+                            console.log(`      📍 Expected location: ${verifiedPath}`);
+                        }
+                        
                         console.log(`      🌐 Will be served from: /uploads/${file.filename}`);
                         
                         // IMPORTANT: Ensure global.uploadsDir matches where file was actually saved
@@ -939,8 +949,8 @@ app.post('/api/admin/product', requireAuth, requireDB, (req, res, next) => {
                             global.uploadsDir = actualDir;
                             global.uploadsDirAbsolute = actualDirResolved;
                         }
-                    } catch (statErr) {
-                        console.error(`      ❌ Error getting file stats: ${statErr.message}`);
+                    } catch (err) {
+                        console.error(`      ❌ Error processing file: ${err.message}`);
                     }
                 }
             }
