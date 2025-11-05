@@ -390,79 +390,6 @@
                     </div>
                 </div>
 
-                <!-- Billing Address Section (shown only if registering warranty) -->
-                <div class="form-section" id="billingAddressSection">
-                    <h3>Billing Address</h3>
-                    <p style="color: #666; margin-bottom: 15px;">
-                        Required for extended warranty purchases. Used for payment verification and warranty documentation.
-                    </p>
-                    <div class="form-group">
-                        <label for="addressLine1">Address Line 1 <span style="color: red;">*</span></label>
-                        <input 
-                            type="text" 
-                            id="addressLine1" 
-                            name="addressLine1" 
-                            placeholder="Street address"
-                        >
-                    </div>
-                    <div class="form-group">
-                        <label for="addressLine2">Address Line 2 (optional)</label>
-                        <input 
-                            type="text" 
-                            id="addressLine2" 
-                            name="addressLine2" 
-                            placeholder="Apartment, suite, etc."
-                        >
-                    </div>
-                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 15px;">
-                        <div class="form-group">
-                            <label for="city">City <span style="color: red;">*</span></label>
-                            <input 
-                                type="text" 
-                                id="city" 
-                                name="city" 
-                                placeholder="City"
-                            >
-                        </div>
-                        <div class="form-group">
-                            <label for="postcode">Postcode <span style="color: red;">*</span></label>
-                            <input 
-                                type="text" 
-                                id="postcode" 
-                                name="postcode" 
-                                placeholder="SW1A 1AA"
-                                style="text-transform: uppercase;"
-                            >
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="country">Country <span style="color: red;">*</span></label>
-                        <select id="country" name="country" required>
-                            <option value="GB" selected>United Kingdom</option>
-                            <option value="US">United States</option>
-                            <option value="CA">Canada</option>
-                            <option value="AU">Australia</option>
-                            <option value="IE">Ireland</option>
-                            <option value="FR">France</option>
-                            <option value="DE">Germany</option>
-                            <option value="ES">Spain</option>
-                            <option value="IT">Italy</option>
-                            <option value="NL">Netherlands</option>
-                            <option value="BE">Belgium</option>
-                            <option value="CH">Switzerland</option>
-                            <option value="AT">Austria</option>
-                            <option value="SE">Sweden</option>
-                            <option value="NO">Norway</option>
-                            <option value="DK">Denmark</option>
-                            <option value="FI">Finland</option>
-                            <option value="PL">Poland</option>
-                            <option value="PT">Portugal</option>
-                            <option value="GR">Greece</option>
-                            <option value="OTHER">Other</option>
-                        </select>
-                    </div>
-                </div>
-
                 <!-- Extended Warranty Section (shown only if registering free warranty) -->
                 <div class="form-section" id="extendedWarrantySection">
                     <h3>
@@ -538,6 +465,80 @@
                         <!-- Stripe Elements will create form elements here -->
                     </div>
                     <div id="card-errors" role="alert"></div>
+                    
+                    <!-- Billing Address Section (shown only if registering warranty) -->
+                    <div id="billingAddressSection" style="margin-top: 25px; padding-top: 25px; border-top: 2px solid var(--secondary-gray);">
+                        <h3 style="margin-top: 0;">Billing Address</h3>
+                        <p style="color: #666; margin-bottom: 15px;">
+                            Required for extended warranty purchases. Used for payment verification and warranty documentation.
+                        </p>
+                        <div class="form-group">
+                            <label for="addressLine1">Address Line 1 <span style="color: red;">*</span></label>
+                            <input 
+                                type="text" 
+                                id="addressLine1" 
+                                name="addressLine1" 
+                                placeholder="Street address"
+                            >
+                        </div>
+                        <div class="form-group">
+                            <label for="addressLine2">Address Line 2 (optional)</label>
+                            <input 
+                                type="text" 
+                                id="addressLine2" 
+                                name="addressLine2" 
+                                placeholder="Apartment, suite, etc."
+                            >
+                        </div>
+                        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 15px;">
+                            <div class="form-group">
+                                <label for="city">City <span style="color: red;">*</span></label>
+                                <input 
+                                    type="text" 
+                                    id="city" 
+                                    name="city" 
+                                    placeholder="City"
+                                >
+                            </div>
+                            <div class="form-group">
+                                <label for="postcode">Postcode <span style="color: red;">*</span></label>
+                                <input 
+                                    type="text" 
+                                    id="postcode" 
+                                    name="postcode" 
+                                    placeholder="SW1A 1AA"
+                                    style="text-transform: uppercase;"
+                                >
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="country">Country <span style="color: red;">*</span></label>
+                            <select id="country" name="country" required>
+                                <option value="GB" selected>United Kingdom</option>
+                                <option value="US">United States</option>
+                                <option value="CA">Canada</option>
+                                <option value="AU">Australia</option>
+                                <option value="IE">Ireland</option>
+                                <option value="FR">France</option>
+                                <option value="DE">Germany</option>
+                                <option value="ES">Spain</option>
+                                <option value="IT">Italy</option>
+                                <option value="NL">Netherlands</option>
+                                <option value="BE">Belgium</option>
+                                <option value="CH">Switzerland</option>
+                                <option value="AT">Austria</option>
+                                <option value="SE">Sweden</option>
+                                <option value="NO">Norway</option>
+                                <option value="DK">Denmark</option>
+                                <option value="FI">Finland</option>
+                                <option value="PL">Poland</option>
+                                <option value="PT">Portugal</option>
+                                <option value="GR">Greece</option>
+                                <option value="OTHER">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                    
                     <div class="payment-processing" id="paymentProcessing" style="display: none;">
                         <div class="spinner active"></div>
                         <p style="margin-top: 10px;">Processing payment...</p>
@@ -607,21 +608,8 @@
                 });
             }
             
-            // Debug: Check if billing address section exists
-            const billingAddressSection = document.getElementById('billingAddressSection');
-            console.log('Billing address section found:', !!billingAddressSection);
-            if (billingAddressSection) {
-                console.log('Billing address section display:', window.getComputedStyle(billingAddressSection).display);
-                console.log('Billing address section visibility:', window.getComputedStyle(billingAddressSection).visibility);
-                
-                // Force it to be visible if form is active
-                const warrantyForm = document.getElementById('warrantyForm');
-                if (warrantyForm && warrantyForm.classList.contains('active')) {
-                    billingAddressSection.style.display = 'block';
-                    billingAddressSection.style.visibility = 'visible';
-                    console.log('Billing address section forced visible');
-                }
-            }
+            // Billing address section is now inside payment section
+            // It will be visible automatically when payment section is shown (extended warranty selected)
         });
     </script>
     <script src="js/version.js"></script>

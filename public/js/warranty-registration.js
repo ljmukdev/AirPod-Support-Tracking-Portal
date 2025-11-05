@@ -179,15 +179,9 @@ window.selectWarrantyOption = function(choice) {
         // Scroll to form
         warrantyForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
         
-        // Ensure billing address section is visible when form is shown
-        setTimeout(function() {
-            const billingAddressSection = document.getElementById('billingAddressSection');
-            if (billingAddressSection) {
-                billingAddressSection.style.display = 'block';
-                billingAddressSection.style.visibility = 'visible';
-                console.log('Billing address section shown (form activated)');
-            }
-        }, 100);
+        // Billing address section is now inside payment section
+        // It will show automatically when payment section is displayed (extended warranty selected)
+        // For now, just ensure form is visible
     }
     
     if (choice === 'free') {
@@ -204,13 +198,9 @@ window.selectWarrantyOption = function(choice) {
         const marketingConsent = document.getElementById('marketingConsent');
         if (marketingConsent) marketingConsent.checked = true;
         
-        // Ensure billing address section is visible
-        const billingAddressSection = document.getElementById('billingAddressSection');
-        if (billingAddressSection) {
-            billingAddressSection.style.display = 'block';
-            billingAddressSection.style.visibility = 'visible';
-            console.log('Billing address section made visible (free warranty)');
-        }
+        // Billing address is now inside payment section
+        // For free warranty only, billing address is optional, so it can remain hidden
+        // It will show automatically when extended warranty is selected
     } else if (choice === 'extended') {
         // Show extended warranty purchase form
         if (registerFreeWarranty) {
@@ -226,13 +216,8 @@ window.selectWarrantyOption = function(choice) {
         const marketingConsent = document.getElementById('marketingConsent');
         if (marketingConsent) marketingConsent.checked = true;
         
-        // Ensure billing address section is visible (required for extended warranty)
-        const billingAddressSection = document.getElementById('billingAddressSection');
-        if (billingAddressSection) {
-            billingAddressSection.style.display = 'block';
-            billingAddressSection.style.visibility = 'visible';
-            console.log('Billing address section made visible (extended warranty)');
-        }
+        // Billing address is now inside payment section
+        // It will show automatically when payment section is displayed (when extended warranty is selected)
     }
 };
 
@@ -300,8 +285,10 @@ function updateTotalPrice() {
         if (totalPriceEl) totalPriceEl.textContent = `£${price.toFixed(2)}`;
         
         // Show billing address section when extended warranty is selected (required for payment)
+        // Billing address is now inside payment section, so it will show automatically when payment section is shown
         const billingAddressSection = document.getElementById('billingAddressSection');
-        if (billingAddressSection) {
+        if (billingAddressSection && paymentSection) {
+            // Billing address is inside payment section, so ensure payment section is visible
             billingAddressSection.style.display = 'block';
             billingAddressSection.style.visibility = 'visible';
         }
@@ -817,10 +804,20 @@ function toggleWarrantySections() {
             customerInfoSection.style.display = 'block';
             customerInfoSection.style.visibility = 'visible';
         }
+        // Billing address is now inside payment section, so it will show when payment section is shown
+        // For free warranty only, we still want billing address visible, so we'll show it separately
+        // But since it's now inside payment section, we need to ensure payment section shows it
+        // Actually, for free warranty, billing address is optional, so we can leave it hidden
+        // It will show automatically when extended warranty is selected (payment section shown)
         if (billingAddressSection) {
-            billingAddressSection.style.display = 'block';
-            billingAddressSection.style.visibility = 'visible';
-            console.log('Billing address section shown');
+            // Only show if payment section is visible (extended warranty selected)
+            // For free warranty only, billing address is optional so can be hidden
+            const paymentSection = document.getElementById('paymentSection');
+            if (paymentSection && paymentSection.style.display !== 'none') {
+                billingAddressSection.style.display = 'block';
+                billingAddressSection.style.visibility = 'visible';
+                console.log('Billing address section shown (payment section visible)');
+            }
         } else {
             console.warn('Billing address section element not found!');
         }
@@ -890,17 +887,8 @@ function initializePage() {
         const observer = new MutationObserver(function(mutations) {
             mutations.forEach(function(mutation) {
                 if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-                    if (warrantyForm.classList.contains('active')) {
-                        // Form is now visible, ensure billing address is shown
-                        setTimeout(function() {
-                            const billingAddressSection = document.getElementById('billingAddressSection');
-                            if (billingAddressSection) {
-                                billingAddressSection.style.display = 'block';
-                                billingAddressSection.style.visibility = 'visible';
-                                console.log('Billing address section shown (form became active via observer)');
-                            }
-                        }, 200);
-                    }
+                    // Billing address is now inside payment section
+                    // It will show automatically when payment section is displayed
                 }
             });
         });
