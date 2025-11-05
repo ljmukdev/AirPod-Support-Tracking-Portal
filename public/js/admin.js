@@ -409,43 +409,50 @@ async function addWatermarkToImage(file) {
                 ctx.strokeRect(borderWidth / 2, borderWidth / 2, canvas.width - borderWidth, canvas.height - borderWidth);
                 
                 // Create watermark logo (white "LJM" text in dark circle)
-                // Size: 12% of smaller dimension, but minimum 80px, maximum 180px
+                // Size: 10% of smaller dimension, but minimum 100px, maximum 200px
                 const minDimension = Math.min(canvas.width, canvas.height);
-                const logoSize = Math.max(80, Math.min(180, minDimension * 0.12));
+                const logoSize = Math.max(100, Math.min(200, minDimension * 0.1));
                 
-                // Padding from edges - ensure logo is fully visible (30px minimum)
-                const padding = Math.max(30, logoSize * 0.15);
+                // Padding from edges - ensure logo is fully visible (40px from right and bottom)
+                const paddingX = 40;
+                const paddingY = 40;
                 
-                // Position: bottom right corner, fully within canvas bounds
-                const logoX = canvas.width - logoSize - padding;
-                const logoY = canvas.height - logoSize - padding;
-                const centerX = logoX + logoSize / 2;
-                const centerY = logoY + logoSize / 2;
+                // Position: bottom right corner - calculate center point
+                const centerX = canvas.width - paddingX - (logoSize / 2);
+                const centerY = canvas.height - paddingY - (logoSize / 2);
                 const radius = logoSize / 2;
+                
+                // Ensure logo fits within canvas bounds
+                const maxX = canvas.width - paddingX;
+                const maxY = canvas.height - paddingY;
+                const finalCenterX = Math.min(centerX, maxX - radius);
+                const finalCenterY = Math.min(centerY, maxY - radius);
+                const finalRadius = Math.min(radius, finalCenterX - paddingX, finalCenterY - paddingY);
                 
                 // Save context for transparency
                 ctx.save();
-                ctx.globalAlpha = 0.6; // Faded/transparent watermark
+                ctx.globalAlpha = 0.65; // Faded/transparent watermark
                 
                 // Draw dark circle background (more opaque for visibility)
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+                ctx.fillStyle = 'rgba(40, 40, 40, 0.9)';
                 ctx.beginPath();
-                ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+                ctx.arc(finalCenterX, finalCenterY, finalRadius, 0, Math.PI * 2);
                 ctx.fill();
                 
                 // Draw white circle border (more visible)
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-                ctx.lineWidth = Math.max(3, logoSize * 0.05);
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+                ctx.lineWidth = Math.max(3, finalRadius * 0.08);
                 ctx.beginPath();
-                ctx.arc(centerX, centerY, radius - ctx.lineWidth / 2, 0, Math.PI * 2);
+                ctx.arc(finalCenterX, finalCenterY, finalRadius - ctx.lineWidth / 2, 0, Math.PI * 2);
                 ctx.stroke();
                 
-                // Draw "LJM" text (white, bold)
+                // Draw "LJM" text (white, bold) - ensure it's visible
                 ctx.fillStyle = 'rgba(255, 255, 255, 1)';
-                ctx.font = `bold ${logoSize * 0.4}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`;
+                const fontSize = finalRadius * 0.5;
+                ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText('LJM', centerX, centerY);
+                ctx.fillText('LJM', finalCenterX, finalCenterY);
                 
                 // Restore context
                 ctx.restore();
