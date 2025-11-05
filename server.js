@@ -73,8 +73,37 @@ const handleMulterError = (err, req, res, next) => {
     next();
 };
 
-// Serve static files from public directory
-// This must come before API routes to avoid conflicts
+// Explicit route for uploads BEFORE static middleware to handle missing files gracefully
+// This prevents Express static from throwing unhandled errors
+app.get('/uploads/:filename', (req, res) => {
+    const filename = req.params.filename;
+    const filePath = path.join(__dirname, 'public', 'uploads', filename);
+    
+    // Check if file exists before trying to serve it
+    fs.access(filePath, fs.constants.F_OK, (err) => {
+        if (err) {
+            // File doesn't exist (common on Railway due to ephemeral filesystem)
+            console.log(`File not found (ephemeral filesystem): ${filename}`);
+            // Return 404 with proper content type
+            res.status(404).type('application/json').json({ 
+                error: 'File not found',
+                message: 'This file may have been removed due to container restart'
+            });
+        } else {
+            // File exists, serve it
+            res.sendFile(filePath, (err) => {
+                if (err) {
+                    console.error(`Error serving file ${filePath}:`, err.message);
+                    if (!res.headersSent) {
+                        res.status(500).type('application/json').json({ error: 'Error serving file' });
+                    }
+                }
+            });
+        }
+    });
+});
+
+// Serve static files from public directory (except uploads, handled above)
 app.use(express.static('public', {
     index: false, // Don't serve index.html for directories
     dotfiles: 'ignore', // Ignore dotfiles
@@ -82,30 +111,6 @@ app.use(express.static('public', {
     lastModified: true,
     maxAge: '1d' // Cache for 1 day
 }));
-
-// Explicit route for uploads to handle errors gracefully
-app.get('/uploads/:filename', (req, res, next) => {
-    const filename = req.params.filename;
-    const filePath = path.join(__dirname, 'public', 'uploads', filename);
-    
-    // Check if file exists
-    fs.access(filePath, fs.constants.F_OK, (err) => {
-        if (err) {
-            console.log(`File not found: ${filePath}`);
-            // Return 404 instead of 500
-            res.status(404).json({ error: 'File not found' });
-        } else {
-            // File exists, let Express static middleware handle it
-            // But we've already checked, so serve it directly
-            res.sendFile(filePath, (err) => {
-                if (err) {
-                    console.error(`Error serving file ${filePath}:`, err);
-                    res.status(500).json({ error: 'Error serving file' });
-                }
-            });
-        }
-    });
-});
 
 // Session configuration
 // Note: MemoryStore warning is expected in development. For production with multiple instances,
@@ -1060,10 +1065,21 @@ app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', req.path === '/' ? 'index.html' : req.path));
 });
 
-// Error handling
+// Error handling middleware
 app.use((err, req, res, next) => {
+    // Don't log 404 errors for missing uploads (expected on ephemeral filesystem)
+    if (err.code === 'ENOENT' && req.path && req.path.startsWith('/uploads/')) {
+        console.log(`Expected: File not found due to ephemeral filesystem: ${req.path}`);
+        return res.status(404).type('application/json').json({ 
+            error: 'File not found',
+            message: 'This file may have been removed due to container restart'
+        });
+    }
+    
     console.error('Error:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    if (!res.headersSent) {
+        res.status(500).type('application/json').json({ error: 'Internal server error' });
+    }
 });
 
 // Start server
