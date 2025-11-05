@@ -281,86 +281,102 @@ app.get('/api/admin/uploads-diagnostic', requireAuth, requireDB, (req, res) => {
 
 // Explicit route for uploads BEFORE static middleware to handle missing files gracefully
 // This prevents Express static from throwing unhandled errors
-app.get('/uploads/:filename', (req, res) => {
+app.get('/uploads/:filename', async (req, res) => {
     const filename = req.params.filename;
     // CRITICAL: Use the same uploadsDir that Multer uses for saving files
     // This must match exactly where files are saved
     const currentUploadsDir = global.uploadsDir || uploadsDir;
     const filePath = path.join(currentUploadsDir, filename);
     
-    // Log for debugging
+    // Log for debugging (only on first attempt)
     console.log(`🔍 Serving file request: ${filename}`);
-    console.log(`   Looking in: ${currentUploadsDir}`);
-    console.log(`   Absolute path: ${global.uploadsDirAbsolute || path.resolve(currentUploadsDir)}`);
-    console.log(`   Full path: ${filePath}`);
-    console.log(`   Global uploadsDir: ${global.uploadsDir || 'not set'}`);
     
-    // Check if file exists before trying to serve it
-    fs.access(filePath, fs.constants.F_OK, (err) => {
-        if (err) {
-            // File doesn't exist - detailed debugging
-            const currentUploadsDir = global.uploadsDir || uploadsDir;
-            console.log(`❌ File not found: ${filename}`);
-            console.log(`   Searched in: ${currentUploadsDir}`);
-            console.log(`   Absolute path: ${global.uploadsDirAbsolute || path.resolve(currentUploadsDir)}`);
-            console.log(`   Full path: ${filePath}`);
+    // Retry logic for Railway volume sync delays
+    const maxRetries = 5;
+    const retryDelay = 500; // Start with 500ms
+    
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+            // Check if file exists
+            fs.accessSync(filePath, fs.constants.F_OK);
             
-            // Check if directory exists and list contents
+            // File exists, verify it's readable
+            const stats = fs.statSync(filePath);
+            if (stats.isFile() && stats.size > 0) {
+                // File exists and is valid, serve it
+                return res.sendFile(filePath, (err) => {
+                    if (err) {
+                        console.error(`Error serving file ${filePath}:`, err.message);
+                        if (!res.headersSent) {
+                            res.status(500).type('application/json').json({ error: 'Error serving file' });
+                        }
+                    }
+                });
+            }
+        } catch (accessErr) {
+            // File doesn't exist or not accessible yet - check for case-insensitive match
             if (fs.existsSync(currentUploadsDir)) {
                 try {
                     const files = fs.readdirSync(currentUploadsDir);
-                    console.log(`   ✅ Directory exists with ${files.length} file(s)`);
-                    if (files.length > 0) {
-                        console.log(`   Files in directory (first 10):`, files.slice(0, 10));
-                        // Check if filename matches any file (case-insensitive)
-                        const matchingFile = files.find(f => f.toLowerCase() === filename.toLowerCase());
-                        if (matchingFile && matchingFile !== filename) {
-                            console.log(`   ⚠️  Found similar file (case mismatch?): ${matchingFile}`);
-                            // Try serving the matching file instead
-                            const correctedPath = path.join(currentUploadsDir, matchingFile);
-                            console.log(`   🔄 Attempting to serve corrected path: ${correctedPath}`);
-                            return res.sendFile(correctedPath, (sendErr) => {
-                                if (sendErr) {
-                                    console.error(`   ❌ Failed to serve corrected file:`, sendErr.message);
-                                    res.status(404).type('application/json').json({ 
-                                        error: 'File not found',
-                                        message: 'This file may have been removed or not uploaded correctly'
-                                    });
+                    // Check for case-insensitive match
+                    const matchingFile = files.find(f => f.toLowerCase() === filename.toLowerCase());
+                    
+                    if (matchingFile) {
+                        const correctedPath = path.join(currentUploadsDir, matchingFile);
+                        try {
+                            const stats = fs.statSync(correctedPath);
+                            if (stats.isFile() && stats.size > 0) {
+                                // Found matching file, serve it
+                                if (attempt > 0) {
+                                    console.log(`   ✅ Found file after ${attempt} retry(ies) (case-insensitive match)`);
                                 }
-                            });
+                                return res.sendFile(correctedPath, (err) => {
+                                    if (err) {
+                                        console.error(`Error serving file ${correctedPath}:`, err.message);
+                                        if (!res.headersSent) {
+                                            res.status(500).type('application/json').json({ error: 'Error serving file' });
+                                        }
+                                    }
+                                });
+                            }
+                        } catch (statErr) {
+                            // File exists but not ready yet - continue retry
                         }
-                        // Check if requested file is in the list
-                        if (files.includes(filename)) {
-                            console.log(`   ⚠️  File EXISTS in directory but fs.access failed! Permission issue?`);
-                        }
-                    } else {
-                        console.log(`   ⚠️  Directory is empty - no files uploaded yet`);
                     }
                 } catch (dirErr) {
-                    console.error(`   ❌ Error reading directory:`, dirErr.message);
+                    // Directory read error - continue retry
                 }
-            } else {
-                console.error(`   ❌ Uploads directory doesn't exist: ${currentUploadsDir}`);
-                console.error(`   📁 Checking if /data exists:`, fs.existsSync('/data'));
-                console.error(`   📁 Checking if /data/uploads exists:`, fs.existsSync('/data/uploads'));
             }
             
-            // Return 404 with proper content type
-            res.status(404).type('application/json').json({ 
-                error: 'File not found',
-                message: 'This file may have been removed or not uploaded correctly'
-            });
-        } else {
-            // File exists, serve it
-            res.sendFile(filePath, (err) => {
-                if (err) {
-                    console.error(`Error serving file ${filePath}:`, err.message);
-                    if (!res.headersSent) {
-                        res.status(500).type('application/json').json({ error: 'Error serving file' });
-                    }
-                }
-            });
+            // If not last attempt, wait and retry
+            if (attempt < maxRetries - 1) {
+                await new Promise(resolve => setTimeout(resolve, retryDelay * (attempt + 1)));
+                continue;
+            }
         }
+    }
+    
+    // After all retries failed, return 404
+    console.log(`❌ File not found after ${maxRetries} attempts: ${filename}`);
+    console.log(`   Searched in: ${currentUploadsDir}`);
+    
+    // Check directory contents for debugging
+    if (fs.existsSync(currentUploadsDir)) {
+        try {
+            const files = fs.readdirSync(currentUploadsDir);
+            console.log(`   Directory contains ${files.length} file(s)`);
+            const matchingFile = files.find(f => f.toLowerCase() === filename.toLowerCase());
+            if (matchingFile) {
+                console.log(`   ⚠️  Case-insensitive match found but file not accessible: ${matchingFile}`);
+            }
+        } catch (dirErr) {
+            // Ignore directory read errors
+        }
+    }
+    
+    res.status(404).type('application/json').json({ 
+        error: 'File not found',
+        message: 'This file may still be syncing to the volume. Please try again in a moment.'
     });
 });
 
