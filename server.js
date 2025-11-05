@@ -58,13 +58,16 @@ const upload = multer({
 // Multer error handler middleware
 const handleMulterError = (err, req, res, next) => {
     if (err instanceof multer.MulterError) {
+        // Ignore unexpected file errors if we're already processing the request
         if (err.code === 'LIMIT_UNEXPECTED_FILE') {
-            // If no files are expected but some were sent, ignore it
+            console.log('Multer: Unexpected file field, but continuing...');
             return next();
         }
+        console.error('Multer error:', err);
         return res.status(400).json({ error: 'File upload error: ' + err.message });
     }
     if (err) {
+        console.error('Upload error:', err);
         return res.status(400).json({ error: err.message });
     }
     next();
@@ -450,7 +453,20 @@ app.get('/api/admin/check-auth', (req, res) => {
 });
 
 // Add new product (Admin only) - with photo upload support
-app.post('/api/admin/product', requireAuth, requireDB, upload.array('photos', 5), handleMulterError, async (req, res) => {
+app.post('/api/admin/product', requireAuth, requireDB, (req, res, next) => {
+    // Use multer middleware, but handle errors gracefully
+    upload.array('photos', 5)(req, res, (err) => {
+        if (err) {
+            // If it's an unexpected file error and we have other data, continue
+            if (err.code === 'LIMIT_UNEXPECTED_FILE' && req.body && (req.body.serial_number || req.body.security_barcode)) {
+                console.log('Multer: Ignoring unexpected file field, continuing with form data');
+                return next();
+            }
+            return handleMulterError(err, req, res, next);
+        }
+        next();
+    });
+}, async (req, res) => {
     // Multer parses FormData - text fields come through req.body
     const serial_number = req.body.serial_number;
     const security_barcode = req.body.security_barcode;
