@@ -25,21 +25,33 @@ app.get('/favicon.ico', (req, res) => {
 // Railway volumes: Check multiple possible paths
 // Railway volumes can be mounted at various paths depending on configuration
 function findRailwayVolumePath() {
-    // Check environment variables first (Railway may set these)
-    if (process.env.RAILWAY_VOLUME_MOUNT_PATH && fs.existsSync(process.env.RAILWAY_VOLUME_MOUNT_PATH)) {
-        console.log('✅ Found volume via RAILWAY_VOLUME_MOUNT_PATH:', process.env.RAILWAY_VOLUME_MOUNT_PATH);
-        return process.env.RAILWAY_VOLUME_MOUNT_PATH;
+    console.log('🔍 Searching for Railway volume mount point...');
+    
+    // Check environment variables first (Railway may set these or you can set manually)
+    if (process.env.RAILWAY_VOLUME_MOUNT_PATH) {
+        if (fs.existsSync(process.env.RAILWAY_VOLUME_MOUNT_PATH)) {
+            console.log('✅ Found volume via RAILWAY_VOLUME_MOUNT_PATH:', process.env.RAILWAY_VOLUME_MOUNT_PATH);
+            return process.env.RAILWAY_VOLUME_MOUNT_PATH;
+        } else {
+            console.log('⚠️  RAILWAY_VOLUME_MOUNT_PATH set but path does not exist:', process.env.RAILWAY_VOLUME_MOUNT_PATH);
+        }
     }
-    if (process.env.UPLOADS_VOLUME_PATH && fs.existsSync(process.env.UPLOADS_VOLUME_PATH)) {
-        console.log('✅ Found volume via UPLOADS_VOLUME_PATH:', process.env.UPLOADS_VOLUME_PATH);
-        return process.env.UPLOADS_VOLUME_PATH;
+    if (process.env.UPLOADS_VOLUME_PATH) {
+        if (fs.existsSync(process.env.UPLOADS_VOLUME_PATH)) {
+            console.log('✅ Found volume via UPLOADS_VOLUME_PATH:', process.env.UPLOADS_VOLUME_PATH);
+            return process.env.UPLOADS_VOLUME_PATH;
+        } else {
+            console.log('⚠️  UPLOADS_VOLUME_PATH set but path does not exist:', process.env.UPLOADS_VOLUME_PATH);
+        }
     }
     
     // Check common Railway volume mount paths
     // Note: Railway volumes are mounted at the path you specify in the dashboard
     const commonPaths = ['/data', '/uploads', '/storage', '/mnt'];
+    console.log('   Checking common mount paths:', commonPaths);
     for (const mountPath of commonPaths) {
         if (fs.existsSync(mountPath)) {
+            console.log(`   Found ${mountPath}, testing...`);
             // Check if it's actually a mount point and writable
             try {
                 fs.accessSync(mountPath, fs.constants.W_OK);
@@ -52,15 +64,20 @@ function findRailwayVolumePath() {
                     return mountPath;
                 } catch (e) {
                     // Not writable, continue searching
-                    console.log(`   ⚠️  ${mountPath} exists but not writable`);
+                    console.log(`   ⚠️  ${mountPath} exists but not writable:`, e.message);
                 }
             } catch (e) {
                 // Not accessible, continue searching
+                console.log(`   ⚠️  ${mountPath} exists but not accessible:`, e.message);
             }
         }
     }
     
     console.log('   ℹ️  No Railway volume found, will use ephemeral storage');
+    console.log('   💡 To use persistent storage:');
+    console.log('      1. Create a Volume in Railway dashboard');
+    console.log('      2. Mount it to your App service at /data (or another path)');
+    console.log('      3. Set RAILWAY_VOLUME_MOUNT_PATH=/data environment variable');
     return null;
 }
 

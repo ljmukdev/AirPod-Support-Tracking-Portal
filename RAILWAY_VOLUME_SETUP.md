@@ -24,12 +24,16 @@ Railway's filesystem is ephemeral - files are deleted when the container restart
 5. Select the volume you created
 6. Set the **Mount Path** to: `/data` (or any path you prefer)
 
-### 3. Set Environment Variable
+### 3. Set Environment Variable (IMPORTANT!)
 
 1. Still in your App service settings, go to **"Variables"** tab
 2. Add a new variable:
    - **Name:** `RAILWAY_VOLUME_MOUNT_PATH`
    - **Value:** `/data` (must match the mount path from step 2)
+   
+   **Note:** Railway doesn't automatically set this variable. You MUST set it manually!
+   
+   The mount path in Railway is where Railway mounts the volume internally, but the app needs to know where to look for files. Set this to match your mount path.
 
 ### 4. Redeploy
 
