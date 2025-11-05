@@ -1049,7 +1049,7 @@ app.post('/api/admin/product', requireAuth, requireDB, (req, res, next) => {
         
         const product = {
             serial_number: serial_number.trim(),
-            security_barcode: security_barcode.trim(),
+            security_barcode: security_barcode.trim().toUpperCase(), // Store in uppercase
             part_type: part_type.toLowerCase(),
             generation: generation ? generation.trim() : null,
             part_model_number: part_model_number ? part_model_number.trim() : null,
@@ -1210,7 +1210,7 @@ app.put('/api/admin/product/:id', requireAuth, requireDB, (req, res, next) => {
         
         const updateData = {
             serial_number: serial_number.trim(),
-            security_barcode: security_barcode.trim(),
+            security_barcode: security_barcode.trim().toUpperCase(), // Store in uppercase
             part_type: part_type.toLowerCase(),
             generation: generation ? generation.trim() : null,
             part_model_number: part_model_number ? part_model_number.trim() : null,
@@ -1332,8 +1332,10 @@ app.post('/api/verify-barcode', requireDB, async (req, res) => {
     }
     
     try {
+        // Case-insensitive search - convert to uppercase for comparison
+        const normalizedBarcode = security_barcode.trim().toUpperCase();
         const product = await db.collection('products').findOne({ 
-            security_barcode: security_barcode.trim() 
+            security_barcode: normalizedBarcode 
         });
         
         if (!product) {
@@ -1366,8 +1368,10 @@ app.post('/api/confirm-understanding', requireDB, async (req, res) => {
     }
     
     try {
+        // Case-insensitive search - convert to uppercase for comparison
+        const normalizedBarcode = security_barcode.trim().toUpperCase();
         const result = await db.collection('products').updateOne(
-            { security_barcode: security_barcode.trim() },
+            { security_barcode: normalizedBarcode },
             { 
                 $set: { 
                     confirmation_checked: true, 
@@ -1526,8 +1530,10 @@ app.post('/api/warranty/register', requireDB, async (req, res) => {
     
     // Verify product exists
     try {
+        // Case-insensitive search - convert to uppercase for comparison
+        const normalizedBarcode = security_barcode.trim().toUpperCase();
         const product = await db.collection('products').findOne({ 
-            security_barcode: security_barcode.trim() 
+            security_barcode: normalizedBarcode 
         });
         
         if (!product) {
@@ -1536,7 +1542,7 @@ app.post('/api/warranty/register', requireDB, async (req, res) => {
         
         // Check if warranty already registered for this product
         const existingWarranty = await db.collection('warranties').findOne({
-            security_barcode: security_barcode.trim()
+            security_barcode: normalizedBarcode
         });
         
         if (existingWarranty) {
@@ -1597,7 +1603,7 @@ app.post('/api/warranty/register', requireDB, async (req, res) => {
         
         const warranty = {
             warranty_id: warrantyId,
-            security_barcode: security_barcode.trim(),
+            security_barcode: normalizedBarcode,
             product_id: product._id.toString(),
             customer_name: customer_name.trim(),
             customer_email: customer_email.trim().toLowerCase(),
@@ -1648,8 +1654,10 @@ app.get('/api/product-info/:barcode', requireDB, async (req, res) => {
     const { barcode } = req.params;
     
     try {
+        // Case-insensitive search - convert to uppercase for comparison
+        const normalizedBarcode = barcode.trim().toUpperCase();
         const product = await db.collection('products').findOne({ 
-            security_barcode: barcode.trim() 
+            security_barcode: normalizedBarcode 
         });
         
         if (!product) {

@@ -48,7 +48,11 @@ if (barcodeForm) {
         
         const barcodeInput = document.getElementById('securityBarcode');
         const submitButton = document.getElementById('submitButton');
-        const securityBarcode = barcodeInput.value.trim();
+        // Convert to uppercase automatically
+        const securityBarcode = barcodeInput.value.trim().toUpperCase();
+        
+        // Update the input field to show uppercase
+        barcodeInput.value = securityBarcode;
         
         if (!securityBarcode) {
             showError('Please enter a security code');

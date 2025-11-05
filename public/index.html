@@ -45,8 +45,20 @@
                         required
                         autocomplete="off"
                         autofocus
+                        style="text-transform: uppercase;"
                     >
                 </div>
+                <script>
+                    // Convert to uppercase as user types
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const barcodeInput = document.getElementById('securityBarcode');
+                        if (barcodeInput) {
+                            barcodeInput.addEventListener('input', function(e) {
+                                e.target.value = e.target.value.toUpperCase();
+                            });
+                        }
+                    });
+                </script>
                 <div id="errorMessage" class="error-message"></div>
                 <button type="submit" class="button" id="submitButton">
                     Continue
