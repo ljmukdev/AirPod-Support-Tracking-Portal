@@ -520,6 +520,8 @@ app.post('/api/admin/product', requireAuth, requireDB, (req, res, next) => {
             notes: notes ? notes.trim() : null,
             ebay_order_number: ebay_order_number ? ebay_order_number.trim() : null,
             photos: photos, // Array of photo paths
+            tracking_number: null,
+            tracking_date: null,
             date_added: new Date(),
             confirmation_checked: false,
             confirmation_date: null
@@ -629,6 +631,7 @@ app.put('/api/admin/product/:id', requireAuth, requireDB, (req, res, next) => {
             notes: notes ? notes.trim() : null,
             ebay_order_number: ebay_order_number ? ebay_order_number.trim() : null,
             ...photosUpdate
+            // Note: tracking_number and tracking_date are updated via separate endpoint
         };
         
         const result = await db.collection('products').updateOne(
@@ -641,6 +644,64 @@ app.put('/api/admin/product/:id', requireAuth, requireDB, (req, res, next) => {
         } else {
             console.log('Product updated successfully, ID:', id);
             res.json({ success: true, message: 'Product updated successfully' });
+        }
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Update tracking information for a product (Admin only)
+app.put('/api/admin/product/:id/tracking', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid product ID' });
+    }
+    
+    const tracking_number = req.body.tracking_number ? req.body.tracking_number.trim() : null;
+    
+    try {
+        const updateData = {
+            tracking_number: tracking_number,
+            tracking_date: tracking_number ? new Date() : null
+        };
+        
+        const result = await db.collection('products').updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updateData }
+        );
+        
+        if (result.matchedCount === 0) {
+            res.status(404).json({ error: 'Product not found' });
+        } else {
+            console.log('Tracking updated successfully, ID:', id, 'Tracking:', tracking_number);
+            res.json({ success: true, message: 'Tracking information updated successfully' });
+        }
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Get single product by ID (Admin only)
+app.get('/api/admin/product/:id', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    
+    try {
+        if (!ObjectId.isValid(id)) {
+            return res.status(400).json({ error: 'Invalid product ID' });
+        }
+        
+        const product = await db.collection('products').findOne({ _id: new ObjectId(id) });
+        
+        if (!product) {
+            res.status(404).json({ error: 'Product not found' });
+        } else {
+            // Convert MongoDB _id to string for JSON response
+            product.id = product._id.toString();
+            delete product._id;
+            res.json({ success: true, product: product });
         }
     } catch (err) {
         console.error('Database error:', err);

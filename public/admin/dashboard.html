@@ -232,18 +232,73 @@
                             <th>Part Type</th>
                             <th>eBay Order</th>
                             <th>Date Added</th>
+                            <th>Tracking</th>
                             <th>Confirmation Status</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody id="productsTable">
                         <tr>
-                            <td colspan="9" style="text-align: center; padding: 20px;">
+                            <td colspan="10" style="text-align: center; padding: 20px;">
                                 Loading products...
                             </td>
                         </tr>
                     </tbody>
                 </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tracking Modal -->
+    <div id="trackingModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>Track Product</h2>
+                <span class="modal-close" id="closeTrackingModal">&times;</span>
+            </div>
+            <div class="modal-body" id="trackingModalBody">
+                <div id="trackingProductInfo" style="margin-bottom: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 8px;">
+                    <p><strong>Loading product details...</strong></p>
+                </div>
+                
+                <div class="form-group">
+                    <label for="trackingNumber">Tracking Number / Barcode</label>
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <input 
+                            type="text" 
+                            id="trackingNumber" 
+                            name="trackingNumber" 
+                            placeholder="Enter or scan tracking number"
+                            style="flex: 1;"
+                        >
+                        <button type="button" class="button button-secondary" id="scanTrackingBarcode" style="min-width: 120px;">
+                            📷 Scan
+                        </button>
+                    </div>
+                    <div id="trackingBarcodeScanner" style="display: none; margin-top: 15px;">
+                        <video id="trackingBarcodeVideo" width="100%" style="border-radius: 8px; display: none; max-width: 100%;"></video>
+                        <canvas id="trackingBarcodeCanvas" style="display: none;"></canvas>
+                        <button type="button" class="button button-secondary" id="stopTrackingScan" style="margin-top: 10px;">
+                            Stop Scanning
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="trackingCurrentInfo" style="margin-top: 20px; padding: 15px; background-color: #e8f4f8; border-radius: 8px; display: none;">
+                    <p style="margin: 0; color: #666;"><strong>Current Tracking:</strong> <span id="currentTrackingNumber"></span></p>
+                    <p style="margin: 5px 0 0 0; color: #666; font-size: 0.9rem;">Added: <span id="currentTrackingDate"></span></p>
+                </div>
+                
+                <div id="trackingError" class="error-message" style="display: none; margin-top: 15px;"></div>
+                <div id="trackingSuccess" class="success-message" style="display: none; margin-top: 15px;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="button button-secondary" id="cancelTracking">
+                    Cancel
+                </button>
+                <button type="button" class="button" id="saveTracking">
+                    Save Tracking
+                </button>
             </div>
         </div>
     </div>

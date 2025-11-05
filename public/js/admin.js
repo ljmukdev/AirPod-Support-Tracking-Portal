@@ -405,44 +405,55 @@ async function loadProducts() {
         
         if (response.ok && data.products) {
             if (data.products.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 20px;">No products found</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 20px;">No products found</td></tr>';
                 return;
             }
             
             tableBody.innerHTML = data.products.map(product => {
-                const date = new Date(product.date_added);
-                const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                const confirmationStatus = product.confirmation_checked 
-                    ? '<span class="status-badge confirmed">Confirmed</span>' 
-                    : '<span class="status-badge pending">Pending</span>';
-                
-                const partTypeMap = {
-                    'left': 'Left AirPod',
-                    'right': 'Right AirPod',
-                    'case': 'Case'
-                };
-                
-                return `
-                    <tr data-product-id="${escapeHtml(String(product.id))}">
-                        <td>${escapeHtml(product.serial_number || '')}</td>
-                        <td>${escapeHtml(product.security_barcode)}</td>
-                        <td>${escapeHtml(product.generation || '')}</td>
-                        <td>${escapeHtml(product.part_model_number || '')}</td>
-                        <td>${partTypeMap[product.part_type] || product.part_type}</td>
-                        <td>${escapeHtml(product.ebay_order_number || '')}</td>
-                        <td>${formattedDate}</td>
-                        <td>${confirmationStatus}</td>
-                        <td>
-                            <button class="edit-button" data-action="edit" data-product-id="${escapeHtml(String(product.id))}" style="margin-right: 5px;">
-                                Edit
-                            </button>
-                            <button class="delete-button" data-action="delete" data-product-id="${escapeHtml(String(product.id))}">
-                                Delete
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
+            const date = new Date(product.date_added);
+            const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const confirmationStatus = product.confirmation_checked 
+                ? '<span class="status-badge confirmed">Confirmed</span>' 
+                : '<span class="status-badge pending">Pending</span>';
+            
+            const partTypeMap = {
+                'left': 'Left AirPod',
+                'right': 'Right AirPod',
+                'case': 'Case'
+            };
+            
+            // Format tracking info
+            let trackingDisplay = '<span style="color: #999;">Not tracked</span>';
+            if (product.tracking_number) {
+                const trackingDate = product.tracking_date ? new Date(product.tracking_date).toLocaleDateString() : '';
+                trackingDisplay = `<span style="color: var(--accent-teal); font-weight: 500;">${escapeHtml(product.tracking_number)}</span>${trackingDate ? '<br><small style="color: #666;">' + trackingDate + '</small>' : ''}`;
+            }
+            
+            return `
+                <tr data-product-id="${escapeHtml(String(product.id))}">
+                    <td>${escapeHtml(product.serial_number || '')}</td>
+                    <td>${escapeHtml(product.security_barcode)}</td>
+                    <td>${escapeHtml(product.generation || '')}</td>
+                    <td>${escapeHtml(product.part_model_number || '')}</td>
+                    <td>${partTypeMap[product.part_type] || product.part_type}</td>
+                    <td>${escapeHtml(product.ebay_order_number || '')}</td>
+                    <td>${formattedDate}</td>
+                    <td>${trackingDisplay}</td>
+                    <td>${confirmationStatus}</td>
+                    <td>
+                        <button class="track-button" data-action="track" data-product-id="${escapeHtml(String(product.id))}" style="margin-right: 5px;">
+                            Track
+                        </button>
+                        <button class="edit-button" data-action="edit" data-product-id="${escapeHtml(String(product.id))}" style="margin-right: 5px;">
+                            Edit
+                        </button>
+                        <button class="delete-button" data-action="delete" data-product-id="${escapeHtml(String(product.id))}">
+                            Delete
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
             
             // Attach event listeners to delete buttons
             tableBody.querySelectorAll('[data-action="delete"]').forEach(btn => {
@@ -463,12 +474,22 @@ async function loadProducts() {
                     }
                 });
             });
+            
+            // Attach event listeners to track buttons
+            tableBody.querySelectorAll('[data-action="track"]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const productId = e.target.getAttribute('data-product-id');
+                    if (productId) {
+                        openTrackingModal(productId);
+                    }
+                });
+            });
         } else {
-            tableBody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 20px; color: red;">Error loading products</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 20px; color: red;">Error loading products</td></tr>';
         }
     } catch (error) {
         console.error('Load products error:', error);
-        tableBody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 20px; color: red;">Network error. Please refresh the page.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 20px; color: red;">Network error. Please refresh the page.</td></tr>';
     }
 }
 
