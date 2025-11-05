@@ -737,6 +737,22 @@ app.post('/api/admin/product', requireAuth, requireDB, (req, res, next) => {
                     photos.push(`/uploads/${file.filename}`);
                     const stats = fs.statSync(verifiedPath);
                     console.log(`      ✅ Photo verified: ${(stats.size / 1024).toFixed(1)} KB`);
+                    console.log(`      📍 Actual save location: ${verifiedPath}`);
+                    console.log(`      🌐 Will be served from: /uploads/${file.filename}`);
+                    
+                    // IMPORTANT: Ensure global.uploadsDir matches where file was actually saved
+                    const actualDir = path.dirname(verifiedPath);
+                    const expectedDir = path.resolve(currentUploadsDir);
+                    const actualDirResolved = path.resolve(actualDir);
+                    
+                    if (actualDirResolved !== expectedDir) {
+                        console.log(`      ⚠️  Path mismatch detected!`);
+                        console.log(`         Expected dir: ${expectedDir}`);
+                        console.log(`         Actual dir: ${actualDirResolved}`);
+                        console.log(`      🔧 Updating global.uploadsDir to match actual save location`);
+                        global.uploadsDir = actualDir;
+                        global.uploadsDirAbsolute = actualDirResolved;
+                    }
                 }
             });
             console.log(`📸 Total photos processed: ${photos.length}/${req.files.length}`);
