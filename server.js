@@ -1713,14 +1713,63 @@ app.get('*', (req, res) => {
     if (req.path.startsWith('/api') || req.path.startsWith('/admin')) {
         return res.status(404).json({ error: 'Not found' });
     }
-    res.sendFile(path.join(__dirname, 'public', req.path === '/' ? 'index.html' : req.path));
+    
+    // Suppress 404 logging for browser extension files (harmless requests)
+    const browserExtensionFiles = [
+        'twint_ch.js',
+        'lkk_ch.js',
+        'support_parent.css',
+        'twint_ch.min.js',
+        'lkk_ch.min.js'
+    ];
+    
+    const isBrowserExtensionFile = browserExtensionFiles.some(file => 
+        req.path.includes(file)
+    );
+    
+    if (isBrowserExtensionFile) {
+        // Silently return 404 for browser extension files
+        return res.status(404).end();
+    }
+    
+    const filePath = path.join(__dirname, 'public', req.path === '/' ? 'index.html' : req.path);
+    
+    // Check if file exists before trying to send it
+    fs.access(filePath, fs.constants.F_OK, (err) => {
+        if (err) {
+            // File doesn't exist - only log if not a browser extension file
+            if (!isBrowserExtensionFile) {
+                // This is handled silently by returning 404
+            }
+            return res.status(404).end();
+        }
+        res.sendFile(filePath);
+    });
 });
 
 // Error handling middleware
 app.use((err, req, res, next) => {
+    // Suppress logging for browser extension files (harmless 404s)
+    const browserExtensionFiles = [
+        'twint_ch.js',
+        'lkk_ch.js',
+        'support_parent.css',
+        'twint_ch.min.js',
+        'lkk_ch.min.js'
+    ];
+    
+    const isBrowserExtensionFile = browserExtensionFiles.some(file => 
+        req.path && req.path.includes(file)
+    );
+    
+    if (isBrowserExtensionFile && err.code === 'ENOENT') {
+        // Silently return 404 for browser extension files
+        return res.status(404).end();
+    }
+    
     // Don't log 404 errors for missing uploads (expected on ephemeral filesystem)
     if (err.code === 'ENOENT' && req.path && req.path.startsWith('/uploads/')) {
-        console.log(`Expected: File not found due to ephemeral filesystem: ${req.path}`);
+        // Suppress logging for missing upload files
         return res.status(404).type('application/json').json({ 
             error: 'File not found',
             message: 'This file may have been removed due to container restart'
