@@ -136,7 +136,8 @@ if (generationSelect && partSelectionSelect) {
         
         // Clear previous options
         partSelectionSelect.innerHTML = '<option value="">Select part</option>';
-        partModelNumberInput.value = '';
+        // Don't clear partModelNumber if it was manually entered - only clear if part selection changes
+        // partModelNumberInput.value = '';
         partTypeSelect.value = '';
         notesInput.value = '';
         
