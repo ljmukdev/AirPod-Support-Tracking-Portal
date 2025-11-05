@@ -214,11 +214,11 @@ if (productForm) {
             if (notes) formData.append('notes', notes);
             if (ebayOrderNumber) formData.append('ebay_order_number', ebayOrderNumber);
             
-            // Append photos if selected
-            if (productPhotos && productPhotos.files.length > 0) {
-                for (let i = 0; i < productPhotos.files.length; i++) {
-                    formData.append('photos', productPhotos.files[i]);
-                }
+            // Append photos if selected (use selectedFiles array)
+            if (selectedFiles && selectedFiles.length > 0) {
+                selectedFiles.forEach(file => {
+                    formData.append('photos', file);
+                });
             }
             
             const response = await fetch(`${API_BASE}/api/admin/product`, {
@@ -236,7 +236,8 @@ if (productForm) {
                 if (partSelectionSelect) {
                     partSelectionSelect.innerHTML = '<option value="">Select part</option>';
                 }
-                // Clear photo preview
+                // Clear photo preview and reset selected files
+                selectedFiles = [];
                 const photoPreview = document.getElementById('photoPreview');
                 if (photoPreview) {
                     photoPreview.style.display = 'none';
@@ -244,6 +245,10 @@ if (productForm) {
                     if (photoPreviewGrid) {
                         photoPreviewGrid.innerHTML = '';
                     }
+                }
+                // Reset file input
+                if (productPhotos) {
+                    productPhotos.value = '';
                 }
                 loadProducts(); // Reload the products table
             } else {
@@ -349,70 +354,113 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// Photo preview functionality
+// Photo preview functionality - supports adding multiple photos incrementally
 const productPhotos = document.getElementById('productPhotos');
 const photoPreview = document.getElementById('photoPreview');
 const photoPreviewGrid = document.getElementById('photoPreviewGrid');
 
+// Store all selected files
+let selectedFiles = [];
+
+// Function to render all photo previews
+function renderPhotoPreviews() {
+    if (!photoPreviewGrid) return;
+    
+    photoPreviewGrid.innerHTML = '';
+    
+    // Update photo count
+    const photoCount = document.getElementById('photoCount');
+    if (photoCount) {
+        photoCount.textContent = selectedFiles.length;
+    }
+    
+    if (selectedFiles.length > 0) {
+        photoPreview.style.display = 'block';
+        
+        selectedFiles.forEach((file, index) => {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const div = document.createElement('div');
+                div.style.position = 'relative';
+                div.style.border = '2px solid #ddd';
+                div.style.borderRadius = '8px';
+                div.style.overflow = 'hidden';
+                div.dataset.fileIndex = index;
+                
+                const img = document.createElement('img');
+                img.src = event.target.result;
+                img.style.width = '100%';
+                img.style.height = '150px';
+                img.style.objectFit = 'cover';
+                img.style.display = 'block';
+                
+                const removeBtn = document.createElement('button');
+                removeBtn.textContent = '×';
+                removeBtn.style.position = 'absolute';
+                removeBtn.style.top = '5px';
+                removeBtn.style.right = '5px';
+                removeBtn.style.background = 'rgba(255, 0, 0, 0.8)';
+                removeBtn.style.color = 'white';
+                removeBtn.style.border = 'none';
+                removeBtn.style.borderRadius = '50%';
+                removeBtn.style.width = '25px';
+                removeBtn.style.height = '25px';
+                removeBtn.style.cursor = 'pointer';
+                removeBtn.style.fontSize = '18px';
+                removeBtn.style.lineHeight = '1';
+                removeBtn.onclick = () => {
+                    // Remove file from array
+                    selectedFiles.splice(index, 1);
+                    // Update the file input
+                    updateFileInput();
+                    // Re-render previews
+                    renderPhotoPreviews();
+                };
+                
+                div.appendChild(img);
+                div.appendChild(removeBtn);
+                photoPreviewGrid.appendChild(div);
+            };
+            reader.readAsDataURL(file);
+        });
+    } else {
+        photoPreview.style.display = 'none';
+    }
+}
+
+// Function to update the file input with all selected files
+function updateFileInput() {
+    if (!productPhotos) return;
+    
+    const dt = new DataTransfer();
+    selectedFiles.forEach(file => {
+        dt.items.add(file);
+    });
+    productPhotos.files = dt.files;
+}
+
 if (productPhotos && photoPreviewGrid) {
     productPhotos.addEventListener('change', (e) => {
-        photoPreviewGrid.innerHTML = '';
+        // Add new files to the existing array (don't replace)
+        const newFiles = Array.from(e.target.files);
         
-        if (e.target.files.length > 0) {
-            photoPreview.style.display = 'block';
+        // Filter out duplicates by name and size
+        newFiles.forEach(newFile => {
+            const isDuplicate = selectedFiles.some(existingFile => 
+                existingFile.name === newFile.name && 
+                existingFile.size === newFile.size
+            );
             
-            Array.from(e.target.files).forEach((file, index) => {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    const div = document.createElement('div');
-                    div.style.position = 'relative';
-                    div.style.border = '2px solid #ddd';
-                    div.style.borderRadius = '8px';
-                    div.style.overflow = 'hidden';
-                    
-                    const img = document.createElement('img');
-                    img.src = event.target.result;
-                    img.style.width = '100%';
-                    img.style.height = '150px';
-                    img.style.objectFit = 'cover';
-                    img.style.display = 'block';
-                    
-                    const removeBtn = document.createElement('button');
-                    removeBtn.textContent = '×';
-                    removeBtn.style.position = 'absolute';
-                    removeBtn.style.top = '5px';
-                    removeBtn.style.right = '5px';
-                    removeBtn.style.background = 'rgba(255, 0, 0, 0.8)';
-                    removeBtn.style.color = 'white';
-                    removeBtn.style.border = 'none';
-                    removeBtn.style.borderRadius = '50%';
-                    removeBtn.style.width = '25px';
-                    removeBtn.style.height = '25px';
-                    removeBtn.style.cursor = 'pointer';
-                    removeBtn.style.fontSize = '18px';
-                    removeBtn.style.lineHeight = '1';
-                    removeBtn.onclick = () => {
-                        div.remove();
-                        // Remove file from input
-                        const dt = new DataTransfer();
-                        Array.from(productPhotos.files).forEach((f, i) => {
-                            if (i !== index) dt.items.add(f);
-                        });
-                        productPhotos.files = dt.files;
-                        if (productPhotos.files.length === 0) {
-                            photoPreview.style.display = 'none';
-                        }
-                    };
-                    
-                    div.appendChild(img);
-                    div.appendChild(removeBtn);
-                    photoPreviewGrid.appendChild(div);
-                };
-                reader.readAsDataURL(file);
-            });
-        } else {
-            photoPreview.style.display = 'none';
-        }
+            if (!isDuplicate) {
+                selectedFiles.push(newFile);
+            }
+        });
+        
+        // Update the file input
+        updateFileInput();
+        
+        // Render all previews
+        renderPhotoPreviews();
     });
 }
 

@@ -190,7 +190,7 @@
                 <div class="form-group">
                     <label for="productPhotos">Product Photos (optional)</label>
                     <p style="font-size: 0.85rem; color: #666; margin-bottom: 10px;">
-                        Upload photos showing the part condition. These will be visible to customers.
+                        Upload photos showing the part condition. These will be visible to customers. You can select multiple photos at once or add them one by one.
                     </p>
                     <input 
                         type="file" 
@@ -201,6 +201,9 @@
                         style="padding: 10px;"
                     >
                     <div id="photoPreview" style="margin-top: 15px; display: none;">
+                        <p style="font-size: 0.85rem; color: #666; margin-bottom: 10px;">
+                            <strong id="photoCount">0</strong> photo(s) selected. Click × to remove individual photos.
+                        </p>
                         <div id="photoPreviewGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px;"></div>
                     </div>
                 </div>
