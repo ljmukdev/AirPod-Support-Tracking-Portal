@@ -271,6 +271,14 @@ function updateTotalPrice() {
         const price = warrantyPrices[selectedWarranty.value];
         if (totalPriceSection) totalPriceSection.style.display = 'block';
         if (totalPriceEl) totalPriceEl.textContent = `£${price.toFixed(2)}`;
+        
+        // Show billing address section when extended warranty is selected (required for payment)
+        const billingAddressSection = document.getElementById('billingAddressSection');
+        if (billingAddressSection) {
+            billingAddressSection.style.display = 'block';
+            billingAddressSection.style.visibility = 'visible';
+        }
+        
         if (paymentSection) {
             paymentSection.style.display = 'block';
             paymentSection.style.visibility = 'visible';
@@ -327,6 +335,9 @@ function updateTotalPrice() {
         // Hide Process Payment button
         const processPaymentButton = document.getElementById('processPaymentButton');
         if (processPaymentButton) processPaymentButton.style.display = 'none';
+        
+        // Billing address can be hidden for free warranty only, but show it if form is visible
+        // (It's still useful for warranty records)
     }
 }
 
