@@ -260,8 +260,37 @@ function parseOCRText(text) {
         partNumber: null
     };
     
-    // Clean up text - remove extra whitespace
-    const cleanText = text.replace(/\s+/g, ' ').trim();
+    // Clean up text - remove extra whitespace and common OCR errors
+    let cleanText = text.replace(/\s+/g, ' ').trim();
+    
+    // Common OCR character substitutions (fix common mistakes)
+    // O/0, I/1, S/5, Z/2, etc.
+    // Note: We'll keep original and cleaned versions
+    const originalText = cleanText;
+    
+    // Normalize common OCR errors for better matching
+    // But keep original for exact matches
+    const normalizedText = cleanText
+        .replace(/[Oo]/g, (m, i) => {
+            // If surrounded by digits, likely a 0
+            const before = cleanText[i - 1];
+            const after = cleanText[i + 1];
+            if ((/\d/.test(before) && /\d/.test(after)) || 
+                (i === 0 && /\d/.test(after)) || 
+                (i === cleanText.length - 1 && /\d/.test(before))) {
+                return '0';
+            }
+            return m;
+        })
+        .replace(/[Il1]/g, (m, i) => {
+            // If surrounded by digits or in serial context, likely 1
+            const before = cleanText[i - 1];
+            const after = cleanText[i + 1];
+            if (/\d/.test(before) || /\d/.test(after)) {
+                return '1';
+            }
+            return m;
+        });
     
     // Common patterns for serial numbers (Apple serials are typically 12 characters, alphanumeric)
     // Note: All patterns must have 'g' flag for matchAll() to work
@@ -293,33 +322,77 @@ function parseOCRText(text) {
     ];
     
     // Try to find serial number - prioritize explicit labels first
-    for (const pattern of serialPatterns) {
-        const matches = [...cleanText.matchAll(pattern)];
-        for (const match of matches) {
-            const candidate = match[1] || match[0];
-            if (candidate && candidate.length >= 10) {
-                // Apple serials are typically 12 chars, but can vary
-                // Filter out common false positives
-                if (!candidate.includes('A') || candidate.length === 12) {
-                    extracted.serialNumber = candidate.trim();
-                    break;
+    // Try both original and normalized text
+    const textsToSearch = [originalText, normalizedText];
+    
+    for (const searchText of textsToSearch) {
+        for (const pattern of serialPatterns) {
+            try {
+                const matches = [...searchText.matchAll(pattern)];
+                for (const match of matches) {
+                    const candidate = match[1] || match[0];
+                    if (candidate && candidate.length >= 10) {
+                        // Clean candidate (remove non-alphanumeric except hyphens)
+                        const cleaned = candidate.replace(/[^A-Z0-9]/g, '').toUpperCase();
+                        
+                        // Apple serials are typically 12 chars, but can vary
+                        // Filter out common false positives (like part numbers starting with A)
+                        if (cleaned.length >= 10 && cleaned.length <= 20) {
+                            // If it starts with A and is exactly 12 chars, might be serial (not part number)
+                            // Part numbers are typically A#### (5 chars) or A####-X (7-10 chars)
+                            if (cleaned.startsWith('A') && cleaned.length === 12) {
+                                extracted.serialNumber = cleaned;
+                                break;
+                            } else if (!cleaned.startsWith('A')) {
+                                // Doesn't start with A, likely a serial
+                                extracted.serialNumber = cleaned;
+                                break;
+                            } else if (cleaned.length > 12) {
+                                // Longer than part number, likely serial
+                                extracted.serialNumber = cleaned;
+                                break;
+                            }
+                        }
+                    }
                 }
+                if (extracted.serialNumber) break;
+            } catch (e) {
+                console.warn('Error matching serial pattern:', e);
             }
         }
         if (extracted.serialNumber) break;
     }
     
     // Try to find part number - prioritize explicit labels first
-    for (const pattern of partPatterns) {
-        const matches = [...cleanText.matchAll(pattern)];
-        for (const match of matches) {
-            const candidate = match[1] || match[0];
-            if (candidate) {
-                // Apple part numbers are typically A#### or A####-X format
-                if (candidate.match(/^A\d{4}/) || candidate.match(/^661-/)) {
-                    extracted.partNumber = candidate.trim();
-                    break;
+    // Try both original and normalized text
+    for (const searchText of textsToSearch) {
+        for (const pattern of partPatterns) {
+            try {
+                const matches = [...searchText.matchAll(pattern)];
+                for (const match of matches) {
+                    const candidate = match[1] || match[0];
+                    if (candidate) {
+                        // Clean and normalize candidate
+                        let cleaned = candidate.trim().toUpperCase();
+                        // Fix common OCR errors: O->0, I->1, S->5 in part numbers
+                        cleaned = cleaned.replace(/^A([Oo])/g, 'A0') // A0### pattern
+                                         .replace(/^A(\d{3})([Oo])/g, 'A$10') // A###0 pattern
+                                         .replace(/^A(\d{4})([Oo])/g, 'A$10'); // A####0 pattern
+                        
+                        // Apple part numbers are typically A#### or A####-X format
+                        if (cleaned.match(/^A\d{4}/) || cleaned.match(/^661-/)) {
+                            // Validate it's actually a part number (not a serial)
+                            // Part numbers are typically 5-10 chars (A#### or A####-X)
+                            if (cleaned.length >= 5 && cleaned.length <= 12) {
+                                extracted.partNumber = cleaned;
+                                break;
+                            }
+                        }
+                    }
                 }
+                if (extracted.partNumber) break;
+            } catch (e) {
+                console.warn('Error matching part pattern:', e);
             }
         }
         if (extracted.partNumber) break;
