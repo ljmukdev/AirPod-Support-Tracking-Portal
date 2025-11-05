@@ -193,6 +193,58 @@ const handleMulterError = (err, req, res, next) => {
     next();
 };
 
+// Diagnostic endpoint to check uploads directory (Admin only)
+app.get('/api/admin/uploads-diagnostic', requireAuth, requireDB, (req, res) => {
+    try {
+        const currentUploadsDir = global.uploadsDir || uploadsDir;
+        const absolutePath = global.uploadsDirAbsolute || path.resolve(currentUploadsDir);
+        
+        const diagnostic = {
+            configured_dir: currentUploadsDir,
+            absolute_path: absolutePath,
+            directory_exists: fs.existsSync(currentUploadsDir),
+            volume_mount_path: process.env.RAILWAY_VOLUME_MOUNT_PATH || 'not set',
+            files: []
+        };
+        
+        if (diagnostic.directory_exists) {
+            try {
+                const files = fs.readdirSync(currentUploadsDir);
+                diagnostic.files = files.map(filename => {
+                    const filePath = path.join(currentUploadsDir, filename);
+                    try {
+                        const stats = fs.statSync(filePath);
+                        return {
+                            filename,
+                            size: stats.size,
+                            size_kb: (stats.size / 1024).toFixed(2),
+                            modified: stats.mtime
+                        };
+                    } catch (err) {
+                        return {
+                            filename,
+                            error: err.message
+                        };
+                    }
+                });
+                diagnostic.file_count = files.length;
+            } catch (err) {
+                diagnostic.error = `Failed to read directory: ${err.message}`;
+            }
+        } else {
+            diagnostic.error = 'Directory does not exist';
+            // Check if parent directories exist
+            diagnostic.parent_exists = fs.existsSync('/data');
+            diagnostic.parent_uploads_exists = fs.existsSync('/data/uploads');
+        }
+        
+        res.json(diagnostic);
+    } catch (err) {
+        console.error('Diagnostic error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Explicit route for uploads BEFORE static middleware to handle missing files gracefully
 // This prevents Express static from throwing unhandled errors
 app.get('/uploads/:filename', (req, res) => {
