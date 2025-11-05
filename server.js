@@ -471,6 +471,7 @@ app.post('/api/admin/product', requireAuth, requireDB, async (req, res) => {
         };
         
         const result = await db.collection('products').insertOne(product);
+        console.log('Product added successfully, ID:', result.insertedId.toString());
         res.json({ 
             success: true, 
             message: 'Product added successfully',
