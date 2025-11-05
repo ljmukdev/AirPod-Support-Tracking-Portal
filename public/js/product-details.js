@@ -159,18 +159,25 @@ function populateProductInfo(data, securityBarcode) {
                 // Hide the broken image
                 this.style.display = 'none';
                 
-                // Show error message
-                const errorMsg = document.createElement('div');
-                errorMsg.style.padding = '20px';
-                errorMsg.style.textAlign = 'center';
-                errorMsg.style.color = '#999';
-                errorMsg.style.backgroundColor = '#f5f5f5';
-                errorMsg.style.borderRadius = '4px';
-                errorMsg.innerHTML = `
-                    <p style="margin: 0 0 5px 0;">Image not available</p>
-                    <small style="color: #999; font-size: 0.8rem;">Path: ${photoPath}</small>
+                // Show placeholder instead of error message
+                const placeholder = document.createElement('div');
+                placeholder.style.padding = '40px 20px';
+                placeholder.style.textAlign = 'center';
+                placeholder.style.color = '#999';
+                placeholder.style.backgroundColor = '#f5f5f5';
+                placeholder.style.borderRadius = '4px';
+                placeholder.style.display = 'flex';
+                placeholder.style.flexDirection = 'column';
+                placeholder.style.alignItems = 'center';
+                placeholder.style.justifyContent = 'center';
+                placeholder.style.minHeight = '200px';
+                placeholder.innerHTML = `
+                    <div style="font-size: 48px; margin-bottom: 10px;">📷</div>
+                    <p style="margin: 0; font-size: 0.9rem;">Photo unavailable</p>
+                    <small style="color: #bbb; font-size: 0.75rem; margin-top: 5px;">File may have been removed</small>
                 `;
-                photoItem.appendChild(errorMsg);
+                photoItem.innerHTML = '';
+                photoItem.appendChild(placeholder);
             };
             
             photoItem.appendChild(img);

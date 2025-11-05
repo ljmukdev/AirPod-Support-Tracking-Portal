@@ -405,7 +405,7 @@ async function loadProducts() {
         
         if (response.ok && data.products) {
             if (data.products.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 20px;">No products found</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="11" style="text-align: center; padding: 20px;">No products found</td></tr>';
                 return;
             }
             
@@ -485,11 +485,11 @@ async function loadProducts() {
                 });
             });
         } else {
-            tableBody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 20px; color: red;">Error loading products</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="11" style="text-align: center; padding: 20px; color: red;">Error loading products</td></tr>';
         }
     } catch (error) {
         console.error('Load products error:', error);
-        tableBody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 20px; color: red;">Network error. Please refresh the page.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="11" style="text-align: center; padding: 20px; color: red;">Network error. Please refresh the page.</td></tr>';
     }
 }
 
