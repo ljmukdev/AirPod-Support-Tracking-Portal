@@ -44,6 +44,67 @@ function hideSpinner() {
     }
 }
 
+// Auto-uppercase conversion for serial number, security barcode, and part number fields
+function setupUppercaseFields() {
+    const serialNumberField = document.getElementById('serialNumber');
+    const securityBarcodeField = document.getElementById('securityBarcode');
+    const partModelNumberField = document.getElementById('partModelNumber');
+    
+    // Function to convert to uppercase on input
+    function convertToUppercase(e) {
+        const start = e.target.selectionStart;
+        const end = e.target.selectionEnd;
+        e.target.value = e.target.value.toUpperCase();
+        e.target.setSelectionRange(start, end); // Maintain cursor position
+    }
+    
+    // Function to convert to uppercase on paste
+    function convertPasteToUppercase(e) {
+        e.preventDefault();
+        const paste = (e.clipboardData || window.clipboardData).getData('text');
+        const start = e.target.selectionStart;
+        const end = e.target.selectionEnd;
+        const currentValue = e.target.value;
+        const newValue = currentValue.substring(0, start) + paste.toUpperCase() + currentValue.substring(end);
+        e.target.value = newValue;
+        e.target.setSelectionRange(start + paste.length, start + paste.length);
+    }
+    
+    if (serialNumberField) {
+        serialNumberField.addEventListener('input', convertToUppercase);
+        serialNumberField.addEventListener('paste', convertPasteToUppercase);
+        // Also convert existing value if any
+        if (serialNumberField.value) {
+            serialNumberField.value = serialNumberField.value.toUpperCase();
+        }
+    }
+    
+    if (securityBarcodeField) {
+        securityBarcodeField.addEventListener('input', convertToUppercase);
+        securityBarcodeField.addEventListener('paste', convertPasteToUppercase);
+        // Also convert existing value if any
+        if (securityBarcodeField.value) {
+            securityBarcodeField.value = securityBarcodeField.value.toUpperCase();
+        }
+    }
+    
+    if (partModelNumberField) {
+        partModelNumberField.addEventListener('input', convertToUppercase);
+        partModelNumberField.addEventListener('paste', convertPasteToUppercase);
+        // Also convert existing value if any
+        if (partModelNumberField.value) {
+            partModelNumberField.value = partModelNumberField.value.toUpperCase();
+        }
+    }
+}
+
+// Setup uppercase conversion when page loads
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupUppercaseFields);
+} else {
+    setupUppercaseFields();
+}
+
 // Check authentication status
 async function checkAuth() {
     try {

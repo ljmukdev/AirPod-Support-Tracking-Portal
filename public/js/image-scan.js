@@ -444,12 +444,22 @@ if (scanImageButton) {
             let filledFields = [];
             
             if (extractedData.serialNumber) {
-                document.getElementById('serialNumber').value = extractedData.serialNumber;
+                const serialField = document.getElementById('serialNumber');
+                if (serialField) {
+                    serialField.value = extractedData.serialNumber.toUpperCase();
+                    // Trigger input event to ensure uppercase conversion is applied
+                    serialField.dispatchEvent(new Event('input'));
+                }
                 filledFields.push('Serial Number');
             }
             
             if (extractedData.partNumber) {
-                document.getElementById('partModelNumber').value = extractedData.partNumber;
+                const partField = document.getElementById('partModelNumber');
+                if (partField) {
+                    partField.value = extractedData.partNumber.toUpperCase();
+                    // Trigger input event to ensure uppercase conversion is applied
+                    partField.dispatchEvent(new Event('input'));
+                }
                 filledFields.push('Part Number');
             }
             
@@ -1173,6 +1183,11 @@ if (barcodeScan) {
     barcodeScan.addEventListener('input', (e) => {
         // When barcode is entered, auto-fill security barcode field
         const securityBarcodeField = document.getElementById('securityBarcode');
+        if (securityBarcodeField && code) {
+            securityBarcodeField.value = code.toUpperCase();
+            // Trigger input event to ensure uppercase conversion is applied
+            securityBarcodeField.dispatchEvent(new Event('input'));
+        }
         if (securityBarcodeField && e.target.value) {
             securityBarcodeField.value = e.target.value;
         }
