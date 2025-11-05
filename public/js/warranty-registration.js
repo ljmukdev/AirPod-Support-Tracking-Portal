@@ -53,13 +53,61 @@ function hideSpinner() {
     }
 }
 
-// Warranty pricing
-const warrantyPrices = {
+// Warranty pricing (will be loaded from API)
+let warrantyPrices = {
     'none': 0,
-    '3months': 9.99,
-    '6months': 17.99,
-    '12months': 29.99
+    '3months': 4.99,  // Default fallback
+    '6months': 7.99,  // Default fallback
+    '12months': 12.99 // Default fallback
 };
+
+// Load warranty pricing from API
+async function loadWarrantyPricing() {
+    try {
+        const response = await fetch(`${API_BASE}/api/warranty/pricing`);
+        if (response.ok) {
+            const pricing = await response.json();
+            warrantyPrices = {
+                'none': 0,
+                '3months': pricing['3months'] || 4.99,
+                '6months': pricing['6months'] || 7.99,
+                '12months': pricing['12months'] || 12.99
+            };
+            console.log('Warranty pricing loaded:', warrantyPrices);
+            // Update prices in the UI
+            updateWarrantyPricesInUI();
+        } else {
+            console.warn('Failed to load warranty pricing, using defaults');
+        }
+    } catch (error) {
+        console.error('Error loading warranty pricing:', error);
+        // Use defaults if API fails
+    }
+}
+
+// Update warranty prices displayed in the UI
+function updateWarrantyPricesInUI() {
+    // Update 3 months price
+    const price3El = document.querySelector('#warranty3Months')?.closest('.warranty-option')?.querySelector('.warranty-price');
+    if (price3El) {
+        price3El.textContent = `£${warrantyPrices['3months'].toFixed(2)}`;
+    }
+    
+    // Update 6 months price
+    const price6El = document.querySelector('#warranty6Months')?.closest('.warranty-option')?.querySelector('.warranty-price');
+    if (price6El) {
+        price6El.textContent = `£${warrantyPrices['6months'].toFixed(2)}`;
+    }
+    
+    // Update 12 months price
+    const price12El = document.querySelector('#warranty12Months')?.closest('.warranty-option')?.querySelector('.warranty-price');
+    if (price12El) {
+        price12El.textContent = `£${warrantyPrices['12months'].toFixed(2)}`;
+    }
+    
+    // Update total price if already selected
+    updateTotalPrice();
+}
 
 // Load product info from sessionStorage or URL
 function loadProductInfo() {
@@ -536,6 +584,7 @@ if (registerFreeWarrantyCheckbox) {
 // Load product info and initialize Stripe on page load
 function initializePage() {
     loadProductInfo();
+    loadWarrantyPricing(); // Load pricing from API
     initializeStripe();
     
     // Ensure form is hidden initially (choice options shown)

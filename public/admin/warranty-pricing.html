@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Warranty Pricing | LJM AirPod Support</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <style>
+        .pricing-form {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .pricing-card {
+            background: var(--background-white);
+            padding: 25px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+        }
+        .pricing-card h3 {
+            margin-top: 0;
+            color: var(--primary-navy);
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--secondary-gray);
+        }
+        .pricing-row {
+            display: grid;
+            grid-template-columns: 200px 1fr auto;
+            gap: 15px;
+            align-items: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: var(--border-radius);
+            margin-bottom: 15px;
+        }
+        .pricing-row:last-child {
+            margin-bottom: 0;
+        }
+        .pricing-label {
+            font-weight: 600;
+            color: var(--primary-navy);
+        }
+        .pricing-description {
+            font-size: 0.9rem;
+            color: #666;
+            font-style: italic;
+        }
+        .pricing-input {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .pricing-input input {
+            width: 120px;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: var(--border-radius);
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        .pricing-input input:focus {
+            border-color: var(--accent-teal);
+            outline: none;
+        }
+        .currency-symbol {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--primary-navy);
+        }
+        .last-updated {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid var(--secondary-gray);
+            font-size: 0.9rem;
+            color: #666;
+        }
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: var(--border-radius);
+            margin-bottom: 20px;
+            display: none;
+        }
+        .success-message.show {
+            display: block;
+        }
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: var(--border-radius);
+            margin-bottom: 20px;
+            display: none;
+        }
+        .error-message.show {
+            display: block;
+        }
+    </style>
+</head>
+<body class="admin-panel">
+    <div class="admin-container">
+        <div class="admin-header">
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <div class="header-logo">
+                    <div class="logo-circle">
+                        <span class="logo-text">LJM</span>
+                    </div>
+                </div>
+                <h1>Manage Warranty Pricing</h1>
+            </div>
+            <div>
+                <a href="dashboard.html" style="color: white; text-decoration: none; margin-right: 15px;">Dashboard</a>
+                <a href="parts.html" style="color: white; text-decoration: none; margin-right: 15px;">Manage Parts</a>
+                <button class="logout-button" id="logoutButton">Logout</button>
+            </div>
+        </div>
+
+        <div class="admin-form pricing-form">
+            <div class="success-message" id="successMessage"></div>
+            <div class="error-message" id="errorMessage"></div>
+
+            <div class="pricing-card">
+                <h3>Extended Warranty Pricing</h3>
+                <p style="color: #666; margin-bottom: 20px;">
+                    Set the pricing for extended warranty options. Changes will be reflected immediately on the customer-facing warranty registration page.
+                </p>
+
+                <form id="pricingForm">
+                    <div class="pricing-row">
+                        <div>
+                            <div class="pricing-label">3 Months</div>
+                            <div class="pricing-description">Ideal quick upsell — minimal buyer hesitation</div>
+                        </div>
+                        <div class="pricing-input">
+                            <span class="currency-symbol">£</span>
+                            <input 
+                                type="number" 
+                                id="price3months" 
+                                name="3months" 
+                                step="0.01" 
+                                min="0" 
+                                required
+                                placeholder="4.99"
+                            >
+                        </div>
+                    </div>
+
+                    <div class="pricing-row">
+                        <div>
+                            <div class="pricing-label">6 Months</div>
+                            <div class="pricing-description">Sweet spot — most buyers choose this</div>
+                        </div>
+                        <div class="pricing-input">
+                            <span class="currency-symbol">£</span>
+                            <input 
+                                type="number" 
+                                id="price6months" 
+                                name="6months" 
+                                step="0.01" 
+                                min="0" 
+                                required
+                                placeholder="7.99"
+                            >
+                        </div>
+                    </div>
+
+                    <div class="pricing-row">
+                        <div>
+                            <div class="pricing-label">12 Months</div>
+                            <div class="pricing-description">Premium reassurance — great margin booster</div>
+                        </div>
+                        <div class="pricing-input">
+                            <span class="currency-symbol">£</span>
+                            <input 
+                                type="number" 
+                                id="price12months" 
+                                name="12months" 
+                                step="0.01" 
+                                min="0" 
+                                required
+                                placeholder="12.99"
+                            >
+                        </div>
+                    </div>
+
+                    <div style="text-align: center; margin-top: 30px;">
+                        <button type="submit" class="button" id="saveButton" style="min-width: 200px;">
+                            Save Pricing
+                        </button>
+                    </div>
+                </form>
+
+                <div class="last-updated" id="lastUpdated">
+                    <strong>Last updated:</strong> <span id="lastUpdatedDate">Loading...</span><br>
+                    <strong>Updated by:</strong> <span id="updatedBy">-</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/admin.js"></script>
+    <script src="warranty-pricing.js"></script>
+</body>
+</html>
+
