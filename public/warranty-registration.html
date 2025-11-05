@@ -606,6 +606,22 @@
                     e.target.value = e.target.value.toUpperCase();
                 });
             }
+            
+            // Debug: Check if billing address section exists
+            const billingAddressSection = document.getElementById('billingAddressSection');
+            console.log('Billing address section found:', !!billingAddressSection);
+            if (billingAddressSection) {
+                console.log('Billing address section display:', window.getComputedStyle(billingAddressSection).display);
+                console.log('Billing address section visibility:', window.getComputedStyle(billingAddressSection).visibility);
+                
+                // Force it to be visible if form is active
+                const warrantyForm = document.getElementById('warrantyForm');
+                if (warrantyForm && warrantyForm.classList.contains('active')) {
+                    billingAddressSection.style.display = 'block';
+                    billingAddressSection.style.visibility = 'visible';
+                    console.log('Billing address section forced visible');
+                }
+            }
         });
     </script>
     <script src="js/version.js"></script>
