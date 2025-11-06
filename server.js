@@ -1521,9 +1521,9 @@ app.get('/api/admin/warranty-pricing', requireAuth, requireDB, async (req, res) 
             '3months': pricing['3months'] || 4.99,
             '6months': pricing['6months'] || 7.99,
             '12months': pricing['12months'] || 12.99,
-            '3months_enabled': pricing['3months_enabled'] !== false, // Default to true if not set
-            '6months_enabled': pricing['6months_enabled'] !== false,
-            '12months_enabled': pricing['12months_enabled'] !== false,
+            '3months_enabled': pricing['3months_enabled'] === true, // Only true if explicitly true
+            '6months_enabled': pricing['6months_enabled'] === true,
+            '12months_enabled': pricing['12months_enabled'] === true,
             last_updated: pricing.last_updated,
             updated_by: pricing.updated_by
         });

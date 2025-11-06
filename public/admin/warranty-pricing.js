@@ -51,9 +51,16 @@ async function loadPricing() {
             const enabled6months = document.getElementById('enabled6months');
             const enabled12months = document.getElementById('enabled12months');
             
-            if (enabled3months) enabled3months.checked = data['3months_enabled'] !== false;
-            if (enabled6months) enabled6months.checked = data['6months_enabled'] !== false;
-            if (enabled12months) enabled12months.checked = data['12months_enabled'] !== false;
+            // Explicitly check for true - if undefined or false, set to false
+            if (enabled3months) enabled3months.checked = data['3months_enabled'] === true;
+            if (enabled6months) enabled6months.checked = data['6months_enabled'] === true;
+            if (enabled12months) enabled12months.checked = data['12months_enabled'] === true;
+            
+            console.log('Loaded warranty pricing:', {
+                '3months_enabled': data['3months_enabled'],
+                '6months_enabled': data['6months_enabled'],
+                '12months_enabled': data['12months_enabled']
+            }); // Debug log
             
             // Update last updated info
             const lastUpdatedEl = document.getElementById('lastUpdatedDate');
