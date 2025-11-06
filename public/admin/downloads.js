@@ -62,31 +62,33 @@ async function loadDownloads() {
             return;
         }
         
-        downloadsList.innerHTML = data.files.map(file => {
+        downloadsList.innerHTML = `<div class="graphics-grid">` + data.files.map(file => {
             const isImage = ['png', 'jpg', 'jpeg', 'gif', 'svg'].includes(file.extension.toLowerCase());
             const previewUrl = isImage ? `/images/${file.filename}` : null;
             
             return `
-                <div class="download-item">
-                    ${previewUrl ? `
-                        <div class="download-item-preview">
-                            <img src="${previewUrl}" alt="${file.filename}" onerror="this.style.display='none'">
-                        </div>
-                    ` : ''}
-                    <div class="download-item-info">
-                        <div class="download-item-title">${file.filename}</div>
-                        <div class="download-item-details">
-                            <strong>Type:</strong> ${getFileType(file.filename)} | 
-                            <strong>Size:</strong> ${formatFileSize(file.size)} |
-                            <strong>Modified:</strong> ${file.modified ? new Date(file.modified).toLocaleDateString('en-GB') : 'Unknown'}
-                        </div>
+                <div class="graphic-item">
+                    <div class="graphic-preview">
+                        ${previewUrl ? `
+                            <img src="${previewUrl}" alt="${file.filename}" onerror="this.parentElement.innerHTML='<p style=\\'color:#999;\\'>Preview not available</p>'">
+                        ` : `
+                            <p style="color: #999; text-align: center;">Preview not available for ${getFileType(file.filename)}</p>
+                        `}
                     </div>
-                    <a href="/images/${file.filename}" download="${file.filename}" class="download-button">
-                        ⬇ Download
-                    </a>
+                    <div class="graphic-info">
+                        <div class="graphic-title">${file.filename}</div>
+                        <div class="graphic-details">
+                            <div class="graphic-detail-item"><strong>Type:</strong> ${getFileType(file.filename)}</div>
+                            <div class="graphic-detail-item"><strong>Size:</strong> ${formatFileSize(file.size)}</div>
+                            <div class="graphic-detail-item"><strong>Modified:</strong> ${file.modified ? new Date(file.modified).toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' }) : 'Unknown'}</div>
+                        </div>
+                        <a href="/images/${file.filename}" download="${file.filename}" class="download-button">
+                            ⬇ Download
+                        </a>
+                    </div>
                 </div>
             `;
-        }).join('');
+        }).join('') + `</div>`;
         
     } catch (error) {
         console.error('Error loading downloads:', error);

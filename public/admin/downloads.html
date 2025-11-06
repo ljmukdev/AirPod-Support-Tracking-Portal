@@ -15,40 +15,58 @@
             border-radius: var(--border-radius);
             box-shadow: var(--shadow);
         }
-        .download-item {
-            background-color: var(--secondary-gray);
-            padding: 20px;
-            margin-bottom: 15px;
+        .graphics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 30px;
+        }
+        .graphic-item {
+            background-color: var(--background-white);
             border-radius: var(--border-radius);
-            border-left: 4px solid var(--accent-teal);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .graphic-item:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-hover);
+        }
+        .graphic-preview {
+            width: 100%;
+            background-color: var(--secondary-gray);
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            justify-content: center;
+            padding: 30px;
+            min-height: 300px;
         }
-        .download-item-info {
-            flex: 1;
+        .graphic-preview img {
+            max-width: 100%;
+            max-height: 400px;
+            width: auto;
+            height: auto;
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
         }
-        .download-item-title {
+        .graphic-info {
+            padding: 20px;
+        }
+        .graphic-title {
             font-weight: 600;
             font-size: 1.1rem;
             color: var(--primary-navy);
-            margin-bottom: 5px;
+            margin-bottom: 10px;
+            word-break: break-word;
         }
-        .download-item-details {
+        .graphic-details {
             font-size: 0.9rem;
             color: #666;
+            margin-bottom: 15px;
+            line-height: 1.6;
         }
-        .download-item-preview {
-            margin-right: 20px;
-            max-width: 150px;
-            max-height: 150px;
-            border-radius: var(--border-radius);
-            border: 2px solid var(--secondary-gray);
-        }
-        .download-item-preview img {
-            width: 100%;
-            height: auto;
-            border-radius: var(--border-radius);
+        .graphic-detail-item {
+            margin-bottom: 5px;
         }
         .download-button {
             background-color: var(--accent-teal);
@@ -61,6 +79,8 @@
             text-decoration: none;
             display: inline-block;
             transition: background-color 0.3s ease;
+            width: 100%;
+            text-align: center;
         }
         .download-button:hover {
             background-color: var(--accent-teal-hover);
@@ -82,7 +102,7 @@
                 var el = document.createElement('div');
                 el.id = 'version-display';
                 el.style.cssText = 'position:fixed;top:10px;right:10px;font-size:0.7rem;color:rgba(0,0,0,0.7);font-family:"Courier New",monospace;z-index:99999;padding:4px 8px;background:rgba(255,255,255,0.9);border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.2);pointer-events:none;';
-                el.textContent = 'v1.2.0.006';
+                el.textContent = 'v1.2.0.007';
                 el.title = 'Version 1.2.0 (Revision 006)';
                 if (document.body) {
                     document.body.appendChild(el);
@@ -126,7 +146,7 @@
                 <div class="downloads-list">
                     <h2>Available Graphics</h2>
                     <p style="color: #666; margin-bottom: 20px;">
-                        Download graphics and logos for use in marketing materials, documentation, or other purposes.
+                        View and download graphics and logos for use in marketing materials, documentation, or other purposes.
                     </p>
                     <div id="downloadsList">
                         <div class="spinner active" id="spinner"></div>
