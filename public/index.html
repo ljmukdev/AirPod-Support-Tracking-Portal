@@ -337,13 +337,13 @@
             letter-spacing: -0.2px;
         }
 
-        .feature-title .word {
+        .feature-description .word {
             display: inline-block;
             transition: color 0.3s ease;
-            color: #1a1a1a;
+            color: #6c757d;
         }
 
-        .feature-title .word.animate {
+        .feature-description .word.animate {
             color: #284064;
         }
 
@@ -767,20 +767,20 @@
                 }
             });
 
-            // Mexican wave effect for feature titles
-            const featureTitles = document.querySelectorAll('.feature-title');
+            // Mexican wave effect for feature descriptions
+            const featureDescriptions = document.querySelectorAll('.feature-description');
             
-            featureTitles.forEach(function(title) {
+            featureDescriptions.forEach(function(description) {
                 // Split text into words and wrap each word in a span
-                const text = title.textContent.trim();
+                const text = description.textContent.trim();
                 const words = text.split(/\s+/);
-                title.innerHTML = words.map(word => `<span class="word">${word}</span>`).join(' ');
+                description.innerHTML = words.map(word => `<span class="word">${word}</span>`).join(' ');
                 
-                const wordSpans = title.querySelectorAll('.word');
+                const wordSpans = description.querySelectorAll('.word');
                 let animationTimeout = null;
                 
                 // On hover, animate words one at a time
-                title.closest('.feature-item').addEventListener('mouseenter', function() {
+                description.closest('.feature-item').addEventListener('mouseenter', function() {
                     // Clear any existing timeout
                     if (animationTimeout) {
                         clearTimeout(animationTimeout);
@@ -798,7 +798,7 @@
                 });
                 
                 // On mouse leave, reset all words
-                title.closest('.feature-item').addEventListener('mouseleave', function() {
+                description.closest('.feature-item').addEventListener('mouseleave', function() {
                     // Clear any pending animations
                     if (animationTimeout) {
                         clearTimeout(animationTimeout);
