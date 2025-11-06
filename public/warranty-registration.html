@@ -33,14 +33,200 @@
     </script>
     <script src="https://js.stripe.com/v3/"></script>
     <style>
-        .warranty-banner {
-            background: linear-gradient(135deg, #284064 0%, #1e2f4a 100%);
+        /* Body and Layout */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'San Francisco', 'Segoe UI', sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Header Styles - Match Home Page */
+        .header {
+            background: white;
+            border-bottom: 1px solid #e8ecf1;
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+        
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        @media (min-width: 640px) {
+            .header-content {
+                padding: 0 32px;
+            }
+        }
+        
+        @media (min-width: 1024px) {
+            .header-content {
+                padding: 0 48px;
+            }
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .logo-icon {
+            width: 44px;
+            height: 44px;
+            background: #284064;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
             color: white;
+            font-size: 15px;
+            letter-spacing: -0.5px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border: 2px solid #f5f7fa;
+        }
+        
+        .logo-text {
+            color: #1a1a1a;
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+        }
+        
+        .logo-text span {
+            color: #6c757d;
+            font-weight: 400;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 36px;
+        }
+        
+        .nav-links a {
+            color: #6c757d;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.2s;
+            position: relative;
+        }
+        
+        .nav-links a:hover {
+            color: #1a1a1a;
+        }
+        
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: #284064;
+            transition: transform 0.3s ease;
+            transform-origin: left;
+        }
+        
+        .nav-links a:hover::after {
+            transform: scaleX(1);
+        }
+        
+        /* Container Styles - Match Home Page */
+        .container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px 24px 40px 24px;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        @media (min-width: 640px) {
+            .container {
+                padding-left: 32px;
+                padding-right: 32px;
+            }
+        }
+        
+        @media (min-width: 768px) {
+            .container {
+                padding-top: 30px;
+                padding-bottom: 60px;
+            }
+        }
+        
+        @media (min-width: 1024px) {
+            .container {
+                padding-left: 48px;
+                padding-right: 48px;
+            }
+        }
+        
+        /* Card Styles - Match Home Page */
+        .card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+            width: 100%;
+            overflow: hidden;
+        }
+        
+        .card-body {
+            padding: 36px 48px;
+        }
+        
+        @media (min-width: 768px) {
+            .card-body {
+                padding: 40px 48px;
+            }
+        }
+        
+        @media (max-width: 640px) {
+            .card-body {
+                padding: 32px 24px;
+            }
+        }
+        
+        .warranty-banner {
+            background: white;
+            color: #333;
             padding: 25px;
             border-radius: 12px;
             text-align: center;
             margin: 30px 0;
-            box-shadow: 0 4px 15px rgba(40, 64, 100, 0.3);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            border: 1px solid #e8ecf1;
+        }
+        
+        .warranty-banner h2 {
+            margin: 0 0 10px 0;
+            color: #333;
+            font-size: 1.75rem;
+            font-weight: 600;
+        }
+        
+        .warranty-banner p {
+            margin: 0;
+            font-size: 1.1rem;
+            color: #6c757d;
         }
         
         /* Product Tile Styles */
@@ -709,6 +895,7 @@
                     </div>
                 </div>
             </form>
+            </div>
         </div>
     </main>
 
