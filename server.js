@@ -27,8 +27,7 @@ app.use('/api', (req, res, next) => {
     // Set security headers
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Cache-Control', 'no-store');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
+    // Removed deprecated Pragma and Expires headers - Cache-Control is sufficient
     next();
 });
 
@@ -1557,13 +1556,21 @@ app.post('/api/admin/warranty-pricing', requireAuth, requireDB, async (req, res)
     }
     
     // Handle enabled flags - explicitly convert to boolean
-    // Checkboxes send true/false, but we need to ensure they're properly converted
+    // Checkboxes send true/false as booleans, need to handle both boolean and string values
+    function convertToBoolean(value, defaultValue = true) {
+        if (value === undefined || value === null) return defaultValue;
+        if (value === false || value === 'false' || value === 0 || value === '0') return false;
+        if (value === true || value === 'true' || value === 1 || value === '1') return true;
+        return defaultValue;
+    }
+    
     const enabledFlags = {
-        '3months_enabled': threeMonthsEnabled !== undefined ? (threeMonthsEnabled === true || threeMonthsEnabled === 'true') : true,
-        '6months_enabled': sixMonthsEnabled !== undefined ? (sixMonthsEnabled === true || sixMonthsEnabled === 'true') : true,
-        '12months_enabled': twelveMonthsEnabled !== undefined ? (twelveMonthsEnabled === true || twelveMonthsEnabled === 'true') : true
+        '3months_enabled': convertToBoolean(threeMonthsEnabled, true),
+        '6months_enabled': convertToBoolean(sixMonthsEnabled, true),
+        '12months_enabled': convertToBoolean(twelveMonthsEnabled, true)
     };
     
+    console.log('Raw enabled values:', { threeMonthsEnabled, sixMonthsEnabled, twelveMonthsEnabled }); // Debug log
     console.log('Enabled flags after processing:', enabledFlags); // Debug log
     
     try {
