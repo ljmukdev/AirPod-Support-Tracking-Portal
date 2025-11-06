@@ -1562,21 +1562,34 @@ app.post('/api/admin/warranty-pricing', requireAuth, requireDB, async (req, res)
     }
     
     // Handle enabled flags - explicitly convert to boolean
-    // Checkboxes send true/false as booleans, need to handle both boolean and string values
-    function convertToBoolean(value, defaultValue = true) {
-        if (value === undefined || value === null) return defaultValue;
-        if (value === false || value === 'false' || value === 0 || value === '0') return false;
-        if (value === true || value === 'true' || value === 1 || value === '1') return true;
-        return defaultValue;
+    // Checkboxes send true/false as booleans - explicitly handle both true and false
+    function toBoolean(value) {
+        // Explicitly check for false values first
+        if (value === false || value === 'false' || value === 0 || value === '0') {
+            return false;
+        }
+        // Then check for true values
+        if (value === true || value === 'true' || value === 1 || value === '1') {
+            return true;
+        }
+        // Default to false if undefined/null (safer than defaulting to true)
+        return false;
     }
     
     const enabledFlags = {
-        '3months_enabled': convertToBoolean(threeMonthsEnabled, true),
-        '6months_enabled': convertToBoolean(sixMonthsEnabled, true),
-        '12months_enabled': convertToBoolean(twelveMonthsEnabled, true)
+        '3months_enabled': toBoolean(threeMonthsEnabled),
+        '6months_enabled': toBoolean(sixMonthsEnabled),
+        '12months_enabled': toBoolean(twelveMonthsEnabled)
     };
     
-    console.log('Raw enabled values:', { threeMonthsEnabled, sixMonthsEnabled, twelveMonthsEnabled }); // Debug log
+    console.log('Raw enabled values from request:', { 
+        threeMonthsEnabled, 
+        sixMonthsEnabled, 
+        twelveMonthsEnabled,
+        threeMonthsEnabledType: typeof threeMonthsEnabled,
+        sixMonthsEnabledType: typeof sixMonthsEnabled,
+        twelveMonthsEnabledType: typeof twelveMonthsEnabled
+    }); // Debug log
     console.log('Enabled flags after processing:', enabledFlags); // Debug log
     
     try {
@@ -1609,6 +1622,14 @@ app.post('/api/admin/warranty-pricing', requireAuth, requireDB, async (req, res)
             modifiedCount: result.modifiedCount,
             upsertedCount: result.upsertedCount,
             upsertedId: result.upsertedId
+        }); // Debug log
+        
+        // Verify what was actually saved by reading it back
+        const savedPricing = await db.collection('warranty_pricing').findOne({}, { sort: { last_updated: -1 } });
+        console.log('✅ Verified saved values in database:', {
+            '3months_enabled': savedPricing?.['3months_enabled'],
+            '6months_enabled': savedPricing?.['6months_enabled'],
+            '12months_enabled': savedPricing?.['12months_enabled']
         }); // Debug log
         
         const enabledStatus = Object.entries(enabledFlags).map(([key, val]) => `${key.replace('_enabled', '')}:${val ? 'ON' : 'OFF'}`).join(', ');
