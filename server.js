@@ -433,10 +433,16 @@ app.use((req, res, next) => {
 app.use((req, res, next) => {
     // Don't cache HTML files - always fetch fresh version
     if (req.path.endsWith('.html')) {
-        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-        res.setHeader('Pragma', 'no-cache');
-        res.setHeader('Expires', '0');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('X-Content-Type-Options', 'nosniff');
     }
+    next();
+});
+
+// Security headers middleware for static files
+app.use((req, res, next) => {
+    // Add security headers to all static files
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     next();
 });
 
