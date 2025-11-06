@@ -13,7 +13,7 @@
                 var el = document.createElement('div');
                 el.id = 'version-display';
                 el.style.cssText = 'position:fixed;top:10px;right:10px;font-size:0.7rem;color:rgba(0,0,0,0.7);font-family:"Courier New",monospace;z-index:99999;padding:4px 8px;background:rgba(255,255,255,0.9);border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.2);pointer-events:none;';
-                el.textContent = 'v1.2.0.001';
+                el.textContent = 'v1.2.0.008';
                 el.title = 'Version 1.2.0 (Revision 001)';
                 if (document.body) {
                     document.body.appendChild(el);
@@ -36,32 +36,31 @@
     <header class="header">
         <div class="header-logo">
             <div class="logo-circle">
-                <span class="logo-text">LJM</span>
+                <img src="images/ljm-logo.png" alt="LJM" class="logo-image">
             </div>
         </div>
-        <h1>LJM AirPod Support</h1>
     </header>
 
     <main class="container">
-        <div style="text-align: center; margin: 40px 0;">
-            <h2>Welcome to LJM AirPod Support</h2>
-            <p style="font-size: 1.1rem; color: #666; margin-top: 10px; margin-bottom: 20px;">
-                Let's get your replacement AirPod part(s) working
+        <div style="text-align: center; margin: 50px 0 40px 0;">
+            <h2 style="font-size: 2rem; color: var(--primary-navy); margin-bottom: 15px;">Welcome to LJM AirPod Support</h2>
+            <p style="font-size: 1.2rem; color: #666; margin-top: 10px; margin-bottom: 30px; max-width: 600px; margin-left: auto; margin-right: auto;">
+                Get your replacement AirPod part(s) working with step-by-step guidance
             </p>
-            <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 30px auto; max-width: 600px; text-align: left;">
-                <h3 style="font-size: 1rem; color: var(--primary-navy); margin-top: 0; margin-bottom: 15px;">What you can do here:</h3>
-                <ul style="margin: 0; padding-left: 20px; color: #555; line-height: 1.8;">
-                    <li>Get step-by-step pairing instructions for your replacement AirPod part(s)</li>
-                    <li><strong>Register your free 30-day warranty</strong> - automatically included with your purchase, covering manufacturing defects and functionality issues</li>
+            <div style="background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%); padding: 30px; border-radius: 12px; margin: 30px auto; max-width: 650px; text-align: left; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08); border: 1px solid #e9ecef;">
+                <h3 style="font-size: 1.1rem; color: var(--primary-navy); margin-top: 0; margin-bottom: 20px; font-weight: 600;">What you can do here:</h3>
+                <ul style="margin: 0; padding-left: 25px; color: #555; line-height: 2; font-size: 1rem;">
+                    <li style="margin-bottom: 12px;">Get step-by-step pairing instructions for your replacement AirPod part(s)</li>
+                    <li style="margin-bottom: 12px;"><strong style="color: var(--primary-navy);">Register your free 30-day warranty</strong> - automatically included with your purchase, covering manufacturing defects and functionality issues</li>
                     <li>Explore optional extended warranty plans (3, 6, or 12 months) for additional protection beyond the standard warranty</li>
                 </ul>
             </div>
         </div>
 
-        <div class="card">
+        <div class="card" style="box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); border: 1px solid #e9ecef;">
             <form id="barcodeForm">
                 <div class="form-group">
-                    <label for="securityBarcode">Enter your security code from the package</label>
+                    <label for="securityBarcode" style="font-size: 1.1rem; font-weight: 500; color: var(--primary-navy); margin-bottom: 12px;">Enter your security code from the package</label>
                     <input 
                         type="text" 
                         id="securityBarcode" 
@@ -70,7 +69,7 @@
                         required
                         autocomplete="off"
                         autofocus
-                        style="text-transform: uppercase;"
+                        style="text-transform: uppercase; font-size: 1.1rem; padding: 16px; border: 2px solid #ddd;"
                     >
                 </div>
                 <script>
@@ -85,16 +84,16 @@
                     });
                 </script>
                 <div id="errorMessage" class="error-message"></div>
-                <button type="submit" class="button" id="submitButton">
+                <button type="submit" class="button" id="submitButton" style="font-size: 1.1rem; padding: 14px 30px; margin-top: 10px;">
                     Continue
                 </button>
                 <div class="spinner" id="spinner"></div>
             </form>
         </div>
 
-        <div style="text-align: center; margin-top: 30px;">
-            <a href="troubleshooting.html" style="color: var(--accent-teal); text-decoration: none;">
-                Need Help?
+        <div style="text-align: center; margin-top: 40px;">
+            <a href="troubleshooting.html" style="color: var(--accent-teal); text-decoration: none; font-size: 1rem; font-weight: 500;">
+                Need Help? Visit our troubleshooting guide
             </a>
         </div>
     </main>
