@@ -1,12 +1,13 @@
 {
   "version": "1.2.0",
   "build": "2024-12-19",
-  "revision": "006",
+  "revision": "007",
   "changelog": [
     {
       "version": "1.2.0",
       "date": "2024-12-19",
       "changes": [
+        "Added admin downloads page for accessing and downloading graphics and logos",
         "Updated support email address to airpodsupport@ljmuk.co.uk across all pages",
         "Updated confirmation text to reflect user confirmation of photo review",
         "Added warranty management page in admin panel with delete functionality",
