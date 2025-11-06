@@ -337,6 +337,16 @@
             letter-spacing: -0.2px;
         }
 
+        .feature-title .word {
+            display: inline-block;
+            transition: color 0.3s ease;
+            color: #1a1a1a;
+        }
+
+        .feature-title .word.animate {
+            color: #284064;
+        }
+
         .feature-description {
             color: #6c757d;
             font-size: 14px;
@@ -755,6 +765,52 @@
                         header.classList.remove('scrolled');
                     }
                 }
+            });
+
+            // Mexican wave effect for feature titles
+            const featureTitles = document.querySelectorAll('.feature-title');
+            
+            featureTitles.forEach(function(title) {
+                // Split text into words and wrap each word in a span
+                const text = title.textContent.trim();
+                const words = text.split(/\s+/);
+                title.innerHTML = words.map(word => `<span class="word">${word}</span>`).join(' ');
+                
+                const wordSpans = title.querySelectorAll('.word');
+                let animationTimeout = null;
+                
+                // On hover, animate words one at a time
+                title.closest('.feature-item').addEventListener('mouseenter', function() {
+                    // Clear any existing timeout
+                    if (animationTimeout) {
+                        clearTimeout(animationTimeout);
+                    }
+                    
+                    // Reset all words first
+                    wordSpans.forEach(word => word.classList.remove('animate'));
+                    
+                    // Animate each word sequentially
+                    wordSpans.forEach(function(word, index) {
+                        setTimeout(function() {
+                            word.classList.add('animate');
+                        }, index * 100); // 100ms delay between each word
+                    });
+                });
+                
+                // On mouse leave, reset all words
+                title.closest('.feature-item').addEventListener('mouseleave', function() {
+                    // Clear any pending animations
+                    if (animationTimeout) {
+                        clearTimeout(animationTimeout);
+                    }
+                    
+                    // Reset all words
+                    wordSpans.forEach(function(word, index) {
+                        setTimeout(function() {
+                            word.classList.remove('animate');
+                        }, index * 50); // Faster reset, 50ms delay
+                    });
+                });
             });
         });
     </script>
