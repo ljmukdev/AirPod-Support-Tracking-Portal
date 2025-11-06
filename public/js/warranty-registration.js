@@ -187,14 +187,15 @@ function loadProductInfo() {
             
             // Display product info in the new tile format
             const productTitleEl = document.getElementById('productTitle');
+            const productItemEl = document.getElementById('productItem');
+            const productNameEl = document.getElementById('productName');
             const productModelEl = document.getElementById('productModel');
+            const serialNumberEl = document.getElementById('serialNumber');
             const securityCodeEl = document.getElementById('securityCode');
-            const orderNumberEl = document.getElementById('orderNumber');
-            const orderNumberItem = document.getElementById('orderNumberItem');
             const productImageEl = document.getElementById('productImage');
             const productImagePlaceholder = document.getElementById('productImagePlaceholder');
             
-            // Build product title
+            // Build product details
             const partTypeMap = {
                 'left': 'Left AirPod',
                 'right': 'Right AirPod',
@@ -203,28 +204,34 @@ function loadProductInfo() {
             const partType = partTypeMap[data.part_type] || data.part_type;
             const productTitle = `${partType}${data.generation ? ' - ' + data.generation : ''}`;
             
+            // Display product title
             if (productTitleEl) {
                 productTitleEl.textContent = productTitle;
             }
             
-            // Display model number
+            // Display item (part type)
+            if (productItemEl) {
+                productItemEl.textContent = partType;
+            }
+            
+            // Display product name (generation)
+            if (productNameEl) {
+                productNameEl.textContent = data.generation || 'N/A';
+            }
+            
+            // Display product code (model number)
             if (productModelEl) {
                 productModelEl.textContent = data.part_model_number || 'N/A';
+            }
+            
+            // Display serial number
+            if (serialNumberEl) {
+                serialNumberEl.textContent = data.serial_number || 'N/A';
             }
             
             // Display security code
             if (securityCodeEl) {
                 securityCodeEl.textContent = barcode;
-            }
-            
-            // Display order number if available
-            if (data.ebay_order_number) {
-                if (orderNumberEl) {
-                    orderNumberEl.textContent = data.ebay_order_number;
-                }
-                if (orderNumberItem) {
-                    orderNumberItem.style.display = 'flex';
-                }
             }
             
             // Display product image if available
