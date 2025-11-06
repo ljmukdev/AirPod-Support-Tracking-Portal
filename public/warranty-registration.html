@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="LJM AirPod Support - Register your free 30-day warranty and explore extended protection plans">
-    <title>Warranty Registration | LJM AirPod Support</title>
+    <meta name="description" content="LJM AirPod Support - View product record details">
+    <title>Product Record | LJM AirPod Support</title>
     <link rel="stylesheet" href="css/styles.css">
     <script>
         // Inline version display - always runs immediately
@@ -31,7 +31,6 @@
             setTimeout(showVersion, 1000);
         })();
     </script>
-    <script src="https://js.stripe.com/v3/"></script>
     <style>
         /* Body and Layout */
         body {
@@ -567,356 +566,47 @@
     </header>
 
     <main class="container">
-        <div class="warranty-banner">
-            <h2>🛡️ Warranty Options</h2>
-            <p>Choose how you'd like to proceed with your warranty</p>
-        </div>
-
         <div class="card">
-            <!-- Product Details Section -->
-            <div id="productDetailsSection" style="margin-bottom: 30px;">
-                <div class="product-tile" id="productTile">
-                    <div class="product-image-container">
-                        <img id="productImage" src="" alt="Product Image" class="product-image" style="display: none;">
-                        <div id="productImagePlaceholder" class="product-image-placeholder">
-                            <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z" fill="#284064"/>
-                            </svg>
-                        </div>
-                    </div>
-                    <div class="product-info">
-                        <h3 class="product-title" id="productTitle">Loading product details...</h3>
-                        <div class="product-details">
-                            <div class="product-detail-item">
-                                <span class="detail-label">Item:</span>
-                                <span class="detail-value" id="productItem">-</span>
-                            </div>
-                            <div class="product-detail-item">
-                                <span class="detail-label">Product Name:</span>
-                                <span class="detail-value" id="productName">-</span>
-                            </div>
-                            <div class="product-detail-item">
-                                <span class="detail-label">Product Code:</span>
-                                <span class="detail-value" id="productModel">-</span>
-                            </div>
-                            <div class="product-detail-item">
-                                <span class="detail-label">Serial Number:</span>
-                                <span class="detail-value" id="serialNumber">-</span>
-                            </div>
-                            <div class="product-detail-item">
-                                <span class="detail-label">Security Number:</span>
-                                <span class="detail-value" id="securityCode">-</span>
+            <div class="card-body">
+                <!-- Product Details Section -->
+                <div id="productDetailsSection">
+                    <h2 style="margin: 0 0 24px 0; color: #284064; font-size: 1.75rem; font-weight: 700;">Product Record</h2>
+                    <div class="product-tile" id="productTile">
+                        <div class="product-image-container">
+                            <img id="productImage" src="" alt="Product Image" class="product-image" style="display: none;">
+                            <div id="productImagePlaceholder" class="product-image-placeholder">
+                                <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z" fill="#284064"/>
+                                </svg>
                             </div>
                         </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Warranty Choice Options -->
-            <div class="warranty-choice-options" id="warrantyChoiceOptions">
-                <div class="warranty-choice-card" onclick="selectWarrantyOption('free')">
-                    <div class="icon">🆓</div>
-                    <h3>Register Free Warranty</h3>
-                    <div class="description">
-                        Activate your free 30-day warranty covering manufacturing defects and functionality issues. Quick and easy registration.
-                    </div>
-                    <div class="action-button">
-                        <button type="button" class="button" style="width: 100%;">Register Free Warranty</button>
-                    </div>
-                </div>
-                
-                <div class="warranty-choice-card" onclick="selectWarrantyOption('extended')">
-                    <div class="icon">⭐</div>
-                    <h3>Purchase Extended Warranty</h3>
-                    <div class="description">
-                        Extend your protection with 3, 6, or 12-month extended warranty plans. Includes your free 30-day warranty plus additional coverage.
-                    </div>
-                    <div class="action-button">
-                        <button type="button" class="button" style="width: 100%;">View Extended Options</button>
-                    </div>
-                </div>
-                
-                <div class="warranty-choice-card" onclick="selectWarrantyOption('skip')">
-                    <div class="icon">➡️</div>
-                    <h3>Skip to Pairing</h3>
-                    <div class="description">
-                        Continue directly to pairing instructions. You can register your warranty later if needed.
-                    </div>
-                    <div class="action-button">
-                        <button type="button" class="button button-secondary" style="width: 100%;">Skip to Pairing Instructions</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Warranty Registration Form (shown when user selects free or extended) -->
-            <form id="warrantyForm" class="warranty-form form-container">
-                <!-- Free 30-Day Warranty Section -->
-                <div class="form-section">
-                    <h3>
-                        Free 30-Day Warranty
-                        <span class="free-badge">Included</span>
-                    </h3>
-                    <p style="color: #666; margin-bottom: 20px;">
-                        Every purchase includes a free 30-day warranty covering manufacturing defects and functionality issues.
-                    </p>
-                    <div class="checkbox-group">
-                        <label for="registerFreeWarranty">
-                            <input 
-                                type="checkbox" 
-                                id="registerFreeWarranty" 
-                                name="registerFreeWarranty"
-                                checked
-                            >
-                            <span>
-                                <strong>Yes, register my free 30-day warranty</strong> - I want to activate my warranty coverage and receive warranty confirmation.
-                            </span>
-                        </label>
-                    </div>
-                    <p style="font-size: 0.85rem; color: #999; margin-top: 10px; font-style: italic;">
-                        You can skip warranty registration, but we recommend registering to activate your coverage and receive important warranty information.
-                    </p>
-                </div>
-
-                <!-- Customer Information Section (shown only if registering warranty) -->
-                <div class="form-section" id="customerInfoSection">
-                    <h3>Your Information</h3>
-                    <div class="form-group">
-                        <label for="customerName">Full Name <span style="color: red;">*</span></label>
-                        <input 
-                            type="text" 
-                            id="customerName" 
-                            name="customerName" 
-                            required
-                            placeholder="Enter your full name"
-                        >
-                    </div>
-                    <div class="form-group">
-                        <label for="customerEmail">Email Address <span style="color: red;">*</span></label>
-                        <input 
-                            type="email" 
-                            id="customerEmail" 
-                            name="customerEmail" 
-                            required
-                            placeholder="your.email@example.com"
-                        >
-                        <small style="color: #666; display: block; margin-top: 5px;">
-                            We'll send your warranty confirmation and certificate here
-                        </small>
-                    </div>
-                    <div class="form-group">
-                        <label for="customerPhone">Phone Number (optional)</label>
-                        <input 
-                            type="tel" 
-                            id="customerPhone" 
-                            name="customerPhone" 
-                            placeholder="+44 7XXX XXX XXX"
-                        >
-                        <small style="color: #666; display: block; margin-top: 5px;">
-                            For warranty support purposes only
-                        </small>
-                    </div>
-                </div>
-
-                <!-- Extended Warranty Section (shown only if registering free warranty) -->
-                <div class="form-section" id="extendedWarrantySection">
-                    <h3>
-                        Extended Warranty Protection
-                        <span class="warranty-badge">Optional</span>
-                    </h3>
-                    <p style="color: #666; margin-bottom: 20px;">
-                        Extend your protection beyond the free 30-day warranty for additional peace of mind.
-                    </p>
-                    
-                    <div class="extended-warranty-options">
-                        <div class="warranty-option" onclick="selectWarranty('none')">
-                            <input type="radio" name="extendedWarranty" id="warrantyNone" value="none" checked>
-                            <label for="warrantyNone">No Extended Warranty</label>
-                            <div class="warranty-price">Free</div>
-                            <div class="warranty-duration">30-day standard included</div>
-                        </div>
-                        <div class="warranty-option" onclick="selectWarranty('3months')">
-                            <input type="radio" name="extendedWarranty" id="warranty3Months" value="3months">
-                            <label for="warranty3Months">3 Months</label>
-                            <div class="warranty-price">£4.99</div>
-                            <div class="warranty-duration">Total: 4 months coverage</div>
-                        </div>
-                        <div class="warranty-option" onclick="selectWarranty('6months')">
-                            <input type="radio" name="extendedWarranty" id="warranty6Months" value="6months">
-                            <label for="warranty6Months">6 Months</label>
-                            <div class="warranty-price">£7.99</div>
-                            <div class="warranty-duration">Total: 7 months coverage</div>
-                        </div>
-                        <div class="warranty-option" onclick="selectWarranty('12months')">
-                            <input type="radio" name="extendedWarranty" id="warranty12Months" value="12months">
-                            <label for="warranty12Months">12 Months</label>
-                            <div class="warranty-price">£12.99</div>
-                            <div class="warranty-duration">Total: 13 months coverage</div>
-                        </div>
-                    </div>
-
-                    <div class="total-price" id="totalPriceSection" style="display: none;">
-                        <div class="total-price-label">Extended Warranty Cost</div>
-                        <div class="total-price-amount" id="totalPrice">£0.00</div>
-                    </div>
-                </div>
-
-                <!-- Marketing Communications (shown only if registering warranty) -->
-                <div class="form-section" id="marketingSection">
-                    <h3>Marketing Communications</h3>
-                    <p style="color: #666; margin-bottom: 15px;">
-                        We'd love to keep you updated about new services, promotions, and special offers. You'll receive infrequent, valuable updates from LJM.
-                    </p>
-                    <div class="checkbox-group">
-                        <label for="marketingConsent">
-                            <input 
-                                type="checkbox" 
-                                id="marketingConsent" 
-                                name="marketingConsent"
-                                checked
-                            >
-                            <span>
-                                <strong>Yes, I want to receive marketing communications</strong> - I understand I can unsubscribe at any time.
-                                <br><small style="color: #666; font-style: italic; margin-top: 5px; display: block;">If you do not wish to receive marketing communications, please uncheck this box.</small>
-                            </span>
-                        </label>
-                    </div>
-                </div>
-
-                <!-- Payment Section (shown only if extended warranty selected) -->
-                <div class="form-section payment-section" id="paymentSection" style="display: none;">
-                    <h3>Payment Details</h3>
-                    <p style="color: #666; margin-bottom: 15px;">
-                        Enter your card details to complete your extended warranty purchase:
-                    </p>
-                    <div id="card-element">
-                        <!-- Stripe Elements will create form elements here -->
-                    </div>
-                    <div id="card-errors" role="alert"></div>
-                    
-                    <!-- Billing Address Section (shown only if registering warranty) -->
-                    <div id="billingAddressSection" style="margin-top: 25px; padding-top: 25px; border-top: 2px solid var(--secondary-gray);">
-                        <h3 style="margin-top: 0;">Billing Address</h3>
-                        <p style="color: #666; margin-bottom: 15px;">
-                            Required for extended warranty purchases. Used for payment verification and warranty documentation.
-                        </p>
-                        <div class="form-group">
-                            <label for="addressLine1">Address Line 1 <span style="color: red;">*</span></label>
-                            <input 
-                                type="text" 
-                                id="addressLine1" 
-                                name="addressLine1" 
-                                placeholder="Street address"
-                            >
-                        </div>
-                        <div class="form-group">
-                            <label for="addressLine2">Address Line 2 (optional)</label>
-                            <input 
-                                type="text" 
-                                id="addressLine2" 
-                                name="addressLine2" 
-                                placeholder="Apartment, suite, etc."
-                            >
-                        </div>
-                        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 15px;">
-                            <div class="form-group">
-                                <label for="city">City <span style="color: red;">*</span></label>
-                                <input 
-                                    type="text" 
-                                    id="city" 
-                                    name="city" 
-                                    placeholder="City"
-                                >
-                            </div>
-                            <div class="form-group">
-                                <label for="postcode">Postcode <span style="color: red;">*</span></label>
-                                <input 
-                                    type="text" 
-                                    id="postcode" 
-                                    name="postcode" 
-                                    placeholder="SW1A 1AA"
-                                    style="text-transform: uppercase;"
-                                >
+                        <div class="product-info">
+                            <h3 class="product-title" id="productTitle">Loading product details...</h3>
+                            <div class="product-details">
+                                <div class="product-detail-item">
+                                    <span class="detail-label">Item:</span>
+                                    <span class="detail-value" id="productItem">-</span>
+                                </div>
+                                <div class="product-detail-item">
+                                    <span class="detail-label">Product Name:</span>
+                                    <span class="detail-value" id="productName">-</span>
+                                </div>
+                                <div class="product-detail-item">
+                                    <span class="detail-label">Product Code:</span>
+                                    <span class="detail-value" id="productModel">-</span>
+                                </div>
+                                <div class="product-detail-item">
+                                    <span class="detail-label">Serial Number:</span>
+                                    <span class="detail-value" id="serialNumber">-</span>
+                                </div>
+                                <div class="product-detail-item">
+                                    <span class="detail-label">Security Number:</span>
+                                    <span class="detail-value" id="securityCode">-</span>
+                                </div>
                             </div>
                         </div>
-                        <div class="form-group">
-                            <label for="country">Country <span style="color: red;">*</span></label>
-                            <select id="country" name="country" required>
-                                <option value="GB" selected>United Kingdom</option>
-                                <option value="US">United States</option>
-                                <option value="CA">Canada</option>
-                                <option value="AU">Australia</option>
-                                <option value="IE">Ireland</option>
-                                <option value="FR">France</option>
-                                <option value="DE">Germany</option>
-                                <option value="ES">Spain</option>
-                                <option value="IT">Italy</option>
-                                <option value="NL">Netherlands</option>
-                                <option value="BE">Belgium</option>
-                                <option value="CH">Switzerland</option>
-                                <option value="AT">Austria</option>
-                                <option value="SE">Sweden</option>
-                                <option value="NO">Norway</option>
-                                <option value="DK">Denmark</option>
-                                <option value="FI">Finland</option>
-                                <option value="PL">Poland</option>
-                                <option value="PT">Portugal</option>
-                                <option value="GR">Greece</option>
-                                <option value="OTHER">Other</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div class="payment-processing" id="paymentProcessing" style="display: none;">
-                        <div class="spinner active"></div>
-                        <p style="margin-top: 10px;">Processing payment...</p>
-                    </div>
-                    <div style="text-align: center; margin-top: 20px;">
-                        <button type="button" class="button" id="processPaymentButton" style="min-width: 200px; display: none;">
-                            💳 Process Payment
-                        </button>
                     </div>
                 </div>
-
-                <!-- Terms and Conditions (shown only if registering warranty) -->
-                <div class="form-section" id="termsSection">
-                    <h3>Terms & Conditions</h3>
-                    <div class="checkbox-group">
-                        <label for="acceptTerms">
-                            <input 
-                                type="checkbox" 
-                                id="acceptTerms" 
-                                name="acceptTerms"
-                                required
-                            >
-                            <span>
-                                I have read and agree to the 
-                                <a href="terms-and-conditions.html" target="_blank" class="terms-link">Terms & Conditions</a> 
-                                and 
-                                <a href="privacy-policy.html" target="_blank" class="terms-link">Privacy Policy</a>.
-                                <span style="color: red;">*</span>
-                            </span>
-                        </label>
-                    </div>
-                </div>
-
-                <div id="errorMessage" class="error-message" style="display: none;"></div>
-                <div id="successMessage" class="success-message" style="display: none;"></div>
-                <div class="spinner" id="spinner"></div>
-
-                <div style="text-align: center; margin-top: 30px;">
-                    <button type="submit" class="button" id="submitButton" style="min-width: 200px;">
-                        <span id="submitButtonText">Continue to Pairing Instructions</span>
-                    </button>
-                    <div style="margin-top: 15px;">
-                        <button type="button" onclick="goBackToChoices()" class="button button-secondary" style="margin-right: 10px;">
-                            ← Back to Options
-                        </button>
-                        <a href="confirmation.html" style="color: var(--accent-teal); text-decoration: none; display: inline-block;">
-                            Skip to Pairing Instructions
-                        </a>
-                    </div>
-                </div>
-            </form>
             </div>
         </div>
     </main>
@@ -926,20 +616,6 @@
     </footer>
 
     <script src="js/warranty-registration.js"></script>
-    <script>
-        // Convert postcode to uppercase as user types
-        document.addEventListener('DOMContentLoaded', function() {
-            const postcodeInput = document.getElementById('postcode');
-            if (postcodeInput) {
-                postcodeInput.addEventListener('input', function(e) {
-                    e.target.value = e.target.value.toUpperCase();
-                });
-            }
-            
-            // Billing address section is now inside payment section
-            // It will be visible automatically when payment section is shown (extended warranty selected)
-        });
-    </script>
     <script src="js/version.js"></script>
 </body>
 </html>
