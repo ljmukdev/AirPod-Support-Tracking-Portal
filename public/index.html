@@ -770,8 +770,13 @@
             // Load and update warranty extensions text based on enabled options
             async function updateWarrantyExtensionsText() {
                 try {
-                    const response = await fetch('/api/warranty-options');
+                    // Add cache-busting timestamp to ensure fresh data
+                    const response = await fetch('/api/warranty-options?t=' + Date.now(), {
+                        cache: 'no-store'
+                    });
                     const options = await response.json();
+                    
+                    console.log('Warranty options loaded:', options); // Debug log
                     
                     const enabledMonths = [];
                     if (options['3months']) enabledMonths.push('3');

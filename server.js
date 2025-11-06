@@ -1457,13 +1457,18 @@ app.get('/api/warranty/pricing', requireDB, async (req, res) => {
 // Public API endpoint to get enabled warranty options (for frontend display)
 app.get('/api/warranty-options', requireDB, async (req, res) => {
     try {
+        // Disable caching for this endpoint to ensure fresh data
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        
         const pricing = await db.collection('warranty_pricing').findOne({}, { sort: { last_updated: -1 } });
         
-        // Default to all enabled if no pricing exists
+        // Explicitly check for true/false values - default to false if not explicitly true
         const enabledOptions = {
-            '3months': pricing ? (pricing['3months_enabled'] !== false) : true,
-            '6months': pricing ? (pricing['6months_enabled'] !== false) : true,
-            '12months': pricing ? (pricing['12months_enabled'] !== false) : true
+            '3months': pricing ? (pricing['3months_enabled'] === true) : true,
+            '6months': pricing ? (pricing['6months_enabled'] === true) : true,
+            '12months': pricing ? (pricing['12months_enabled'] === true) : true
         };
         
         res.json(enabledOptions);
