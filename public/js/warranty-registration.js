@@ -180,6 +180,8 @@ function loadProductInfo() {
     fetch(`${API_BASE}/api/product-info/${encodeURIComponent(barcode)}`)
         .then(res => res.json())
         .then(data => {
+            console.log('Product data received:', data); // Debug log
+            
             if (data.error) {
                 showError('Product not found. Please check your security code.');
                 return;
@@ -201,7 +203,7 @@ function loadProductInfo() {
                 'right': 'Right AirPod',
                 'case': 'Charging Case'
             };
-            const partType = partTypeMap[data.part_type] || data.part_type;
+            const partType = partTypeMap[data.part_type] || data.part_type || 'Unknown';
             const productTitle = `${partType}${data.generation ? ' - ' + data.generation : ''}`;
             
             // Display product title
@@ -262,12 +264,253 @@ function loadProductInfo() {
                     productImagePlaceholder.style.display = 'flex';
                 }
             }
+            
+            // Setup photo carousel
+            setupPhotoCarousel(data.photos || []);
         })
         .catch(err => {
             console.error('Error loading product:', err);
             showError('Failed to load product information. Please try again.');
         });
 }
+
+// Photo carousel and modal functionality
+let currentPhotoIndex = 0;
+let photos = [];
+
+function setupPhotoCarousel(photoArray) {
+    photos = photoArray || [];
+    const carouselSection = document.getElementById('photoCarouselSection');
+    const carouselContainer = document.getElementById('carouselContainer');
+    const carouselIndicators = document.getElementById('carouselIndicators');
+    
+    if (!carouselSection || !carouselContainer || !carouselIndicators) {
+        return;
+    }
+    
+    // Hide carousel if no photos
+    if (photos.length === 0) {
+        carouselSection.style.display = 'none';
+        return;
+    }
+    
+    // Show carousel
+    carouselSection.style.display = 'block';
+    
+    // Clear existing content
+    carouselContainer.innerHTML = '';
+    carouselIndicators.innerHTML = '';
+    
+    // Add photos to carousel
+    photos.forEach((photo, index) => {
+        const photoPath = photo.startsWith('/') ? photo : `/${photo}`;
+        
+        // Create photo element
+        const photoDiv = document.createElement('div');
+        photoDiv.className = 'carousel-photo';
+        photoDiv.dataset.index = index;
+        
+        const img = document.createElement('img');
+        img.src = photoPath;
+        img.alt = `Product photo ${index + 1}`;
+        img.onerror = function() {
+            photoDiv.style.display = 'none';
+        };
+        
+        photoDiv.appendChild(img);
+        photoDiv.addEventListener('click', () => openModal(index));
+        carouselContainer.appendChild(photoDiv);
+        
+        // Create indicator
+        const indicator = document.createElement('div');
+        indicator.className = 'carousel-indicator' + (index === 0 ? ' active' : '');
+        indicator.dataset.index = index;
+        indicator.addEventListener('click', () => scrollToPhoto(index));
+        carouselIndicators.appendChild(indicator);
+    });
+    
+    // Setup carousel navigation
+    const prevButton = document.getElementById('carouselPrev');
+    const nextButton = document.getElementById('carouselNext');
+    
+    if (prevButton) {
+        prevButton.addEventListener('click', () => scrollCarousel(-1));
+    }
+    
+    if (nextButton) {
+        nextButton.addEventListener('click', () => scrollCarousel(1));
+    }
+    
+    // Update button states
+    updateCarouselButtons();
+}
+
+function scrollCarousel(direction) {
+    const container = document.getElementById('carouselContainer');
+    if (!container) return;
+    
+    const photoWidth = 150 + 12; // width + gap
+    const scrollAmount = photoWidth * direction;
+    
+    container.scrollBy({
+        left: scrollAmount,
+        behavior: 'smooth'
+    });
+    
+    // Update active indicator after scroll
+    setTimeout(() => {
+        updateActiveIndicator();
+    }, 300);
+}
+
+function scrollToPhoto(index) {
+    const container = document.getElementById('carouselContainer');
+    if (!container) return;
+    
+    const photoWidth = 150 + 12; // width + gap
+    container.scrollTo({
+        left: photoWidth * index,
+        behavior: 'smooth'
+    });
+    
+    updateActiveIndicator(index);
+}
+
+function updateActiveIndicator(activeIndex) {
+    const indicators = document.querySelectorAll('.carousel-indicator');
+    const container = document.getElementById('carouselContainer');
+    
+    if (activeIndex === undefined && container) {
+        const scrollLeft = container.scrollLeft;
+        const photoWidth = 150 + 12;
+        activeIndex = Math.round(scrollLeft / photoWidth);
+    }
+    
+    indicators.forEach((indicator, index) => {
+        if (index === activeIndex) {
+            indicator.classList.add('active');
+        } else {
+            indicator.classList.remove('active');
+        }
+    });
+}
+
+function updateCarouselButtons() {
+    const prevButton = document.getElementById('carouselPrev');
+    const nextButton = document.getElementById('carouselNext');
+    const container = document.getElementById('carouselContainer');
+    
+    if (!container) return;
+    
+    // Check scroll position
+    const isAtStart = container.scrollLeft <= 0;
+    const isAtEnd = container.scrollLeft >= container.scrollWidth - container.clientWidth - 10;
+    
+    if (prevButton) {
+        prevButton.disabled = isAtStart;
+    }
+    if (nextButton) {
+        nextButton.disabled = isAtEnd;
+    }
+}
+
+// Modal functionality
+function openModal(index) {
+    currentPhotoIndex = index;
+    const modal = document.getElementById('imageModal');
+    const modalImage = document.getElementById('modalImage');
+    
+    if (!modal || !modalImage) return;
+    
+    const photo = photos[index];
+    if (!photo) return;
+    
+    const photoPath = photo.startsWith('/') ? photo : `/${photo}`;
+    modalImage.src = photoPath;
+    modal.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+    
+    updateModalButtons();
+}
+
+function closeModal() {
+    const modal = document.getElementById('imageModal');
+    if (!modal) return;
+    
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+function navigateModal(direction) {
+    currentPhotoIndex += direction;
+    
+    if (currentPhotoIndex < 0) {
+        currentPhotoIndex = photos.length - 1;
+    } else if (currentPhotoIndex >= photos.length) {
+        currentPhotoIndex = 0;
+    }
+    
+    const modalImage = document.getElementById('modalImage');
+    if (modalImage) {
+        const photo = photos[currentPhotoIndex];
+        const photoPath = photo.startsWith('/') ? photo : `/${photo}`;
+        modalImage.src = photoPath;
+    }
+    
+    updateModalButtons();
+}
+
+function updateModalButtons() {
+    const prevButton = document.getElementById('modalPrev');
+    const nextButton = document.getElementById('modalNext');
+    
+    // Buttons are always enabled (circular navigation)
+    // Could add visual feedback if needed
+}
+
+// Setup modal event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('imageModal');
+    const modalClose = document.getElementById('modalClose');
+    const modalPrev = document.getElementById('modalPrev');
+    const modalNext = document.getElementById('modalNext');
+    const modalOverlay = document.querySelector('.modal-overlay');
+    
+    if (modalClose) {
+        modalClose.addEventListener('click', closeModal);
+    }
+    
+    if (modalPrev) {
+        modalPrev.addEventListener('click', () => navigateModal(-1));
+    }
+    
+    if (modalNext) {
+        modalNext.addEventListener('click', () => navigateModal(1));
+    }
+    
+    if (modalOverlay) {
+        modalOverlay.addEventListener('click', closeModal);
+    }
+    
+    // Close on Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && modal && modal.style.display !== 'none') {
+            closeModal();
+        }
+        if (e.key === 'ArrowLeft' && modal && modal.style.display !== 'none') {
+            navigateModal(-1);
+        }
+        if (e.key === 'ArrowRight' && modal && modal.style.display !== 'none') {
+            navigateModal(1);
+        }
+    });
+    
+    // Update carousel buttons on scroll
+    const carouselContainer = document.getElementById('carouselContainer');
+    if (carouselContainer) {
+        carouselContainer.addEventListener('scroll', updateCarouselButtons);
+    }
+});
 
 // Handle warranty choice selection (free, extended, or skip)
 // Make it globally accessible for onclick handlers
