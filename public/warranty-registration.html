@@ -34,13 +34,105 @@
     <script src="https://js.stripe.com/v3/"></script>
     <style>
         .warranty-banner {
-            background: linear-gradient(135deg, #00a8e8 0%, #0095d4 100%);
+            background: linear-gradient(135deg, #284064 0%, #1e2f4a 100%);
             color: white;
             padding: 25px;
             border-radius: 12px;
             text-align: center;
             margin: 30px 0;
-            box-shadow: 0 4px 15px rgba(0, 168, 232, 0.3);
+            box-shadow: 0 4px 15px rgba(40, 64, 100, 0.3);
+        }
+        
+        /* Product Tile Styles */
+        .product-tile {
+            display: flex;
+            gap: 24px;
+            padding: 24px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border: 1px solid #e8ecf1;
+            margin-bottom: 24px;
+        }
+        
+        .product-image-container {
+            flex-shrink: 0;
+            width: 120px;
+            height: 120px;
+            border-radius: 8px;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #e8ecf1;
+            overflow: hidden;
+        }
+        
+        .product-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .product-image-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            opacity: 0.3;
+        }
+        
+        .product-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        .product-title {
+            margin: 0 0 16px 0;
+            color: #284064;
+            font-size: 1.4rem;
+            font-weight: 600;
+        }
+        
+        .product-details {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .product-detail-item {
+            display: flex;
+            gap: 8px;
+            font-size: 0.95rem;
+        }
+        
+        .detail-label {
+            color: #6c757d;
+            font-weight: 500;
+        }
+        
+        .detail-value {
+            color: #284064;
+            font-weight: 600;
+        }
+        
+        @media (max-width: 640px) {
+            .product-tile {
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+            }
+            
+            .product-image-container {
+                width: 100px;
+                height: 100px;
+            }
+            
+            .product-details {
+                align-items: center;
+            }
         }
         .warranty-banner h2 {
             margin: 0 0 10px 0;
@@ -95,13 +187,13 @@
             background: var(--background-white);
         }
         .warranty-option:hover {
-            border-color: var(--accent-teal);
-            box-shadow: var(--shadow-hover);
+            border-color: #284064;
+            box-shadow: 0 4px 12px rgba(40, 64, 100, 0.15);
             transform: translateY(-2px);
         }
         .warranty-option.selected {
-            border-color: var(--accent-teal);
-            background: rgba(0, 168, 232, 0.05);
+            border-color: #284064;
+            background: rgba(40, 64, 100, 0.05);
         }
         .warranty-option input[type="radio"] {
             margin: 0 0 10px 0;
@@ -110,13 +202,13 @@
             display: block;
             cursor: pointer;
             font-weight: 600;
-            color: var(--primary-navy);
+            color: #284064;
             margin-bottom: 8px;
         }
         .warranty-price {
             font-size: 1.5rem;
             font-weight: bold;
-            color: var(--accent-teal);
+            color: #284064;
             margin: 10px 0;
         }
         .warranty-duration {
@@ -160,7 +252,7 @@
         .total-price-amount {
             font-size: 2rem;
             font-weight: bold;
-            color: var(--primary-navy);
+            color: #284064;
         }
         .free-badge {
             background: #28a745;
@@ -184,8 +276,8 @@
             margin: 15px 0;
         }
         #card-element.StripeElement--focus {
-            border-color: var(--accent-teal);
-            box-shadow: 0 0 0 3px rgba(0, 168, 232, 0.1);
+            border-color: #284064;
+            box-shadow: 0 0 0 3px rgba(40, 64, 100, 0.1);
         }
         #card-element.StripeElement--invalid {
             border-color: #dc3545;
@@ -223,18 +315,18 @@
             justify-content: space-between;
         }
         .warranty-choice-card:hover {
-            border-color: var(--accent-teal);
-            box-shadow: 0 8px 25px rgba(0, 168, 232, 0.2);
+            border-color: #284064;
+            box-shadow: 0 8px 25px rgba(40, 64, 100, 0.2);
             transform: translateY(-5px);
         }
         .warranty-choice-card.selected {
-            border-color: var(--accent-teal);
-            background: rgba(0, 168, 232, 0.05);
-            box-shadow: 0 4px 15px rgba(0, 168, 232, 0.3);
+            border-color: #284064;
+            background: rgba(40, 64, 100, 0.05);
+            box-shadow: 0 4px 15px rgba(40, 64, 100, 0.3);
         }
         .warranty-choice-card h3 {
             margin: 0 0 15px 0;
-            color: var(--primary-navy);
+            color: #284064;
             font-size: 1.4rem;
         }
         .warranty-choice-card .icon {
@@ -259,14 +351,19 @@
     </style>
 </head>
 <body>
-    <header class="header">
-        <a href="index.html" class="home-link">Home</a>
-        <div class="header-logo">
-            <div class="logo-circle">
-                <span class="logo-text">LJM</span>
+    <!-- Header -->
+    <header class="header" id="mainHeader">
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-icon">LJM</div>
+                <div class="logo-text">Support <span>Center</span></div>
             </div>
+            <nav class="nav-links">
+                <a href="index.html">Home</a>
+                <a href="terms-and-conditions.html">Terms</a>
+                <a href="privacy-policy.html">Privacy</a>
+            </nav>
         </div>
-        <h1>LJM</h1>
     </header>
 
     <main class="container">
@@ -276,13 +373,35 @@
         </div>
 
         <div class="card">
-            <div style="text-align: center; margin-bottom: 30px;">
-                <p style="font-size: 1.1rem; color: #666;">
-                    <strong>Product:</strong> <span id="productInfo">Loading...</span>
-                </p>
-                <p style="font-size: 0.9rem; color: #999; margin-top: 5px;">
-                    Security Code: <span id="securityCode">-</span>
-                </p>
+            <!-- Product Details Section -->
+            <div id="productDetailsSection" style="margin-bottom: 30px;">
+                <div class="product-tile" id="productTile">
+                    <div class="product-image-container">
+                        <img id="productImage" src="" alt="Product Image" class="product-image" style="display: none;">
+                        <div id="productImagePlaceholder" class="product-image-placeholder">
+                            <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z" fill="#284064"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="product-info">
+                        <h3 class="product-title" id="productTitle">Loading product details...</h3>
+                        <div class="product-details">
+                            <div class="product-detail-item">
+                                <span class="detail-label">Model:</span>
+                                <span class="detail-value" id="productModel">-</span>
+                            </div>
+                            <div class="product-detail-item">
+                                <span class="detail-label">Security Code:</span>
+                                <span class="detail-value" id="securityCode">-</span>
+                            </div>
+                            <div class="product-detail-item" id="orderNumberItem" style="display: none;">
+                                <span class="detail-label">Order Number:</span>
+                                <span class="detail-value" id="orderNumber">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Warranty Choice Options -->

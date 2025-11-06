@@ -185,17 +185,75 @@ function loadProductInfo() {
                 return;
             }
             
-            // Display product info
-            const productInfoEl = document.getElementById('productInfo');
-            if (productInfoEl) {
-                const partTypeMap = {
-                    'left': 'Left AirPod',
-                    'right': 'Right AirPod',
-                    'case': 'Charging Case'
-                };
-                const partType = partTypeMap[data.part_type] || data.part_type;
-                const displayText = `${partType}${data.generation ? ' - ' + data.generation : ''}${data.part_model_number ? ' (' + data.part_model_number + ')' : ''}`;
-                productInfoEl.textContent = displayText;
+            // Display product info in the new tile format
+            const productTitleEl = document.getElementById('productTitle');
+            const productModelEl = document.getElementById('productModel');
+            const securityCodeEl = document.getElementById('securityCode');
+            const orderNumberEl = document.getElementById('orderNumber');
+            const orderNumberItem = document.getElementById('orderNumberItem');
+            const productImageEl = document.getElementById('productImage');
+            const productImagePlaceholder = document.getElementById('productImagePlaceholder');
+            
+            // Build product title
+            const partTypeMap = {
+                'left': 'Left AirPod',
+                'right': 'Right AirPod',
+                'case': 'Charging Case'
+            };
+            const partType = partTypeMap[data.part_type] || data.part_type;
+            const productTitle = `${partType}${data.generation ? ' - ' + data.generation : ''}`;
+            
+            if (productTitleEl) {
+                productTitleEl.textContent = productTitle;
+            }
+            
+            // Display model number
+            if (productModelEl) {
+                productModelEl.textContent = data.part_model_number || 'N/A';
+            }
+            
+            // Display security code
+            if (securityCodeEl) {
+                securityCodeEl.textContent = barcode;
+            }
+            
+            // Display order number if available
+            if (data.ebay_order_number) {
+                if (orderNumberEl) {
+                    orderNumberEl.textContent = data.ebay_order_number;
+                }
+                if (orderNumberItem) {
+                    orderNumberItem.style.display = 'flex';
+                }
+            }
+            
+            // Display product image if available
+            if (data.photos && data.photos.length > 0) {
+                const firstPhoto = data.photos[0];
+                // Ensure photo path is correct
+                const photoPath = firstPhoto.startsWith('/') ? firstPhoto : `/${firstPhoto}`;
+                if (productImageEl) {
+                    productImageEl.src = photoPath;
+                    productImageEl.style.display = 'block';
+                    productImageEl.onerror = function() {
+                        // If image fails to load, show placeholder
+                        this.style.display = 'none';
+                        if (productImagePlaceholder) {
+                            productImagePlaceholder.style.display = 'flex';
+                        }
+                    };
+                    if (productImagePlaceholder) {
+                        productImagePlaceholder.style.display = 'none';
+                    }
+                }
+            } else {
+                // No photos, ensure placeholder is visible
+                if (productImageEl) {
+                    productImageEl.style.display = 'none';
+                }
+                if (productImagePlaceholder) {
+                    productImagePlaceholder.style.display = 'flex';
+                }
             }
         })
         .catch(err => {
