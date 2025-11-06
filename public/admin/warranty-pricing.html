@@ -25,13 +25,61 @@
         }
         .pricing-row {
             display: grid;
-            grid-template-columns: 200px 1fr auto;
+            grid-template-columns: 200px 1fr auto auto;
             gap: 15px;
             align-items: center;
             padding: 15px;
             background: #f8f9fa;
             border-radius: var(--border-radius);
             margin-bottom: 15px;
+        }
+        .toggle-switch {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .toggle-switch label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            position: relative;
+        }
+        .toggle-switch input[type="checkbox"] {
+            width: 50px;
+            height: 26px;
+            appearance: none;
+            background-color: #ccc;
+            border-radius: 13px;
+            position: relative;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .toggle-switch input[type="checkbox"]:checked {
+            background-color: var(--accent-teal);
+        }
+        .toggle-switch input[type="checkbox"]::before {
+            content: '';
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background-color: white;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .toggle-switch input[type="checkbox"]:checked::before {
+            transform: translateX(24px);
+        }
+        .toggle-label {
+            font-size: 0.9rem;
+            color: #666;
+            font-weight: 500;
+        }
+        .toggle-switch input[type="checkbox"]:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
         .pricing-row:last-child {
             margin-bottom: 0;
@@ -170,6 +218,17 @@
                                 placeholder="4.99"
                             >
                         </div>
+                        <div class="toggle-switch">
+                            <label>
+                                <input 
+                                    type="checkbox" 
+                                    id="enabled3months" 
+                                    name="3months_enabled"
+                                    checked
+                                >
+                                <span class="toggle-label">Enabled</span>
+                            </label>
+                        </div>
                     </div>
 
                     <div class="pricing-row">
@@ -189,6 +248,17 @@
                                 placeholder="7.99"
                             >
                         </div>
+                        <div class="toggle-switch">
+                            <label>
+                                <input 
+                                    type="checkbox" 
+                                    id="enabled6months" 
+                                    name="6months_enabled"
+                                    checked
+                                >
+                                <span class="toggle-label">Enabled</span>
+                            </label>
+                        </div>
                     </div>
 
                     <div class="pricing-row">
@@ -207,6 +277,17 @@
                                 required
                                 placeholder="12.99"
                             >
+                        </div>
+                        <div class="toggle-switch">
+                            <label>
+                                <input 
+                                    type="checkbox" 
+                                    id="enabled12months" 
+                                    name="12months_enabled"
+                                    checked
+                                >
+                                <span class="toggle-label">Enabled</span>
+                            </label>
                         </div>
                     </div>
 

@@ -712,11 +712,26 @@ async function initializeWarrantyPricing() {
                 '3months': 4.99,
                 '6months': 7.99,
                 '12months': 12.99,
+                '3months_enabled': true,
+                '6months_enabled': true,
+                '12months_enabled': true,
                 last_updated: new Date(),
                 updated_by: 'system'
             };
             await db.collection('warranty_pricing').insertOne(defaultPricing);
             console.log('Default warranty pricing initialized');
+        } else {
+            // Ensure existing records have enabled flags (migration)
+            await db.collection('warranty_pricing').updateMany(
+                { '3months_enabled': { $exists: false } },
+                {
+                    $set: {
+                        '3months_enabled': true,
+                        '6months_enabled': true,
+                        '12months_enabled': true
+                    }
+                }
+            );
         }
     } catch (err) {
         console.error('Error initializing warranty pricing:', err);
@@ -1408,39 +1423,49 @@ app.post('/api/confirm-understanding', requireDB, async (req, res) => {
     }
 });
 
-// Get warranty pricing (Public)
+// Get warranty pricing (Public) - only returns enabled options
 app.get('/api/warranty/pricing', requireDB, async (req, res) => {
     try {
         const pricing = await db.collection('warranty_pricing').findOne({}, { sort: { last_updated: -1 } });
         if (!pricing) {
-            // Return default pricing if none exists
+            // Return default pricing if none exists (all enabled by default)
             return res.json({
                 '3months': 4.99,
                 '6months': 7.99,
                 '12months': 12.99
             });
         }
-        res.json({
-            '3months': pricing['3months'] || 4.99,
-            '6months': pricing['6months'] || 7.99,
-            '12months': pricing['12months'] || 12.99
-        });
+        const result = {};
+        // Only include enabled warranty options
+        if (pricing['3months_enabled'] !== false) {
+            result['3months'] = pricing['3months'] || 4.99;
+        }
+        if (pricing['6months_enabled'] !== false) {
+            result['6months'] = pricing['6months'] || 7.99;
+        }
+        if (pricing['12months_enabled'] !== false) {
+            result['12months'] = pricing['12months'] || 12.99;
+        }
+        res.json(result);
     } catch (err) {
         console.error('Error fetching warranty pricing:', err);
         res.status(500).json({ error: 'Failed to fetch warranty pricing' });
     }
 });
 
-// Get warranty pricing (Admin only - includes metadata)
+// Get warranty pricing (Admin only - includes metadata and enabled status)
 app.get('/api/admin/warranty-pricing', requireAuth, requireDB, async (req, res) => {
     try {
         const pricing = await db.collection('warranty_pricing').findOne({}, { sort: { last_updated: -1 } });
         if (!pricing) {
-            // Return default pricing if none exists
+            // Return default pricing if none exists (all enabled by default)
             return res.json({
                 '3months': 4.99,
                 '6months': 7.99,
                 '12months': 12.99,
+                '3months_enabled': true,
+                '6months_enabled': true,
+                '12months_enabled': true,
                 last_updated: null,
                 updated_by: null
             });
@@ -1449,6 +1474,9 @@ app.get('/api/admin/warranty-pricing', requireAuth, requireDB, async (req, res) 
             '3months': pricing['3months'] || 4.99,
             '6months': pricing['6months'] || 7.99,
             '12months': pricing['12months'] || 12.99,
+            '3months_enabled': pricing['3months_enabled'] !== false, // Default to true if not set
+            '6months_enabled': pricing['6months_enabled'] !== false,
+            '12months_enabled': pricing['12months_enabled'] !== false,
             last_updated: pricing.last_updated,
             updated_by: pricing.updated_by
         });
@@ -1460,7 +1488,14 @@ app.get('/api/admin/warranty-pricing', requireAuth, requireDB, async (req, res) 
 
 // Update warranty pricing (Admin only)
 app.post('/api/admin/warranty-pricing', requireAuth, requireDB, async (req, res) => {
-    const { '3months': threeMonths, '6months': sixMonths, '12months': twelveMonths } = req.body;
+    const { 
+        '3months': threeMonths, 
+        '6months': sixMonths, 
+        '12months': twelveMonths,
+        '3months_enabled': threeMonthsEnabled,
+        '6months_enabled': sixMonthsEnabled,
+        '12months_enabled': twelveMonthsEnabled
+    } = req.body;
     
     // Validation
     if (threeMonths === undefined || sixMonths === undefined || twelveMonths === undefined) {
@@ -1479,6 +1514,13 @@ app.post('/api/admin/warranty-pricing', requireAuth, requireDB, async (req, res)
         return res.status(400).json({ error: 'All prices must be valid positive numbers' });
     }
     
+    // Handle enabled flags (default to true if not provided)
+    const enabledFlags = {
+        '3months_enabled': threeMonthsEnabled !== undefined ? Boolean(threeMonthsEnabled) : true,
+        '6months_enabled': sixMonthsEnabled !== undefined ? Boolean(sixMonthsEnabled) : true,
+        '12months_enabled': twelveMonthsEnabled !== undefined ? Boolean(twelveMonthsEnabled) : true
+    };
+    
     try {
         // Use upsert to update or create pricing document
         await db.collection('warranty_pricing').updateOne(
@@ -1488,6 +1530,9 @@ app.post('/api/admin/warranty-pricing', requireAuth, requireDB, async (req, res)
                     '3months': prices['3months'],
                     '6months': prices['6months'],
                     '12months': prices['12months'],
+                    '3months_enabled': enabledFlags['3months_enabled'],
+                    '6months_enabled': enabledFlags['6months_enabled'],
+                    '12months_enabled': enabledFlags['12months_enabled'],
                     last_updated: new Date(),
                     updated_by: req.session.username || 'admin'
                 }
@@ -1495,12 +1540,14 @@ app.post('/api/admin/warranty-pricing', requireAuth, requireDB, async (req, res)
             { upsert: true }
         );
         
-        console.log(`✅ Warranty pricing updated by ${req.session.username || 'admin'}: 3mo=£${prices['3months']}, 6mo=£${prices['6months']}, 12mo=£${prices['12months']}`);
+        const enabledStatus = Object.entries(enabledFlags).map(([key, val]) => `${key.replace('_enabled', '')}:${val ? 'ON' : 'OFF'}`).join(', ');
+        console.log(`✅ Warranty pricing updated by ${req.session.username || 'admin'}: 3mo=£${prices['3months']}, 6mo=£${prices['6months']}, 12mo=£${prices['12months']} | ${enabledStatus}`);
         
         res.json({
             success: true,
             message: 'Warranty pricing updated successfully',
-            pricing: prices
+            pricing: prices,
+            enabled: enabledFlags
         });
     } catch (err) {
         console.error('Error updating warranty pricing:', err);

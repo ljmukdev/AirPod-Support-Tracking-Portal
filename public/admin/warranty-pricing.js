@@ -46,6 +46,15 @@ async function loadPricing() {
             document.getElementById('price6months').value = data['6months'] || 7.99;
             document.getElementById('price12months').value = data['12months'] || 12.99;
             
+            // Populate enabled checkboxes
+            const enabled3months = document.getElementById('enabled3months');
+            const enabled6months = document.getElementById('enabled6months');
+            const enabled12months = document.getElementById('enabled12months');
+            
+            if (enabled3months) enabled3months.checked = data['3months_enabled'] !== false;
+            if (enabled6months) enabled6months.checked = data['6months_enabled'] !== false;
+            if (enabled12months) enabled12months.checked = data['12months_enabled'] !== false;
+            
             // Update last updated info
             const lastUpdatedEl = document.getElementById('lastUpdatedDate');
             const updatedByEl = document.getElementById('updatedBy');
@@ -87,7 +96,10 @@ if (pricingForm) {
         const formData = {
             '3months': parseFloat(document.getElementById('price3months').value),
             '6months': parseFloat(document.getElementById('price6months').value),
-            '12months': parseFloat(document.getElementById('price12months').value)
+            '12months': parseFloat(document.getElementById('price12months').value),
+            '3months_enabled': document.getElementById('enabled3months').checked,
+            '6months_enabled': document.getElementById('enabled6months').checked,
+            '12months_enabled': document.getElementById('enabled12months').checked
         };
         
         // Validation

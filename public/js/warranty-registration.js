@@ -68,13 +68,22 @@ async function loadWarrantyPricing() {
         if (response.ok) {
             const pricing = await response.json();
             warrantyPrices = {
-                'none': 0,
-                '3months': pricing['3months'] || 4.99,
-                '6months': pricing['6months'] || 7.99,
-                '12months': pricing['12months'] || 12.99
+                'none': 0
             };
+            
+            // Only include enabled warranty options
+            if (pricing['3months'] !== undefined) {
+                warrantyPrices['3months'] = pricing['3months'];
+            }
+            if (pricing['6months'] !== undefined) {
+                warrantyPrices['6months'] = pricing['6months'];
+            }
+            if (pricing['12months'] !== undefined) {
+                warrantyPrices['12months'] = pricing['12months'];
+            }
+            
             console.log('Warranty pricing loaded:', warrantyPrices);
-            // Update prices in the UI
+            // Update prices in the UI and hide disabled options
             updateWarrantyPricesInUI();
         } else {
             console.warn('Failed to load warranty pricing, using defaults');
@@ -87,22 +96,58 @@ async function loadWarrantyPricing() {
 
 // Update warranty prices displayed in the UI
 function updateWarrantyPricesInUI() {
-    // Update 3 months price
-    const price3El = document.querySelector('#warranty3Months')?.closest('.warranty-option')?.querySelector('.warranty-price');
-    if (price3El) {
-        price3El.textContent = `£${warrantyPrices['3months'].toFixed(2)}`;
+    // Update 3 months price and visibility
+    const option3Months = document.querySelector('#warranty3Months')?.closest('.warranty-option');
+    if (option3Months) {
+        if (warrantyPrices['3months'] !== undefined) {
+            const price3El = option3Months.querySelector('.warranty-price');
+            if (price3El) {
+                price3El.textContent = `£${warrantyPrices['3months'].toFixed(2)}`;
+            }
+            option3Months.style.display = 'block';
+        } else {
+            option3Months.style.display = 'none';
+        }
     }
     
-    // Update 6 months price
-    const price6El = document.querySelector('#warranty6Months')?.closest('.warranty-option')?.querySelector('.warranty-price');
-    if (price6El) {
-        price6El.textContent = `£${warrantyPrices['6months'].toFixed(2)}`;
+    // Update 6 months price and visibility
+    const option6Months = document.querySelector('#warranty6Months')?.closest('.warranty-option');
+    if (option6Months) {
+        if (warrantyPrices['6months'] !== undefined) {
+            const price6El = option6Months.querySelector('.warranty-price');
+            if (price6El) {
+                price6El.textContent = `£${warrantyPrices['6months'].toFixed(2)}`;
+            }
+            option6Months.style.display = 'block';
+        } else {
+            option6Months.style.display = 'none';
+        }
     }
     
-    // Update 12 months price
-    const price12El = document.querySelector('#warranty12Months')?.closest('.warranty-option')?.querySelector('.warranty-price');
-    if (price12El) {
-        price12El.textContent = `£${warrantyPrices['12months'].toFixed(2)}`;
+    // Update 12 months price and visibility
+    const option12Months = document.querySelector('#warranty12Months')?.closest('.warranty-option');
+    if (option12Months) {
+        if (warrantyPrices['12months'] !== undefined) {
+            const price12El = option12Months.querySelector('.warranty-price');
+            if (price12El) {
+                price12El.textContent = `£${warrantyPrices['12months'].toFixed(2)}`;
+            }
+            option12Months.style.display = 'block';
+        } else {
+            option12Months.style.display = 'none';
+        }
+    }
+    
+    // If a disabled warranty option is currently selected, reset to 'none'
+    const selectedWarranty = document.querySelector('input[name="extendedWarranty"]:checked');
+    if (selectedWarranty && selectedWarranty.value !== 'none') {
+        if (warrantyPrices[selectedWarranty.value] === undefined) {
+            // Selected warranty is disabled, reset to 'none'
+            const warrantyNone = document.getElementById('warrantyNone');
+            if (warrantyNone) {
+                warrantyNone.checked = true;
+            }
+        }
     }
     
     // Update total price if already selected
