@@ -683,7 +683,7 @@
                         </div>
                         <div class="feature-content">
                             <div class="feature-title">Extended Protection Options</div>
-                            <div class="feature-description" id="warrantyExtensionsText">Flexible warranty extensions available: 3, 6, or 12-month plans for continued peace of mind</div>
+                            <div class="feature-description">Flexible warranty extensions available: 6, or 12-month plans for continued peace of mind</div>
                         </div>
                     </div>
                 </div>
@@ -769,47 +769,8 @@
                 }
             });
 
-            // Load and update warranty extensions text based on enabled options
-            async function updateWarrantyExtensionsText() {
-                try {
-                    // Add cache-busting timestamp to ensure fresh data
-                    const response = await fetch('/api/warranty-options?t=' + Date.now(), {
-                        cache: 'no-store'
-                    });
-                    const options = await response.json();
-                    
-                    console.log('Warranty options loaded:', options); // Debug log
-                    
-                    const enabledMonths = [];
-                    if (options['3months']) enabledMonths.push('3');
-                    if (options['6months']) enabledMonths.push('6');
-                    if (options['12months']) enabledMonths.push('12');
-                    
-                    const warrantyTextEl = document.getElementById('warrantyExtensionsText');
-                    if (warrantyTextEl && enabledMonths.length > 0) {
-                        let text = 'Flexible warranty extensions available: ';
-                        
-                        if (enabledMonths.length === 1) {
-                            text += enabledMonths[0] + '-month plans for continued peace of mind';
-                        } else if (enabledMonths.length === 2) {
-                            text += enabledMonths[0] + ', or ' + enabledMonths[1] + '-month plans for continued peace of mind';
-                        } else {
-                            // 3 options: "3, 6, or 12-month"
-                            text += enabledMonths.slice(0, -1).join(', ') + ', or ' + enabledMonths[enabledMonths.length - 1] + '-month plans for continued peace of mind';
-                        }
-                        
-                        warrantyTextEl.textContent = text;
-                    }
-                } catch (error) {
-                    console.error('Error loading warranty options:', error);
-                    // Keep default text on error
-                }
-            }
-            
-            // Load warranty options first, then set up wave effect
-            updateWarrantyExtensionsText().then(() => {
-                // Mexican wave effect for feature descriptions
-                const featureDescriptions = document.querySelectorAll('.feature-description');
+            // Mexican wave effect for feature descriptions
+            const featureDescriptions = document.querySelectorAll('.feature-description');
             
             featureDescriptions.forEach(function(description) {
                 // Split text into words and wrap each word in a span
