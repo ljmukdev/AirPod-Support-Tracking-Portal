@@ -1225,46 +1225,9 @@ if (registerFreeWarrantyCheckbox) {
     registerFreeWarrantyCheckbox.addEventListener('change', toggleWarrantySections);
 }
 
-// Load product info and initialize Stripe on page load
+// Load product info on page load
 function initializePage() {
     loadProductInfo();
-    loadWarrantyPricing(); // Load pricing from API
-    initializeStripe();
-    
-    // Ensure form is hidden initially (choice options shown)
-    const warrantyForm = document.getElementById('warrantyForm');
-    const choiceOptions = document.getElementById('warrantyChoiceOptions');
-    
-    if (warrantyForm) {
-        warrantyForm.classList.remove('active'); // Hide form initially
-    }
-    if (choiceOptions) {
-        choiceOptions.style.display = 'grid'; // Show choice options
-    }
-    
-    // Ensure marketing checkbox is checked by default
-    const marketingConsent = document.getElementById('marketingConsent');
-    if (marketingConsent) {
-        marketingConsent.checked = true;
-    }
-    
-    // Watch for form visibility changes and ensure billing address is shown
-    if (warrantyForm) {
-        const observer = new MutationObserver(function(mutations) {
-            mutations.forEach(function(mutation) {
-                if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-                    // Billing address is now inside payment section
-                    // It will show automatically when payment section is displayed
-                }
-            });
-        });
-        observer.observe(warrantyForm, { attributes: true, attributeFilter: ['class'] });
-    }
-    
-    // Wait a moment for DOM to be fully ready, then toggle sections
-    setTimeout(() => {
-        toggleWarrantySections();
-    }, 100);
 }
 
 if (document.readyState === 'loading') {
