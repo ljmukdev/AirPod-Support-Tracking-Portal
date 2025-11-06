@@ -112,6 +112,8 @@ if (pricingForm) {
         }
         
         try {
+            console.log('Saving warranty pricing:', formData); // Debug log
+            
             const response = await fetch(`${API_BASE}/api/admin/warranty-pricing`, {
                 method: 'POST',
                 headers: {
@@ -121,6 +123,7 @@ if (pricingForm) {
             });
             
             const data = await response.json();
+            console.log('Save response:', response.status, data); // Debug log
             
             if (response.ok && data.success) {
                 showSuccess('Warranty pricing updated successfully! Changes are now live.');
@@ -129,11 +132,13 @@ if (pricingForm) {
                     loadPricing();
                 }, 500);
             } else {
-                showError(data.error || 'Failed to update pricing. Please try again.');
+                const errorMsg = data.error || `Failed to update pricing (Status: ${response.status}). Please try again.`;
+                console.error('Save failed:', errorMsg, data);
+                showError(errorMsg);
             }
         } catch (error) {
             console.error('Error updating pricing:', error);
-            showError('Network error. Please check your connection and try again.');
+            showError('Network error. Please check your connection and try again. Error: ' + error.message);
         } finally {
             saveButton.disabled = false;
             saveButton.textContent = 'Save Pricing';

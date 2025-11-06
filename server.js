@@ -19,6 +19,19 @@ const PORT = process.env.PORT || 3000;
 // Trust proxy (needed for Railway/Heroku)
 app.set('trust proxy', 1);
 
+// Disable X-Powered-By header for security
+app.disable('x-powered-by');
+
+// Security headers middleware for API endpoints
+app.use('/api', (req, res, next) => {
+    // Set security headers
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    next();
+});
+
 // Middleware
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -1543,16 +1556,25 @@ app.post('/api/admin/warranty-pricing', requireAuth, requireDB, async (req, res)
         return res.status(400).json({ error: 'All prices must be valid positive numbers' });
     }
     
-    // Handle enabled flags (default to true if not provided)
+    // Handle enabled flags - explicitly convert to boolean
+    // Checkboxes send true/false, but we need to ensure they're properly converted
     const enabledFlags = {
-        '3months_enabled': threeMonthsEnabled !== undefined ? Boolean(threeMonthsEnabled) : true,
-        '6months_enabled': sixMonthsEnabled !== undefined ? Boolean(sixMonthsEnabled) : true,
-        '12months_enabled': twelveMonthsEnabled !== undefined ? Boolean(twelveMonthsEnabled) : true
+        '3months_enabled': threeMonthsEnabled !== undefined ? (threeMonthsEnabled === true || threeMonthsEnabled === 'true') : true,
+        '6months_enabled': sixMonthsEnabled !== undefined ? (sixMonthsEnabled === true || sixMonthsEnabled === 'true') : true,
+        '12months_enabled': twelveMonthsEnabled !== undefined ? (twelveMonthsEnabled === true || twelveMonthsEnabled === 'true') : true
     };
     
+    console.log('Enabled flags after processing:', enabledFlags); // Debug log
+    
     try {
+        console.log('Saving warranty pricing:', {
+            prices,
+            enabledFlags,
+            username: req.session.username || 'admin'
+        }); // Debug log
+        
         // Use upsert to update or create pricing document
-        await db.collection('warranty_pricing').updateOne(
+        const result = await db.collection('warranty_pricing').updateOne(
             {},
             {
                 $set: {
@@ -1568,6 +1590,13 @@ app.post('/api/admin/warranty-pricing', requireAuth, requireDB, async (req, res)
             },
             { upsert: true }
         );
+        
+        console.log('Database update result:', {
+            matchedCount: result.matchedCount,
+            modifiedCount: result.modifiedCount,
+            upsertedCount: result.upsertedCount,
+            upsertedId: result.upsertedId
+        }); // Debug log
         
         const enabledStatus = Object.entries(enabledFlags).map(([key, val]) => `${key.replace('_enabled', '')}:${val ? 'ON' : 'OFF'}`).join(', ');
         console.log(`✅ Warranty pricing updated by ${req.session.username || 'admin'}: 3mo=£${prices['3months']}, 6mo=£${prices['6months']}, 12mo=£${prices['12months']} | ${enabledStatus}`);
