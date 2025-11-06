@@ -1829,6 +1829,51 @@ app.delete('/api/admin/warranty/:id', requireAuth, requireDB, async (req, res) =
     }
 });
 
+// List downloadable graphics (Admin only)
+app.get('/api/admin/downloads', requireAuth, async (req, res) => {
+    try {
+        const imagesDir = path.join(__dirname, 'public', 'images');
+        
+        // Check if directory exists
+        if (!fs.existsSync(imagesDir)) {
+            return res.json({ files: [] });
+        }
+        
+        // Read directory contents
+        const files = fs.readdirSync(imagesDir);
+        
+        // Filter for image/graphic files and get their stats
+        const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.pdf', '.zip'];
+        const fileList = files
+            .filter(file => {
+                const ext = path.extname(file).toLowerCase();
+                return imageExtensions.includes(ext);
+            })
+            .map(file => {
+                const filePath = path.join(imagesDir, file);
+                try {
+                    const stats = fs.statSync(filePath);
+                    return {
+                        filename: file,
+                        extension: path.extname(file).toLowerCase().replace('.', ''),
+                        size: stats.size,
+                        modified: stats.mtime
+                    };
+                } catch (err) {
+                    console.error(`Error reading file ${file}:`, err);
+                    return null;
+                }
+            })
+            .filter(file => file !== null)
+            .sort((a, b) => a.filename.localeCompare(b.filename));
+        
+        res.json({ files: fileList });
+    } catch (err) {
+        console.error('Error listing downloads:', err);
+        res.status(500).json({ error: 'Failed to list graphics: ' + err.message });
+    }
+});
+
 // Get product info by barcode (for confirmation page)
 app.get('/api/product-info/:barcode', requireDB, async (req, res) => {
     const { barcode } = req.params;
