@@ -1454,6 +1454,30 @@ app.get('/api/warranty/pricing', requireDB, async (req, res) => {
 });
 
 // Get warranty pricing (Admin only - includes metadata and enabled status)
+// Public API endpoint to get enabled warranty options (for frontend display)
+app.get('/api/warranty-options', requireDB, async (req, res) => {
+    try {
+        const pricing = await db.collection('warranty_pricing').findOne({}, { sort: { last_updated: -1 } });
+        
+        // Default to all enabled if no pricing exists
+        const enabledOptions = {
+            '3months': pricing ? (pricing['3months_enabled'] !== false) : true,
+            '6months': pricing ? (pricing['6months_enabled'] !== false) : true,
+            '12months': pricing ? (pricing['12months_enabled'] !== false) : true
+        };
+        
+        res.json(enabledOptions);
+    } catch (err) {
+        console.error('Error fetching warranty options:', err);
+        // Return default (all enabled) on error
+        res.json({
+            '3months': true,
+            '6months': true,
+            '12months': true
+        });
+    }
+});
+
 app.get('/api/admin/warranty-pricing', requireAuth, requireDB, async (req, res) => {
     try {
         const pricing = await db.collection('warranty_pricing').findOne({}, { sort: { last_updated: -1 } });
