@@ -1,44 +1,56 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300">
-  <!-- Background -->
-  <rect width="400" height="300" fill="#fff9c4" rx="8"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="500" height="400" viewBox="0 0 500 400">
+  <!-- Yellow background matching photo -->
+  <rect width="500" height="400" fill="#ffeb3b" rx="8"/>
   
-  <!-- Case Base -->
-  <rect x="100" y="150" width="200" height="120" rx="15" fill="white" stroke="#1a1a1a" stroke-width="2"/>
+  <!-- Case Base (more realistic proportions) -->
+  <rect x="150" y="200" width="200" height="140" rx="18" fill="#ffffff" stroke="#1a1a1a" stroke-width="2.5"/>
+  <rect x="150" y="200" width="200" height="140" rx="18" fill="url(#caseGradient)" opacity="0.3"/>
   
-  <!-- Case Lid (Open) -->
-  <rect x="100" y="80" width="200" height="80" rx="15" fill="white" stroke="#1a1a1a" stroke-width="2" opacity="0.95"/>
-  
-  <!-- Left Indentation (where left AirPod sits) -->
-  <ellipse cx="150" cy="120" rx="35" ry="25" fill="#f5f5f5" stroke="#d0d0d0" stroke-width="1"/>
-  
-  <!-- Right Indentation (where right AirPod sits) -->
-  <ellipse cx="250" cy="120" rx="35" ry="25" fill="#f5f5f5" stroke="#d0d0d0" stroke-width="1"/>
-  
-  <!-- CE Mark in left indentation -->
-  <text x="150" y="115" font-family="Arial, sans-serif" font-size="16" text-anchor="middle" fill="#666" font-weight="bold" letter-spacing="-2px">CE</text>
-  
-  <!-- AR-NZ Logo in right indentation (matching actual appearance) -->
-  <g transform="translate(250, 110)">
-    <!-- Circle with A and R inside -->
-    <circle cx="0" cy="0" r="11" fill="none" stroke="#666" stroke-width="1.2"/>
-    <text x="-5" y="3" font-family="Arial, sans-serif" font-size="9" fill="#666" font-weight="bold">A</text>
-    <text x="3" y="3" font-family="Arial, sans-serif" font-size="9" fill="#666" font-weight="bold">R</text>
-    <!-- NZ text below circle -->
-    <text x="0" y="16" font-family="Arial, sans-serif" font-size="8" text-anchor="middle" fill="#666" font-weight="bold">NZ</text>
+  <!-- Case Lid (Open, angled view) -->
+  <g transform="rotate(-5 250 140)">
+    <rect x="150" y="60" width="200" height="90" rx="18" fill="#ffffff" stroke="#1a1a1a" stroke-width="2.5"/>
+    <rect x="150" y="60" width="200" height="90" rx="18" fill="url(#lidGradient)" opacity="0.2"/>
   </g>
   
-  <!-- Arrow pointing to lid -->
-  <path d="M 200 60 L 200 85" stroke="#284064" stroke-width="2.5" fill="none" marker-end="url(#arrowhead)"/>
-  <text x="205" y="70" font-family="Arial, sans-serif" font-size="13" fill="#284064" font-weight="600">Inside Lid</text>
+  <!-- Left Indentation (oval, more realistic) -->
+  <ellipse cx="200" cy="105" rx="38" ry="28" fill="#f8f8f8" stroke="#d5d5d5" stroke-width="1.5"/>
+  
+  <!-- Right Indentation -->
+  <ellipse cx="300" cy="105" rx="38" ry="28" fill="#f8f8f8" stroke="#d5d5d5" stroke-width="1.5"/>
+  
+  <!-- CE Mark in left indentation (matching actual style - letters almost touching) -->
+  <text x="200" y="102" font-family="Arial, sans-serif" font-size="18" text-anchor="middle" fill="#888888" font-weight="bold" letter-spacing="-3px">CE</text>
+  
+  <!-- AR-NZ Logo in right indentation (matching actual appearance) -->
+  <g transform="translate(300, 100)">
+    <!-- Circle with A and R -->
+    <circle cx="0" cy="0" r="13" fill="none" stroke="#888888" stroke-width="1.8"/>
+    <text x="-6" y="4" font-family="Arial, sans-serif" font-size="11" fill="#888888" font-weight="bold">A</text>
+    <text x="4" y="4" font-family="Arial, sans-serif" font-size="11" fill="#888888" font-weight="bold">R</text>
+    <!-- NZ text below -->
+    <text x="0" y="18" font-family="Arial, sans-serif" font-size="9" text-anchor="middle" fill="#888888" font-weight="bold">NZ</text>
+  </g>
+  
+  <!-- Arrow pointing to lid interior -->
+  <path d="M 250 50 L 250 85" stroke="#284064" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
+  <text x="255" y="65" font-family="Arial, sans-serif" font-size="14" fill="#284064" font-weight="600">Inside Lid</text>
   
   <!-- Label -->
-  <text x="200" y="290" font-family="Arial, sans-serif" font-size="16" text-anchor="middle" fill="#1a1a1a" font-weight="600">Charging Case - Open Lid</text>
+  <text x="250" y="370" font-family="Arial, sans-serif" font-size="18" text-anchor="middle" fill="#1a1a1a" font-weight="600">Charging Case</text>
+  <text x="250" y="390" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#666">Open lid and look inside indentations</text>
   
-  <!-- Arrow marker definition -->
+  <!-- Gradients for realistic appearance -->
   <defs>
-    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="5" refY="3" orient="auto">
-      <polygon points="0 0, 10 3, 0 6" fill="#284064"/>
+    <linearGradient id="caseGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f0f0f0;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="lidGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f5f5f5;stop-opacity:1" />
+    </linearGradient>
+    <marker id="arrowhead" markerWidth="12" markerHeight="12" refX="6" refY="3.5" orient="auto">
+      <polygon points="0 0, 12 3.5, 0 7" fill="#284064"/>
     </marker>
   </defs>
 </svg>
-
