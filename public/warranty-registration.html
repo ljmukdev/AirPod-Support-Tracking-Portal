@@ -13,8 +13,8 @@
                 var el = document.createElement('div');
                 el.id = 'version-display';
                 el.style.cssText = 'position:fixed;top:10px;right:10px;font-size:0.7rem;color:rgba(0,0,0,0.7);font-family:"Courier New",monospace;z-index:99999;padding:4px 8px;background:rgba(255,255,255,0.9);border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.2);pointer-events:none;';
-                el.textContent = 'v1.2.0.001';
-                el.title = 'Version 1.2.0 (Revision 001)';
+                el.textContent = 'v1.2.0.010';
+                el.title = 'Version 1.2.0 (Revision 010)';
                 if (document.body) {
                     document.body.appendChild(el);
                 } else {
@@ -786,7 +786,7 @@
         <div class="card">
             <div class="card-body">
                 <!-- Step 1: Security Code Entry -->
-                <div class="step-container active" id="step1" data-step="1">
+                <div class="step-container" id="step1" data-step="1">
                     <div class="security-code-section">
                         <h2>Enter Your Security Code</h2>
                         <p class="subtitle">This code ensures you receive authentic support for your product</p>
@@ -809,6 +809,16 @@
                         <button class="continue-btn" id="continueBtn1" disabled>Continue</button>
                     </div>
                 </div>
+                <script>
+                    // Immediately hide step 1 if barcode is in URL (prevents flash of duplicate entry)
+                    (function() {
+                        const urlParams = new URLSearchParams(window.location.search);
+                        if (urlParams.get('barcode')) {
+                            const step1 = document.getElementById('step1');
+                            if (step1) step1.style.display = 'none';
+                        }
+                    })();
+                </script>
                 
                 <!-- Step 2: Success Animation & Warranty Confirmation -->
                 <div class="step-container" id="step2" data-step="2">

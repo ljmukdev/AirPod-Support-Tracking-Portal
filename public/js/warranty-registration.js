@@ -61,6 +61,18 @@ function trackEvent(eventName, data = {}) {
 
 // Initialize page
 function initializePage() {
+    // Immediately check URL for barcode to hide step 1 if needed
+    const urlParams = new URLSearchParams(window.location.search);
+    const barcodeFromUrl = urlParams.get('barcode');
+    
+    // Hide step 1 immediately if barcode is in URL (coming from home page)
+    if (barcodeFromUrl) {
+        const step1 = document.getElementById('step1');
+        if (step1) {
+            step1.style.display = 'none';
+        }
+    }
+    
     // Check if we should resume from saved state
     const resumed = loadSavedState();
     
@@ -73,21 +85,15 @@ function initializePage() {
         showStep(appState.currentStep);
     } else {
         // Check URL for barcode
-        const urlParams = new URLSearchParams(window.location.search);
-        const barcode = urlParams.get('barcode') || sessionStorage.getItem('securityBarcode');
+        const barcode = barcodeFromUrl || sessionStorage.getItem('securityBarcode');
         
         if (barcode) {
             appState.securityCode = barcode;
             // If coming from index.html with validated code, skip step 1 entirely
-            if (urlParams.get('barcode')) {
+            if (barcodeFromUrl) {
                 // Coming from index.html - code already validated, skip step 1
                 appState.skippedStep1 = true;
                 appState.currentStep = 2; // Start at step 2
-                // Hide step 1 container
-                const step1 = document.getElementById('step1');
-                if (step1) {
-                    step1.style.display = 'none';
-                }
                 // Load product info and show step 2
                 loadProductInfo(barcode, false).then(() => {
                     showStep(2);
@@ -95,11 +101,18 @@ function initializePage() {
                     // If product load fails, show step 1 for manual entry
                     appState.skippedStep1 = false;
                     appState.currentStep = 1;
-                    if (step1) step1.style.display = 'block';
+                    const step1 = document.getElementById('step1');
+                    if (step1) {
+                        step1.style.display = 'block';
+                    }
                     showStep(1);
                 });
             } else {
                 // Pre-fill security code input (from sessionStorage)
+                const step1 = document.getElementById('step1');
+                if (step1) {
+                    step1.style.display = 'block';
+                }
                 const securityInput = document.getElementById('securityCodeInput');
                 if (securityInput) {
                     let formatted = barcode.replace(/[^\w]/g, '').toUpperCase();
@@ -114,6 +127,10 @@ function initializePage() {
             }
         } else {
             // Start at step 1 - security code entry (direct navigation)
+            const step1 = document.getElementById('step1');
+            if (step1) {
+                step1.style.display = 'block';
+            }
             showStep(1);
         }
     }
