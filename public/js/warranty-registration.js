@@ -746,6 +746,107 @@ function displayProductInfoOnStep1(data) {
     
     // Setup photo carousel for step 1
     setupPhotoCarouselForStep1(data.photos || []);
+    
+    // Initialize step-by-step verification
+    initializeVerificationSteps();
+}
+
+// Verification step state
+let verificationState = {
+    currentStep: 1,
+    totalSteps: 4,
+    completedSteps: new Set(),
+    listenersAttached: false
+};
+
+// Initialize step-by-step verification flow
+function initializeVerificationSteps() {
+    // Reset state
+    verificationState.currentStep = 1;
+    verificationState.completedSteps.clear();
+    verificationState.listenersAttached = false;
+    
+    // Reset all checkboxes
+    const allCheckboxes = ['verifyCompatibility', 'verifyAuthenticity', 'verifyCondition', 'verifyReady'];
+    allCheckboxes.forEach(id => {
+        const checkbox = document.getElementById(id);
+        if (checkbox) checkbox.checked = false;
+    });
+    
+    // Disable continue button initially
+    const continueBtn = document.getElementById('continueBtn1');
+    if (continueBtn) continueBtn.disabled = true;
+    
+    // Update step counter
+    const currentStepEl = document.getElementById('currentVerificationStep');
+    const totalStepsEl = document.getElementById('totalVerificationSteps');
+    if (currentStepEl) currentStepEl.textContent = verificationState.currentStep;
+    if (totalStepsEl) totalStepsEl.textContent = verificationState.totalSteps;
+    
+    // Show first step
+    showVerificationStep(1);
+    
+    // Setup checkbox handlers
+    const checkboxes = {
+        1: document.getElementById('verifyCompatibility'),
+        2: document.getElementById('verifyAuthenticity'),
+        3: document.getElementById('verifyCondition'),
+        4: document.getElementById('verifyReady')
+    };
+    
+    // Handle checkbox changes
+    if (!verificationState.listenersAttached) {
+        Object.keys(checkboxes).forEach(stepNum => {
+            const checkbox = checkboxes[stepNum];
+            if (checkbox) {
+                checkbox.addEventListener('change', function() {
+                    const stepNumber = parseInt(stepNum);
+                    if (this.checked) {
+                        verificationState.completedSteps.add(stepNumber);
+                        
+                        // Auto-advance to next step after a short delay
+                        setTimeout(() => {
+                            if (verificationState.currentStep < verificationState.totalSteps) {
+                                verificationState.currentStep++;
+                                showVerificationStep(verificationState.currentStep);
+                                if (currentStepEl) currentStepEl.textContent = verificationState.currentStep;
+                            }
+                            
+                            // Enable continue button when all steps complete
+                            if (verificationState.completedSteps.size === verificationState.totalSteps) {
+                                const continueBtn = document.getElementById('continueBtn1');
+                                if (continueBtn) {
+                                    continueBtn.disabled = false;
+                                }
+                            }
+                        }, 500);
+                    } else {
+                        verificationState.completedSteps.delete(stepNumber);
+                        const continueBtn = document.getElementById('continueBtn1');
+                        if (continueBtn) {
+                            continueBtn.disabled = true;
+                        }
+                    }
+                });
+            }
+        });
+        verificationState.listenersAttached = true;
+    }
+}
+
+// Show specific verification step
+function showVerificationStep(stepNumber) {
+    // Hide all steps
+    document.querySelectorAll('.verification-step').forEach(step => {
+        step.style.display = 'none';
+    });
+    
+    // Show current step with animation
+    const currentStepEl = document.querySelector(`.verification-step[data-step="${stepNumber}"]`);
+    if (currentStepEl) {
+        currentStepEl.style.display = 'block';
+        currentStepEl.style.animation = 'fadeIn 0.3s ease';
+    }
 }
 
 // Setup photo carousel for step 1

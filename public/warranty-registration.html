@@ -1067,39 +1067,81 @@
                                     </div>
                                 </div>
                                 
-                                <!-- Guidance Box -->
-                                <div style="background: #e7f3ff; border-left: 4px solid #284064; padding: 20px; border-radius: 8px; margin-top: 24px;">
-                                    <h4 style="margin-top: 0; color: #284064; font-size: 1rem; font-weight: 600; margin-bottom: 12px;">What happens next?</h4>
-                                    <ol style="margin: 0; padding-left: 20px; color: #1a1a1a; font-size: 0.9rem; line-height: 1.8;">
-                                        <li style="margin-bottom: 12px;">
-                                            <strong>Confirm compatibility:</strong> Verify that your existing two AirPod parts correspond with the one you purchased. For example, if you purchased <span id="purchasedPartNumber" style="font-weight: 600; color: #284064;">-</span>, you need to have parts <span id="compatiblePartNumbers" style="font-weight: 600; color: #284064;">-</span>.
-                                        </li>
-                                        <li style="margin-bottom: 12px;">
-                                            <strong>Verify authenticity:</strong> Confirm that your existing parts are not counterfeit by checking:
-                                            <ul style="margin: 8px 0 0 20px; padding-left: 0;">
-                                                <li>Look inside your case (unless you're buying a case) or under the ear pieces of your AirPods</li>
-                                                <li>Verify they have the following markings: <strong>CE</strong> and <strong>R-NZ</strong></li>
-                                                <li>Check that your two existing parts do <strong>NOT</strong> have identical serial numbers - genuine AirPods have unique serial numbers for each part</li>
-                                            </ul>
-                                        </li>
-                                        <li style="margin-bottom: 12px;">
-                                            <strong>Review product photos:</strong> Check the product photos above to ensure you're happy with the condition before proceeding.
-                                        </li>
-                                        <li style="margin-bottom: 12px;">
-                                            <strong>Return policy:</strong> If you find your item to be incompatible, returns must be done through the platform you purchased it from. Please mark it as "bought in error" when requesting a return.
-                                        </li>
-                                        <li style="margin-bottom: 12px;">
-                                            <strong>Provide contact information:</strong> You'll need to provide your contact details for warranty activation.
-                                        </li>
-                                        <li>
-                                            <strong>Complete registration:</strong> Finish the registration process to activate your warranty.
-                                        </li>
-                                    </ol>
-                                </div>
-                                
-                                <!-- Important Warning -->
-                                <div class="warranty-warning" style="margin-top: 20px;">
-                                    <strong>⚠️ Important:</strong> Do NOT open your product packaging until you have verified this is the correct item, confirmed compatibility with your existing parts, verified authenticity, and confirmed the condition is acceptable.
+                                <!-- Step-by-Step Verification -->
+                                <div id="verificationSteps" style="margin-top: 24px;">
+                                    <div style="text-align: center; margin-bottom: 20px;">
+                                        <span style="color: #6c757d; font-size: 0.9rem;">Verification Step <span id="currentVerificationStep">1</span> of <span id="totalVerificationSteps">4</span></span>
+                                    </div>
+                                    
+                                    <!-- Step 1: Compatibility Check -->
+                                    <div class="verification-step" data-step="1" style="display: none;">
+                                        <div style="background: white; border: 2px solid #e8ecf1; border-radius: 12px; padding: 24px;">
+                                            <h4 style="margin-top: 0; color: #1a1a1a; font-size: 1.1rem; margin-bottom: 12px;">Are your existing parts compatible?</h4>
+                                            <p style="color: #6c757d; margin-bottom: 16px; line-height: 1.6;">
+                                                You purchased <strong style="color: #284064;" id="purchasedPartNumber">-</strong>. 
+                                                Make sure you have parts <strong style="color: #284064;" id="compatiblePartNumbers">-</strong>.
+                                            </p>
+                                            <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 12px; background: #f8f9fa; border-radius: 8px;">
+                                                <input type="checkbox" id="verifyCompatibility" style="width: 20px; height: 20px; cursor: pointer;">
+                                                <span style="color: #1a1a1a; font-weight: 500;">Yes, my existing parts are compatible</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Step 2: Authenticity Check -->
+                                    <div class="verification-step" data-step="2" style="display: none;">
+                                        <div style="background: white; border: 2px solid #e8ecf1; border-radius: 12px; padding: 24px;">
+                                            <h4 style="margin-top: 0; color: #1a1a1a; font-size: 1.1rem; margin-bottom: 12px;">Are your existing parts authentic?</h4>
+                                            <p style="color: #6c757d; margin-bottom: 16px; line-height: 1.6;">
+                                                Check inside your case (or under the ear pieces) for these markings:
+                                            </p>
+                                            <div style="background: #f8f9fa; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                                    <strong style="color: #284064;">✓</strong>
+                                                    <span>Markings: <strong>CE</strong> and <strong>R-NZ</strong></span>
+                                                </div>
+                                                <div style="display: flex; align-items: center; gap: 8px;">
+                                                    <strong style="color: #284064;">✓</strong>
+                                                    <span>Different serial numbers on each part</span>
+                                                </div>
+                                            </div>
+                                            <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 12px; background: #f8f9fa; border-radius: 8px;">
+                                                <input type="checkbox" id="verifyAuthenticity" style="width: 20px; height: 20px; cursor: pointer;">
+                                                <span style="color: #1a1a1a; font-weight: 500;">Yes, my parts have the correct markings</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Step 3: Condition Check -->
+                                    <div class="verification-step" data-step="3" style="display: none;">
+                                        <div style="background: white; border: 2px solid #e8ecf1; border-radius: 12px; padding: 24px;">
+                                            <h4 style="margin-top: 0; color: #1a1a1a; font-size: 1.1rem; margin-bottom: 12px;">Are you happy with the product condition?</h4>
+                                            <p style="color: #6c757d; margin-bottom: 16px; line-height: 1.6;">
+                                                Review the product photos above. Check that the condition matches what you expected.
+                                            </p>
+                                            <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 12px; background: #f8f9fa; border-radius: 8px;">
+                                                <input type="checkbox" id="verifyCondition" style="width: 20px; height: 20px; cursor: pointer;">
+                                                <span style="color: #1a1a1a; font-weight: 500;">Yes, the condition is acceptable</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Step 4: Final Confirmation -->
+                                    <div class="verification-step" data-step="4" style="display: none;">
+                                        <div style="background: white; border: 2px solid #e8ecf1; border-radius: 12px; padding: 24px;">
+                                            <h4 style="margin-top: 0; color: #1a1a1a; font-size: 1.1rem; margin-bottom: 12px;">Ready to proceed?</h4>
+                                            <p style="color: #6c757d; margin-bottom: 16px; line-height: 1.6;">
+                                                If you need to return this item, do so through the platform you purchased it from and mark it as "bought in error".
+                                            </p>
+                                            <div class="warranty-warning" style="margin-bottom: 16px;">
+                                                <strong>⚠️ Remember:</strong> Do NOT open the packaging until you're certain this is the correct item.
+                                            </div>
+                                            <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 12px; background: #f8f9fa; border-radius: 8px;">
+                                                <input type="checkbox" id="verifyReady" style="width: 20px; height: 20px; cursor: pointer;">
+                                                <span style="color: #1a1a1a; font-weight: 500;">I'm ready to continue with registration</span>
+                                            </label>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
