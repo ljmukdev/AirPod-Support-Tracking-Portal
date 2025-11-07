@@ -8,10 +8,15 @@ var API_BASE = window.API_BASE;
 // State Management
 const appState = {
     currentStep: 1,
-    totalSteps: 5,
+    totalSteps: 6,
     securityCode: '',
     failedAttempts: 0,
     productData: null,
+    contactDetails: {
+        name: '',
+        email: '',
+        phone: ''
+    },
     selectedWarranty: '6month',
     selectedAccessories: [],
     setupStepsCompleted: [],
@@ -97,52 +102,15 @@ function initializePage() {
             if (barcodeFromUrl) {
                 // Coming from index.html - code already validated, skip step 1
                 appState.skippedStep1 = true;
-                appState.currentStep = 2;
+                appState.currentStep = 2; // Start at contact details step
                 
-                // Load product info first, then show step 2 with content
-                console.log('Starting to load product info for barcode:', barcode);
-                loadProductInfo(barcode, true).then((data) => {
-                    console.log('Product info loaded successfully, data:', data);
-                    // Product info loaded, now show step 2
-                    console.log('About to call showStep(2)');
-                    showStep(2);
-                    
-                    // Double-check warranty confirmation is visible
-                    setTimeout(() => {
-                        const confirmationEl = document.getElementById('warrantyConfirmation');
-                        const animationEl = document.getElementById('successAnimation');
-                        const step2El = document.getElementById('step2');
-                        
-                        console.log('Step 2 element:', step2El);
-                        console.log('Step 2 display style:', step2El ? window.getComputedStyle(step2El).display : 'not found');
-                        console.log('Warranty confirmation element:', confirmationEl);
-                        console.log('Warranty confirmation display:', confirmationEl ? window.getComputedStyle(confirmationEl).display : 'not found');
-                        
-                        if (confirmationEl) {
-                            confirmationEl.style.display = 'block';
-                        }
-                        if (animationEl) {
-                            animationEl.classList.remove('show');
-                            animationEl.style.display = 'none';
-                        }
-                        if (step2El) {
-                            step2El.style.display = 'block';
-                            step2El.classList.add('active');
-                        }
-                    }, 100);
-                    
-                    console.log('Step 2 displayed with product info');
-                }).catch((error) => {
+                // Load product info in background (needed for step 3)
+                loadProductInfo(barcode, true).catch((error) => {
                     console.error('Failed to load product info:', error);
-                    // If product load fails, show step 1 for manual entry
-                    appState.skippedStep1 = false;
-                    appState.currentStep = 1;
-                    const step1 = document.getElementById('step1');
-                    if (step1) {
-                        step1.style.display = 'block';
-                    }
-                    showStep(1);
                 });
+                
+                // Show contact details step immediately
+                showStep(2);
             } else {
                 // Pre-fill security code input (from sessionStorage)
                 const step1 = document.getElementById('step1');
@@ -207,7 +175,7 @@ function setupEventListeners() {
     
     // Continue buttons
     document.getElementById('continueBtn1')?.addEventListener('click', validateSecurityCode);
-    document.getElementById('continueBtn2')?.addEventListener('click', () => showStep(3));
+    document.getElementById('continueBtn2')?.addEventListener('click', handleContactDetailsSubmit);
     document.getElementById('continueBtn3')?.addEventListener('click', () => {
         trackEvent('warranty_selected', { plan: appState.selectedWarranty });
         showStep(4);
@@ -216,7 +184,11 @@ function setupEventListeners() {
         trackEvent('accessories_selected', { items: appState.selectedAccessories });
         showStep(5);
     });
-    document.getElementById('continueBtn5')?.addEventListener('click', finishSetup);
+    document.getElementById('continueBtn5')?.addEventListener('click', () => {
+        trackEvent('accessories_selected', { items: appState.selectedAccessories });
+        showStep(6);
+    });
+    document.getElementById('continueBtn6')?.addEventListener('click', finishSetup);
     
     // Warranty selection
     document.querySelectorAll('.warranty-card').forEach(card => {
@@ -234,7 +206,7 @@ function setupEventListeners() {
         e.preventDefault();
         appState.selectedWarranty = 'none';
         trackEvent('warranty_skipped');
-        showStep(4);
+        showStep(5);
     });
     
     // Accessory selection
@@ -257,7 +229,7 @@ function setupEventListeners() {
     document.getElementById('skipAccessories')?.addEventListener('click', (e) => {
         e.preventDefault();
         trackEvent('accessories_skipped');
-        showStep(5);
+        showStep(6);
     });
     
     // Setup step checkboxes
@@ -269,23 +241,23 @@ function setupEventListeners() {
                     appState.setupStepsCompleted.push(stepNum);
                     saveState();
                     
-                    // Show next step
-                    const nextStep = document.querySelector(`.setup-step[data-step-num="${stepNum + 1}"]`);
-                    if (nextStep) {
-                        setTimeout(() => {
-                            nextStep.classList.add('active');
-                        }, 300);
-                    } else {
-                        // All steps completed
-                        document.getElementById('continueBtn5').style.display = 'block';
-                        
-                        // Show last chance popup if no warranty selected
-                        if (appState.selectedWarranty === 'none') {
-        setTimeout(() => {
-                                showLastChancePopup();
-                            }, 1000);
+                        // Show next step
+                        const nextStep = document.querySelector(`.setup-step[data-step-num="${stepNum + 1}"]`);
+                        if (nextStep) {
+                            setTimeout(() => {
+                                nextStep.classList.add('active');
+                            }, 300);
+                        } else {
+                            // All steps completed
+                            document.getElementById('continueBtn6').style.display = 'block';
+                            
+                            // Show last chance popup if no warranty selected
+                            if (appState.selectedWarranty === 'none') {
+                                setTimeout(() => {
+                                    showLastChancePopup();
+                                }, 1000);
+                            }
                         }
-                    }
                 }
             }
         });
@@ -378,6 +350,81 @@ async function validateSecurityCode() {
     } finally {
         continueBtn.disabled = false;
         continueBtn.textContent = 'Continue';
+    }
+}
+
+// Handle contact details submission
+function handleContactDetailsSubmit() {
+    const name = document.getElementById('contactName').value.trim();
+    const email = document.getElementById('contactEmail').value.trim();
+    const phone = document.getElementById('contactPhone').value.trim();
+    
+    // Validate
+    if (!name || !email || !phone) {
+        alert('Please fill in all required fields');
+        return;
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        alert('Please enter a valid email address');
+        return;
+    }
+    
+    // Save contact details
+    appState.contactDetails = { name, email, phone };
+    saveState();
+    
+    // Register warranty with contact details
+    registerWarranty().then(() => {
+        // Show success animation and warranty confirmation
+        showStep(3);
+        showSuccessAnimation();
+        setTimeout(() => {
+            const confirmationEl = document.getElementById('warrantyConfirmation');
+            if (confirmationEl) {
+                confirmationEl.style.display = 'block';
+            }
+        }, 2000);
+    }).catch((error) => {
+        console.error('Failed to register warranty:', error);
+        alert('Failed to register warranty. Please try again.');
+    });
+}
+
+// Register warranty with contact details
+async function registerWarranty() {
+    try {
+        const response = await fetch(`${API_BASE}/api/register-warranty`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                security_barcode: appState.securityCode,
+                name: appState.contactDetails.name,
+                email: appState.contactDetails.email,
+                phone: appState.contactDetails.phone,
+                product_data: appState.productData
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            console.log('Warranty registered successfully');
+            trackEvent('warranty_registered', {
+                name: appState.contactDetails.name,
+                email: appState.contactDetails.email
+            });
+            return Promise.resolve(data);
+        } else {
+            return Promise.reject(new Error(data.error || 'Failed to register warranty'));
+        }
+    } catch (error) {
+        console.error('Error registering warranty:', error);
+        return Promise.reject(error);
     }
 }
 
@@ -544,7 +591,7 @@ function showStep(stepNumber) {
         }
         
         // Start countdown timer on warranty step
-        if (stepNumber === 3) {
+        if (stepNumber === 4) {
             setTimeout(() => startCountdownTimer(), 100);
         }
         
@@ -586,6 +633,7 @@ function updateProgressIndicator() {
         }
         
         // Adjust step number display if step 1 was skipped
+        // When step 1 is skipped: Step 2 becomes "Step 1 of 5", Step 3 becomes "Step 2 of 5", etc.
         const displayStep = appState.skippedStep1 ? appState.currentStep - 1 : appState.currentStep;
         const displayTotal = appState.skippedStep1 ? appState.totalSteps - 1 : appState.totalSteps;
         progressText.textContent = `Step ${displayStep} of ${displayTotal}`;
@@ -739,7 +787,7 @@ function showLastChancePopup() {
         appState.selectedWarranty = '3month';
         trackEvent('last_chance_accepted');
         popup.remove();
-        showStep(3);
+        showStep(4);
     });
     
     document.getElementById('declineLastChance').addEventListener('click', () => {

@@ -13,8 +13,8 @@
                 var el = document.createElement('div');
                 el.id = 'version-display';
                 el.style.cssText = 'position:fixed;top:10px;right:10px;font-size:0.7rem;color:rgba(0,0,0,0.7);font-family:"Courier New",monospace;z-index:99999;padding:4px 8px;background:rgba(255,255,255,0.9);border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.2);pointer-events:none;';
-                el.textContent = 'v1.2.0.016';
-                el.title = 'Version 1.2.0 (Revision 016)';
+                el.textContent = 'v1.2.0.017';
+                el.title = 'Version 1.2.0 (Revision 017)';
                 if (document.body) {
                     document.body.appendChild(el);
                 } else {
@@ -44,21 +44,9 @@
             overflow-x: hidden;
         }
         
-        /* Focus Overlay */
+        /* Focus Overlay - Removed grey overlay */
         .focus-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.3);
-            z-index: 50;
-            display: none;
-            pointer-events: none;
-        }
-        
-        .focus-overlay.active {
-            display: block;
+            display: none !important;
         }
         
         /* Header Styles */
@@ -820,8 +808,54 @@
                     })();
                 </script>
                 
-                <!-- Step 2: Success Animation & Warranty Confirmation -->
+                <!-- Step 2: Contact Details -->
                 <div class="step-container" id="step2" data-step="2">
+                    <div class="security-code-section">
+                        <h2>Contact Information</h2>
+                        <p class="subtitle">Please provide your contact details to activate your warranty</p>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <label for="contactName" style="display: block; margin-bottom: 8px; color: #1a1a1a; font-weight: 500;">Full Name *</label>
+                            <input 
+                                type="text" 
+                                id="contactName" 
+                                class="security-input" 
+                                placeholder="John Doe" 
+                                required
+                                style="text-align: left; padding-left: 16px; letter-spacing: normal; text-transform: none;"
+                            >
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <label for="contactEmail" style="display: block; margin-bottom: 8px; color: #1a1a1a; font-weight: 500;">Email Address *</label>
+                            <input 
+                                type="email" 
+                                id="contactEmail" 
+                                class="security-input" 
+                                placeholder="john@example.com" 
+                                required
+                                style="text-align: left; padding-left: 16px; letter-spacing: normal; text-transform: none;"
+                            >
+                        </div>
+                        
+                        <div style="margin-bottom: 24px;">
+                            <label for="contactPhone" style="display: block; margin-bottom: 8px; color: #1a1a1a; font-weight: 500;">Phone Number *</label>
+                            <input 
+                                type="tel" 
+                                id="contactPhone" 
+                                class="security-input" 
+                                placeholder="+44 7700 900123" 
+                                required
+                                style="text-align: left; padding-left: 16px; letter-spacing: normal; text-transform: none;"
+                            >
+                        </div>
+                        
+                        <button class="continue-btn" id="continueBtn2">Continue</button>
+                    </div>
+                </div>
+                
+                <!-- Step 3: Success Animation & Warranty Confirmation -->
+                <div class="step-container" id="step3" data-step="3">
                     <div class="success-animation" id="successAnimation">
                         <div class="success-icon">✓</div>
                         <h2 style="color: #28a745;">Success!</h2>
@@ -836,12 +870,12 @@
                         <div class="warranty-warning">
                             <strong>⚠️ Important:</strong> Standard warranty only covers 30 days - most issues occur after day 31
                         </div>
-                        <button class="continue-btn" id="continueBtn2">Continue to Extended Protection</button>
+                        <button class="continue-btn" id="continueBtn3">Continue to Extended Protection</button>
                     </div>
                 </div>
                 
-                <!-- Step 3: Extended Warranty Options -->
-                <div class="step-container" id="step3" data-step="3">
+                <!-- Step 4: Extended Warranty Options -->
+                <div class="step-container" id="step4" data-step="4">
                     <h2 style="text-align: center; margin-bottom: 8px;">Choose Your Protection Plan</h2>
                     <p style="text-align: center; color: #6c757d; margin-bottom: 32px;">Select the coverage that works best for you</p>
                     
@@ -878,11 +912,11 @@
                         <a href="#" id="skipWarranty">Continue without protection</a>
                     </div>
                     
-                    <button class="continue-btn" id="continueBtn3">Continue</button>
+                    <button class="continue-btn" id="continueBtn4">Continue</button>
                 </div>
                 
-                <!-- Step 4: Accessory Upsell -->
-                <div class="step-container" id="step4" data-step="4">
+                <!-- Step 5: Accessory Upsell -->
+                <div class="step-container" id="step5" data-step="5">
                     <h2 style="text-align: center; margin-bottom: 8px;">Complete Your Setup</h2>
                     <p style="text-align: center; color: #6c757d; margin-bottom: 32px;">Frequently bought together</p>
                     
@@ -916,11 +950,11 @@
                         <a href="#" id="skipAccessories">Skip accessories</a>
                     </div>
                     
-                    <button class="continue-btn" id="continueBtn4">Continue</button>
+                    <button class="continue-btn" id="continueBtn5">Continue</button>
                 </div>
                 
-                <!-- Step 5: Setup Instructions -->
-                <div class="step-container" id="step5" data-step="5">
+                <!-- Step 6: Setup Instructions -->
+                <div class="step-container" id="step6" data-step="6">
                     <h2 style="text-align: center; margin-bottom: 32px;">Setup Instructions</h2>
                     <div class="setup-steps" id="setupSteps">
                         <div class="setup-step active" data-step-num="1">
@@ -964,7 +998,7 @@
                             </div>
                         </div>
                     </div>
-                    <button class="continue-btn" id="continueBtn5" style="display: none;">Finish Setup</button>
+                    <button class="continue-btn" id="continueBtn6" style="display: none;">Finish Setup</button>
                 </div>
             </div>
         </div>
@@ -982,7 +1016,7 @@
         </div>
     </div>
 
-    <script src="js/warranty-registration.js?v=1.2.0.015"></script>
+    <script src="js/warranty-registration.js?v=1.2.0.017"></script>
     <script src="js/version.js"></script>
 </body>
 </html>
