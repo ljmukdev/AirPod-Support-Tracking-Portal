@@ -93,23 +93,25 @@ function initializePage() {
             if (barcodeFromUrl) {
                 // Coming from index.html - code already validated, skip step 1
                 appState.skippedStep1 = true;
-                appState.currentStep = 2; // Start at step 2
-                // Show step 2 immediately so container is visible
-                showStep(2);
-                // Immediately show warranty confirmation and hide animation (will be populated by loadProductInfo)
-                const confirmationEl = document.getElementById('warrantyConfirmation');
-                const animationEl = document.getElementById('successAnimation');
-                if (confirmationEl) {
-                    confirmationEl.style.display = 'block';
-                }
-                if (animationEl) {
-                    animationEl.classList.remove('show');
-                    animationEl.style.display = 'none';
-                }
-                // Load product info (skip animation since already validated)
+                appState.currentStep = 2;
+                
+                // Load product info first, then show step 2 with content
                 loadProductInfo(barcode, true).then(() => {
-                    // Product info loaded and displayed, warranty confirmation already visible
-                    console.log('Product info loaded and displayed successfully');
+                    // Product info loaded, now show step 2
+                    showStep(2);
+                    
+                    // Ensure warranty confirmation is visible
+                    const confirmationEl = document.getElementById('warrantyConfirmation');
+                    const animationEl = document.getElementById('successAnimation');
+                    if (confirmationEl) {
+                        confirmationEl.style.display = 'block';
+                    }
+                    if (animationEl) {
+                        animationEl.classList.remove('show');
+                        animationEl.style.display = 'none';
+                    }
+                    
+                    console.log('Step 2 displayed with product info');
                 }).catch((error) => {
                     console.error('Failed to load product info:', error);
                     // If product load fails, show step 1 for manual entry
@@ -478,18 +480,24 @@ function displayProductInfo(data) {
 
 // Show step
 function showStep(stepNumber) {
+    console.log('showStep called with stepNumber:', stepNumber);
+    
     // Hide all steps
     document.querySelectorAll('.step-container').forEach(step => {
         step.classList.remove('active');
+        step.style.display = 'none'; // Ensure hidden
     });
     
     // Show current step
     const currentStep = document.getElementById(`step${stepNumber}`);
     if (currentStep) {
         currentStep.classList.add('active');
+        currentStep.style.display = 'block'; // Force display
         appState.currentStep = stepNumber;
         saveState();
         updateProgressIndicator();
+        
+        console.log('Step', stepNumber, 'is now active and visible');
         
         // Track step view
         trackEvent('step_viewed', { step: stepNumber });
@@ -517,6 +525,8 @@ function showStep(stepNumber) {
         
         // Scroll to top
         window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+        console.error('Step container not found for step', stepNumber);
     }
 }
 
