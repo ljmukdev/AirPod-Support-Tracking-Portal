@@ -1,7 +1,7 @@
 {
   "version": "1.2.0",
   "build": "2024-12-19",
-  "revision": "022",
+  "revision": "023",
   "changelog": [
     {
       "version": "1.2.0",
@@ -32,7 +32,9 @@
         "Removed security code entry section when coming from home page",
         "Updated step 1 with detailed compatibility and authenticity verification instructions",
         "Added dynamic compatible part number display based on purchased product",
-        "Enhanced guidance with CE/R-NZ marking verification and serial number checks"
+        "Enhanced guidance with CE/R-NZ marking verification and serial number checks",
+        "Redesigned verification into interactive step-by-step flow with one question at a time",
+        "Added auto-advance between verification steps with checkbox completion"
       ]
     },
     {
