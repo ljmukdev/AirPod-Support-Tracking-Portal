@@ -16,7 +16,8 @@ const appState = {
     selectedAccessories: [],
     setupStepsCompleted: [],
     exitIntentShown: false,
-    sessionStartTime: Date.now()
+    sessionStartTime: Date.now(),
+    skippedStep1: false // Track if step 1 was skipped (coming from home page)
 };
 
 // Load saved state from localStorage
@@ -30,6 +31,13 @@ function loadSavedState() {
         // Resume if within 24 hours
         if (hoursSince < 24 && state.currentStep > 1) {
             Object.assign(appState, state);
+            // Hide step 1 if it was skipped
+            if (appState.skippedStep1) {
+                const step1 = document.getElementById('step1');
+                if (step1) {
+                    step1.style.display = 'none';
+                }
+            }
             return true;
         }
     }
@@ -70,18 +78,28 @@ function initializePage() {
         
         if (barcode) {
             appState.securityCode = barcode;
-            // If coming from index.html with validated code, skip to step 2
-            // Otherwise show step 1 for manual entry
+            // If coming from index.html with validated code, skip step 1 entirely
             if (urlParams.get('barcode')) {
-                // Coming from index.html - code already validated, skip to step 2
+                // Coming from index.html - code already validated, skip step 1
+                appState.skippedStep1 = true;
+                appState.currentStep = 2; // Start at step 2
+                // Hide step 1 container
+                const step1 = document.getElementById('step1');
+                if (step1) {
+                    step1.style.display = 'none';
+                }
+                // Load product info and show step 2
                 loadProductInfo(barcode, false).then(() => {
                     showStep(2);
                 }).catch(() => {
                     // If product load fails, show step 1 for manual entry
+                    appState.skippedStep1 = false;
+                    appState.currentStep = 1;
+                    if (step1) step1.style.display = 'block';
                     showStep(1);
                 });
             } else {
-                // Pre-fill security code input
+                // Pre-fill security code input (from sessionStorage)
                 const securityInput = document.getElementById('securityCodeInput');
                 if (securityInput) {
                     let formatted = barcode.replace(/[^\w]/g, '').toUpperCase();
@@ -95,7 +113,7 @@ function initializePage() {
                 showStep(1);
             }
         } else {
-            // Start at step 1 - security code entry
+            // Start at step 1 - security code entry (direct navigation)
             showStep(1);
         }
     }
@@ -441,7 +459,9 @@ function showStep(stepNumber) {
         trackEvent('step_viewed', { step: stepNumber });
         
         // Enable/disable navigation locking
-        if (stepNumber > 1 && stepNumber < appState.totalSteps) {
+        // Lock navigation from step 2 onwards (or step 1 if not skipped)
+        const lockStartStep = appState.skippedStep1 ? 2 : 1;
+        if (stepNumber >= lockStartStep && stepNumber < appState.totalSteps) {
             enableNavigationLock();
             enableFocusOverlay();
         } else {
@@ -470,12 +490,15 @@ function updateProgressIndicator() {
     const progressSteps = document.getElementById('progressSteps');
     const progressText = document.getElementById('progressText');
     
-    if (appState.currentStep > 1) {
+    if (appState.currentStep > 1 || appState.skippedStep1) {
         progressIndicator.style.display = 'block';
         
-        // Create progress steps
+        // Create progress steps (adjust if step 1 was skipped)
         progressSteps.innerHTML = '';
-        for (let i = 1; i <= appState.totalSteps; i++) {
+        const startStep = appState.skippedStep1 ? 2 : 1;
+        const displaySteps = appState.skippedStep1 ? appState.totalSteps - 1 : appState.totalSteps;
+        
+        for (let i = startStep; i <= appState.totalSteps; i++) {
             const step = document.createElement('div');
             step.className = 'progress-step';
             if (i < appState.currentStep) {
@@ -486,7 +509,10 @@ function updateProgressIndicator() {
             progressSteps.appendChild(step);
         }
         
-        progressText.textContent = `Step ${appState.currentStep} of ${appState.totalSteps}`;
+        // Adjust step number display if step 1 was skipped
+        const displayStep = appState.skippedStep1 ? appState.currentStep - 1 : appState.currentStep;
+        const displayTotal = appState.skippedStep1 ? appState.totalSteps - 1 : appState.totalSteps;
+        progressText.textContent = `Step ${displayStep} of ${displayTotal}`;
     } else {
         progressIndicator.style.display = 'none';
     }
@@ -498,7 +524,8 @@ function setupNavigationLocking() {
     const navLinks = document.querySelectorAll('.nav-link');
     navLinks.forEach(link => {
         link.addEventListener('click', function(e) {
-            if (appState.currentStep > 1 && appState.currentStep < appState.totalSteps) {
+            const lockStartStep = appState.skippedStep1 ? 2 : 1;
+            if (appState.currentStep >= lockStartStep && appState.currentStep < appState.totalSteps) {
                 e.preventDefault();
                 showExitWarning();
             }
@@ -508,7 +535,8 @@ function setupNavigationLocking() {
     // Prevent back button
     window.history.pushState(null, '', window.location.href);
     window.onpopstate = function() {
-        if (appState.currentStep > 1 && appState.currentStep < appState.totalSteps) {
+        const lockStartStep = appState.skippedStep1 ? 2 : 1;
+        if (appState.currentStep >= lockStartStep && appState.currentStep < appState.totalSteps) {
             showExitWarning();
             window.history.pushState(null, '', window.location.href);
         }
@@ -554,7 +582,8 @@ function setupExitIntent() {
     
     // Mouse movement toward top of page
     document.addEventListener('mousemove', function(e) {
-        if (e.clientY < 50 && appState.currentStep > 1 && appState.currentStep < appState.totalSteps) {
+        const lockStartStep = appState.skippedStep1 ? 2 : 1;
+        if (e.clientY < 50 && appState.currentStep >= lockStartStep && appState.currentStep < appState.totalSteps) {
             if (!exitIntentTriggered && !appState.exitIntentShown) {
                 exitIntentTriggered = true;
                 showExitWarning();
@@ -661,7 +690,8 @@ function finishSetup() {
 
 // Prevent clicking outside active section
 document.addEventListener('click', function(e) {
-    if (appState.currentStep > 1 && appState.currentStep < appState.totalSteps) {
+    const lockStartStep = appState.skippedStep1 ? 2 : 1;
+    if (appState.currentStep >= lockStartStep && appState.currentStep < appState.totalSteps) {
         const activeSection = document.querySelector('.step-container.active');
         if (activeSection && !activeSection.contains(e.target) && !e.target.closest('.header') && !e.target.closest('.progress-indicator')) {
             e.preventDefault();
