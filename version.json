@@ -1,7 +1,7 @@
 {
   "version": "1.2.0",
   "build": "2024-12-19",
-  "revision": "023",
+  "revision": "024",
   "changelog": [
     {
       "version": "1.2.0",
@@ -34,7 +34,8 @@
         "Added dynamic compatible part number display based on purchased product",
         "Enhanced guidance with CE/R-NZ marking verification and serial number checks",
         "Redesigned verification into interactive step-by-step flow with one question at a time",
-        "Added auto-advance between verification steps with checkbox completion"
+        "Added auto-advance between verification steps with checkbox completion",
+        "Added visual CE and R-NZ compliance logos to step 2 authenticity verification"
       ]
     },
     {
