@@ -1,7 +1,7 @@
 {
   "version": "1.2.0",
   "build": "2024-12-19",
-  "revision": "024",
+  "revision": "025",
   "changelog": [
     {
       "version": "1.2.0",
@@ -35,7 +35,8 @@
         "Enhanced guidance with CE/R-NZ marking verification and serial number checks",
         "Redesigned verification into interactive step-by-step flow with one question at a time",
         "Added auto-advance between verification steps with checkbox completion",
-        "Added visual CE and R-NZ compliance logos to step 2 authenticity verification"
+        "Added visual CE and R-NZ compliance logos to step 2 authenticity verification",
+        "Added visual diagram showing where to find markings on AirPod case lid and earbuds"
       ]
     },
     {
