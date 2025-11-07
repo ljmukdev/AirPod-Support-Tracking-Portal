@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300">
+  <!-- Background -->
+  <rect width="400" height="300" fill="#fff9c4" rx="8"/>
+  
+  <!-- Case Base -->
+  <rect x="100" y="150" width="200" height="120" rx="15" fill="white" stroke="#1a1a1a" stroke-width="2"/>
+  
+  <!-- Case Lid (Open) -->
+  <rect x="100" y="80" width="200" height="80" rx="15" fill="white" stroke="#1a1a1a" stroke-width="2" opacity="0.95"/>
+  
+  <!-- Left Indentation (where left AirPod sits) -->
+  <ellipse cx="150" cy="120" rx="35" ry="25" fill="#f5f5f5" stroke="#d0d0d0" stroke-width="1"/>
+  
+  <!-- Right Indentation (where right AirPod sits) -->
+  <ellipse cx="250" cy="120" rx="35" ry="25" fill="#f5f5f5" stroke="#d0d0d0" stroke-width="1"/>
+  
+  <!-- CE Mark in left indentation -->
+  <text x="150" y="115" font-family="Arial, sans-serif" font-size="16" text-anchor="middle" fill="#666" font-weight="bold" letter-spacing="-2px">CE</text>
+  
+  <!-- AR-NZ Logo in right indentation (matching actual appearance) -->
+  <g transform="translate(250, 110)">
+    <!-- Circle with A and R inside -->
+    <circle cx="0" cy="0" r="11" fill="none" stroke="#666" stroke-width="1.2"/>
+    <text x="-5" y="3" font-family="Arial, sans-serif" font-size="9" fill="#666" font-weight="bold">A</text>
+    <text x="3" y="3" font-family="Arial, sans-serif" font-size="9" fill="#666" font-weight="bold">R</text>
+    <!-- NZ text below circle -->
+    <text x="0" y="16" font-family="Arial, sans-serif" font-size="8" text-anchor="middle" fill="#666" font-weight="bold">NZ</text>
+  </g>
+  
+  <!-- Arrow pointing to lid -->
+  <path d="M 200 60 L 200 85" stroke="#284064" stroke-width="2.5" fill="none" marker-end="url(#arrowhead)"/>
+  <text x="205" y="70" font-family="Arial, sans-serif" font-size="13" fill="#284064" font-weight="600">Inside Lid</text>
+  
+  <!-- Label -->
+  <text x="200" y="290" font-family="Arial, sans-serif" font-size="16" text-anchor="middle" fill="#1a1a1a" font-weight="600">Charging Case - Open Lid</text>
+  
+  <!-- Arrow marker definition -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="5" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#284064"/>
+    </marker>
+  </defs>
+</svg>
+
