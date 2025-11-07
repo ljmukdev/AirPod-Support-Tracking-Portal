@@ -8,7 +8,7 @@ var API_BASE = window.API_BASE;
 // State Management
 const appState = {
     currentStep: 1,
-    totalSteps: 6,
+    totalSteps: 7,
     securityCode: '',
     failedAttempts: 0,
     productData: null,
@@ -102,15 +102,25 @@ function initializePage() {
             if (barcodeFromUrl) {
                 // Coming from index.html - code already validated, skip step 1
                 appState.skippedStep1 = true;
-                appState.currentStep = 2; // Start at contact details step
+                appState.currentStep = 2; // Start at product review step
                 
-                // Load product info in background (needed for step 3)
-                loadProductInfo(barcode, true).catch((error) => {
+                // Load product info and show product review
+                loadProductInfo(barcode, true).then((data) => {
+                    // Display product info in review step
+                    displayProductInfoForReview(data);
+                    // Show product review step
+                    showStep(2);
+                }).catch((error) => {
                     console.error('Failed to load product info:', error);
+                    // If product load fails, show step 1 for manual entry
+                    appState.skippedStep1 = false;
+                    appState.currentStep = 1;
+                    const step1 = document.getElementById('step1');
+                    if (step1) {
+                        step1.style.display = 'block';
+                    }
+                    showStep(1);
                 });
-                
-                // Show contact details step immediately
-                showStep(2);
             } else {
                 // Pre-fill security code input (from sessionStorage)
                 const step1 = document.getElementById('step1');
@@ -175,20 +185,25 @@ function setupEventListeners() {
     
     // Continue buttons
     document.getElementById('continueBtn1')?.addEventListener('click', validateSecurityCode);
-    document.getElementById('continueBtn2')?.addEventListener('click', handleContactDetailsSubmit);
-    document.getElementById('continueBtn3')?.addEventListener('click', () => {
-        trackEvent('warranty_selected', { plan: appState.selectedWarranty });
-        showStep(4);
+    document.getElementById('continueBtn2')?.addEventListener('click', () => {
+        // Product review complete, go to contact details
+        showStep(3);
     });
+    document.getElementById('continueBtn3')?.addEventListener('click', handleContactDetailsSubmit);
     document.getElementById('continueBtn4')?.addEventListener('click', () => {
-        trackEvent('accessories_selected', { items: appState.selectedAccessories });
+        // Warranty confirmed, go to extended warranty upsell
+        trackEvent('warranty_confirmed');
         showStep(5);
     });
     document.getElementById('continueBtn5')?.addEventListener('click', () => {
-        trackEvent('accessories_selected', { items: appState.selectedAccessories });
+        trackEvent('warranty_selected', { plan: appState.selectedWarranty });
         showStep(6);
     });
-    document.getElementById('continueBtn6')?.addEventListener('click', finishSetup);
+    document.getElementById('continueBtn6')?.addEventListener('click', () => {
+        trackEvent('accessories_selected', { items: appState.selectedAccessories });
+        showStep(7);
+    });
+    document.getElementById('continueBtn7')?.addEventListener('click', finishSetup);
     
     // Warranty selection
     document.querySelectorAll('.warranty-card').forEach(card => {
@@ -206,7 +221,7 @@ function setupEventListeners() {
         e.preventDefault();
         appState.selectedWarranty = 'none';
         trackEvent('warranty_skipped');
-        showStep(5);
+        showStep(6);
     });
     
     // Accessory selection
@@ -229,7 +244,7 @@ function setupEventListeners() {
     document.getElementById('skipAccessories')?.addEventListener('click', (e) => {
         e.preventDefault();
         trackEvent('accessories_skipped');
-        showStep(6);
+        showStep(7);
     });
     
     // Setup step checkboxes
@@ -249,11 +264,11 @@ function setupEventListeners() {
                             }, 300);
                         } else {
                             // All steps completed
-                            document.getElementById('continueBtn6').style.display = 'block';
+                            document.getElementById('continueBtn7').style.display = 'block';
                             
                             // Show last chance popup if no warranty selected
                             if (appState.selectedWarranty === 'none') {
-                                setTimeout(() => {
+        setTimeout(() => {
                                     showLastChancePopup();
                                 }, 1000);
                             }
@@ -262,6 +277,9 @@ function setupEventListeners() {
             }
         });
     });
+    
+    // Setup image modal event listeners
+    setupImageModalListeners();
 }
 
 // Handle security code input
@@ -320,14 +338,13 @@ async function validateSecurityCode() {
             
             trackEvent('security_code_validated');
             
-            // Show success animation
-            showSuccessAnimation();
-            
-            // Load product info and show step 2
-            setTimeout(() => {
-                loadProductInfo(securityCode, false);
+            // Load product info and show product review step
+            loadProductInfo(securityCode, false).then((data) => {
+                displayProductInfoForReview(data);
                 showStep(2);
-            }, 2000);
+            }).catch((error) => {
+                console.error('Failed to load product info:', error);
+            });
         } else {
             appState.failedAttempts++;
             saveState();
@@ -378,15 +395,15 @@ function handleContactDetailsSubmit() {
     
     // Register warranty with contact details
     registerWarranty().then(() => {
-        // Show success animation and warranty confirmation
-        showStep(3);
-        showSuccessAnimation();
-        setTimeout(() => {
-            const confirmationEl = document.getElementById('warrantyConfirmation');
-            if (confirmationEl) {
-                confirmationEl.style.display = 'block';
-            }
-        }, 2000);
+            // Show success animation and warranty confirmation
+            showStep(4);
+            showSuccessAnimation();
+            setTimeout(() => {
+                const confirmationEl = document.getElementById('warrantyConfirmation');
+                if (confirmationEl) {
+                    confirmationEl.style.display = 'block';
+                }
+            }, 2000);
     }).catch((error) => {
         console.error('Failed to register warranty:', error);
         alert('Failed to register warranty. Please try again.');
@@ -396,17 +413,19 @@ function handleContactDetailsSubmit() {
 // Register warranty with contact details
 async function registerWarranty() {
     try {
-        const response = await fetch(`${API_BASE}/api/register-warranty`, {
+        const response = await fetch(`${API_BASE}/api/warranty/register`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
                 security_barcode: appState.securityCode,
-                name: appState.contactDetails.name,
-                email: appState.contactDetails.email,
-                phone: appState.contactDetails.phone,
-                product_data: appState.productData
+                customer_name: appState.contactDetails.name,
+                customer_email: appState.contactDetails.email,
+                customer_phone: appState.contactDetails.phone,
+                extended_warranty: 'none', // Standard 30-day warranty
+                warranty_price: 0,
+                marketing_consent: false
             })
         });
         
@@ -523,16 +542,15 @@ async function loadProductInfo(barcode, skipValidation = false) {
     }
 }
 
-// Display product info
-function displayProductInfo(data) {
-                const partTypeMap = {
-                    'left': 'Left AirPod',
-                    'right': 'Right AirPod',
-                    'case': 'Charging Case'
-                };
-            const partType = partTypeMap[data.part_type] || data.part_type || 'Unknown';
-            const productTitle = `${partType}${data.generation ? ' - ' + data.generation : ''}`;
-            
+// Display product info for review step (with photos)
+function displayProductInfoForReview(data) {
+    const partTypeMap = {
+        'left': 'Left AirPod',
+        'right': 'Right AirPod',
+        'case': 'Charging Case'
+    };
+    const partType = partTypeMap[data.part_type] || data.part_type || 'Unknown';
+    
     const detailsHtml = `
         <div class="product-detail-item">
             <span class="detail-label">Item:</span>
@@ -552,7 +570,326 @@ function displayProductInfo(data) {
         </div>
     `;
     
-    document.getElementById('productDetailsDisplay').innerHTML = detailsHtml;
+    const reviewContainer = document.getElementById('productDetailsReview');
+    if (reviewContainer) {
+        reviewContainer.innerHTML = detailsHtml;
+    }
+    
+    // Setup photo carousel for review
+    setupPhotoCarouselForReview(data.photos || []);
+}
+
+// Setup photo carousel for review step
+function setupPhotoCarouselForReview(photoArray) {
+    const carouselSection = document.getElementById('photoCarouselReview');
+    const carouselContainer = document.getElementById('carouselContainerReview');
+    const carouselIndicators = document.getElementById('carouselIndicatorsReview');
+    
+    if (!carouselSection || !carouselContainer || !carouselIndicators) {
+        return;
+    }
+    
+    // Hide carousel if no photos
+    if (photoArray.length === 0) {
+        carouselSection.style.display = 'none';
+        return;
+    }
+    
+    // Show carousel
+    carouselSection.style.display = 'block';
+    
+    // Clear existing content
+    carouselContainer.innerHTML = '';
+    carouselIndicators.innerHTML = '';
+    
+    // Add photos to carousel
+    photoArray.forEach((photo, index) => {
+        const photoPath = photo.startsWith('/') ? photo : `/${photo}`;
+        
+        // Create photo element
+        const photoDiv = document.createElement('div');
+        photoDiv.className = 'carousel-photo';
+        photoDiv.dataset.index = index;
+        
+        const img = document.createElement('img');
+        img.src = photoPath;
+        img.alt = `Product photo ${index + 1}`;
+        img.onerror = function() {
+            photoDiv.style.display = 'none';
+        };
+        
+        photoDiv.appendChild(img);
+        photoDiv.addEventListener('click', () => openModal(index, photoArray));
+        carouselContainer.appendChild(photoDiv);
+        
+        // Create indicator
+        const indicator = document.createElement('div');
+        indicator.className = 'carousel-indicator' + (index === 0 ? ' active' : '');
+        indicator.dataset.index = index;
+        indicator.addEventListener('click', () => scrollToPhotoReview(index));
+        carouselIndicators.appendChild(indicator);
+    });
+    
+    // Setup carousel navigation
+    const prevButton = document.getElementById('carouselPrevReview');
+    const nextButton = document.getElementById('carouselNextReview');
+    
+    if (prevButton) {
+        prevButton.addEventListener('click', () => scrollCarouselReview(-1));
+    }
+    
+    if (nextButton) {
+        nextButton.addEventListener('click', () => scrollCarouselReview(1));
+    }
+    
+    // Update indicators and buttons on scroll
+    if (carouselContainer) {
+        carouselContainer.addEventListener('scroll', () => {
+            updateActiveIndicatorReview();
+            updateCarouselButtonsReview();
+        });
+    }
+    
+    // Update button states
+    updateCarouselButtonsReview();
+}
+
+// Carousel functions for review
+let currentReviewPhotoIndex = 0;
+let reviewPhotos = [];
+
+function scrollCarouselReview(direction) {
+    const container = document.getElementById('carouselContainerReview');
+    if (!container) return;
+    
+    const photoWidth = 150 + 12;
+    const scrollAmount = photoWidth * direction;
+    
+    container.scrollBy({
+        left: scrollAmount,
+        behavior: 'smooth'
+    });
+    
+    setTimeout(() => {
+        updateActiveIndicatorReview();
+    }, 300);
+}
+
+function scrollToPhotoReview(index) {
+    const container = document.getElementById('carouselContainerReview');
+    if (!container) return;
+    
+    const photoWidth = 150 + 12;
+    container.scrollTo({
+        left: photoWidth * index,
+        behavior: 'smooth'
+    });
+    
+    updateActiveIndicatorReview(index);
+}
+
+function updateActiveIndicatorReview(activeIndex) {
+    const indicators = document.querySelectorAll('#carouselIndicatorsReview .carousel-indicator');
+    const container = document.getElementById('carouselContainerReview');
+    
+    if (activeIndex === undefined && container) {
+        const scrollLeft = container.scrollLeft;
+        const photoWidth = 150 + 12;
+        activeIndex = Math.round(scrollLeft / photoWidth);
+    }
+    
+    indicators.forEach((indicator, index) => {
+        if (index === activeIndex) {
+            indicator.classList.add('active');
+        } else {
+            indicator.classList.remove('active');
+        }
+    });
+}
+
+function updateCarouselButtonsReview() {
+    const prevButton = document.getElementById('carouselPrevReview');
+    const nextButton = document.getElementById('carouselNextReview');
+    const container = document.getElementById('carouselContainerReview');
+    
+    if (!container) return;
+    
+    const isAtStart = container.scrollLeft <= 0;
+    const isAtEnd = container.scrollLeft >= container.scrollWidth - container.clientWidth - 10;
+    
+    if (prevButton) {
+        prevButton.disabled = isAtStart;
+    }
+    if (nextButton) {
+        nextButton.disabled = isAtEnd;
+    }
+}
+
+function openModal(index, photos) {
+    currentReviewPhotoIndex = index;
+    reviewPhotos = photos;
+    const modal = document.getElementById('imageModal');
+    const modalImage = document.getElementById('modalImage');
+    
+    if (!modal || !modalImage) return;
+    
+    const photo = photos[index];
+    if (!photo) return;
+    
+    const photoPath = photo.startsWith('/') ? photo : `/${photo}`;
+    modalImage.src = photoPath;
+    modal.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+    
+    // Update navigation button states
+    updateModalNavigation();
+}
+
+// Setup image modal event listeners
+function setupImageModalListeners() {
+    const modal = document.getElementById('imageModal');
+    const modalClose = document.getElementById('modalClose');
+    const modalPrev = document.getElementById('modalPrev');
+    const modalNext = document.getElementById('modalNext');
+    const modalOverlay = modal?.querySelector('.modal-overlay');
+    
+    // Close modal
+    if (modalClose) {
+        modalClose.addEventListener('click', closeModal);
+    }
+    
+    // Close on overlay click (but not on content)
+    if (modalOverlay) {
+        modalOverlay.addEventListener('click', function(e) {
+            // Only close if clicking directly on overlay, not on content
+            if (e.target === modalOverlay) {
+                closeModal();
+            }
+        });
+    }
+    
+    // Prevent modal content clicks from closing modal
+    const modalContent = modal?.querySelector('.modal-content');
+    if (modalContent) {
+        modalContent.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+    }
+    
+    // Previous image
+    if (modalPrev) {
+        modalPrev.addEventListener('click', function(e) {
+            e.stopPropagation();
+            navigateModal(-1);
+        });
+    }
+    
+    // Next image
+    if (modalNext) {
+        modalNext.addEventListener('click', function(e) {
+            e.stopPropagation();
+            navigateModal(1);
+        });
+    }
+    
+    // Keyboard navigation (Escape to close, arrow keys to navigate)
+    document.addEventListener('keydown', function(e) {
+        if (modal && modal.style.display === 'block') {
+            if (e.key === 'Escape') {
+                closeModal();
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                navigateModal(-1);
+            } else if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                navigateModal(1);
+            }
+        }
+    });
+}
+
+// Close modal
+function closeModal() {
+    const modal = document.getElementById('imageModal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+    }
+}
+
+// Navigate modal (prev/next)
+function navigateModal(direction) {
+    if (!reviewPhotos || reviewPhotos.length === 0) return;
+    
+    currentReviewPhotoIndex += direction;
+    
+    // Wrap around
+    if (currentReviewPhotoIndex < 0) {
+        currentReviewPhotoIndex = reviewPhotos.length - 1;
+    } else if (currentReviewPhotoIndex >= reviewPhotos.length) {
+        currentReviewPhotoIndex = 0;
+    }
+    
+    // Update image
+    const modalImage = document.getElementById('modalImage');
+    if (modalImage && reviewPhotos[currentReviewPhotoIndex]) {
+        const photo = reviewPhotos[currentReviewPhotoIndex];
+        const photoPath = photo.startsWith('/') ? photo : `/${photo}`;
+        modalImage.src = photoPath;
+    }
+    
+    // Update navigation button states
+    updateModalNavigation();
+}
+
+// Update modal navigation button states
+function updateModalNavigation() {
+    const modalPrev = document.getElementById('modalPrev');
+    const modalNext = document.getElementById('modalNext');
+    
+    if (!reviewPhotos || reviewPhotos.length <= 1) {
+        // Hide navigation if only one or no photos
+        if (modalPrev) modalPrev.style.display = 'none';
+        if (modalNext) modalNext.style.display = 'none';
+    } else {
+        // Show navigation buttons
+        if (modalPrev) modalPrev.style.display = 'flex';
+        if (modalNext) modalNext.style.display = 'flex';
+    }
+}
+
+// Display product info (for warranty confirmation step)
+function displayProductInfo(data) {
+    const partTypeMap = {
+        'left': 'Left AirPod',
+        'right': 'Right AirPod',
+        'case': 'Charging Case'
+    };
+    const partType = partTypeMap[data.part_type] || data.part_type || 'Unknown';
+    
+    const detailsHtml = `
+        <div class="product-detail-item">
+            <span class="detail-label">Item:</span>
+            <span class="detail-value">${partType}</span>
+        </div>
+        <div class="product-detail-item">
+            <span class="detail-label">Product Name:</span>
+            <span class="detail-value">${data.generation || 'N/A'}</span>
+        </div>
+        <div class="product-detail-item">
+            <span class="detail-label">Product Code:</span>
+            <span class="detail-value">${data.part_model_number || 'N/A'}</span>
+        </div>
+        <div class="product-detail-item">
+            <span class="detail-label">Serial Number:</span>
+            <span class="detail-value">${data.serial_number || 'N/A'}</span>
+        </div>
+    `;
+    
+    const displayContainer = document.getElementById('productDetailsDisplay');
+    if (displayContainer) {
+        displayContainer.innerHTML = detailsHtml;
+    }
 }
 
 // Show step
@@ -591,7 +928,7 @@ function showStep(stepNumber) {
         }
         
         // Start countdown timer on warranty step
-        if (stepNumber === 4) {
+        if (stepNumber === 5) {
             setTimeout(() => startCountdownTimer(), 100);
         }
         
@@ -787,7 +1124,7 @@ function showLastChancePopup() {
         appState.selectedWarranty = '3month';
         trackEvent('last_chance_accepted');
         popup.remove();
-        showStep(4);
+        showStep(5);
     });
     
     document.getElementById('declineLastChance').addEventListener('click', () => {

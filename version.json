@@ -1,7 +1,7 @@
 {
   "version": "1.2.0",
   "build": "2024-12-19",
-  "revision": "017",
+  "revision": "018",
   "changelog": [
     {
       "version": "1.2.0",
@@ -18,7 +18,9 @@
         "Added billing address collection for payment compliance",
         "Separated payment processing into dedicated 'Process Payment' button",
         "Improved Stripe integration with Address Verification System (AVS)",
-        "Enhanced form validation and user flow"
+        "Enhanced form validation and user flow",
+        "Completed image modal functionality with full navigation support (keyboard, buttons, overlay close)",
+        "Added carousel scroll listeners for real-time indicator updates"
       ]
     },
     {
