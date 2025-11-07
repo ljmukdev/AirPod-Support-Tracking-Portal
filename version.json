@@ -1,7 +1,7 @@
 {
   "version": "1.2.0",
   "build": "2024-12-19",
-  "revision": "019",
+  "revision": "020",
   "changelog": [
     {
       "version": "1.2.0",
@@ -23,7 +23,9 @@
         "Added carousel scroll listeners for real-time indicator updates",
         "Redesigned step 1 to show product record immediately after security code entry",
         "Added enhanced guidance and 'What happens next?' instructions on step 1",
-        "Improved user flow with product verification before proceeding to contact details"
+        "Improved user flow with product verification before proceeding to contact details",
+        "Fixed auto-advance issue preventing product display on step 1",
+        "Added safeguards to ensure product record stays visible before advancing"
       ]
     },
     {

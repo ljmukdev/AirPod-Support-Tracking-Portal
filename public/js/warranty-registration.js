@@ -136,8 +136,14 @@ function initializePage() {
                     document.getElementById('validationIcon').style.color = '#28a745';
                 }
                 
+                // Ensure we're on step 1 first
+                showStep(1);
+                
                 // Load product info and display on step 1
                 loadProductInfo(barcode, true).then((data) => {
+                    // Ensure we're still on step 1
+                    showStep(1);
+                    
                     displayProductInfoOnStep1(data);
                     // Show product record display
                     const productDisplay = document.getElementById('productRecordDisplay');
@@ -150,7 +156,6 @@ function initializePage() {
                         continueBtn.disabled = false;
                         continueBtn.textContent = 'Continue to Contact Information';
                     }
-                    showStep(1);
                 }).catch((error) => {
                     console.error('Failed to load product info:', error);
                     showStep(1);
@@ -211,8 +216,12 @@ function setupEventListeners() {
         securityInput.addEventListener('keypress', (e) => {
             const continueBtn = document.getElementById('continueBtn1');
             if (e.key === 'Enter' && !continueBtn.disabled) {
-                // If product already loaded, go to contact details
-                if (appState.productData) {
+                // Check if product record is displayed on step 1
+                const productDisplay = document.getElementById('productRecordDisplay');
+                const isProductDisplayed = productDisplay && productDisplay.style.display !== 'none';
+                
+                // If product is displayed on step 1, go to contact details
+                if (isProductDisplayed && appState.productData) {
                     showStep(3);
                 } else {
                     validateSecurityCode();
@@ -225,8 +234,12 @@ function setupEventListeners() {
     
     // Continue buttons
     document.getElementById('continueBtn1')?.addEventListener('click', function() {
-        // If product is already loaded, go to contact details
-        if (appState.productData) {
+        // Check if product record is displayed on step 1
+        const productDisplay = document.getElementById('productRecordDisplay');
+        const isProductDisplayed = productDisplay && productDisplay.style.display !== 'none';
+        
+        // If product is displayed on step 1, go to contact details
+        if (isProductDisplayed && appState.productData) {
             showStep(3);
         } else {
             // Otherwise validate security code
@@ -388,6 +401,9 @@ async function validateSecurityCode() {
             
             // Load product info and display on step 1
             loadProductInfo(securityCode, false).then((data) => {
+                // Ensure we're on step 1
+                showStep(1);
+                
                 displayProductInfoOnStep1(data);
                 // Show product record display
                 const productDisplay = document.getElementById('productRecordDisplay');
@@ -1136,6 +1152,16 @@ function displayProductInfo(data) {
 function showStep(stepNumber) {
     console.log('showStep called with stepNumber:', stepNumber);
     
+    // Prevent auto-advance from step 1 to step 3 if product is being displayed
+    if (stepNumber === 3 && appState.currentStep === 1) {
+        const productDisplay = document.getElementById('productRecordDisplay');
+        const isProductDisplayed = productDisplay && productDisplay.style.display !== 'none';
+        if (isProductDisplayed) {
+            console.log('Preventing auto-advance from step 1 to step 3 - product is displayed');
+            return; // Stay on step 1
+        }
+    }
+    
     // Hide all steps
     document.querySelectorAll('.step-container').forEach(step => {
         step.classList.remove('active');
@@ -1190,7 +1216,12 @@ function updateProgressIndicator() {
     const progressSteps = document.getElementById('progressSteps');
     const progressText = document.getElementById('progressText');
     
-    if (appState.currentStep > 1 || appState.skippedStep1) {
+    // Show progress indicator if on step 1 with product displayed, or step 2+
+    const productDisplay = document.getElementById('productRecordDisplay');
+    const isProductDisplayed = productDisplay && productDisplay.style.display !== 'none';
+    const shouldShowProgress = appState.currentStep > 1 || (appState.currentStep === 1 && isProductDisplayed) || appState.skippedStep1;
+    
+    if (shouldShowProgress) {
         progressIndicator.style.display = 'block';
         
         // Create progress steps (adjust if step 1 was skipped)
