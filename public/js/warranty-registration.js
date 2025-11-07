@@ -35,6 +35,7 @@ function loadSavedState() {
         
         // Resume if within 24 hours
         if (hoursSince < 24 && state.currentStep > 1) {
+            console.log('Loading saved state - currentStep:', state.currentStep);
             Object.assign(appState, state);
             // Hide step 1 if it was skipped
             if (appState.skippedStep1) {
@@ -44,6 +45,9 @@ function loadSavedState() {
                 }
             }
             return true;
+        } else {
+            // Clear old saved state
+            localStorage.removeItem('warrantyRegistrationState');
         }
     }
     return false;
@@ -85,7 +89,16 @@ function initializePage() {
     // Check if we should resume from saved state
     const resumed = loadSavedState();
     
-    if (resumed && appState.currentStep > 1) {
+    // If coming from home page with barcode, don't use saved state - start fresh
+    if (barcodeFromUrl) {
+        console.log('Barcode in URL - clearing saved state and starting fresh');
+        localStorage.removeItem('warrantyRegistrationState');
+        appState.currentStep = 1;
+        appState.skippedStep1 = false;
+    }
+    
+    if (resumed && appState.currentStep > 1 && !barcodeFromUrl) {
+        console.log('Resuming from saved state at step:', appState.currentStep);
         showWelcomeBack();
         // Load product info if we have security code and show on step 1 if appropriate
         if (appState.securityCode) {
@@ -563,47 +576,52 @@ async function loadProductInfo(barcode, skipValidation = false) {
         appState.productData = data;
         saveState();
         
-        // Display product info
-        console.log('Calling displayProductInfo');
-        displayProductInfo(data);
-        
-        // Calculate warranty expiry
-        const expiryDate = new Date();
-        expiryDate.setDate(expiryDate.getDate() + 30);
-        const expiryEl = document.getElementById('warrantyExpiry');
-        if (expiryEl) {
-            expiryEl.textContent = expiryDate.toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            });
-        }
-        
-        // Show warranty confirmation after animation
-        if (!skipValidation) {
-            // Show success animation first
-            showSuccessAnimation();
-            setTimeout(() => {
+        // Only display product info for warranty confirmation step (step 4)
+        // When loading for step 1, displayProductInfoOnStep1 will be called separately
+        if (appState.currentStep === 4 || (!skipValidation && appState.currentStep > 3)) {
+            console.log('Calling displayProductInfo for warranty confirmation');
+            displayProductInfo(data);
+            
+            // Calculate warranty expiry
+            const expiryDate = new Date();
+            expiryDate.setDate(expiryDate.getDate() + 30);
+            const expiryEl = document.getElementById('warrantyExpiry');
+            if (expiryEl) {
+                expiryEl.textContent = expiryDate.toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+            }
+            
+            // Show warranty confirmation after animation
+            if (!skipValidation) {
+                // Show success animation first
+                showSuccessAnimation();
+                setTimeout(() => {
+                    const confirmationEl = document.getElementById('warrantyConfirmation');
+                    if (confirmationEl) {
+                        confirmationEl.style.display = 'block';
+                    }
+                }, 2000);
+            } else {
+                // Skip animation for resumed sessions
+                console.log('Skipping animation, showing warranty confirmation immediately');
                 const confirmationEl = document.getElementById('warrantyConfirmation');
+                const animationEl = document.getElementById('successAnimation');
                 if (confirmationEl) {
                     confirmationEl.style.display = 'block';
+                    console.log('Warranty confirmation element found and displayed');
+                } else {
+                    console.error('Warranty confirmation element NOT found!');
                 }
-            }, 2000);
+                if (animationEl) {
+                    animationEl.classList.remove('show');
+                    animationEl.style.display = 'none';
+                }
+            }
         } else {
-            // Skip animation for resumed sessions or when coming from home page
-            console.log('Skipping animation, showing warranty confirmation immediately');
-            const confirmationEl = document.getElementById('warrantyConfirmation');
-            const animationEl = document.getElementById('successAnimation');
-            if (confirmationEl) {
-                confirmationEl.style.display = 'block';
-                console.log('Warranty confirmation element found and displayed');
-            } else {
-                console.error('Warranty confirmation element NOT found!');
-            }
-            if (animationEl) {
-                animationEl.classList.remove('show');
-                animationEl.style.display = 'none';
-            }
+            console.log('Skipping displayProductInfo - not on warranty confirmation step');
         }
         
         console.log('loadProductInfo completed successfully');
@@ -1150,16 +1168,24 @@ function displayProductInfo(data) {
 
 // Show step
 function showStep(stepNumber) {
-    console.log('showStep called with stepNumber:', stepNumber);
+    console.log('showStep called with stepNumber:', stepNumber, 'currentStep:', appState.currentStep);
+    console.trace('showStep call stack'); // This will show where it's being called from
     
     // Prevent auto-advance from step 1 to step 3 if product is being displayed
     if (stepNumber === 3 && appState.currentStep === 1) {
         const productDisplay = document.getElementById('productRecordDisplay');
         const isProductDisplayed = productDisplay && productDisplay.style.display !== 'none';
-        if (isProductDisplayed) {
-            console.log('Preventing auto-advance from step 1 to step 3 - product is displayed');
+        if (isProductDisplayed || appState.productData) {
+            console.log('BLOCKED: Preventing auto-advance from step 1 to step 3 - product is displayed');
+            console.log('Product display visible:', isProductDisplayed, 'Product data exists:', !!appState.productData);
             return; // Stay on step 1
         }
+    }
+    
+    // Also prevent if we're on step 1 and have product data but haven't shown it yet
+    if (stepNumber === 3 && appState.currentStep === 1 && appState.productData) {
+        console.log('BLOCKED: Preventing step 3 - product data loaded but should stay on step 1');
+        return;
     }
     
     // Hide all steps
