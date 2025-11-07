@@ -94,16 +94,24 @@ function initializePage() {
                 // Coming from index.html - code already validated, skip step 1
                 appState.skippedStep1 = true;
                 appState.currentStep = 2; // Start at step 2
-                // Load product info first (skip animation since already validated)
+                // Show step 2 immediately so container is visible
+                showStep(2);
+                // Immediately show warranty confirmation and hide animation (will be populated by loadProductInfo)
+                const confirmationEl = document.getElementById('warrantyConfirmation');
+                const animationEl = document.getElementById('successAnimation');
+                if (confirmationEl) {
+                    confirmationEl.style.display = 'block';
+                }
+                if (animationEl) {
+                    animationEl.classList.remove('show');
+                    animationEl.style.display = 'none';
+                }
+                // Load product info (skip animation since already validated)
                 loadProductInfo(barcode, true).then(() => {
-                    // Product info loaded, now show step 2 with content
-                    showStep(2);
-                    // Ensure warranty confirmation is visible
-                    const confirmationEl = document.getElementById('warrantyConfirmation');
-                    if (confirmationEl) {
-                        confirmationEl.style.display = 'block';
-                    }
-                }).catch(() => {
+                    // Product info loaded and displayed, warranty confirmation already visible
+                    console.log('Product info loaded and displayed successfully');
+                }).catch((error) => {
+                    console.error('Failed to load product info:', error);
                     // If product load fails, show step 1 for manual entry
                     appState.skippedStep1 = false;
                     appState.currentStep = 1;
@@ -376,8 +384,8 @@ async function loadProductInfo(barcode, skipValidation = false) {
     try {
         const response = await fetch(`${API_BASE}/api/product-info/${encodeURIComponent(barcode)}`);
         const data = await response.json();
-        
-        if (data.error) {
+            
+            if (data.error) {
             if (!skipValidation) {
                 showError('Product not found. Please check your security code.');
             }
@@ -413,11 +421,16 @@ async function loadProductInfo(barcode, skipValidation = false) {
                 }
             }, 2000);
         } else {
-            // Skip animation for resumed sessions
+            // Skip animation for resumed sessions or when coming from home page
             const confirmationEl = document.getElementById('warrantyConfirmation');
             const animationEl = document.getElementById('successAnimation');
-            if (confirmationEl) confirmationEl.style.display = 'block';
-            if (animationEl) animationEl.classList.remove('show');
+            if (confirmationEl) {
+                confirmationEl.style.display = 'block';
+            }
+            if (animationEl) {
+                animationEl.classList.remove('show');
+                animationEl.style.display = 'none';
+            }
         }
         
         return Promise.resolve(data);
