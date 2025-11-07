@@ -96,20 +96,36 @@ function initializePage() {
                 appState.currentStep = 2;
                 
                 // Load product info first, then show step 2 with content
-                loadProductInfo(barcode, true).then(() => {
+                console.log('Starting to load product info for barcode:', barcode);
+                loadProductInfo(barcode, true).then((data) => {
+                    console.log('Product info loaded successfully, data:', data);
                     // Product info loaded, now show step 2
+                    console.log('About to call showStep(2)');
                     showStep(2);
                     
-                    // Ensure warranty confirmation is visible
-                    const confirmationEl = document.getElementById('warrantyConfirmation');
-                    const animationEl = document.getElementById('successAnimation');
-                    if (confirmationEl) {
-                        confirmationEl.style.display = 'block';
-                    }
-                    if (animationEl) {
-                        animationEl.classList.remove('show');
-                        animationEl.style.display = 'none';
-                    }
+                    // Double-check warranty confirmation is visible
+                    setTimeout(() => {
+                        const confirmationEl = document.getElementById('warrantyConfirmation');
+                        const animationEl = document.getElementById('successAnimation');
+                        const step2El = document.getElementById('step2');
+                        
+                        console.log('Step 2 element:', step2El);
+                        console.log('Step 2 display style:', step2El ? window.getComputedStyle(step2El).display : 'not found');
+                        console.log('Warranty confirmation element:', confirmationEl);
+                        console.log('Warranty confirmation display:', confirmationEl ? window.getComputedStyle(confirmationEl).display : 'not found');
+                        
+                        if (confirmationEl) {
+                            confirmationEl.style.display = 'block';
+                        }
+                        if (animationEl) {
+                            animationEl.classList.remove('show');
+                            animationEl.style.display = 'none';
+                        }
+                        if (step2El) {
+                            step2El.style.display = 'block';
+                            step2El.classList.add('active');
+                        }
+                    }, 100);
                     
                     console.log('Step 2 displayed with product info');
                 }).catch((error) => {
@@ -383,11 +399,15 @@ function showSuccessAnimation() {
 
 // Load product info
 async function loadProductInfo(barcode, skipValidation = false) {
+    console.log('loadProductInfo called with barcode:', barcode, 'skipValidation:', skipValidation);
     try {
         const response = await fetch(`${API_BASE}/api/product-info/${encodeURIComponent(barcode)}`);
         const data = await response.json();
-            
-            if (data.error) {
+        
+        console.log('Product data received:', data);
+        
+        if (data.error) {
+            console.error('Product data has error:', data.error);
             if (!skipValidation) {
                 showError('Product not found. Please check your security code.');
             }
@@ -398,6 +418,7 @@ async function loadProductInfo(barcode, skipValidation = false) {
         saveState();
         
         // Display product info
+        console.log('Calling displayProductInfo');
         displayProductInfo(data);
         
         // Calculate warranty expiry
@@ -424,10 +445,14 @@ async function loadProductInfo(barcode, skipValidation = false) {
             }, 2000);
         } else {
             // Skip animation for resumed sessions or when coming from home page
+            console.log('Skipping animation, showing warranty confirmation immediately');
             const confirmationEl = document.getElementById('warrantyConfirmation');
             const animationEl = document.getElementById('successAnimation');
             if (confirmationEl) {
                 confirmationEl.style.display = 'block';
+                console.log('Warranty confirmation element found and displayed');
+            } else {
+                console.error('Warranty confirmation element NOT found!');
             }
             if (animationEl) {
                 animationEl.classList.remove('show');
@@ -435,6 +460,7 @@ async function loadProductInfo(barcode, skipValidation = false) {
             }
         }
         
+        console.log('loadProductInfo completed successfully');
         return Promise.resolve(data);
         
     } catch (error) {
