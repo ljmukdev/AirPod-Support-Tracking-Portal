@@ -1,7 +1,7 @@
 {
   "version": "1.2.0",
   "build": "2024-12-19",
-  "revision": "020",
+  "revision": "021",
   "changelog": [
     {
       "version": "1.2.0",
@@ -25,7 +25,10 @@
         "Added enhanced guidance and 'What happens next?' instructions on step 1",
         "Improved user flow with product verification before proceeding to contact details",
         "Fixed auto-advance issue preventing product display on step 1",
-        "Added safeguards to ensure product record stays visible before advancing"
+        "Added safeguards to ensure product record stays visible before advancing",
+        "Fixed loadProductInfo to not trigger step 4 warranty confirmation logic on step 1",
+        "Clear saved state when coming from home page to prevent step conflicts",
+        "Added debug logging to trace step navigation issues"
       ]
     },
     {
