@@ -13,8 +13,8 @@
                 var el = document.createElement('div');
                 el.id = 'version-display';
                 el.style.cssText = 'position:fixed;top:10px;right:10px;font-size:0.7rem;color:rgba(0,0,0,0.7);font-family:"Courier New",monospace;z-index:99999;padding:4px 8px;background:rgba(255,255,255,0.9);border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.2);pointer-events:none;';
-                el.textContent = 'v1.2.0.018';
-                el.title = 'Version 1.2.0 (Revision 018)';
+                el.textContent = 'v1.2.0.019';
+                el.title = 'Version 1.2.0 (Revision 019)';
                 if (document.body) {
                     document.body.appendChild(el);
                 } else {
@@ -1021,7 +1021,8 @@
                 <div class="step-container" id="step1" data-step="1">
                     <div class="security-code-section">
                         <h2>Enter Your Security Code</h2>
-                        <p class="subtitle">This code ensures you receive authentic support for your product</p>
+                        <p class="subtitle">Enter the security code from your product packaging to begin warranty registration</p>
+                        
                         <div class="security-input-wrapper">
                             <input 
                                 type="text" 
@@ -1038,6 +1039,49 @@
                             <h3>Please call support for assistance</h3>
                             <p style="font-size: 1.25rem; font-weight: 600; color: #284064; margin-top: 12px;">1-800-555-0123</p>
                         </div>
+                        
+                        <!-- Product Record Display (shown after validation) -->
+                        <div id="productRecordDisplay" style="display: none; margin-top: 32px;">
+                            <div style="background: #f8f9fa; border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                                <h3 style="margin-top: 0; color: #1a1a1a; margin-bottom: 16px;">✓ Product Found</h3>
+                                <p style="color: #6c757d; margin-bottom: 20px;">Please verify this matches your product before continuing:</p>
+                                
+                                <!-- Product Details -->
+                                <div class="product-details" id="productDetailsStep1"></div>
+                                
+                                <!-- Photo Carousel -->
+                                <div id="photoCarouselStep1" style="margin: 24px 0; display: none;">
+                                    <h4 style="margin: 0 0 16px 0; color: #1a1a1a; font-size: 1rem; font-weight: 600;">Product Photos</h4>
+                                    <div class="photo-carousel">
+                                        <button class="carousel-button carousel-prev" id="carouselPrevStep1" aria-label="Previous photo">‹</button>
+                                        <div class="carousel-container" id="carouselContainerStep1">
+                                            <!-- Photos will be inserted here -->
+                                        </div>
+                                        <button class="carousel-button carousel-next" id="carouselNextStep1" aria-label="Next photo">›</button>
+                                    </div>
+                                    <div class="carousel-indicators" id="carouselIndicatorsStep1">
+                                        <!-- Indicators will be inserted here -->
+                                    </div>
+                                </div>
+                                
+                                <!-- Guidance Box -->
+                                <div style="background: #e7f3ff; border-left: 4px solid #284064; padding: 16px; border-radius: 8px; margin-top: 20px;">
+                                    <h4 style="margin-top: 0; color: #284064; font-size: 0.95rem; font-weight: 600;">What happens next?</h4>
+                                    <ol style="margin: 8px 0 0 0; padding-left: 20px; color: #1a1a1a; font-size: 0.9rem; line-height: 1.6;">
+                                        <li>Verify this product matches what you received</li>
+                                        <li>Review the product photos to check condition</li>
+                                        <li>Provide your contact information for warranty activation</li>
+                                        <li>Complete the registration process</li>
+                                    </ol>
+                                </div>
+                                
+                                <!-- Important Warning -->
+                                <div class="warranty-warning" style="margin-top: 20px;">
+                                    <strong>⚠️ Important:</strong> Do NOT open your product packaging until you have verified this is the correct item and confirmed the condition is acceptable.
+                                </div>
+                            </div>
+                        </div>
+                        
                         <button class="continue-btn" id="continueBtn1" disabled>Continue</button>
                     </div>
                 </div>
@@ -1319,7 +1363,7 @@
         </div>
     </div>
 
-    <script src="js/warranty-registration.js?v=1.2.0.018"></script>
+    <script src="js/warranty-registration.js?v=1.2.0.019"></script>
     <script src="js/version.js"></script>
 </body>
 </html>

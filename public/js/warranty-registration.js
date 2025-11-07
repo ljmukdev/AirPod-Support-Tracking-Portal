@@ -87,9 +87,25 @@ function initializePage() {
     
     if (resumed && appState.currentStep > 1) {
         showWelcomeBack();
-        // Load product info if we have security code
+        // Load product info if we have security code and show on step 1 if appropriate
         if (appState.securityCode) {
-            loadProductInfo(appState.securityCode, true);
+            // If resuming at step 1, show product info on step 1
+            if (appState.currentStep === 1) {
+                loadProductInfo(appState.securityCode, true).then((data) => {
+                    displayProductInfoOnStep1(data);
+                    const productDisplay = document.getElementById('productRecordDisplay');
+                    if (productDisplay) {
+                        productDisplay.style.display = 'block';
+                    }
+                    const continueBtn = document.getElementById('continueBtn1');
+                    if (continueBtn) {
+                        continueBtn.disabled = false;
+                        continueBtn.textContent = 'Continue to Contact Information';
+                    }
+                });
+            } else {
+                loadProductInfo(appState.securityCode, true);
+            }
         }
         showStep(appState.currentStep);
     } else {
@@ -98,27 +114,45 @@ function initializePage() {
         
         if (barcode) {
             appState.securityCode = barcode;
-            // If coming from index.html with validated code, skip step 1 entirely
+            // If coming from index.html with validated code, show product on step 1
             if (barcodeFromUrl) {
-                // Coming from index.html - code already validated, skip step 1
-                appState.skippedStep1 = true;
-                appState.currentStep = 2; // Start at product review step
+                // Coming from index.html - code already validated, show product on step 1
+                appState.skippedStep1 = false;
+                appState.currentStep = 1;
                 
-                // Load product info and show product review
+                const step1 = document.getElementById('step1');
+                if (step1) {
+                    step1.style.display = 'block';
+                }
+                
+                // Pre-fill and validate security code input
+                const securityInput = document.getElementById('securityCodeInput');
+                if (securityInput) {
+                    let formatted = barcode.replace(/[^\w]/g, '').toUpperCase();
+                    formatted = formatted.match(/.{1,4}/g)?.join('-') || formatted;
+                    securityInput.value = formatted;
+                    securityInput.classList.add('valid');
+                    document.getElementById('validationIcon').classList.add('show');
+                    document.getElementById('validationIcon').style.color = '#28a745';
+                }
+                
+                // Load product info and display on step 1
                 loadProductInfo(barcode, true).then((data) => {
-                    // Display product info in review step
-                    displayProductInfoForReview(data);
-                    // Show product review step
-                    showStep(2);
+                    displayProductInfoOnStep1(data);
+                    // Show product record display
+                    const productDisplay = document.getElementById('productRecordDisplay');
+                    if (productDisplay) {
+                        productDisplay.style.display = 'block';
+                    }
+                    // Enable continue button
+                    const continueBtn = document.getElementById('continueBtn1');
+                    if (continueBtn) {
+                        continueBtn.disabled = false;
+                        continueBtn.textContent = 'Continue to Contact Information';
+                    }
+                    showStep(1);
                 }).catch((error) => {
                     console.error('Failed to load product info:', error);
-                    // If product load fails, show step 1 for manual entry
-                    appState.skippedStep1 = false;
-                    appState.currentStep = 1;
-                    const step1 = document.getElementById('step1');
-                    if (step1) {
-                        step1.style.display = 'block';
-                    }
                     showStep(1);
                 });
             } else {
@@ -175,8 +209,14 @@ function setupEventListeners() {
     if (securityInput) {
         securityInput.addEventListener('input', handleSecurityCodeInput);
         securityInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !document.getElementById('continueBtn1').disabled) {
-                validateSecurityCode();
+            const continueBtn = document.getElementById('continueBtn1');
+            if (e.key === 'Enter' && !continueBtn.disabled) {
+                // If product already loaded, go to contact details
+                if (appState.productData) {
+                    showStep(3);
+                } else {
+                    validateSecurityCode();
+                }
             }
         });
         // Auto-focus
@@ -184,7 +224,15 @@ function setupEventListeners() {
     }
     
     // Continue buttons
-    document.getElementById('continueBtn1')?.addEventListener('click', validateSecurityCode);
+    document.getElementById('continueBtn1')?.addEventListener('click', function() {
+        // If product is already loaded, go to contact details
+        if (appState.productData) {
+            showStep(3);
+        } else {
+            // Otherwise validate security code
+            validateSecurityCode();
+        }
+    });
     document.getElementById('continueBtn2')?.addEventListener('click', () => {
         // Product review complete, go to contact details
         showStep(3);
@@ -338,12 +386,24 @@ async function validateSecurityCode() {
             
             trackEvent('security_code_validated');
             
-            // Load product info and show product review step
+            // Load product info and display on step 1
             loadProductInfo(securityCode, false).then((data) => {
-                displayProductInfoForReview(data);
-                showStep(2);
+                displayProductInfoOnStep1(data);
+                // Show product record display
+                const productDisplay = document.getElementById('productRecordDisplay');
+                if (productDisplay) {
+                    productDisplay.style.display = 'block';
+                    // Scroll to product info smoothly
+                    setTimeout(() => {
+                        productDisplay.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }, 100);
+                }
+                // Enable continue button
+                continueBtn.disabled = false;
+                continueBtn.textContent = 'Continue to Contact Information';
             }).catch((error) => {
                 console.error('Failed to load product info:', error);
+                showError('Product found but details could not be loaded. Please try again.');
             });
         } else {
             appState.failedAttempts++;
@@ -539,6 +599,186 @@ async function loadProductInfo(barcode, skipValidation = false) {
             showError('Failed to load product information. Please try again.');
         }
         return Promise.reject(error);
+    }
+}
+
+// Display product info on step 1 (with photos)
+function displayProductInfoOnStep1(data) {
+    const partTypeMap = {
+        'left': 'Left AirPod',
+        'right': 'Right AirPod',
+        'case': 'Charging Case'
+    };
+    const partType = partTypeMap[data.part_type] || data.part_type || 'Unknown';
+    
+    const detailsHtml = `
+        <div class="product-detail-item">
+            <span class="detail-label">Item:</span>
+            <span class="detail-value">${partType}</span>
+        </div>
+        <div class="product-detail-item">
+            <span class="detail-label">Product Name:</span>
+            <span class="detail-value">${data.generation || 'N/A'}</span>
+        </div>
+        <div class="product-detail-item">
+            <span class="detail-label">Product Code:</span>
+            <span class="detail-value">${data.part_model_number || 'N/A'}</span>
+        </div>
+        <div class="product-detail-item">
+            <span class="detail-label">Serial Number:</span>
+            <span class="detail-value">${data.serial_number || 'N/A'}</span>
+        </div>
+    `;
+    
+    const step1Container = document.getElementById('productDetailsStep1');
+    if (step1Container) {
+        step1Container.innerHTML = detailsHtml;
+    }
+    
+    // Setup photo carousel for step 1
+    setupPhotoCarouselForStep1(data.photos || []);
+}
+
+// Setup photo carousel for step 1
+function setupPhotoCarouselForStep1(photoArray) {
+    const carouselSection = document.getElementById('photoCarouselStep1');
+    const carouselContainer = document.getElementById('carouselContainerStep1');
+    const carouselIndicators = document.getElementById('carouselIndicatorsStep1');
+    
+    if (!carouselSection || !carouselContainer || !carouselIndicators) {
+        return;
+    }
+    
+    // Hide carousel if no photos
+    if (photoArray.length === 0) {
+        carouselSection.style.display = 'none';
+        return;
+    }
+    
+    // Show carousel
+    carouselSection.style.display = 'block';
+    
+    // Clear existing content
+    carouselContainer.innerHTML = '';
+    carouselIndicators.innerHTML = '';
+    
+    // Add photos to carousel
+    photoArray.forEach((photo, index) => {
+        const photoPath = photo.startsWith('/') ? photo : `/${photo}`;
+        
+        // Create photo element
+        const photoDiv = document.createElement('div');
+        photoDiv.className = 'carousel-photo';
+        photoDiv.dataset.index = index;
+        
+        const img = document.createElement('img');
+        img.src = photoPath;
+        img.alt = `Product photo ${index + 1}`;
+        img.onerror = function() {
+            photoDiv.style.display = 'none';
+        };
+        
+        photoDiv.appendChild(img);
+        photoDiv.addEventListener('click', () => openModal(index, photoArray));
+        carouselContainer.appendChild(photoDiv);
+        
+        // Create indicator
+        const indicator = document.createElement('div');
+        indicator.className = 'carousel-indicator' + (index === 0 ? ' active' : '');
+        indicator.dataset.index = index;
+        indicator.addEventListener('click', () => scrollToPhotoStep1(index));
+        carouselIndicators.appendChild(indicator);
+    });
+    
+    // Setup carousel navigation
+    const prevButton = document.getElementById('carouselPrevStep1');
+    const nextButton = document.getElementById('carouselNextStep1');
+    
+    if (prevButton) {
+        prevButton.addEventListener('click', () => scrollCarouselStep1(-1));
+    }
+    
+    if (nextButton) {
+        nextButton.addEventListener('click', () => scrollCarouselStep1(1));
+    }
+    
+    // Update indicators and buttons on scroll
+    if (carouselContainer) {
+        carouselContainer.addEventListener('scroll', () => {
+            updateActiveIndicatorStep1();
+            updateCarouselButtonsStep1();
+        });
+    }
+    
+    // Update button states
+    updateCarouselButtonsStep1();
+}
+
+// Carousel functions for step 1
+function scrollCarouselStep1(direction) {
+    const container = document.getElementById('carouselContainerStep1');
+    if (!container) return;
+    
+    const photoWidth = 150 + 12;
+    const scrollAmount = photoWidth * direction;
+    
+    container.scrollBy({
+        left: scrollAmount,
+        behavior: 'smooth'
+    });
+    
+    setTimeout(() => {
+        updateActiveIndicatorStep1();
+    }, 300);
+}
+
+function scrollToPhotoStep1(index) {
+    const container = document.getElementById('carouselContainerStep1');
+    if (!container) return;
+    
+    const photoWidth = 150 + 12;
+    container.scrollTo({
+        left: photoWidth * index,
+        behavior: 'smooth'
+    });
+    
+    updateActiveIndicatorStep1(index);
+}
+
+function updateActiveIndicatorStep1(activeIndex) {
+    const indicators = document.querySelectorAll('#carouselIndicatorsStep1 .carousel-indicator');
+    const container = document.getElementById('carouselContainerStep1');
+    
+    if (activeIndex === undefined && container) {
+        const scrollLeft = container.scrollLeft;
+        const photoWidth = 150 + 12;
+        activeIndex = Math.round(scrollLeft / photoWidth);
+    }
+    
+    indicators.forEach((indicator, index) => {
+        if (index === activeIndex) {
+            indicator.classList.add('active');
+        } else {
+            indicator.classList.remove('active');
+        }
+    });
+}
+
+function updateCarouselButtonsStep1() {
+    const prevButton = document.getElementById('carouselPrevStep1');
+    const nextButton = document.getElementById('carouselNextStep1');
+    const container = document.getElementById('carouselContainerStep1');
+    
+    if (!container) return;
+    
+    const isAtStart = container.scrollLeft <= 0;
+    const isAtEnd = container.scrollLeft >= container.scrollWidth - container.clientWidth - 10;
+    
+    if (prevButton) {
+        prevButton.disabled = isAtStart;
+    }
+    if (nextButton) {
+        nextButton.disabled = isAtEnd;
     }
 }
 

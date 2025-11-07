@@ -1,7 +1,7 @@
 {
   "version": "1.2.0",
   "build": "2024-12-19",
-  "revision": "018",
+  "revision": "019",
   "changelog": [
     {
       "version": "1.2.0",
@@ -20,7 +20,10 @@
         "Improved Stripe integration with Address Verification System (AVS)",
         "Enhanced form validation and user flow",
         "Completed image modal functionality with full navigation support (keyboard, buttons, overlay close)",
-        "Added carousel scroll listeners for real-time indicator updates"
+        "Added carousel scroll listeners for real-time indicator updates",
+        "Redesigned step 1 to show product record immediately after security code entry",
+        "Added enhanced guidance and 'What happens next?' instructions on step 1",
+        "Improved user flow with product verification before proceeding to contact details"
       ]
     },
     {
