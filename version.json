@@ -1,7 +1,7 @@
 {
   "version": "1.2.0",
   "build": "2024-12-19",
-  "revision": "026",
+  "revision": "027",
   "changelog": [
     {
       "version": "1.2.0",
@@ -37,7 +37,8 @@
         "Added auto-advance between verification steps with checkbox completion",
         "Added visual CE and R-NZ compliance logos to step 2 authenticity verification",
         "Added visual diagram showing where to find markings on AirPod case lid and earbuds",
-        "Improved diagrams to show case lid markings (CE and AR-NZ) and AirPod stem markings (CE and UKCA)"
+        "Improved diagrams to show case lid markings (CE and AR-NZ) and AirPod stem markings (CE and UKCA)",
+        "Redesigned diagrams with yellow background and more accurate proportions matching actual AirPod photos"
       ]
     },
     {
