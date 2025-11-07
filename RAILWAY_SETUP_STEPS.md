@@ -59,3 +59,5 @@ After adding the variable, check Railway logs. You should see:
 
 If you still see errors, the logs will now show exactly which variables are available and which are templates.
 
+
+
