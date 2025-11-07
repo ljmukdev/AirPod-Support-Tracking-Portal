@@ -61,9 +61,13 @@ function trackEvent(eventName, data = {}) {
 
 // Initialize page
 function initializePage() {
+    console.log('=== initializePage called ===');
+    console.log('Current URL:', window.location.href);
+    
     // Immediately check URL for barcode to hide step 1 if needed
     const urlParams = new URLSearchParams(window.location.search);
     const barcodeFromUrl = urlParams.get('barcode');
+    console.log('Barcode from URL:', barcodeFromUrl);
     
     // Hide step 1 immediately if barcode is in URL (coming from home page)
     if (barcodeFromUrl) {
@@ -405,8 +409,8 @@ async function loadProductInfo(barcode, skipValidation = false) {
         const data = await response.json();
         
         console.log('Product data received:', data);
-        
-        if (data.error) {
+            
+            if (data.error) {
             console.error('Product data has error:', data.error);
             if (!skipValidation) {
                 showError('Product not found. Please check your security code.');
