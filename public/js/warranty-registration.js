@@ -138,15 +138,10 @@ function initializePage() {
                     step1.style.display = 'block';
                 }
                 
-                // Pre-fill and validate security code input
-                const securityInput = document.getElementById('securityCodeInput');
-                if (securityInput) {
-                    let formatted = barcode.replace(/[^\w]/g, '').toUpperCase();
-                    formatted = formatted.match(/.{1,4}/g)?.join('-') || formatted;
-                    securityInput.value = formatted;
-                    securityInput.classList.add('valid');
-                    document.getElementById('validationIcon').classList.add('show');
-                    document.getElementById('validationIcon').style.color = '#28a745';
+                // Hide security code entry section when coming from home page
+                const securityCodeEntry = document.getElementById('securityCodeEntrySection');
+                if (securityCodeEntry) {
+                    securityCodeEntry.style.display = 'none';
                 }
                 
                 // Ensure we're on step 1 first
@@ -412,6 +407,12 @@ async function validateSecurityCode() {
             
             trackEvent('security_code_validated');
             
+            // Hide security code entry section after validation
+            const securityCodeEntry = document.getElementById('securityCodeEntrySection');
+            if (securityCodeEntry) {
+                securityCodeEntry.style.display = 'none';
+            }
+            
             // Load product info and display on step 1
             loadProductInfo(securityCode, false).then((data) => {
                 // Ensure we're on step 1
@@ -433,6 +434,10 @@ async function validateSecurityCode() {
             }).catch((error) => {
                 console.error('Failed to load product info:', error);
                 showError('Product found but details could not be loaded. Please try again.');
+                // Show security code entry again on error
+                if (securityCodeEntry) {
+                    securityCodeEntry.style.display = 'block';
+                }
             });
         } else {
             appState.failedAttempts++;
@@ -636,6 +641,55 @@ async function loadProductInfo(barcode, skipValidation = false) {
     }
 }
 
+// Get compatible part numbers based on purchased part
+function getCompatiblePartNumbers(partModelNumber, partType) {
+    // AirPods Pro 2nd Gen part numbers
+    const partNumbers = {
+        'A2698': { type: 'left', compatible: ['A2699', 'A2700'] },  // Left AirPod
+        'A2699': { type: 'right', compatible: ['A2698', 'A2700'] }, // Right AirPod
+        'A2700': { type: 'case', compatible: ['A2698', 'A2699'] }   // Charging Case
+    };
+    
+    // AirPods Pro 1st Gen part numbers
+    const partNumbersGen1 = {
+        'A2084': { type: 'left', compatible: ['A2083', 'A2190'] },  // Left AirPod
+        'A2083': { type: 'right', compatible: ['A2084', 'A2190'] }, // Right AirPod
+        'A2190': { type: 'case', compatible: ['A2084', 'A2083'] }   // Charging Case
+    };
+    
+    // AirPods 3rd Gen part numbers
+    const partNumbersGen3 = {
+        'A2564': { type: 'left', compatible: ['A2565', 'A2566'] },  // Left AirPod
+        'A2565': { type: 'right', compatible: ['A2564', 'A2566'] }, // Right AirPod
+        'A2566': { type: 'case', compatible: ['A2564', 'A2565'] }   // Charging Case
+    };
+    
+    // AirPods 2nd Gen part numbers
+    const partNumbersGen2 = {
+        'A2032': { type: 'left', compatible: ['A2031', 'A1602'] },  // Left AirPod
+        'A2031': { type: 'right', compatible: ['A2032', 'A1602'] }, // Right AirPod
+        'A1602': { type: 'case', compatible: ['A2032', 'A2031'] }   // Charging Case
+    };
+    
+    // Check all part number sets
+    const allPartNumbers = { ...partNumbers, ...partNumbersGen1, ...partNumbersGen3, ...partNumbersGen2 };
+    
+    if (partModelNumber && allPartNumbers[partModelNumber]) {
+        return allPartNumbers[partModelNumber].compatible;
+    }
+    
+    // Fallback: if we know the part type, return generic message
+    if (partType === 'left') {
+        return ['Right AirPod', 'Charging Case'];
+    } else if (partType === 'right') {
+        return ['Left AirPod', 'Charging Case'];
+    } else if (partType === 'case') {
+        return ['Left AirPod', 'Right AirPod'];
+    }
+    
+    return ['the other two parts'];
+}
+
 // Display product info on step 1 (with photos)
 function displayProductInfoOnStep1(data) {
     const partTypeMap = {
@@ -644,6 +698,11 @@ function displayProductInfoOnStep1(data) {
         'case': 'Charging Case'
     };
     const partType = partTypeMap[data.part_type] || data.part_type || 'Unknown';
+    const partModelNumber = data.part_model_number || '';
+    
+    // Get compatible part numbers
+    const compatibleParts = getCompatiblePartNumbers(partModelNumber, data.part_type);
+    const compatiblePartsText = compatibleParts.join(' & ');
     
     const detailsHtml = `
         <div class="product-detail-item">
@@ -656,7 +715,7 @@ function displayProductInfoOnStep1(data) {
         </div>
         <div class="product-detail-item">
             <span class="detail-label">Product Code:</span>
-            <span class="detail-value">${data.part_model_number || 'N/A'}</span>
+            <span class="detail-value">${partModelNumber || 'N/A'}</span>
         </div>
         <div class="product-detail-item">
             <span class="detail-label">Serial Number:</span>
@@ -667,6 +726,22 @@ function displayProductInfoOnStep1(data) {
     const step1Container = document.getElementById('productDetailsStep1');
     if (step1Container) {
         step1Container.innerHTML = detailsHtml;
+    }
+    
+    // Update compatible part numbers in guidance
+    const purchasedPartEl = document.getElementById('purchasedPartNumber');
+    const compatiblePartsEl = document.getElementById('compatiblePartNumbers');
+    if (purchasedPartEl) {
+        purchasedPartEl.textContent = partModelNumber || 'your part';
+    }
+    if (compatiblePartsEl) {
+        compatiblePartsEl.textContent = compatiblePartsText;
+    }
+    
+    // Hide security code entry section when product is displayed
+    const securityCodeEntry = document.getElementById('securityCodeEntrySection');
+    if (securityCodeEntry) {
+        securityCodeEntry.style.display = 'none';
     }
     
     // Setup photo carousel for step 1
