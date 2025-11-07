@@ -94,9 +94,15 @@ function initializePage() {
                 // Coming from index.html - code already validated, skip step 1
                 appState.skippedStep1 = true;
                 appState.currentStep = 2; // Start at step 2
-                // Load product info and show step 2
-                loadProductInfo(barcode, false).then(() => {
+                // Load product info first (skip animation since already validated)
+                loadProductInfo(barcode, true).then(() => {
+                    // Product info loaded, now show step 2 with content
                     showStep(2);
+                    // Ensure warranty confirmation is visible
+                    const confirmationEl = document.getElementById('warrantyConfirmation');
+                    if (confirmationEl) {
+                        confirmationEl.style.display = 'block';
+                    }
                 }).catch(() => {
                     // If product load fails, show step 1 for manual entry
                     appState.skippedStep1 = false;
