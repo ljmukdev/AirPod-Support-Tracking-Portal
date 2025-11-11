@@ -881,6 +881,7 @@
             align-items: center;
             justify-content: center;
             padding: 40px;
+            z-index: 1;
         }
         
         .modal-content img {
@@ -892,31 +893,54 @@
         }
         
         .modal-close {
-            position: absolute;
+            position: fixed;
             top: 20px;
             right: 20px;
             width: 44px;
             height: 44px;
             border-radius: 50%;
             border: 2px solid white;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.8);
             color: white;
-            font-size: 32px;
+            font-size: 0;
             font-weight: bold;
             line-height: 1;
             cursor: pointer;
-            display: flex;
+            display: flex !important;
             align-items: center;
             justify-content: center;
             transition: all 0.3s ease;
-            z-index: 10002;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            z-index: 10003;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+            pointer-events: auto;
+        }
+        
+        .modal-close::before,
+        .modal-close::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 2px;
+            background: white;
+            border-radius: 1px;
+        }
+        
+        .modal-close::before {
+            transform: rotate(45deg);
+        }
+        
+        .modal-close::after {
+            transform: rotate(-45deg);
         }
         
         .modal-close:hover {
             background: rgba(255, 255, 255, 0.9);
-            color: #1a1a1a;
             transform: scale(1.1);
+        }
+        
+        .modal-close:hover::before,
+        .modal-close:hover::after {
+            background: #1a1a1a;
         }
         
         .modal-close:active {
@@ -976,8 +1000,13 @@
                 right: 10px;
                 width: 40px;
                 height: 40px;
-                font-size: 28px;
-                z-index: 10002;
+                z-index: 10003;
+            }
+            
+            .modal-close::before,
+            .modal-close::after {
+                width: 18px;
+                height: 2px;
             }
             
             .modal-nav {
@@ -1448,7 +1477,7 @@
     <div id="imageModal" class="image-modal" style="display: none;">
         <div class="modal-overlay"></div>
         <div class="modal-content">
-            <button class="modal-close" id="modalClose" aria-label="Close modal">×</button>
+            <button class="modal-close" id="modalClose" aria-label="Close modal" title="Close"></button>
             <button class="modal-nav modal-prev" id="modalPrev" aria-label="Previous image">‹</button>
             <img id="modalImage" src="" alt="Product photo">
             <button class="modal-nav modal-next" id="modalNext" aria-label="Next image">›</button>

@@ -1180,6 +1180,7 @@ function openModal(index, photos) {
     reviewPhotos = photos;
     const modal = document.getElementById('imageModal');
     const modalImage = document.getElementById('modalImage');
+    const modalClose = document.getElementById('modalClose');
     
     if (!modal || !modalImage) return;
     
@@ -1190,6 +1191,13 @@ function openModal(index, photos) {
     modalImage.src = photoPath;
     modal.style.display = 'block';
     document.body.style.overflow = 'hidden';
+    
+    // Ensure close button is visible
+    if (modalClose) {
+        modalClose.style.display = 'flex';
+        modalClose.style.visibility = 'visible';
+        modalClose.style.opacity = '1';
+    }
     
     // Update navigation button states
     updateModalNavigation();
