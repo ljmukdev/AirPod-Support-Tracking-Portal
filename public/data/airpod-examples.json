@@ -1,0 +1,305 @@
+{
+  "examples": {
+    "A2698": {
+      "partModelNumber": "A2698",
+      "partType": "left",
+      "generation": "AirPods Pro (2nd Gen)",
+      "purchasedPart": {
+        "name": "Left AirPod Pro 2nd Gen",
+        "exampleImage": "images/examples/airpod-pro-2nd-gen-left.jpg"
+      },
+      "compatibleParts": [
+        {
+          "partModelNumber": "A2699",
+          "partType": "right",
+          "name": "Right AirPod Pro 2nd Gen",
+          "exampleImage": "images/examples/airpod-pro-2nd-gen-right.jpg",
+          "description": "Right AirPod Pro 2nd Gen - should match your left AirPod"
+        },
+        {
+          "partModelNumber": "A2700",
+          "partType": "case",
+          "name": "Charging Case Pro 2nd Gen",
+          "exampleImage": "images/examples/airpod-pro-2nd-gen-case.jpg",
+          "description": "Charging Case Pro 2nd Gen - USB-C or Lightning"
+        }
+      ]
+    },
+    "A2699": {
+      "partModelNumber": "A2699",
+      "partType": "right",
+      "generation": "AirPods Pro (2nd Gen)",
+      "purchasedPart": {
+        "name": "Right AirPod Pro 2nd Gen",
+        "exampleImage": "images/examples/airpod-pro-2nd-gen-right.jpg"
+      },
+      "compatibleParts": [
+        {
+          "partModelNumber": "A2698",
+          "partType": "left",
+          "name": "Left AirPod Pro 2nd Gen",
+          "exampleImage": "images/examples/airpod-pro-2nd-gen-left.jpg",
+          "description": "Left AirPod Pro 2nd Gen - should match your right AirPod"
+        },
+        {
+          "partModelNumber": "A2700",
+          "partType": "case",
+          "name": "Charging Case Pro 2nd Gen",
+          "exampleImage": "images/examples/airpod-pro-2nd-gen-case.jpg",
+          "description": "Charging Case Pro 2nd Gen - USB-C or Lightning"
+        }
+      ]
+    },
+    "A2700": {
+      "partModelNumber": "A2700",
+      "partType": "case",
+      "generation": "AirPods Pro (2nd Gen)",
+      "purchasedPart": {
+        "name": "Charging Case Pro 2nd Gen",
+        "exampleImage": "images/examples/airpod-pro-2nd-gen-case.jpg"
+      },
+      "compatibleParts": [
+        {
+          "partModelNumber": "A2698",
+          "partType": "left",
+          "name": "Left AirPod Pro 2nd Gen",
+          "exampleImage": "images/examples/airpod-pro-2nd-gen-left.jpg",
+          "description": "Left AirPod Pro 2nd Gen"
+        },
+        {
+          "partModelNumber": "A2699",
+          "partType": "right",
+          "name": "Right AirPod Pro 2nd Gen",
+          "exampleImage": "images/examples/airpod-pro-2nd-gen-right.jpg",
+          "description": "Right AirPod Pro 2nd Gen"
+        }
+      ]
+    },
+    "A2084": {
+      "partModelNumber": "A2084",
+      "partType": "left",
+      "generation": "AirPods Pro (1st Gen)",
+      "purchasedPart": {
+        "name": "Left AirPod Pro 1st Gen",
+        "exampleImage": "images/examples/airpod-pro-1st-gen-left.jpg"
+      },
+      "compatibleParts": [
+        {
+          "partModelNumber": "A2083",
+          "partType": "right",
+          "name": "Right AirPod Pro 1st Gen",
+          "exampleImage": "images/examples/airpod-pro-1st-gen-right.jpg",
+          "description": "Right AirPod Pro 1st Gen - should match your left AirPod"
+        },
+        {
+          "partModelNumber": "A2190",
+          "partType": "case",
+          "name": "Charging Case Pro 1st Gen",
+          "exampleImage": "images/examples/airpod-pro-1st-gen-case.jpg",
+          "description": "Charging Case Pro 1st Gen - MagSafe or Lightning"
+        }
+      ]
+    },
+    "A2083": {
+      "partModelNumber": "A2083",
+      "partType": "right",
+      "generation": "AirPods Pro (1st Gen)",
+      "purchasedPart": {
+        "name": "Right AirPod Pro 1st Gen",
+        "exampleImage": "images/examples/airpod-pro-1st-gen-right.jpg"
+      },
+      "compatibleParts": [
+        {
+          "partModelNumber": "A2084",
+          "partType": "left",
+          "name": "Left AirPod Pro 1st Gen",
+          "exampleImage": "images/examples/airpod-pro-1st-gen-left.jpg",
+          "description": "Left AirPod Pro 1st Gen - should match your right AirPod"
+        },
+        {
+          "partModelNumber": "A2190",
+          "partType": "case",
+          "name": "Charging Case Pro 1st Gen",
+          "exampleImage": "images/examples/airpod-pro-1st-gen-case.jpg",
+          "description": "Charging Case Pro 1st Gen - MagSafe or Lightning"
+        }
+      ]
+    },
+    "A2190": {
+      "partModelNumber": "A2190",
+      "partType": "case",
+      "generation": "AirPods Pro (1st Gen)",
+      "purchasedPart": {
+        "name": "Charging Case Pro 1st Gen",
+        "exampleImage": "images/examples/airpod-pro-1st-gen-case.jpg"
+      },
+      "compatibleParts": [
+        {
+          "partModelNumber": "A2084",
+          "partType": "left",
+          "name": "Left AirPod Pro 1st Gen",
+          "exampleImage": "images/examples/airpod-pro-1st-gen-left.jpg",
+          "description": "Left AirPod Pro 1st Gen"
+        },
+        {
+          "partModelNumber": "A2083",
+          "partType": "right",
+          "name": "Right AirPod Pro 1st Gen",
+          "exampleImage": "images/examples/airpod-pro-1st-gen-right.jpg",
+          "description": "Right AirPod Pro 1st Gen"
+        }
+      ]
+    },
+    "A2564": {
+      "partModelNumber": "A2564",
+      "partType": "left",
+      "generation": "AirPods (3rd Gen)",
+      "purchasedPart": {
+        "name": "Left AirPod 3rd Gen",
+        "exampleImage": "images/examples/airpod-3rd-gen-left.jpg"
+      },
+      "compatibleParts": [
+        {
+          "partModelNumber": "A2565",
+          "partType": "right",
+          "name": "Right AirPod 3rd Gen",
+          "exampleImage": "images/examples/airpod-3rd-gen-right.jpg",
+          "description": "Right AirPod 3rd Gen - should match your left AirPod"
+        },
+        {
+          "partModelNumber": "A2566",
+          "partType": "case",
+          "name": "Charging Case 3rd Gen",
+          "exampleImage": "images/examples/airpod-3rd-gen-case.svg",
+          "description": "Charging Case 3rd Gen - MagSafe or Lightning"
+        }
+      ]
+    },
+    "A2565": {
+      "partModelNumber": "A2565",
+      "partType": "right",
+      "generation": "AirPods (3rd Gen)",
+      "purchasedPart": {
+        "name": "Right AirPod 3rd Gen",
+        "exampleImage": "images/examples/airpod-3rd-gen-right.jpg"
+      },
+      "compatibleParts": [
+        {
+          "partModelNumber": "A2564",
+          "partType": "left",
+          "name": "Left AirPod 3rd Gen",
+          "exampleImage": "images/examples/airpod-3rd-gen-left.jpg",
+          "description": "Left AirPod 3rd Gen - should match your right AirPod"
+        },
+        {
+          "partModelNumber": "A2566",
+          "partType": "case",
+          "name": "Charging Case 3rd Gen",
+          "exampleImage": "images/examples/airpod-3rd-gen-case.svg",
+          "description": "Charging Case 3rd Gen - MagSafe or Lightning"
+        }
+      ]
+    },
+    "A2566": {
+      "partModelNumber": "A2566",
+      "partType": "case",
+      "generation": "AirPods (3rd Gen)",
+      "purchasedPart": {
+        "name": "Charging Case 3rd Gen",
+        "exampleImage": "images/examples/airpod-3rd-gen-case.jpg"
+      },
+      "compatibleParts": [
+        {
+          "partModelNumber": "A2564",
+          "partType": "left",
+          "name": "Left AirPod 3rd Gen",
+          "exampleImage": "images/examples/airpod-3rd-gen-left.jpg",
+          "description": "Left AirPod 3rd Gen"
+        },
+        {
+          "partModelNumber": "A2565",
+          "partType": "right",
+          "name": "Right AirPod 3rd Gen",
+          "exampleImage": "images/examples/airpod-3rd-gen-right.jpg",
+          "description": "Right AirPod 3rd Gen"
+        }
+      ]
+    },
+    "A2032": {
+      "partModelNumber": "A2032",
+      "partType": "left",
+      "generation": "AirPods (2nd Gen)",
+      "purchasedPart": {
+        "name": "Left AirPod 2nd Gen",
+        "exampleImage": "images/examples/airpod-2nd-gen-left.svg"
+      },
+      "compatibleParts": [
+        {
+          "partModelNumber": "A2031",
+          "partType": "right",
+          "name": "Right AirPod 2nd Gen",
+          "exampleImage": "images/examples/airpod-2nd-gen-right.svg",
+          "description": "Right AirPod 2nd Gen - should match your left AirPod"
+        },
+        {
+          "partModelNumber": "A1602",
+          "partType": "case",
+          "name": "Charging Case 2nd Gen",
+          "exampleImage": "images/examples/airpod-2nd-gen-case.svg",
+          "description": "Charging Case 2nd Gen - Wireless or Lightning"
+        }
+      ]
+    },
+    "A2031": {
+      "partModelNumber": "A2031",
+      "partType": "right",
+      "generation": "AirPods (2nd Gen)",
+      "purchasedPart": {
+        "name": "Right AirPod 2nd Gen",
+        "exampleImage": "images/examples/airpod-2nd-gen-right.svg"
+      },
+      "compatibleParts": [
+        {
+          "partModelNumber": "A2032",
+          "partType": "left",
+          "name": "Left AirPod 2nd Gen",
+          "exampleImage": "images/examples/airpod-2nd-gen-left.svg",
+          "description": "Left AirPod 2nd Gen - should match your right AirPod"
+        },
+        {
+          "partModelNumber": "A1602",
+          "partType": "case",
+          "name": "Charging Case 2nd Gen",
+          "exampleImage": "images/examples/airpod-2nd-gen-case.svg",
+          "description": "Charging Case 2nd Gen - Wireless or Lightning"
+        }
+      ]
+    },
+    "A1602": {
+      "partModelNumber": "A1602",
+      "partType": "case",
+      "generation": "AirPods (2nd Gen)",
+      "purchasedPart": {
+        "name": "Charging Case 2nd Gen",
+        "exampleImage": "images/examples/airpod-2nd-gen-case.svg"
+      },
+      "compatibleParts": [
+        {
+          "partModelNumber": "A2032",
+          "partType": "left",
+          "name": "Left AirPod 2nd Gen",
+          "exampleImage": "images/examples/airpod-2nd-gen-left.svg",
+          "description": "Left AirPod 2nd Gen"
+        },
+        {
+          "partModelNumber": "A2031",
+          "partType": "right",
+          "name": "Right AirPod 2nd Gen",
+          "exampleImage": "images/examples/airpod-2nd-gen-right.svg",
+          "description": "Right AirPod 2nd Gen"
+        }
+      ]
+    }
+  }
+}
+

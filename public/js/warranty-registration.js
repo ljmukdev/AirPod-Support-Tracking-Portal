@@ -22,7 +22,8 @@ const appState = {
     setupStepsCompleted: [],
     exitIntentShown: false,
     sessionStartTime: Date.now(),
-    skippedStep1: false // Track if step 1 was skipped (coming from home page)
+    skippedStep1: false, // Track if step 1 was skipped (coming from home page)
+    airpodExamples: null // Store loaded example images database
 };
 
 // Load saved state from localStorage
@@ -641,6 +642,39 @@ async function loadProductInfo(barcode, skipValidation = false) {
     }
 }
 
+// Load AirPod examples database
+async function loadAirpodExamples() {
+    if (appState.airpodExamples) {
+        return appState.airpodExamples;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE}/data/airpod-examples.json`);
+        const data = await response.json();
+        appState.airpodExamples = data.examples;
+        return appState.airpodExamples;
+    } catch (error) {
+        console.error('Failed to load AirPod examples:', error);
+        return null;
+    }
+}
+
+// Get example images for compatible parts
+async function getCompatiblePartExamples(partModelNumber, partType) {
+    const examples = await loadAirpodExamples();
+    if (!examples || !partModelNumber) {
+        return null;
+    }
+    
+    // Check if we have examples for this part model number
+    if (examples[partModelNumber]) {
+        return examples[partModelNumber];
+    }
+    
+    // Fallback: try to find by part type and generation if available
+    return null;
+}
+
 // Get compatible part numbers based on purchased part
 function getCompatiblePartNumbers(partModelNumber, partType) {
     // AirPods Pro 2nd Gen part numbers
@@ -738,6 +772,9 @@ function displayProductInfoOnStep1(data) {
         compatiblePartsEl.textContent = compatiblePartsText;
     }
     
+    // Load and display compatible part examples
+    displayCompatiblePartExamples(partModelNumber, data.part_type);
+    
     // Hide security code entry section when product is displayed
     const securityCodeEntry = document.getElementById('securityCodeEntrySection');
     if (securityCodeEntry) {
@@ -749,6 +786,71 @@ function displayProductInfoOnStep1(data) {
     
     // Initialize step-by-step verification
     initializeVerificationSteps();
+}
+
+// Display compatible part examples
+async function displayCompatiblePartExamples(partModelNumber, partType) {
+    const examplesContainer = document.getElementById('compatiblePartsExamples');
+    const examplesGrid = document.getElementById('compatiblePartsExamplesGrid');
+    
+    if (!examplesContainer || !examplesGrid) {
+        return;
+    }
+    
+    // Get example data
+    const exampleData = await getCompatiblePartExamples(partModelNumber, partType);
+    
+    if (!exampleData || !exampleData.compatibleParts || exampleData.compatibleParts.length === 0) {
+        examplesContainer.style.display = 'none';
+        return;
+    }
+    
+    // Clear existing content
+    examplesGrid.innerHTML = '';
+    
+    // Display each compatible part example
+    exampleData.compatibleParts.forEach((part) => {
+        const partCard = document.createElement('div');
+        partCard.style.cssText = 'background: white; border: 2px solid #e8ecf1; border-radius: 12px; padding: 16px; text-align: center; transition: all 0.3s ease;';
+        partCard.style.cursor = 'pointer';
+        
+        partCard.innerHTML = `
+            <img src="${part.exampleImage}" 
+                 alt="${part.name}" 
+                 style="width: 100%; max-width: 200px; height: auto; border-radius: 8px; margin-bottom: 12px; object-fit: contain;"
+                 onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'200\' height=\'150\'%3E%3Crect width=\'200\' height=\'150\' fill=\'%23f5f5f5\'/%3E%3Ctext x=\'100\' y=\'75\' font-family=\'Arial\' font-size=\'12\' fill=\'%23999\' text-anchor=\'middle\'%3EImage not found%3C/text%3E%3C/svg%3E'">
+            <div style="font-weight: 600; color: #1a1a1a; margin-bottom: 4px; font-size: 0.95rem;">${part.name}</div>
+            <div style="font-size: 0.85rem; color: #6c757d; margin-bottom: 8px;">${part.partModelNumber}</div>
+            <div style="font-size: 0.8rem; color: #6c757d; line-height: 1.4;">${part.description || ''}</div>
+        `;
+        
+        // Add hover effect
+        partCard.addEventListener('mouseenter', function() {
+            this.style.borderColor = '#284064';
+            this.style.transform = 'translateY(-2px)';
+            this.style.boxShadow = '0 4px 12px rgba(40, 64, 100, 0.15)';
+        });
+        
+        partCard.addEventListener('mouseleave', function() {
+            this.style.borderColor = '#e8ecf1';
+            this.style.transform = 'translateY(0)';
+            this.style.boxShadow = 'none';
+        });
+        
+        // Make image clickable to open in modal
+        const img = partCard.querySelector('img');
+        if (img) {
+            img.style.cursor = 'pointer';
+            img.addEventListener('click', function() {
+                openModal(0, [part.exampleImage]);
+            });
+        }
+        
+        examplesGrid.appendChild(partCard);
+    });
+    
+    // Show the examples container
+    examplesContainer.style.display = 'block';
 }
 
 // Verification step state
