@@ -898,6 +898,77 @@ async function displayCompatiblePartExamples(partModelNumber, partType) {
     console.log('Examples container displayed');
 }
 
+// Update authenticity check images based on purchased part
+async function updateAuthenticityImages(partModelNumber, partType) {
+    console.log('updateAuthenticityImages called for:', partModelNumber, partType);
+    
+    const caseImage = document.getElementById('authenticityCaseImage');
+    const airpodImage = document.getElementById('authenticityAirPodImage');
+    
+    if (!caseImage || !airpodImage) {
+        console.error('Authenticity image elements not found');
+        return;
+    }
+    
+    // Get example data
+    const exampleData = await getCompatiblePartExamples(partModelNumber, partType);
+    
+    if (!exampleData) {
+        console.warn('No example data found, using default SVGs');
+        return;
+    }
+    
+    // Find the case image from compatible parts
+    const casePart = exampleData.compatibleParts.find(part => part.partType === 'case');
+    if (casePart && casePart.exampleImage) {
+        let caseImagePath = casePart.exampleImage;
+        if (!caseImagePath.startsWith('/') && !caseImagePath.startsWith('http')) {
+            caseImagePath = '/' + caseImagePath;
+        }
+        // Try JPG first, fallback to SVG
+        const svgPath = caseImagePath.replace(/\.jpg$/, '.svg').replace(/\.png$/, '.svg');
+        caseImage.src = caseImagePath;
+        caseImage.onerror = function() {
+            console.warn('Case JPG not found, trying SVG');
+            this.onerror = null;
+            this.src = svgPath;
+        };
+        caseImage.alt = `Example ${casePart.name} showing markings`;
+        console.log('Updated case image to:', caseImagePath);
+    }
+    
+    // Find the matching AirPod image
+    // If they bought an AirPod, show that same type; if they bought a case, show one of the compatible AirPods
+    let airpodPart = null;
+    if (partType === 'left' || partType === 'right') {
+        // They bought an AirPod, show the purchased part image (same type)
+        airpodPart = exampleData.purchasedPart;
+    } else if (partType === 'case') {
+        // They bought a case, show one of the compatible AirPods (prefer left)
+        airpodPart = exampleData.compatibleParts.find(part => part.partType === 'left') || 
+                     exampleData.compatibleParts.find(part => part.partType === 'right');
+    }
+    
+    if (airpodPart && airpodPart.exampleImage) {
+        let airpodImagePath = airpodPart.exampleImage;
+        if (!airpodImagePath.startsWith('/') && !airpodImagePath.startsWith('http')) {
+            airpodImagePath = '/' + airpodImagePath;
+        }
+        // Try JPG first, fallback to SVG
+        const svgPath = airpodImagePath.replace(/\.jpg$/, '.svg').replace(/\.png$/, '.svg');
+        airpodImage.src = airpodImagePath;
+        airpodImage.onerror = function() {
+            console.warn('AirPod JPG not found, trying SVG:', svgPath);
+            this.onerror = null;
+            this.src = svgPath;
+        };
+        airpodImage.alt = `Example ${airpodPart.name} showing markings`;
+        console.log('Updated AirPod image to:', airpodImagePath);
+    } else {
+        console.warn('Could not find AirPod part image');
+    }
+}
+
 // Verification step state
 let verificationState = {
     currentStep: 1,
@@ -1003,6 +1074,18 @@ function showVerificationStep(stepNumber) {
                 // Small delay to ensure DOM is ready
                 setTimeout(() => {
                     displayCompatiblePartExamples(partModelNumber, partType);
+                }, 100);
+            }
+        }
+        
+        // If showing step 2 (Authenticity Check), update images dynamically
+        if (stepNumber === 2 && appState.productData) {
+            const partModelNumber = appState.productData.part_model_number;
+            const partType = appState.productData.part_type;
+            if (partModelNumber) {
+                console.log('Step 2 shown, updating authenticity images for:', partModelNumber);
+                setTimeout(() => {
+                    updateAuthenticityImages(partModelNumber, partType);
                 }, 100);
             }
         }
