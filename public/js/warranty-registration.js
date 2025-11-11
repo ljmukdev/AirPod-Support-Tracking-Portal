@@ -794,7 +794,13 @@ function displayProductInfoOnStep1(data) {
     }
     
     // Load and display compatible part examples
-    displayCompatiblePartExamples(partModelNumber, data.part_type);
+    console.log('=== DISPLAYING COMPATIBLE PART EXAMPLES ===');
+    console.log('Part Model Number:', partModelNumber);
+    console.log('Part Type:', data.part_type);
+    console.log('Product Data:', data);
+    displayCompatiblePartExamples(partModelNumber, data.part_type).catch(err => {
+        console.error('Error displaying examples:', err);
+    });
     
     // Hide security code entry section when product is displayed
     const securityCodeEntry = document.getElementById('securityCodeEntrySection');
@@ -847,12 +853,16 @@ async function displayCompatiblePartExamples(partModelNumber, partType) {
             imagePath = '/' + imagePath;
         }
         
+        // Try .jpg first, fallback to .svg if .jpg doesn't exist
+        const jpgPath = imagePath;
+        const svgPath = imagePath.replace(/\.jpg$/, '.svg').replace(/\.png$/, '.svg');
+        
         partCard.innerHTML = `
-            <img src="${imagePath}" 
+            <img src="${jpgPath}" 
                  alt="${part.name}" 
                  style="width: 100%; max-width: 200px; height: auto; min-height: 150px; border-radius: 8px; margin-bottom: 12px; object-fit: contain; background: #f8f9fa;"
-                 onerror="console.error('Image failed to load:', '${imagePath}'); this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'200\' height=\'150\'%3E%3Crect width=\'200\' height=\'150\' fill=\'%23f5f5f5\'/%3E%3Ctext x=\'100\' y=\'75\' font-family=\'Arial\' font-size=\'12\' fill=\'%23999\' text-anchor=\'middle\'%3EImage not found%3C/text%3E%3C/svg%3E'"
-                 onload="console.log('Image loaded successfully:', '${imagePath}')">
+                 onerror="console.warn('JPG not found, trying SVG:', '${svgPath}'); this.onerror=null; this.src='${svgPath}';"
+                 onload="console.log('Image loaded successfully:', '${jpgPath}')">
             <div style="font-weight: 600; color: #1a1a1a; margin-bottom: 4px; font-size: 0.95rem;">${part.name}</div>
             <div style="font-size: 0.85rem; color: #6c757d; margin-bottom: 8px;">${part.partModelNumber}</div>
             <div style="font-size: 0.8rem; color: #6c757d; line-height: 1.4;">${part.description || ''}</div>
