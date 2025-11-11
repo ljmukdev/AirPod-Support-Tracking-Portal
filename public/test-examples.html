@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test AirPod Examples</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #284064;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #1e2f4a;
+        }
+        #results {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        .example-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-top: 20px;
+        }
+        .example-card {
+            border: 2px solid #e8ecf1;
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+        }
+        .example-card img {
+            width: 100%;
+            max-width: 200px;
+            height: auto;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <h1>AirPod Examples Diagnostic Test</h1>
+    
+    <div class="test-container">
+        <h2>Test JSON Loading</h2>
+        <button onclick="testLoadJSON()">Test Load JSON</button>
+        <button onclick="testPart('A2698')">Test A2698 (Left Pro 2nd Gen)</button>
+        <button onclick="testPart('A2699')">Test A2699 (Right Pro 2nd Gen)</button>
+        <button onclick="testPart('A2700')">Test A2700 (Case Pro 2nd Gen)</button>
+        <div id="results"></div>
+    </div>
+    
+    <div class="test-container">
+        <h2>Example Images</h2>
+        <div id="exampleGrid" class="example-grid"></div>
+    </div>
+
+    <script>
+        let examplesData = null;
+        
+        async function testLoadJSON() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>Loading JSON...</p>';
+            
+            try {
+                const response = await fetch('/data/airpod-examples.json');
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('JSON loaded:', data);
+                examplesData = data.examples;
+                
+                results.innerHTML = `
+                    <p style="color: green;">✅ JSON loaded successfully!</p>
+                    <p>Found ${Object.keys(examplesData).length} parts in database:</p>
+                    <ul>
+                        ${Object.keys(examplesData).map(key => `<li>${key}: ${examplesData[key].purchasedPart.name}</li>`).join('')}
+                    </ul>
+                `;
+            } catch (error) {
+                console.error('Error loading JSON:', error);
+                results.innerHTML = `<p style="color: red;">❌ Error: ${error.message}</p>`;
+            }
+        }
+        
+        async function testPart(partModelNumber) {
+            const results = document.getElementById('results');
+            const grid = document.getElementById('exampleGrid');
+            
+            if (!examplesData) {
+                await testLoadJSON();
+            }
+            
+            if (!examplesData) {
+                results.innerHTML = '<p style="color: red;">❌ JSON not loaded. Click "Test Load JSON" first.</p>';
+                return;
+            }
+            
+            const partData = examplesData[partModelNumber];
+            if (!partData) {
+                results.innerHTML = `<p style="color: red;">❌ No data found for part ${partModelNumber}</p>`;
+                return;
+            }
+            
+            results.innerHTML = `
+                <p style="color: green;">✅ Found data for ${partModelNumber}</p>
+                <p><strong>Purchased Part:</strong> ${partData.purchasedPart.name}</p>
+                <p><strong>Compatible Parts:</strong> ${partData.compatibleParts.length}</p>
+            `;
+            
+            // Display examples
+            grid.innerHTML = '';
+            partData.compatibleParts.forEach(part => {
+                const card = document.createElement('div');
+                card.className = 'example-card';
+                card.innerHTML = `
+                    <img src="${part.exampleImage}" alt="${part.name}" 
+                         onerror="this.style.border='2px solid red'; this.alt='FAILED TO LOAD: ${part.exampleImage}'">
+                    <h3>${part.name}</h3>
+                    <p>${part.partModelNumber}</p>
+                    <p style="font-size: 0.8rem; color: #666;">${part.description}</p>
+                    <p style="font-size: 0.7rem; color: #999; margin-top: 5px;">Path: ${part.exampleImage}</p>
+                `;
+                grid.appendChild(card);
+            });
+        }
+        
+        // Auto-load on page load
+        window.addEventListener('load', () => {
+            testLoadJSON();
+        });
+    </script>
+</body>
+</html>
+

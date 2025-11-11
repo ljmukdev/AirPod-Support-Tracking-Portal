@@ -983,6 +983,19 @@ function showVerificationStep(stepNumber) {
     if (currentStepEl) {
         currentStepEl.style.display = 'block';
         currentStepEl.style.animation = 'fadeIn 0.3s ease';
+        
+        // If showing step 1 and we have product data, ensure examples are displayed
+        if (stepNumber === 1 && appState.productData) {
+            const partModelNumber = appState.productData.part_model_number;
+            const partType = appState.productData.part_type;
+            if (partModelNumber) {
+                console.log('Step 1 shown, re-displaying examples for:', partModelNumber);
+                // Small delay to ensure DOM is ready
+                setTimeout(() => {
+                    displayCompatiblePartExamples(partModelNumber, partType);
+                }, 100);
+            }
+        }
     }
 }
 
