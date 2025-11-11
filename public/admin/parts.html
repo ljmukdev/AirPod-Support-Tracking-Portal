@@ -225,6 +225,35 @@
                         <small style="color: #666; font-size: 0.85rem;">Lower numbers appear first</small>
                     </div>
                     
+                    <hr style="margin: 30px 0; border: none; border-top: 2px solid #e8ecf1;">
+                    
+                    <h3 style="margin-bottom: 20px; color: var(--primary-navy);">Authenticity Images</h3>
+                    <p style="color: #666; font-size: 0.9rem; margin-bottom: 20px;">Upload images that show where to find markings on genuine parts. These will be displayed in Step 2 (Authenticity Check) to help customers verify their parts.</p>
+                    
+                    <div class="form-group">
+                        <label for="authenticity_case_image">Case Image (for authenticity check)</label>
+                        <input 
+                            type="file" 
+                            id="authenticity_case_image" 
+                            name="authenticity_case_image"
+                            accept="image/*"
+                        >
+                        <small style="color: #666; font-size: 0.85rem;">Shows where markings are inside the case lid</small>
+                        <div id="caseImagePreview" style="margin-top: 10px;"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="authenticity_airpod_image">AirPod Image (for authenticity check)</label>
+                        <input 
+                            type="file" 
+                            id="authenticity_airpod_image" 
+                            name="authenticity_airpod_image"
+                            accept="image/*"
+                        >
+                        <small style="color: #666; font-size: 0.85rem;">Shows where markings are on the AirPod stem</small>
+                        <div id="airpodImagePreview" style="margin-top: 10px;"></div>
+                    </div>
+                    
                     <div id="errorMessage" class="error-message"></div>
                     <div id="successMessage" class="success-message"></div>
                     

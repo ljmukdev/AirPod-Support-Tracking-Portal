@@ -910,62 +910,47 @@ async function updateAuthenticityImages(partModelNumber, partType) {
         return;
     }
     
-    // Get example data
-    const exampleData = await getCompatiblePartExamples(partModelNumber, partType);
-    
-    if (!exampleData) {
-        console.warn('No example data found, using default SVGs');
-        return;
-    }
-    
-    // Find the case image from compatible parts
-    const casePart = exampleData.compatibleParts.find(part => part.partType === 'case');
-    if (casePart && casePart.exampleImage) {
-        let caseImagePath = casePart.exampleImage;
-        if (!caseImagePath.startsWith('/') && !caseImagePath.startsWith('http')) {
-            caseImagePath = '/' + caseImagePath;
+    try {
+        // Fetch authenticity images from database
+        const response = await fetch(`${API_BASE}/api/authenticity-images/${partModelNumber}`);
+        const data = await response.json();
+        
+        console.log('Authenticity images from database:', data);
+        
+        // Update case image
+        if (data.authenticity_case_image) {
+            let caseImagePath = data.authenticity_case_image;
+            if (!caseImagePath.startsWith('/') && !caseImagePath.startsWith('http')) {
+                caseImagePath = '/' + caseImagePath;
+            }
+            caseImage.src = caseImagePath;
+            caseImage.alt = 'Example charging case showing markings';
+            console.log('Updated case image to:', caseImagePath);
+        } else {
+            // Fallback to default SVG
+            caseImage.src = 'images/airpod-case-markings.svg';
+            console.warn('No case authenticity image found, using default SVG');
         }
-        // Try JPG first, fallback to SVG
-        const svgPath = caseImagePath.replace(/\.jpg$/, '.svg').replace(/\.png$/, '.svg');
-        caseImage.src = caseImagePath;
-        caseImage.onerror = function() {
-            console.warn('Case JPG not found, trying SVG');
-            this.onerror = null;
-            this.src = svgPath;
-        };
-        caseImage.alt = `Example ${casePart.name} showing markings`;
-        console.log('Updated case image to:', caseImagePath);
-    }
-    
-    // Find the matching AirPod image
-    // If they bought an AirPod, show that same type; if they bought a case, show one of the compatible AirPods
-    let airpodPart = null;
-    if (partType === 'left' || partType === 'right') {
-        // They bought an AirPod, show the purchased part image (same type)
-        airpodPart = exampleData.purchasedPart;
-    } else if (partType === 'case') {
-        // They bought a case, show one of the compatible AirPods (prefer left)
-        airpodPart = exampleData.compatibleParts.find(part => part.partType === 'left') || 
-                     exampleData.compatibleParts.find(part => part.partType === 'right');
-    }
-    
-    if (airpodPart && airpodPart.exampleImage) {
-        let airpodImagePath = airpodPart.exampleImage;
-        if (!airpodImagePath.startsWith('/') && !airpodImagePath.startsWith('http')) {
-            airpodImagePath = '/' + airpodImagePath;
+        
+        // Update AirPod image
+        if (data.authenticity_airpod_image) {
+            let airpodImagePath = data.authenticity_airpod_image;
+            if (!airpodImagePath.startsWith('/') && !airpodImagePath.startsWith('http')) {
+                airpodImagePath = '/' + airpodImagePath;
+            }
+            airpodImage.src = airpodImagePath;
+            airpodImage.alt = 'Example AirPod showing markings';
+            console.log('Updated AirPod image to:', airpodImagePath);
+        } else {
+            // Fallback to default SVG
+            airpodImage.src = 'images/airpod-stem-markings.svg';
+            console.warn('No AirPod authenticity image found, using default SVG');
         }
-        // Try JPG first, fallback to SVG
-        const svgPath = airpodImagePath.replace(/\.jpg$/, '.svg').replace(/\.png$/, '.svg');
-        airpodImage.src = airpodImagePath;
-        airpodImage.onerror = function() {
-            console.warn('AirPod JPG not found, trying SVG:', svgPath);
-            this.onerror = null;
-            this.src = svgPath;
-        };
-        airpodImage.alt = `Example ${airpodPart.name} showing markings`;
-        console.log('Updated AirPod image to:', airpodImagePath);
-    } else {
-        console.warn('Could not find AirPod part image');
+    } catch (error) {
+        console.error('Error fetching authenticity images:', error);
+        // Fallback to default SVGs
+        caseImage.src = 'images/airpod-case-markings.svg';
+        airpodImage.src = 'images/airpod-stem-markings.svg';
     }
 }
 

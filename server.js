@@ -297,6 +297,20 @@ app.get('/api/admin/uploads-diagnostic', requireAuth, requireDB, (req, res) => {
     }
 });
 
+// Serve authenticity images
+app.get('/uploads/authenticity/:filename', async (req, res) => {
+    const filename = req.params.filename;
+    const currentUploadsDir = global.uploadsDir || uploadsDir;
+    const authenticityImagesDir = path.join(currentUploadsDir, 'authenticity');
+    const filePath = path.join(authenticityImagesDir, filename);
+    
+    if (fs.existsSync(filePath)) {
+        res.sendFile(filePath);
+    } else {
+        res.status(404).json({ error: 'Image not found' });
+    }
+});
+
 // Explicit route for uploads BEFORE static middleware to handle missing files gracefully
 // This prevents Express static from throwing unhandled errors
 app.get('/uploads/:filename', async (req, res) => {
@@ -2103,8 +2117,11 @@ app.get('/api/admin/parts/:generation', requireAuth, requireDB, async (req, res)
     }
 });
 
-// Add new part
-app.post('/api/admin/part', requireAuth, requireDB, async (req, res) => {
+// Add new part - with image upload support
+app.post('/api/admin/part', requireAuth, requireDB, upload.fields([
+    { name: 'authenticity_case_image', maxCount: 1 },
+    { name: 'authenticity_airpod_image', maxCount: 1 }
+]), async (req, res) => {
     const { generation, part_name, part_model_number, part_type, notes, display_order } = req.body;
     
     if (!generation || !part_name || !part_model_number || !part_type) {
@@ -2118,6 +2135,38 @@ app.post('/api/admin/part', requireAuth, requireDB, async (req, res) => {
     console.log('Adding new part:', { generation, part_name, part_model_number, part_type });
     
     try {
+        const currentUploadsDir = global.uploadsDir || uploadsDir;
+        const authenticityImagesDir = path.join(currentUploadsDir, 'authenticity');
+        
+        // Ensure authenticity images directory exists
+        if (!fs.existsSync(authenticityImagesDir)) {
+            fs.mkdirSync(authenticityImagesDir, { recursive: true });
+        }
+        
+        // Process uploaded images
+        let authenticityCaseImage = null;
+        let authenticityAirpodImage = null;
+        
+        if (req.files) {
+            if (req.files['authenticity_case_image'] && req.files['authenticity_case_image'][0]) {
+                const file = req.files['authenticity_case_image'][0];
+                const newFilename = `case_${part_model_number}_${Date.now()}${path.extname(file.originalname)}`;
+                const newPath = path.join(authenticityImagesDir, newFilename);
+                fs.renameSync(file.path, newPath);
+                authenticityCaseImage = `/uploads/authenticity/${newFilename}`;
+                console.log('Case authenticity image saved:', authenticityCaseImage);
+            }
+            
+            if (req.files['authenticity_airpod_image'] && req.files['authenticity_airpod_image'][0]) {
+                const file = req.files['authenticity_airpod_image'][0];
+                const newFilename = `airpod_${part_model_number}_${Date.now()}${path.extname(file.originalname)}`;
+                const newPath = path.join(authenticityImagesDir, newFilename);
+                fs.renameSync(file.path, newPath);
+                authenticityAirpodImage = `/uploads/authenticity/${newFilename}`;
+                console.log('AirPod authenticity image saved:', authenticityAirpodImage);
+            }
+        }
+        
         const part = {
             generation: generation.trim(),
             part_name: part_name.trim(),
@@ -2125,6 +2174,8 @@ app.post('/api/admin/part', requireAuth, requireDB, async (req, res) => {
             part_type: part_type.toLowerCase(),
             notes: notes ? notes.trim() : null,
             display_order: display_order || 0,
+            authenticity_case_image: authenticityCaseImage,
+            authenticity_airpod_image: authenticityAirpodImage,
             date_added: new Date()
         };
         
@@ -2142,7 +2193,10 @@ app.post('/api/admin/part', requireAuth, requireDB, async (req, res) => {
 });
 
 // Update part
-app.put('/api/admin/part/:id', requireAuth, requireDB, async (req, res) => {
+app.put('/api/admin/part/:id', requireAuth, requireDB, upload.fields([
+    { name: 'authenticity_case_image', maxCount: 1 },
+    { name: 'authenticity_airpod_image', maxCount: 1 }
+]), async (req, res) => {
     const id = req.params.id;
     const { generation, part_name, part_model_number, part_type, notes, display_order } = req.body;
     
@@ -2161,18 +2215,80 @@ app.put('/api/admin/part/:id', requireAuth, requireDB, async (req, res) => {
             return res.status(400).json({ error: 'Invalid part ID' });
         }
         
+        // Get existing part to preserve images if not updating
+        const existingPart = await db.collection('airpod_parts').findOne({ _id: new ObjectId(id) });
+        if (!existingPart) {
+            return res.status(404).json({ error: 'Part not found' });
+        }
+        
+        const currentUploadsDir = global.uploadsDir || uploadsDir;
+        const authenticityImagesDir = path.join(currentUploadsDir, 'authenticity');
+        
+        // Ensure authenticity images directory exists
+        if (!fs.existsSync(authenticityImagesDir)) {
+            fs.mkdirSync(authenticityImagesDir, { recursive: true });
+        }
+        
+        // Process uploaded images (only update if new files are provided)
+        let authenticityCaseImage = existingPart.authenticity_case_image || null;
+        let authenticityAirpodImage = existingPart.authenticity_airpod_image || null;
+        
+        if (req.files) {
+            if (req.files['authenticity_case_image'] && req.files['authenticity_case_image'][0]) {
+                // Delete old image if exists
+                if (authenticityCaseImage) {
+                    const oldPath = path.join(__dirname, 'public', authenticityCaseImage);
+                    if (fs.existsSync(oldPath)) {
+                        fs.unlinkSync(oldPath);
+                    }
+                }
+                
+                const file = req.files['authenticity_case_image'][0];
+                const newFilename = `case_${part_model_number}_${Date.now()}${path.extname(file.originalname)}`;
+                const newPath = path.join(authenticityImagesDir, newFilename);
+                fs.renameSync(file.path, newPath);
+                authenticityCaseImage = `/uploads/authenticity/${newFilename}`;
+                console.log('Case authenticity image updated:', authenticityCaseImage);
+            }
+            
+            if (req.files['authenticity_airpod_image'] && req.files['authenticity_airpod_image'][0]) {
+                // Delete old image if exists
+                if (authenticityAirpodImage) {
+                    const oldPath = path.join(__dirname, 'public', authenticityAirpodImage);
+                    if (fs.existsSync(oldPath)) {
+                        fs.unlinkSync(oldPath);
+                    }
+                }
+                
+                const file = req.files['authenticity_airpod_image'][0];
+                const newFilename = `airpod_${part_model_number}_${Date.now()}${path.extname(file.originalname)}`;
+                const newPath = path.join(authenticityImagesDir, newFilename);
+                fs.renameSync(file.path, newPath);
+                authenticityAirpodImage = `/uploads/authenticity/${newFilename}`;
+                console.log('AirPod authenticity image updated:', authenticityAirpodImage);
+            }
+        }
+        
+        const updateData = {
+            generation: generation.trim(),
+            part_name: part_name.trim(),
+            part_model_number: part_model_number.trim(),
+            part_type: part_type.toLowerCase(),
+            notes: notes ? notes.trim() : null,
+            display_order: display_order || 0
+        };
+        
+        // Only update image fields if they were provided
+        if (authenticityCaseImage !== undefined) {
+            updateData.authenticity_case_image = authenticityCaseImage;
+        }
+        if (authenticityAirpodImage !== undefined) {
+            updateData.authenticity_airpod_image = authenticityAirpodImage;
+        }
+        
         const result = await db.collection('airpod_parts').updateOne(
             { _id: new ObjectId(id) },
-            {
-                $set: {
-                    generation: generation.trim(),
-                    part_name: part_name.trim(),
-                    part_model_number: part_model_number.trim(),
-                    part_type: part_type.toLowerCase(),
-                    notes: notes ? notes.trim() : null,
-                    display_order: display_order || 0
-                }
-            }
+            { $set: updateData }
         );
         
         if (result.matchedCount === 0) {
@@ -2215,6 +2331,58 @@ app.get('/api/admin/generations', requireAuth, requireDB, async (req, res) => {
     try {
         const generations = await db.collection('airpod_parts').distinct('generation');
         res.json({ generations: generations.sort() });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Get authenticity images for a part (public endpoint for warranty registration)
+app.get('/api/authenticity-images/:partModelNumber', requireDB, async (req, res) => {
+    const partModelNumber = req.params.partModelNumber;
+    
+    try {
+        // Find the part
+        const part = await db.collection('airpod_parts').findOne({ 
+            part_model_number: partModelNumber 
+        });
+        
+        if (!part) {
+            return res.json({ 
+                authenticity_case_image: null,
+                authenticity_airpod_image: null
+            });
+        }
+        
+        // Get compatible parts to find case image
+        const compatibleParts = await db.collection('airpod_parts').find({
+            generation: part.generation,
+            part_type: { $in: ['case', part.part_type === 'left' ? 'right' : part.part_type === 'right' ? 'left' : 'left'] }
+        }).toArray();
+        
+        let caseImage = null;
+        let airpodImage = null;
+        
+        // Find case image from compatible parts
+        const casePart = compatibleParts.find(p => p.part_type === 'case');
+        if (casePart && casePart.authenticity_case_image) {
+            caseImage = casePart.authenticity_case_image;
+        }
+        
+        // Use the part's own image if it's an AirPod, or find compatible AirPod image
+        if (part.part_type === 'left' || part.part_type === 'right') {
+            airpodImage = part.authenticity_airpod_image;
+        } else if (part.part_type === 'case') {
+            const airpodPart = compatibleParts.find(p => p.part_type === 'left' || p.part_type === 'right');
+            if (airpodPart && airpodPart.authenticity_airpod_image) {
+                airpodImage = airpodPart.authenticity_airpod_image;
+            }
+        }
+        
+        res.json({
+            authenticity_case_image: caseImage,
+            authenticity_airpod_image: airpodImage
+        });
     } catch (err) {
         console.error('Database error:', err);
         res.status(500).json({ error: 'Database error: ' + err.message });

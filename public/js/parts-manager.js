@@ -163,6 +163,42 @@ const submitButton = document.getElementById('submitButton');
 const formTitle = document.getElementById('formTitle');
 const submitButtonText = document.getElementById('submitButtonText');
 
+// Image preview handlers
+const caseImageInput = document.getElementById('authenticity_case_image');
+const airpodImageInput = document.getElementById('authenticity_airpod_image');
+
+if (caseImageInput) {
+    caseImageInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        const preview = document.getElementById('caseImagePreview');
+        if (file && preview) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.innerHTML = `<img src="${e.target.result}" style="max-width: 200px; max-height: 150px; border-radius: 4px; border: 1px solid #ddd;">`;
+            };
+            reader.readAsDataURL(file);
+        } else if (preview) {
+            preview.innerHTML = '';
+        }
+    });
+}
+
+if (airpodImageInput) {
+    airpodImageInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        const preview = document.getElementById('airpodImagePreview');
+        if (file && preview) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.innerHTML = `<img src="${e.target.result}" style="max-width: 200px; max-height: 150px; border-radius: 4px; border: 1px solid #ddd;">`;
+            };
+            reader.readAsDataURL(file);
+        } else if (preview) {
+            preview.innerHTML = '';
+        }
+    });
+}
+
 if (partForm) {
     partForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -189,19 +225,30 @@ if (partForm) {
                 : `${API_BASE}/api/admin/part`;
             const method = partId ? 'PUT' : 'POST';
             
+            // Use FormData to handle file uploads
+            const formData = new FormData();
+            formData.append('generation', generation);
+            formData.append('part_name', partName);
+            formData.append('part_model_number', partModelNumber);
+            formData.append('part_type', partType);
+            formData.append('notes', notes || '');
+            formData.append('display_order', displayOrder);
+            
+            // Add image files if selected
+            const caseImageFile = document.getElementById('authenticity_case_image').files[0];
+            const airpodImageFile = document.getElementById('authenticity_airpod_image').files[0];
+            
+            if (caseImageFile) {
+                formData.append('authenticity_case_image', caseImageFile);
+            }
+            if (airpodImageFile) {
+                formData.append('authenticity_airpod_image', airpodImageFile);
+            }
+            
             const response = await fetch(url, {
                 method: method,
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    generation,
-                    part_name: partName,
-                    part_model_number: partModelNumber,
-                    part_type: partType,
-                    notes: notes || null,
-                    display_order: displayOrder
-                })
+                body: formData
+                // Don't set Content-Type header - browser will set it with boundary for FormData
             });
             
             const data = await response.json();
@@ -210,6 +257,8 @@ if (partForm) {
                 showSuccess(partId ? 'Part updated successfully!' : 'Part added successfully!');
                 partForm.reset();
                 document.getElementById('partId').value = '';
+                document.getElementById('caseImagePreview').innerHTML = '';
+                document.getElementById('airpodImagePreview').innerHTML = '';
                 cancelEdit();
                 loadParts();
                 loadGenerations();
@@ -245,6 +294,22 @@ async function editPart(id) {
                 document.getElementById('part_type').value = part.part_type;
                 document.getElementById('notes').value = part.notes || '';
                 document.getElementById('display_order').value = part.display_order || 0;
+                
+                // Show existing authenticity images if they exist
+                const casePreview = document.getElementById('caseImagePreview');
+                const airpodPreview = document.getElementById('airpodImagePreview');
+                
+                if (part.authenticity_case_image && casePreview) {
+                    casePreview.innerHTML = `<img src="${part.authenticity_case_image}" style="max-width: 200px; max-height: 150px; border-radius: 4px; border: 1px solid #ddd;"><br><small style="color: #666; font-size: 0.8rem;">Current image (upload new to replace)</small>`;
+                } else if (casePreview) {
+                    casePreview.innerHTML = '';
+                }
+                
+                if (part.authenticity_airpod_image && airpodPreview) {
+                    airpodPreview.innerHTML = `<img src="${part.authenticity_airpod_image}" style="max-width: 200px; max-height: 150px; border-radius: 4px; border: 1px solid #ddd;"><br><small style="color: #666; font-size: 0.8rem;">Current image (upload new to replace)</small>`;
+                } else if (airpodPreview) {
+                    airpodPreview.innerHTML = '';
+                }
                 
                 formTitle.textContent = 'Edit Part';
                 submitButtonText.textContent = 'Update Part';
