@@ -101,6 +101,12 @@ async function loadParts() {
                                 <div class="part-detail">
                                     <span class="part-detail-label">Display Order:</span> ${part.display_order || 0}
                                 </div>
+                                <div class="part-detail">
+                                    <span class="part-detail-label">Authenticity Images:</span> 
+                                    ${part.authenticity_case_image || part.authenticity_airpod_image 
+                                        ? `<span style="color: #28a745;">✓ Uploaded</span>` 
+                                        : `<span style="color: #dc3545;">✗ Not uploaded</span>`}
+                                </div>
                             </div>
                         </div>
                     `;
@@ -329,6 +335,8 @@ async function editPart(id) {
 function cancelEdit() {
     document.getElementById('partId').value = '';
     partForm.reset();
+    document.getElementById('caseImagePreview').innerHTML = '';
+    document.getElementById('airpodImagePreview').innerHTML = '';
     formTitle.textContent = 'Add New Part';
     submitButtonText.textContent = 'Add Part';
     cancelButton.style.display = 'none';
