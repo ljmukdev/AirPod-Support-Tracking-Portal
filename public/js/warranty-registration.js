@@ -645,12 +645,21 @@ async function loadProductInfo(barcode, skipValidation = false) {
 // Load AirPod examples database
 async function loadAirpodExamples() {
     if (appState.airpodExamples) {
+        console.log('Using cached AirPod examples');
         return appState.airpodExamples;
     }
     
     try {
-        const response = await fetch(`${API_BASE}/data/airpod-examples.json`);
+        const jsonPath = `${API_BASE}/data/airpod-examples.json`;
+        console.log('Loading AirPod examples from:', jsonPath);
+        const response = await fetch(jsonPath);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         const data = await response.json();
+        console.log('AirPod examples JSON loaded successfully:', data);
         appState.airpodExamples = data.examples;
         return appState.airpodExamples;
     } catch (error) {
@@ -661,16 +670,28 @@ async function loadAirpodExamples() {
 
 // Get example images for compatible parts
 async function getCompatiblePartExamples(partModelNumber, partType) {
+    console.log('getCompatiblePartExamples called for:', partModelNumber);
     const examples = await loadAirpodExamples();
-    if (!examples || !partModelNumber) {
+    
+    if (!examples) {
+        console.error('Examples database not loaded');
         return null;
     }
     
+    if (!partModelNumber) {
+        console.warn('No part model number provided');
+        return null;
+    }
+    
+    console.log('Looking for part:', partModelNumber, 'Available parts:', Object.keys(examples));
+    
     // Check if we have examples for this part model number
     if (examples[partModelNumber]) {
+        console.log('Found examples for', partModelNumber, ':', examples[partModelNumber]);
         return examples[partModelNumber];
     }
     
+    console.warn('No examples found for part model number:', partModelNumber);
     // Fallback: try to find by part type and generation if available
     return null;
 }
@@ -790,17 +811,21 @@ function displayProductInfoOnStep1(data) {
 
 // Display compatible part examples
 async function displayCompatiblePartExamples(partModelNumber, partType) {
+    console.log('displayCompatiblePartExamples called with:', partModelNumber, partType);
     const examplesContainer = document.getElementById('compatiblePartsExamples');
     const examplesGrid = document.getElementById('compatiblePartsExamplesGrid');
     
     if (!examplesContainer || !examplesGrid) {
+        console.error('Examples container or grid not found!');
         return;
     }
     
     // Get example data
     const exampleData = await getCompatiblePartExamples(partModelNumber, partType);
+    console.log('Example data loaded:', exampleData);
     
     if (!exampleData || !exampleData.compatibleParts || exampleData.compatibleParts.length === 0) {
+        console.log('No example data found, hiding container');
         examplesContainer.style.display = 'none';
         return;
     }
@@ -809,16 +834,25 @@ async function displayCompatiblePartExamples(partModelNumber, partType) {
     examplesGrid.innerHTML = '';
     
     // Display each compatible part example
-    exampleData.compatibleParts.forEach((part) => {
+    console.log('Displaying', exampleData.compatibleParts.length, 'compatible parts');
+    exampleData.compatibleParts.forEach((part, index) => {
+        console.log(`Part ${index + 1}:`, part.name, part.exampleImage);
         const partCard = document.createElement('div');
         partCard.style.cssText = 'background: white; border: 2px solid #e8ecf1; border-radius: 12px; padding: 16px; text-align: center; transition: all 0.3s ease;';
         partCard.style.cursor = 'pointer';
         
+        // Ensure image path is correct (add leading slash if needed)
+        let imagePath = part.exampleImage;
+        if (!imagePath.startsWith('/') && !imagePath.startsWith('http')) {
+            imagePath = '/' + imagePath;
+        }
+        
         partCard.innerHTML = `
-            <img src="${part.exampleImage}" 
+            <img src="${imagePath}" 
                  alt="${part.name}" 
-                 style="width: 100%; max-width: 200px; height: auto; border-radius: 8px; margin-bottom: 12px; object-fit: contain;"
-                 onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'200\' height=\'150\'%3E%3Crect width=\'200\' height=\'150\' fill=\'%23f5f5f5\'/%3E%3Ctext x=\'100\' y=\'75\' font-family=\'Arial\' font-size=\'12\' fill=\'%23999\' text-anchor=\'middle\'%3EImage not found%3C/text%3E%3C/svg%3E'">
+                 style="width: 100%; max-width: 200px; height: auto; min-height: 150px; border-radius: 8px; margin-bottom: 12px; object-fit: contain; background: #f8f9fa;"
+                 onerror="console.error('Image failed to load:', '${imagePath}'); this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'200\' height=\'150\'%3E%3Crect width=\'200\' height=\'150\' fill=\'%23f5f5f5\'/%3E%3Ctext x=\'100\' y=\'75\' font-family=\'Arial\' font-size=\'12\' fill=\'%23999\' text-anchor=\'middle\'%3EImage not found%3C/text%3E%3C/svg%3E'"
+                 onload="console.log('Image loaded successfully:', '${imagePath}')">
             <div style="font-weight: 600; color: #1a1a1a; margin-bottom: 4px; font-size: 0.95rem;">${part.name}</div>
             <div style="font-size: 0.85rem; color: #6c757d; margin-bottom: 8px;">${part.partModelNumber}</div>
             <div style="font-size: 0.8rem; color: #6c757d; line-height: 1.4;">${part.description || ''}</div>
@@ -851,6 +885,7 @@ async function displayCompatiblePartExamples(partModelNumber, partType) {
     
     // Show the examples container
     examplesContainer.style.display = 'block';
+    console.log('Examples container displayed');
 }
 
 // Verification step state
