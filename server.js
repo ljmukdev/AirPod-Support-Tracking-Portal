@@ -302,11 +302,16 @@ app.get('/uploads/authenticity/:filename', async (req, res) => {
     const filename = req.params.filename;
     const currentUploadsDir = global.uploadsDir || uploadsDir;
     const authenticityImagesDir = path.join(currentUploadsDir, 'authenticity');
-    const filePath = path.join(authenticityImagesDir, filename);
+    const filePath = path.resolve(authenticityImagesDir, filename);
+    
+    console.log(`[Authenticity] Serving image request: ${filename}`);
+    console.log(`[Authenticity] File path: ${filePath}`);
+    console.log(`[Authenticity] File exists: ${fs.existsSync(filePath)}`);
     
     if (fs.existsSync(filePath)) {
         res.sendFile(filePath);
     } else {
+        console.warn(`[Authenticity] Image not found: ${filePath}`);
         res.status(404).json({ error: 'Image not found' });
     }
 });
