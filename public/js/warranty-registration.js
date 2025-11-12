@@ -898,59 +898,90 @@ async function displayCompatiblePartExamples(partModelNumber, partType) {
     console.log('Examples container displayed');
 }
 
+// Fallback SVG paths for authenticity images
+const FALLBACK_CASE_SVG = '/images/airpod-case-markings.svg';
+const FALLBACK_AIRPOD_SVG = '/images/airpod-stem-markings.svg';
+
 // Update authenticity check images based on purchased part
 async function updateAuthenticityImages(partModelNumber, partType) {
-    console.log('updateAuthenticityImages called for:', partModelNumber, partType);
+    console.log('[Authenticity] updateAuthenticityImages called for:', partModelNumber, partType);
     
-    const caseImage = document.getElementById('authenticityCaseImage');
-    const airpodImage = document.getElementById('authenticityAirPodImage');
+    const caseImgEl = document.getElementById('authenticityCaseImage');
+    const airpodImgEl = document.getElementById('authenticityAirPodImage');
     
-    if (!caseImage || !airpodImage) {
-        console.error('Authenticity image elements not found');
+    if (!caseImgEl || !airpodImgEl) {
+        console.error('[Authenticity] Image elements not found');
         return;
     }
+    
+    // Set up error handlers with fallback
+    caseImgEl.onerror = () => {
+        if (caseImgEl.src !== location.origin + FALLBACK_CASE_SVG) {
+            console.warn('[Authenticity] Case image failed to load, falling back to SVG');
+            caseImgEl.src = FALLBACK_CASE_SVG;
+        }
+    };
+    
+    airpodImgEl.onerror = () => {
+        if (airpodImgEl.src !== location.origin + FALLBACK_AIRPOD_SVG) {
+            console.warn('[Authenticity] AirPod image failed to load, falling back to SVG');
+            airpodImgEl.src = FALLBACK_AIRPOD_SVG;
+        }
+    };
     
     try {
         // Fetch authenticity images from database
         const response = await fetch(`${API_BASE}/api/authenticity-images/${partModelNumber}`);
-        const data = await response.json();
         
-        console.log('Authenticity images from database:', data);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('[Authenticity] API response:', data);
+        
+        // Support both response formats (new structured and old flat)
+        const images = data.data?.images || {
+            caseImage: data.authenticity_case_image || null,
+            airpodImage: data.authenticity_airpod_image || null
+        };
+        
+        // Determine image paths
+        let caseSrc = FALLBACK_CASE_SVG;
+        let airpodSrc = FALLBACK_AIRPOD_SVG;
         
         // Update case image
-        if (data.authenticity_case_image) {
-            let caseImagePath = data.authenticity_case_image;
-            if (!caseImagePath.startsWith('/') && !caseImagePath.startsWith('http')) {
-                caseImagePath = '/' + caseImagePath;
-            }
-            caseImage.src = caseImagePath;
-            caseImage.alt = 'Example charging case showing markings';
-            console.log('Updated case image to:', caseImagePath);
-        } else {
-            // Fallback to default SVG
-            caseImage.src = 'images/airpod-case-markings.svg';
-            console.warn('No case authenticity image found, using default SVG');
+        if (images.caseImage) {
+            caseSrc = images.caseImage.startsWith('/') 
+                ? images.caseImage 
+                : '/' + images.caseImage;
         }
         
         // Update AirPod image
-        if (data.authenticity_airpod_image) {
-            let airpodImagePath = data.authenticity_airpod_image;
-            if (!airpodImagePath.startsWith('/') && !airpodImagePath.startsWith('http')) {
-                airpodImagePath = '/' + airpodImagePath;
-            }
-            airpodImage.src = airpodImagePath;
-            airpodImage.alt = 'Example AirPod showing markings';
-            console.log('Updated AirPod image to:', airpodImagePath);
-        } else {
-            // Fallback to default SVG
-            airpodImage.src = 'images/airpod-stem-markings.svg';
-            console.warn('No AirPod authenticity image found, using default SVG');
+        if (images.airpodImage) {
+            airpodSrc = images.airpodImage.startsWith('/') 
+                ? images.airpodImage 
+                : '/' + images.airpodImage;
         }
-    } catch (error) {
-        console.error('Error fetching authenticity images:', error);
-        // Fallback to default SVGs
-        caseImage.src = 'images/airpod-case-markings.svg';
-        airpodImage.src = 'images/airpod-stem-markings.svg';
+        
+        // Set image sources (error handlers will catch 404s)
+        caseImgEl.src = caseSrc;
+        airpodImgEl.src = airpodSrc;
+        
+        // Update alt text
+        caseImgEl.alt = images.caseImage 
+            ? 'Example charging case showing markings' 
+            : 'Generic case markings diagram';
+        airpodImgEl.alt = images.airpodImage 
+            ? 'Example AirPod showing markings' 
+            : 'Generic AirPod markings diagram';
+        
+        console.log('[Authenticity] Set images:', { caseSrc, airpodSrc });
+    } catch (err) {
+        console.error('[Authenticity] Fetch error:', err);
+        // Hard fallback to SVGs
+        caseImgEl.src = FALLBACK_CASE_SVG;
+        airpodImgEl.src = FALLBACK_AIRPOD_SVG;
     }
 }
 
@@ -1068,10 +1099,13 @@ function showVerificationStep(stepNumber) {
             const partModelNumber = appState.productData.part_model_number;
             const partType = appState.productData.part_type;
             if (partModelNumber) {
-                console.log('Step 2 shown, updating authenticity images for:', partModelNumber);
+                console.log('[Authenticity] Step 2 shown, updating authenticity images for:', partModelNumber, partType);
+                // Small delay to ensure DOM is ready
                 setTimeout(() => {
                     updateAuthenticityImages(partModelNumber, partType);
                 }, 100);
+            } else {
+                console.warn('[Authenticity] Step 2 shown but no part model number available');
             }
         }
     }

@@ -2342,50 +2342,85 @@ app.get('/api/authenticity-images/:partModelNumber', requireDB, async (req, res)
     const partModelNumber = req.params.partModelNumber;
     
     try {
-        // Find the part
-        const part = await db.collection('airpod_parts').findOne({ 
+        // Find the purchased part
+        const purchasedPart = await db.collection('airpod_parts').findOne({ 
             part_model_number: partModelNumber 
         });
         
-        if (!part) {
+        if (!purchasedPart) {
+            console.log(`[Authenticity API] Part not found: ${partModelNumber}`);
             return res.json({ 
-                authenticity_case_image: null,
-                authenticity_airpod_image: null
+                ok: true,
+                data: {
+                    images: {
+                        caseImage: null,
+                        airpodImage: null
+                    }
+                }
             });
         }
         
-        // Get compatible parts to find case image
-        const compatibleParts = await db.collection('airpod_parts').find({
-            generation: part.generation,
-            part_type: { $in: ['case', part.part_type === 'left' ? 'right' : part.part_type === 'right' ? 'left' : 'left'] }
+        console.log(`[Authenticity API] Found part: ${partModelNumber}, type: ${purchasedPart.part_type}, generation: ${purchasedPart.generation}`);
+        
+        // Get all parts from the same generation
+        const sameGenerationParts = await db.collection('airpod_parts').find({
+            generation: purchasedPart.generation
         }).toArray();
         
         let caseImage = null;
         let airpodImage = null;
         
-        // Find case image from compatible parts
-        const casePart = compatibleParts.find(p => p.part_type === 'case');
-        if (casePart && casePart.authenticity_case_image) {
-            caseImage = casePart.authenticity_case_image;
+        // LOGIC: If purchased part is LEFT or RIGHT
+        if (purchasedPart.part_type === 'left' || purchasedPart.part_type === 'right') {
+            // AirPod image: from the purchased part itself
+            airpodImage = purchasedPart.authenticity_airpod_image || null;
+            
+            // Case image: from the CASE part in same generation
+            const casePart = sameGenerationParts.find(p => p.part_type === 'case');
+            if (casePart) {
+                caseImage = casePart.authenticity_case_image || null;
+            }
+            
+            console.log(`[Authenticity API] LEFT/RIGHT part - AirPod from purchased, Case from generation CASE part`);
+        }
+        // LOGIC: If purchased part is CASE
+        else if (purchasedPart.part_type === 'case') {
+            // Case image: from the purchased part itself
+            caseImage = purchasedPart.authenticity_case_image || null;
+            
+            // AirPod image: prefer LEFT, then RIGHT from same generation
+            const leftPart = sameGenerationParts.find(p => p.part_type === 'left');
+            const rightPart = sameGenerationParts.find(p => p.part_type === 'right');
+            
+            if (leftPart && leftPart.authenticity_airpod_image) {
+                airpodImage = leftPart.authenticity_airpod_image;
+            } else if (rightPart && rightPart.authenticity_airpod_image) {
+                airpodImage = rightPart.authenticity_airpod_image;
+            }
+            
+            console.log(`[Authenticity API] CASE part - Case from purchased, AirPod from generation LEFT/RIGHT part`);
         }
         
-        // Use the part's own image if it's an AirPod, or find compatible AirPod image
-        if (part.part_type === 'left' || part.part_type === 'right') {
-            airpodImage = part.authenticity_airpod_image;
-        } else if (part.part_type === 'case') {
-            const airpodPart = compatibleParts.find(p => p.part_type === 'left' || p.part_type === 'right');
-            if (airpodPart && airpodPart.authenticity_airpod_image) {
-                airpodImage = airpodPart.authenticity_airpod_image;
-            }
-        }
+        console.log(`[Authenticity API] Returning images:`, { caseImage, airpodImage });
         
         res.json({
+            ok: true,
+            data: {
+                images: {
+                    caseImage: caseImage,
+                    airpodImage: airpodImage
+                }
+            },
+            // Also include flat structure for backward compatibility
             authenticity_case_image: caseImage,
             authenticity_airpod_image: airpodImage
         });
     } catch (err) {
-        console.error('Database error:', err);
-        res.status(500).json({ error: 'Database error: ' + err.message });
+        console.error('[Authenticity API] Database error:', err);
+        res.status(500).json({ 
+            ok: false,
+            error: 'Database error: ' + err.message 
+        });
     }
 });
 
