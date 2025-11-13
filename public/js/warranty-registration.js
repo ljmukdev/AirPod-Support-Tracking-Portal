@@ -853,16 +853,16 @@ async function displayCompatiblePartExamples(partModelNumber, partType) {
             imagePath = '/' + imagePath;
         }
         
-        // Try .jpg first, fallback to .svg if .jpg doesn't exist
-        const jpgPath = imagePath;
-        const svgPath = imagePath.replace(/\.jpg$/, '.svg').replace(/\.png$/, '.svg');
+        // Use the image path directly from JSON (already .svg)
+        // If we want to support .jpg in the future, we can try both formats
+        const finalImagePath = imagePath;
         
         partCard.innerHTML = `
-            <img src="${jpgPath}" 
+            <img src="${finalImagePath}" 
                  alt="${part.name}" 
                  style="width: 100%; max-width: 200px; height: auto; min-height: 150px; border-radius: 8px; margin-bottom: 12px; object-fit: contain; background: #f8f9fa;"
-                 onerror="console.warn('JPG not found, trying SVG:', '${svgPath}'); this.onerror=null; this.src='${svgPath}';"
-                 onload="console.log('Image loaded successfully:', '${jpgPath}')">
+                 onerror="console.error('Image failed to load:', '${finalImagePath}');"
+                 onload="console.log('Image loaded successfully:', '${finalImagePath}')">
             <div style="font-weight: 600; color: #1a1a1a; margin-bottom: 4px; font-size: 0.95rem;">${part.name}</div>
             <div style="font-size: 0.85rem; color: #6c757d; margin-bottom: 8px;">${part.partModelNumber}</div>
             <div style="font-size: 0.8rem; color: #6c757d; line-height: 1.4;">${part.description || ''}</div>
