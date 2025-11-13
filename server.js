@@ -297,6 +297,62 @@ app.get('/api/admin/uploads-diagnostic', requireAuth, requireDB, (req, res) => {
     }
 });
 
+// Serve example images
+app.get('/uploads/examples/:filename', async (req, res) => {
+    const filename = req.params.filename;
+    const currentUploadsDir = global.uploadsDir || uploadsDir;
+    const exampleImagesDir = path.join(currentUploadsDir, 'examples');
+    const filePath = path.resolve(exampleImagesDir, filename);
+    
+    console.log(`[Examples] Serving image request: ${filename}`);
+    console.log(`[Examples] File path: ${filePath}`);
+    console.log(`[Examples] File exists: ${fs.existsSync(filePath)}`);
+    
+    // Check if directory exists
+    if (!fs.existsSync(exampleImagesDir)) {
+        console.warn(`[Examples] Examples images directory does not exist: ${exampleImagesDir}`);
+        return res.status(404).json({ error: 'Examples images directory not found' });
+    }
+    
+    // Check if file exists
+    if (fs.existsSync(filePath)) {
+        // Verify it's actually a file (not a directory)
+        const stats = fs.statSync(filePath);
+        if (!stats.isFile()) {
+            console.warn(`[Examples] Path exists but is not a file: ${filePath}`);
+            return res.status(404).json({ error: 'Path is not a file' });
+        }
+        
+        // Set appropriate content type
+        const ext = path.extname(filename).toLowerCase();
+        const contentType = ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' :
+                           ext === '.png' ? 'image/png' :
+                           ext === '.gif' ? 'image/gif' :
+                           ext === '.webp' ? 'image/webp' :
+                           ext === '.svg' ? 'image/svg+xml' : 'application/octet-stream';
+        
+        res.setHeader('Content-Type', contentType);
+        res.sendFile(filePath, (err) => {
+            if (err) {
+                console.error(`[Examples] Error sending file: ${err.message}`);
+                if (!res.headersSent) {
+                    res.status(500).json({ error: 'Error serving image file' });
+                }
+            }
+        });
+    } else {
+        // List directory contents for debugging
+        try {
+            const files = fs.readdirSync(exampleImagesDir);
+            console.warn(`[Examples] Image not found: ${filePath}`);
+            console.warn(`[Examples] Directory contains ${files.length} file(s):`, files.slice(0, 10));
+        } catch (dirErr) {
+            console.error(`[Examples] Error reading directory: ${dirErr.message}`);
+        }
+        res.status(404).json({ error: 'Image not found', filename });
+    }
+});
+
 // Serve authenticity images
 app.get('/uploads/authenticity/:filename', async (req, res) => {
     const filename = req.params.filename;
@@ -359,9 +415,9 @@ app.get('/uploads/authenticity/:filename', async (req, res) => {
 app.get('/uploads/:filename', async (req, res, next) => {
     const filename = req.params.filename;
     
-    // Skip authenticity images - they're handled by the specific route above
-    // Check the request path to see if it's an authenticity image request
-    if (req.path && req.path.startsWith('/uploads/authenticity/')) {
+    // Skip authenticity and example images - they're handled by specific routes above
+    // Check the request path to see if it's an authenticity or example image request
+    if (req.path && (req.path.startsWith('/uploads/authenticity/') || req.path.startsWith('/uploads/examples/'))) {
         return next(); // Let the more specific route handle it
     }
     
@@ -2169,6 +2225,7 @@ app.get('/api/admin/parts/:generation', requireAuth, requireDB, async (req, res)
 
 // Add new part - with image upload support
 app.post('/api/admin/part', requireAuth, requireDB, upload.fields([
+    { name: 'example_image', maxCount: 1 },
     { name: 'authenticity_case_image', maxCount: 1 },
     { name: 'authenticity_airpod_image', maxCount: 1 }
 ]), async (req, res) => {
@@ -2187,17 +2244,33 @@ app.post('/api/admin/part', requireAuth, requireDB, upload.fields([
     try {
         const currentUploadsDir = global.uploadsDir || uploadsDir;
         const authenticityImagesDir = path.join(currentUploadsDir, 'authenticity');
+        const exampleImagesDir = path.join(currentUploadsDir, 'examples');
         
-        // Ensure authenticity images directory exists
+        // Ensure directories exist
         if (!fs.existsSync(authenticityImagesDir)) {
             fs.mkdirSync(authenticityImagesDir, { recursive: true });
         }
+        if (!fs.existsSync(exampleImagesDir)) {
+            fs.mkdirSync(exampleImagesDir, { recursive: true });
+        }
         
         // Process uploaded images
+        let exampleImage = null;
         let authenticityCaseImage = null;
         let authenticityAirpodImage = null;
         
         if (req.files) {
+            // Handle example image
+            if (req.files['example_image'] && req.files['example_image'][0]) {
+                const file = req.files['example_image'][0];
+                const newFilename = `example_${part_model_number}_${Date.now()}${path.extname(file.originalname)}`;
+                const newPath = path.join(exampleImagesDir, newFilename);
+                fs.renameSync(file.path, newPath);
+                exampleImage = `/uploads/examples/${newFilename}`;
+                console.log('Example image saved:', exampleImage);
+            }
+            
+            // Handle authenticity images
             if (req.files['authenticity_case_image'] && req.files['authenticity_case_image'][0]) {
                 const file = req.files['authenticity_case_image'][0];
                 const newFilename = `case_${part_model_number}_${Date.now()}${path.extname(file.originalname)}`;
@@ -2224,6 +2297,7 @@ app.post('/api/admin/part', requireAuth, requireDB, upload.fields([
             part_type: part_type.toLowerCase(),
             notes: notes ? notes.trim() : null,
             display_order: display_order || 0,
+            example_image: exampleImage,
             authenticity_case_image: authenticityCaseImage,
             authenticity_airpod_image: authenticityAirpodImage,
             date_added: new Date()
@@ -2244,6 +2318,7 @@ app.post('/api/admin/part', requireAuth, requireDB, upload.fields([
 
 // Update part
 app.put('/api/admin/part/:id', requireAuth, requireDB, upload.fields([
+    { name: 'example_image', maxCount: 1 },
     { name: 'authenticity_case_image', maxCount: 1 },
     { name: 'authenticity_airpod_image', maxCount: 1 }
 ]), async (req, res) => {
@@ -2273,21 +2348,45 @@ app.put('/api/admin/part/:id', requireAuth, requireDB, upload.fields([
         
         const currentUploadsDir = global.uploadsDir || uploadsDir;
         const authenticityImagesDir = path.join(currentUploadsDir, 'authenticity');
+        const exampleImagesDir = path.join(currentUploadsDir, 'examples');
         
-        // Ensure authenticity images directory exists
+        // Ensure directories exist
         if (!fs.existsSync(authenticityImagesDir)) {
             fs.mkdirSync(authenticityImagesDir, { recursive: true });
         }
+        if (!fs.existsSync(exampleImagesDir)) {
+            fs.mkdirSync(exampleImagesDir, { recursive: true });
+        }
         
         // Process uploaded images (only update if new files are provided)
+        let exampleImage = existingPart.example_image || null;
         let authenticityCaseImage = existingPart.authenticity_case_image || null;
         let authenticityAirpodImage = existingPart.authenticity_airpod_image || null;
         
         if (req.files) {
+            // Handle example image
+            if (req.files['example_image'] && req.files['example_image'][0]) {
+                // Delete old image if exists
+                if (exampleImage) {
+                    const oldPath = path.join(currentUploadsDir, exampleImage.replace('/uploads/', ''));
+                    if (fs.existsSync(oldPath)) {
+                        fs.unlinkSync(oldPath);
+                    }
+                }
+                
+                const file = req.files['example_image'][0];
+                const newFilename = `example_${part_model_number}_${Date.now()}${path.extname(file.originalname)}`;
+                const newPath = path.join(exampleImagesDir, newFilename);
+                fs.renameSync(file.path, newPath);
+                exampleImage = `/uploads/examples/${newFilename}`;
+                console.log('Example image updated:', exampleImage);
+            }
+            
+            // Handle authenticity images
             if (req.files['authenticity_case_image'] && req.files['authenticity_case_image'][0]) {
                 // Delete old image if exists
                 if (authenticityCaseImage) {
-                    const oldPath = path.join(__dirname, 'public', authenticityCaseImage);
+                    const oldPath = path.join(currentUploadsDir, authenticityCaseImage.replace('/uploads/', ''));
                     if (fs.existsSync(oldPath)) {
                         fs.unlinkSync(oldPath);
                     }
@@ -2304,7 +2403,7 @@ app.put('/api/admin/part/:id', requireAuth, requireDB, upload.fields([
             if (req.files['authenticity_airpod_image'] && req.files['authenticity_airpod_image'][0]) {
                 // Delete old image if exists
                 if (authenticityAirpodImage) {
-                    const oldPath = path.join(__dirname, 'public', authenticityAirpodImage);
+                    const oldPath = path.join(currentUploadsDir, authenticityAirpodImage.replace('/uploads/', ''));
                     if (fs.existsSync(oldPath)) {
                         fs.unlinkSync(oldPath);
                     }
@@ -2329,6 +2428,9 @@ app.put('/api/admin/part/:id', requireAuth, requireDB, upload.fields([
         };
         
         // Only update image fields if they were provided
+        if (exampleImage !== undefined) {
+            updateData.example_image = exampleImage;
+        }
         if (authenticityCaseImage !== undefined) {
             updateData.authenticity_case_image = authenticityCaseImage;
         }
@@ -2384,6 +2486,116 @@ app.get('/api/admin/generations', requireAuth, requireDB, async (req, res) => {
     } catch (err) {
         console.error('Database error:', err);
         res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Get compatible parts with example images (public endpoint for warranty registration)
+app.get('/api/compatible-parts/:partModelNumber', requireDB, async (req, res) => {
+    const partModelNumber = req.params.partModelNumber;
+    
+    try {
+        console.log(`[Compatible Parts API] Request for part model number: "${partModelNumber}"`);
+        
+        // Find the purchased part
+        let purchasedPart = await db.collection('airpod_parts').findOne({ 
+            part_model_number: partModelNumber 
+        });
+        
+        // If not found, try case-insensitive search
+        if (!purchasedPart) {
+            console.log(`[Compatible Parts API] Exact match failed, trying case-insensitive search`);
+            const allParts = await db.collection('airpod_parts').find({}).toArray();
+            purchasedPart = allParts.find(p => 
+                p.part_model_number && 
+                p.part_model_number.toUpperCase() === partModelNumber.toUpperCase()
+            );
+            if (purchasedPart) {
+                console.log(`[Compatible Parts API] Found case-insensitive match: ${purchasedPart.part_model_number}`);
+            }
+        }
+        
+        if (!purchasedPart) {
+            console.log(`[Compatible Parts API] Part not found: ${partModelNumber}`);
+            return res.json({ 
+                ok: true,
+                data: {
+                    purchasedPart: null,
+                    compatibleParts: []
+                }
+            });
+        }
+        
+        console.log(`[Compatible Parts API] Found part: ${partModelNumber}, type: ${purchasedPart.part_type}, generation: ${purchasedPart.generation}`);
+        
+        // Get all parts from the same generation
+        const sameGenerationParts = await db.collection('airpod_parts').find({
+            generation: purchasedPart.generation
+        }).toArray();
+        
+        console.log(`[Compatible Parts API] Found ${sameGenerationParts.length} parts in same generation`);
+        
+        // Determine compatible parts based on part type
+        let compatibleParts = [];
+        
+        if (purchasedPart.part_type === 'left') {
+            // Compatible: right AirPod and case
+            compatibleParts = sameGenerationParts
+                .filter(p => p.part_type === 'right' || p.part_type === 'case')
+                .map(p => ({
+                    partModelNumber: p.part_model_number,
+                    partType: p.part_type,
+                    name: p.part_name,
+                    exampleImage: p.example_image || null,
+                    description: p.part_type === 'right' 
+                        ? `${p.part_name} - should match your left AirPod`
+                        : `${p.part_name} - USB-C or Lightning`
+                }));
+        } else if (purchasedPart.part_type === 'right') {
+            // Compatible: left AirPod and case
+            compatibleParts = sameGenerationParts
+                .filter(p => p.part_type === 'left' || p.part_type === 'case')
+                .map(p => ({
+                    partModelNumber: p.part_model_number,
+                    partType: p.part_type,
+                    name: p.part_name,
+                    exampleImage: p.example_image || null,
+                    description: p.part_type === 'left' 
+                        ? `${p.part_name} - should match your right AirPod`
+                        : `${p.part_name} - USB-C or Lightning`
+                }));
+        } else if (purchasedPart.part_type === 'case') {
+            // Compatible: left and right AirPods
+            compatibleParts = sameGenerationParts
+                .filter(p => p.part_type === 'left' || p.part_type === 'right')
+                .map(p => ({
+                    partModelNumber: p.part_model_number,
+                    partType: p.part_type,
+                    name: p.part_name,
+                    exampleImage: p.example_image || null,
+                    description: p.part_name
+                }));
+        }
+        
+        console.log(`[Compatible Parts API] Returning ${compatibleParts.length} compatible parts`);
+        
+        res.json({
+            ok: true,
+            data: {
+                purchasedPart: {
+                    partModelNumber: purchasedPart.part_model_number,
+                    partType: purchasedPart.part_type,
+                    name: purchasedPart.part_name,
+                    generation: purchasedPart.generation
+                },
+                compatibleParts: compatibleParts
+            }
+        });
+    } catch (err) {
+        console.error('[Compatible Parts API] Database error:', err);
+        res.status(500).json({ 
+            ok: false,
+            error: 'Database error: ' + err.message 
+        });
     }
 });
 

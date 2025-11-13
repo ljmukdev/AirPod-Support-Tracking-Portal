@@ -170,8 +170,25 @@ const formTitle = document.getElementById('formTitle');
 const submitButtonText = document.getElementById('submitButtonText');
 
 // Image preview handlers
+const exampleImageInput = document.getElementById('example_image');
 const caseImageInput = document.getElementById('authenticity_case_image');
 const airpodImageInput = document.getElementById('authenticity_airpod_image');
+
+if (exampleImageInput) {
+    exampleImageInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        const preview = document.getElementById('exampleImagePreview');
+        if (file && preview) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.innerHTML = `<img src="${e.target.result}" style="max-width: 200px; max-height: 150px; border-radius: 4px; border: 1px solid #ddd;">`;
+            };
+            reader.readAsDataURL(file);
+        } else if (preview) {
+            preview.innerHTML = '';
+        }
+    });
+}
 
 if (caseImageInput) {
     caseImageInput.addEventListener('change', function(e) {
@@ -241,9 +258,13 @@ if (partForm) {
             formData.append('display_order', displayOrder);
             
             // Add image files if selected
+            const exampleImageFile = document.getElementById('example_image').files[0];
             const caseImageFile = document.getElementById('authenticity_case_image').files[0];
             const airpodImageFile = document.getElementById('authenticity_airpod_image').files[0];
             
+            if (exampleImageFile) {
+                formData.append('example_image', exampleImageFile);
+            }
             if (caseImageFile) {
                 formData.append('authenticity_case_image', caseImageFile);
             }
@@ -301,9 +322,16 @@ async function editPart(id) {
                 document.getElementById('notes').value = part.notes || '';
                 document.getElementById('display_order').value = part.display_order || 0;
                 
-                // Show existing authenticity images if they exist
+                // Show existing images if they exist
+                const examplePreview = document.getElementById('exampleImagePreview');
                 const casePreview = document.getElementById('caseImagePreview');
                 const airpodPreview = document.getElementById('airpodImagePreview');
+                
+                if (part.example_image && examplePreview) {
+                    examplePreview.innerHTML = `<img src="${part.example_image}" style="max-width: 200px; max-height: 150px; border-radius: 4px; border: 1px solid #ddd;"><br><small style="color: #666; font-size: 0.8rem;">Current image (upload new to replace)</small>`;
+                } else if (examplePreview) {
+                    examplePreview.innerHTML = '';
+                }
                 
                 if (part.authenticity_case_image && casePreview) {
                     casePreview.innerHTML = `<img src="${part.authenticity_case_image}" style="max-width: 200px; max-height: 150px; border-radius: 4px; border: 1px solid #ddd;"><br><small style="color: #666; font-size: 0.8rem;">Current image (upload new to replace)</small>`;
@@ -335,6 +363,7 @@ async function editPart(id) {
 function cancelEdit() {
     document.getElementById('partId').value = '';
     partForm.reset();
+    document.getElementById('exampleImagePreview').innerHTML = '';
     document.getElementById('caseImagePreview').innerHTML = '';
     document.getElementById('airpodImagePreview').innerHTML = '';
     formTitle.textContent = 'Add New Part';

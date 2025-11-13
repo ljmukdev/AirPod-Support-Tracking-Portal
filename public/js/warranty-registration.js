@@ -668,36 +668,78 @@ async function loadAirpodExamples() {
     }
 }
 
-// Get example images for compatible parts
+// Get example images for compatible parts from database
 async function getCompatiblePartExamples(partModelNumber, partType) {
-    console.log('getCompatiblePartExamples called for:', partModelNumber);
-    const examples = await loadAirpodExamples();
-    
-    if (!examples) {
-        console.error('Examples database not loaded');
-        return null;
-    }
+    console.log('[Compatible Parts] getCompatiblePartExamples called for:', partModelNumber, partType);
     
     if (!partModelNumber) {
-        console.warn('No part model number provided');
+        console.warn('[Compatible Parts] No part model number provided');
         return null;
     }
     
-    console.log('Looking for part:', partModelNumber, 'Available parts:', Object.keys(examples));
-    console.log('Examples object structure:', examples);
-    console.log('Checking examples[' + partModelNumber + ']:', examples[partModelNumber]);
-    
-    // Check if we have examples for this part model number
-    if (examples && examples[partModelNumber]) {
-        console.log('Found examples for', partModelNumber, ':', examples[partModelNumber]);
-        return examples[partModelNumber];
+    try {
+        // Fetch compatible parts from database API
+        console.log('[Compatible Parts] Fetching from API:', `${API_BASE}/api/compatible-parts/${partModelNumber}`);
+        const response = await fetch(`${API_BASE}/api/compatible-parts/${partModelNumber}`);
+        
+        if (!response.ok) {
+            console.warn(`[Compatible Parts] API returned status ${response.status}, falling back to static JSON`);
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('[Compatible Parts] API response:', data);
+        
+        if (!data.ok || !data.data || !data.data.compatibleParts) {
+            console.warn('[Compatible Parts] Invalid API response structure, falling back to static JSON');
+            throw new Error('Invalid API response structure');
+        }
+        
+        const compatibleParts = data.data.compatibleParts;
+        
+        if (compatibleParts.length === 0) {
+            console.warn('[Compatible Parts] No compatible parts found in database, falling back to static JSON');
+            throw new Error('No compatible parts found');
+        }
+        
+        console.log(`[Compatible Parts] Found ${compatibleParts.length} compatible parts from database`);
+        
+        // Return data in the format expected by displayCompatiblePartExamples
+        return {
+            partModelNumber: data.data.purchasedPart.partModelNumber,
+            partType: data.data.purchasedPart.partType,
+            generation: data.data.purchasedPart.generation,
+            purchasedPart: {
+                name: data.data.purchasedPart.name,
+                exampleImage: null // Not needed for compatible parts display
+            },
+            compatibleParts: compatibleParts.map(part => ({
+                partModelNumber: part.partModelNumber,
+                partType: part.partType,
+                name: part.name,
+                exampleImage: part.exampleImage || null, // This comes from database, can be null
+                description: part.description
+            }))
+        };
+    } catch (err) {
+        console.error('[Compatible Parts] Error fetching from database:', err);
+        // Fallback to static JSON if database fetch fails
+        console.log('[Compatible Parts] Falling back to static JSON');
+        try {
+            const examples = await loadAirpodExamples();
+            
+            if (!examples || !examples[partModelNumber]) {
+                console.error('[Compatible Parts] Static JSON also failed or part not found');
+                return null;
+            }
+            
+            console.log('[Compatible Parts] Using static JSON data');
+            return examples[partModelNumber];
+        } catch (fallbackErr) {
+            console.error('[Compatible Parts] Fallback to static JSON also failed:', fallbackErr);
+            return null;
+        }
     }
-    
-    console.warn('No examples found for part model number:', partModelNumber);
-    console.warn('Examples object:', examples);
-    console.warn('Part model number type:', typeof partModelNumber);
-    // Fallback: try to find by part type and generation if available
-    return null;
 }
 
 // Get compatible part numbers based on purchased part
@@ -852,21 +894,33 @@ async function displayCompatiblePartExamples(partModelNumber, partType) {
         partCard.style.cursor = 'pointer';
         
         // Ensure image path is correct (add leading slash if needed)
-        let imagePath = part.exampleImage;
+        let imagePath = part.exampleImage || null;
+        
+        console.log(`[Compatible Parts] Part ${index + 1} (${part.partModelNumber}): exampleImage =`, imagePath);
+        
+        // If no image from database, use fallback SVG
+        if (!imagePath || imagePath === 'null' || imagePath === 'undefined') {
+            // Fallback to static SVG based on part type and generation
+            const fallbackSvg = getFallbackExampleImage(part.partType, part.partModelNumber);
+            imagePath = fallbackSvg;
+            console.log(`[Compatible Parts] Using fallback SVG for ${part.partModelNumber}:`, imagePath);
+        }
+        
         if (!imagePath.startsWith('/') && !imagePath.startsWith('http')) {
             imagePath = '/' + imagePath;
         }
         
-        // Use the image path directly from JSON (already .svg)
-        // If we want to support .jpg in the future, we can try both formats
         const finalImagePath = imagePath;
+        const fallbackPath = getFallbackExampleImage(part.partType, part.partModelNumber);
+        console.log(`[Compatible Parts] Final image path for ${part.name}:`, finalImagePath);
+        console.log(`[Compatible Parts] Fallback path for ${part.name}:`, fallbackPath);
         
         partCard.innerHTML = `
             <img src="${finalImagePath}" 
                  alt="${part.name}" 
                  style="width: 100%; max-width: 200px; height: auto; min-height: 150px; border-radius: 8px; margin-bottom: 12px; object-fit: contain; background: #f8f9fa;"
-                 onerror="console.error('Image failed to load:', '${finalImagePath}');"
-                 onload="console.log('Image loaded successfully:', '${finalImagePath}')">
+                 onerror="console.error('[Compatible Parts] Image failed to load:', '${finalImagePath}'); this.onerror=null; this.src='${fallbackPath}';"
+                 onload="console.log('[Compatible Parts] Image loaded successfully:', '${finalImagePath}')">
             <div style="font-weight: 600; color: #1a1a1a; margin-bottom: 4px; font-size: 0.95rem;">${part.name}</div>
             <div style="font-size: 0.85rem; color: #6c757d; margin-bottom: 8px;">${part.partModelNumber}</div>
             <div style="font-size: 0.8rem; color: #6c757d; line-height: 1.4;">${part.description || ''}</div>
@@ -905,6 +959,31 @@ async function displayCompatiblePartExamples(partModelNumber, partType) {
 // Fallback SVG paths for authenticity images
 const FALLBACK_CASE_SVG = '/images/airpod-case-markings.svg';
 const FALLBACK_AIRPOD_SVG = '/images/airpod-stem-markings.svg';
+
+// Get fallback example image based on part type and model number
+function getFallbackExampleImage(partType, partModelNumber) {
+    // Map model numbers to their generation and type for fallback SVGs
+    const modelToImage = {
+        // AirPods Pro 2nd Gen
+        'A2698': '/images/examples/airpod-pro-2nd-gen-left.svg',
+        'A2699': '/images/examples/airpod-pro-2nd-gen-right.svg',
+        'A2700': '/images/examples/airpod-pro-2nd-gen-case.svg',
+        // AirPods Pro 1st Gen
+        'A2084': '/images/examples/airpod-pro-1st-gen-left.svg',
+        'A2083': '/images/examples/airpod-pro-1st-gen-right.svg',
+        'A2190': '/images/examples/airpod-pro-1st-gen-case.svg',
+        // AirPods 3rd Gen
+        'A2564': '/images/examples/airpod-3rd-gen-left.svg',
+        'A2565': '/images/examples/airpod-3rd-gen-right.svg',
+        'A2566': '/images/examples/airpod-3rd-gen-case.svg',
+        // AirPods 2nd Gen
+        'A2032': '/images/examples/airpod-2nd-gen-left.svg',
+        'A2031': '/images/examples/airpod-2nd-gen-right.svg',
+        'A1602': '/images/examples/airpod-2nd-gen-case.svg'
+    };
+    
+    return modelToImage[partModelNumber] || '/images/examples/airpod-pro-2nd-gen-left.svg';
+}
 
 // Update authenticity check images based on purchased part
 async function updateAuthenticityImages(partModelNumber, partType) {
