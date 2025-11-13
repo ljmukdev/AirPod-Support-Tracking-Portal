@@ -911,9 +911,9 @@ async function displayCompatiblePartExamples(partModelNumber, partType) {
         }
         
         // Add cache-busting query parameter to force reload of updated SVG files
-        const cacheBuster = '?v=1.2.0.028';
-        const finalImagePath = imagePath + (imagePath.includes('?') ? '&' : '?') + cacheBuster.replace('?', '');
-        const fallbackPath = getFallbackExampleImage(part.partType, part.partModelNumber) + cacheBuster;
+        const cacheBuster = 'v=1.2.0.028';
+        const finalImagePath = imagePath + (imagePath.includes('?') ? '&' : '?') + cacheBuster;
+        const fallbackPath = getFallbackExampleImage(part.partType, part.partModelNumber) + '?' + cacheBuster;
         console.log(`[Compatible Parts] Final image path for ${part.name}:`, finalImagePath);
         console.log(`[Compatible Parts] Fallback path for ${part.name}:`, fallbackPath);
         
