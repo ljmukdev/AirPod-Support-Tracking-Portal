@@ -105,6 +105,12 @@ async function loadParts() {
                                     <span class="part-detail-label">Display Order:</span> ${part.display_order || 0}
                                 </div>
                                 <div class="part-detail">
+                                    <span class="part-detail-label">Example Image:</span> 
+                                    ${part.example_image 
+                                        ? `<span style="color: #28a745;">✓ Uploaded</span> <a href="${part.example_image}" target="_blank" style="color: #007bff; text-decoration: none; margin-left: 8px;">View</a>` 
+                                        : `<span style="color: #dc3545;">✗ Not uploaded</span>`}
+                                </div>
+                                <div class="part-detail">
                                     <span class="part-detail-label">Authenticity Images:</span> 
                                     ${part.authenticity_case_image || part.authenticity_airpod_image 
                                         ? `<span style="color: #28a745;">✓ Uploaded</span>` 
