@@ -887,8 +887,9 @@ async function displayCompatiblePartExamples(partModelNumber, partType) {
     
     // Display each compatible part example
     console.log('Displaying', exampleData.compatibleParts.length, 'compatible parts');
+    console.log('[Compatible Parts] Full compatible parts data:', JSON.stringify(exampleData.compatibleParts, null, 2));
     exampleData.compatibleParts.forEach((part, index) => {
-        console.log(`Part ${index + 1}:`, part.name, part.exampleImage);
+        console.log(`Part ${index + 1}:`, part.name, 'Model:', part.partModelNumber, 'Type:', part.partType, 'exampleImage:', part.exampleImage);
         const partCard = document.createElement('div');
         partCard.style.cssText = 'background: white; border: 2px solid #e8ecf1; border-radius: 12px; padding: 16px; text-align: center; transition: all 0.3s ease;';
         partCard.style.cursor = 'pointer';
