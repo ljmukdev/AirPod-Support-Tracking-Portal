@@ -915,18 +915,32 @@ async function updateAuthenticityImages(partModelNumber, partType) {
     }
     
     // Set up error handlers with fallback
-    caseImgEl.onerror = () => {
-        if (caseImgEl.src !== location.origin + FALLBACK_CASE_SVG) {
-            console.warn('[Authenticity] Case image failed to load, falling back to SVG');
+    caseImgEl.onerror = (event) => {
+        const currentSrc = caseImgEl.src;
+        console.error('[Authenticity] Case image failed to load:', currentSrc);
+        console.error('[Authenticity] Error event:', event);
+        if (currentSrc !== location.origin + FALLBACK_CASE_SVG && !currentSrc.includes('airpod-case-markings.svg')) {
+            console.warn('[Authenticity] Case image failed to load, falling back to SVG. Original src was:', currentSrc);
             caseImgEl.src = FALLBACK_CASE_SVG;
         }
     };
     
-    airpodImgEl.onerror = () => {
-        if (airpodImgEl.src !== location.origin + FALLBACK_AIRPOD_SVG) {
-            console.warn('[Authenticity] AirPod image failed to load, falling back to SVG');
+    caseImgEl.onload = () => {
+        console.log('[Authenticity] Case image loaded successfully:', caseImgEl.src);
+    };
+    
+    airpodImgEl.onerror = (event) => {
+        const currentSrc = airpodImgEl.src;
+        console.error('[Authenticity] AirPod image failed to load:', currentSrc);
+        console.error('[Authenticity] Error event:', event);
+        if (currentSrc !== location.origin + FALLBACK_AIRPOD_SVG && !currentSrc.includes('airpod-stem-markings.svg')) {
+            console.warn('[Authenticity] AirPod image failed to load, falling back to SVG. Original src was:', currentSrc);
             airpodImgEl.src = FALLBACK_AIRPOD_SVG;
         }
+    };
+    
+    airpodImgEl.onload = () => {
+        console.log('[Authenticity] AirPod image loaded successfully:', airpodImgEl.src);
     };
     
     try {
@@ -946,6 +960,8 @@ async function updateAuthenticityImages(partModelNumber, partType) {
             airpodImage: data.authenticity_airpod_image || null
         };
         
+        console.log('[Authenticity] Extracted images from API:', images);
+        
         // Determine image paths
         let caseSrc = FALLBACK_CASE_SVG;
         let airpodSrc = FALLBACK_AIRPOD_SVG;
@@ -955,6 +971,9 @@ async function updateAuthenticityImages(partModelNumber, partType) {
             caseSrc = images.caseImage.startsWith('/') 
                 ? images.caseImage 
                 : '/' + images.caseImage;
+            console.log('[Authenticity] Using uploaded case image:', caseSrc);
+        } else {
+            console.log('[Authenticity] No case image found in database, using fallback SVG');
         }
         
         // Update AirPod image
@@ -962,6 +981,9 @@ async function updateAuthenticityImages(partModelNumber, partType) {
             airpodSrc = images.airpodImage.startsWith('/') 
                 ? images.airpodImage 
                 : '/' + images.airpodImage;
+            console.log('[Authenticity] Using uploaded AirPod image:', airpodSrc);
+        } else {
+            console.log('[Authenticity] No AirPod image found in database, using fallback SVG');
         }
         
         // Set image sources (error handlers will catch 404s)

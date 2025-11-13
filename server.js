@@ -305,21 +305,66 @@ app.get('/uploads/authenticity/:filename', async (req, res) => {
     const filePath = path.resolve(authenticityImagesDir, filename);
     
     console.log(`[Authenticity] Serving image request: ${filename}`);
+    console.log(`[Authenticity] Uploads directory: ${currentUploadsDir}`);
+    console.log(`[Authenticity] Authenticity images directory: ${authenticityImagesDir}`);
     console.log(`[Authenticity] File path: ${filePath}`);
     console.log(`[Authenticity] File exists: ${fs.existsSync(filePath)}`);
     
+    // Check if directory exists
+    if (!fs.existsSync(authenticityImagesDir)) {
+        console.warn(`[Authenticity] Authenticity images directory does not exist: ${authenticityImagesDir}`);
+        return res.status(404).json({ error: 'Authenticity images directory not found' });
+    }
+    
+    // Check if file exists
     if (fs.existsSync(filePath)) {
-        res.sendFile(filePath);
+        // Verify it's actually a file (not a directory)
+        const stats = fs.statSync(filePath);
+        if (!stats.isFile()) {
+            console.warn(`[Authenticity] Path exists but is not a file: ${filePath}`);
+            return res.status(404).json({ error: 'Path is not a file' });
+        }
+        
+        // Set appropriate content type
+        const ext = path.extname(filename).toLowerCase();
+        const contentType = ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' :
+                           ext === '.png' ? 'image/png' :
+                           ext === '.gif' ? 'image/gif' :
+                           ext === '.webp' ? 'image/webp' : 'application/octet-stream';
+        
+        res.setHeader('Content-Type', contentType);
+        res.sendFile(filePath, (err) => {
+            if (err) {
+                console.error(`[Authenticity] Error sending file: ${err.message}`);
+                if (!res.headersSent) {
+                    res.status(500).json({ error: 'Error serving image file' });
+                }
+            }
+        });
     } else {
-        console.warn(`[Authenticity] Image not found: ${filePath}`);
-        res.status(404).json({ error: 'Image not found' });
+        // List directory contents for debugging
+        try {
+            const files = fs.readdirSync(authenticityImagesDir);
+            console.warn(`[Authenticity] Image not found: ${filePath}`);
+            console.warn(`[Authenticity] Directory contains ${files.length} file(s):`, files.slice(0, 10));
+        } catch (dirErr) {
+            console.error(`[Authenticity] Error reading directory: ${dirErr.message}`);
+        }
+        res.status(404).json({ error: 'Image not found', filename });
     }
 });
 
 // Explicit route for uploads BEFORE static middleware to handle missing files gracefully
 // This prevents Express static from throwing unhandled errors
-app.get('/uploads/:filename', async (req, res) => {
+app.get('/uploads/:filename', async (req, res, next) => {
     const filename = req.params.filename;
+    
+    // Skip authenticity images - they're handled by the specific route above
+    // Check the request path to see if it's an authenticity image request
+    if (req.path && req.path.startsWith('/uploads/authenticity/')) {
+        return next(); // Let the more specific route handle it
+    }
+    
     // CRITICAL: Use the same uploadsDir that Multer uses for saving files
     // This must match exactly where files are saved
     const currentUploadsDir = global.uploadsDir || uploadsDir;
@@ -2347,10 +2392,25 @@ app.get('/api/authenticity-images/:partModelNumber', requireDB, async (req, res)
     const partModelNumber = req.params.partModelNumber;
     
     try {
-        // Find the purchased part
-        const purchasedPart = await db.collection('airpod_parts').findOne({ 
+        console.log(`[Authenticity API] Request for part model number: "${partModelNumber}"`);
+        
+        // Find the purchased part - try both exact match and case-insensitive
+        let purchasedPart = await db.collection('airpod_parts').findOne({ 
             part_model_number: partModelNumber 
         });
+        
+        // If not found, try case-insensitive search
+        if (!purchasedPart) {
+            console.log(`[Authenticity API] Exact match failed, trying case-insensitive search`);
+            const allParts = await db.collection('airpod_parts').find({}).toArray();
+            purchasedPart = allParts.find(p => 
+                p.part_model_number && 
+                p.part_model_number.toUpperCase() === partModelNumber.toUpperCase()
+            );
+            if (purchasedPart) {
+                console.log(`[Authenticity API] Found case-insensitive match: ${purchasedPart.part_model_number}`);
+            }
+        }
         
         if (!purchasedPart) {
             console.log(`[Authenticity API] Part not found: ${partModelNumber}`);
@@ -2366,11 +2426,25 @@ app.get('/api/authenticity-images/:partModelNumber', requireDB, async (req, res)
         }
         
         console.log(`[Authenticity API] Found part: ${partModelNumber}, type: ${purchasedPart.part_type}, generation: ${purchasedPart.generation}`);
+        console.log(`[Authenticity API] Purchased part authenticity images:`, {
+            authenticity_case_image: purchasedPart.authenticity_case_image,
+            authenticity_airpod_image: purchasedPart.authenticity_airpod_image,
+            allFields: Object.keys(purchasedPart).filter(k => k.includes('authenticity'))
+        });
         
         // Get all parts from the same generation
         const sameGenerationParts = await db.collection('airpod_parts').find({
             generation: purchasedPart.generation
         }).toArray();
+        
+        console.log(`[Authenticity API] Found ${sameGenerationParts.length} parts in same generation:`, 
+            sameGenerationParts.map(p => ({ 
+                model: p.part_model_number, 
+                type: p.part_type,
+                hasCaseImg: !!p.authenticity_case_image,
+                hasAirpodImg: !!p.authenticity_airpod_image
+            }))
+        );
         
         let caseImage = null;
         let airpodImage = null;
@@ -2379,11 +2453,15 @@ app.get('/api/authenticity-images/:partModelNumber', requireDB, async (req, res)
         if (purchasedPart.part_type === 'left' || purchasedPart.part_type === 'right') {
             // AirPod image: from the purchased part itself
             airpodImage = purchasedPart.authenticity_airpod_image || null;
+            console.log(`[Authenticity API] Purchased part AirPod image:`, airpodImage);
             
             // Case image: from the CASE part in same generation
             const casePart = sameGenerationParts.find(p => p.part_type === 'case');
             if (casePart) {
                 caseImage = casePart.authenticity_case_image || null;
+                console.log(`[Authenticity API] Found case part: ${casePart.part_model_number}, case image:`, caseImage);
+            } else {
+                console.warn(`[Authenticity API] No case part found in generation ${purchasedPart.generation}`);
             }
             
             console.log(`[Authenticity API] LEFT/RIGHT part - AirPod from purchased, Case from generation CASE part`);
@@ -2392,21 +2470,29 @@ app.get('/api/authenticity-images/:partModelNumber', requireDB, async (req, res)
         else if (purchasedPart.part_type === 'case') {
             // Case image: from the purchased part itself
             caseImage = purchasedPart.authenticity_case_image || null;
+            console.log(`[Authenticity API] Purchased part case image:`, caseImage);
             
             // AirPod image: prefer LEFT, then RIGHT from same generation
             const leftPart = sameGenerationParts.find(p => p.part_type === 'left');
             const rightPart = sameGenerationParts.find(p => p.part_type === 'right');
             
+            console.log(`[Authenticity API] Looking for AirPod image - Left part:`, leftPart ? { model: leftPart.part_model_number, hasImg: !!leftPart.authenticity_airpod_image } : 'not found');
+            console.log(`[Authenticity API] Looking for AirPod image - Right part:`, rightPart ? { model: rightPart.part_model_number, hasImg: !!rightPart.authenticity_airpod_image } : 'not found');
+            
             if (leftPart && leftPart.authenticity_airpod_image) {
                 airpodImage = leftPart.authenticity_airpod_image;
+                console.log(`[Authenticity API] Using left part AirPod image:`, airpodImage);
             } else if (rightPart && rightPart.authenticity_airpod_image) {
                 airpodImage = rightPart.authenticity_airpod_image;
+                console.log(`[Authenticity API] Using right part AirPod image:`, airpodImage);
+            } else {
+                console.warn(`[Authenticity API] No AirPod image found in compatible parts`);
             }
             
             console.log(`[Authenticity API] CASE part - Case from purchased, AirPod from generation LEFT/RIGHT part`);
         }
         
-        console.log(`[Authenticity API] Returning images:`, { caseImage, airpodImage });
+        console.log(`[Authenticity API] Final images being returned:`, { caseImage, airpodImage });
         
         res.json({
             ok: true,
