@@ -1,11 +1,30 @@
-<svg width="400" height="300" xmlns="http://www.w3.org/2000/svg">
-  <rect width="400" height="300" fill="#f5f5f5"/>
-  <text x="200" y="150" font-family="Arial, sans-serif" font-size="18" fill="#999" text-anchor="middle">
-    AirPods Pro 2nd Gen Left (A2698)
+<svg width="400" height="300" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <!-- Background -->
+  <rect width="400" height="300" fill="#f8f9fa"/>
+  
+  <!-- AirPod Pro Left - Main body -->
+  <g transform="translate(200, 150)">
+    <!-- Stem -->
+    <rect x="-8" y="-80" width="16" height="60" rx="8" fill="#1a1a1a"/>
+    
+    <!-- Main earbud body -->
+    <ellipse cx="0" cy="0" rx="35" ry="45" fill="#1a1a1a"/>
+    
+    <!-- Speaker grille -->
+    <ellipse cx="0" cy="15" rx="20" ry="25" fill="#2a2a2a"/>
+    
+    <!-- Touch sensor area -->
+    <rect x="-12" y="-50" width="24" height="8" rx="4" fill="#3a3a3a" opacity="0.6"/>
+    
+    <!-- Left indicator (small dot) -->
+    <circle cx="-25" cy="-10" r="3" fill="#4a90e2"/>
+  </g>
+  
+  <!-- Label -->
+  <text x="200" y="250" font-family="Arial, sans-serif" font-size="14" fill="#666" text-anchor="middle" font-weight="600">
+    Left AirPod Pro 2nd Gen
   </text>
-  <text x="200" y="180" font-family="Arial, sans-serif" font-size="14" fill="#ccc" text-anchor="middle">
-    Placeholder - Image Coming Soon
+  <text x="200" y="270" font-family="Arial, sans-serif" font-size="12" fill="#999" text-anchor="middle">
+    A2698
   </text>
 </svg>
-
-
