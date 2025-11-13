@@ -977,21 +977,43 @@ function getFallbackExampleImage(partType, partModelNumber) {
         'A2698': '/images/examples/airpod-pro-2nd-gen-left.svg',
         'A2699': '/images/examples/airpod-pro-2nd-gen-right.svg',
         'A2700': '/images/examples/airpod-pro-2nd-gen-case.svg',
+        'A2968': '/images/examples/airpod-pro-2nd-gen-case.svg',  // USB-C MagSafe case
+        'A2968-L': '/images/examples/airpod-pro-2nd-gen-case.svg', // Lightning case
+        'A3047': '/images/examples/airpod-pro-2nd-gen-right.svg',  // Right earbud USB-C
         // AirPods Pro 1st Gen
         'A2084': '/images/examples/airpod-pro-1st-gen-left.svg',
         'A2083': '/images/examples/airpod-pro-1st-gen-right.svg',
         'A2190': '/images/examples/airpod-pro-1st-gen-case.svg',
+        'A2190-L': '/images/examples/airpod-pro-1st-gen-case.svg', // Lightning case
         // AirPods 3rd Gen
         'A2564': '/images/examples/airpod-3rd-gen-left.svg',
         'A2565': '/images/examples/airpod-3rd-gen-right.svg',
         'A2566': '/images/examples/airpod-3rd-gen-case.svg',
+        'A2566-L': '/images/examples/airpod-3rd-gen-case.svg', // Lightning case
         // AirPods 2nd Gen
         'A2032': '/images/examples/airpod-2nd-gen-left.svg',
         'A2031': '/images/examples/airpod-2nd-gen-right.svg',
         'A1602': '/images/examples/airpod-2nd-gen-case.svg'
     };
     
-    const basePath = modelToImage[partModelNumber] || '/images/examples/airpod-pro-2nd-gen-left.svg';
+    // Try exact model number match first
+    let basePath = modelToImage[partModelNumber];
+    
+    // If not found, use partType to determine fallback
+    if (!basePath) {
+        console.warn(`[Fallback Image] Model number ${partModelNumber} not in mapping, using partType: ${partType}`);
+        if (partType === 'case') {
+            basePath = '/images/examples/airpod-pro-2nd-gen-case.svg';
+        } else if (partType === 'left') {
+            basePath = '/images/examples/airpod-pro-2nd-gen-left.svg';
+        } else if (partType === 'right') {
+            basePath = '/images/examples/airpod-pro-2nd-gen-right.svg';
+        } else {
+            // Default fallback
+            basePath = '/images/examples/airpod-pro-2nd-gen-left.svg';
+        }
+    }
+    
     // Add cache-busting query parameter
     return `${basePath}?v=${IMAGE_VERSION}`;
 }
