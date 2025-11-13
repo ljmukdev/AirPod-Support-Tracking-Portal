@@ -50,8 +50,11 @@ async function loadParts() {
     if (!partsList) return;
     
     try {
+        console.log('[Parts Manager] Fetching parts from:', `${API_BASE}/api/admin/parts`);
         const response = await fetch(`${API_BASE}/api/admin/parts`);
+        console.log('[Parts Manager] Response status:', response.status, response.statusText);
         const data = await response.json();
+        console.log('[Parts Manager] Response data:', data);
         
         if (response.ok && data.parts) {
             if (data.parts.length === 0) {
@@ -132,11 +135,21 @@ async function loadParts() {
                 });
             });
         } else {
-            partsList.innerHTML = '<p style="text-align: center; padding: 40px; color: red;">Error loading parts</p>';
+            console.error('[Parts Manager] Error response:', {
+                status: response.status,
+                statusText: response.statusText,
+                data: data
+            });
+            const errorMsg = data.error || 'Unknown error';
+            partsList.innerHTML = `<p style="text-align: center; padding: 40px; color: red;">Error loading parts: ${escapeHtml(errorMsg)}</p>`;
         }
     } catch (error) {
-        console.error('Load parts error:', error);
-        document.getElementById('partsList').innerHTML = '<p style="text-align: center; padding: 40px; color: red;">Network error. Please refresh the page.</p>';
+        console.error('[Parts Manager] Load parts error:', error);
+        const errorMsg = error.message || 'Network error';
+        const partsList = document.getElementById('partsList');
+        if (partsList) {
+            partsList.innerHTML = `<p style="text-align: center; padding: 40px; color: red;">Network error: ${escapeHtml(errorMsg)}. Please refresh the page.</p>`;
+        }
     }
 }
 
