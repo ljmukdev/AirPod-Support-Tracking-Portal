@@ -911,9 +911,11 @@ async function displayCompatiblePartExamples(partModelNumber, partType) {
         }
         
         // Add cache-busting query parameter to force reload of updated SVG files
-        const cacheBuster = 'v=1.2.0.028';
-        const finalImagePath = imagePath + (imagePath.includes('?') ? '&' : '?') + cacheBuster;
-        const fallbackPath = getFallbackExampleImage(part.partType, part.partModelNumber) + '?' + cacheBuster;
+        // If imagePath already has a query param, append; otherwise add one
+        const finalImagePath = imagePath.includes('?') 
+            ? imagePath + `&v=${IMAGE_VERSION}`
+            : imagePath + `?v=${IMAGE_VERSION}`;
+        const fallbackPath = getFallbackExampleImage(part.partType, part.partModelNumber);
         console.log(`[Compatible Parts] Final image path for ${part.name}:`, finalImagePath);
         console.log(`[Compatible Parts] Fallback path for ${part.name}:`, fallbackPath);
         
@@ -962,7 +964,11 @@ async function displayCompatiblePartExamples(partModelNumber, partType) {
 const FALLBACK_CASE_SVG = '/images/airpod-case-markings.svg';
 const FALLBACK_AIRPOD_SVG = '/images/airpod-stem-markings.svg';
 
+// Image version for cache-busting - bump this when SVG files are updated
+const IMAGE_VERSION = '1.2.0.028';
+
 // Get fallback example image based on part type and model number
+// Returns path with cache-busting query parameter
 function getFallbackExampleImage(partType, partModelNumber) {
     // Map model numbers to their generation and type for fallback SVGs
     const modelToImage = {
@@ -984,7 +990,9 @@ function getFallbackExampleImage(partType, partModelNumber) {
         'A1602': '/images/examples/airpod-2nd-gen-case.svg'
     };
     
-    return modelToImage[partModelNumber] || '/images/examples/airpod-pro-2nd-gen-left.svg';
+    const basePath = modelToImage[partModelNumber] || '/images/examples/airpod-pro-2nd-gen-left.svg';
+    // Add cache-busting query parameter
+    return `${basePath}?v=${IMAGE_VERSION}`;
 }
 
 // Update authenticity check images based on purchased part
