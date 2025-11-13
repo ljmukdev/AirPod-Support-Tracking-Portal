@@ -684,14 +684,18 @@ async function getCompatiblePartExamples(partModelNumber, partType) {
     }
     
     console.log('Looking for part:', partModelNumber, 'Available parts:', Object.keys(examples));
+    console.log('Examples object structure:', examples);
+    console.log('Checking examples[' + partModelNumber + ']:', examples[partModelNumber]);
     
     // Check if we have examples for this part model number
-    if (examples[partModelNumber]) {
+    if (examples && examples[partModelNumber]) {
         console.log('Found examples for', partModelNumber, ':', examples[partModelNumber]);
         return examples[partModelNumber];
     }
     
     console.warn('No examples found for part model number:', partModelNumber);
+    console.warn('Examples object:', examples);
+    console.warn('Part model number type:', typeof partModelNumber);
     // Fallback: try to find by part type and generation if available
     return null;
 }
