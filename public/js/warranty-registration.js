@@ -897,14 +897,20 @@ async function displayCompatiblePartExamples(partModelNumber, partType) {
         // Ensure image path is correct (add leading slash if needed)
         let imagePath = part.exampleImage || null;
         
-        console.log(`[Compatible Parts] Part ${index + 1} (${part.partModelNumber}): exampleImage =`, imagePath);
+        console.log(`[Compatible Parts] Part ${index + 1} (${part.partModelNumber}):`);
+        console.log(`  - Name: ${part.name}`);
+        console.log(`  - Type: ${part.partType}`);
+        console.log(`  - exampleImage from API:`, part.exampleImage);
+        console.log(`  - imagePath after processing:`, imagePath);
         
         // If no image from database, use fallback SVG
-        if (!imagePath || imagePath === 'null' || imagePath === 'undefined') {
+        if (!imagePath || imagePath === 'null' || imagePath === 'undefined' || imagePath === '') {
             // Fallback to static SVG based on part type and generation
             const fallbackSvg = getFallbackExampleImage(part.partType, part.partModelNumber);
             imagePath = fallbackSvg;
-            console.log(`[Compatible Parts] Using fallback SVG for ${part.partModelNumber}:`, imagePath);
+            console.log(`  - ⚠️ NO DATABASE IMAGE - Using fallback SVG:`, imagePath);
+        } else {
+            console.log(`  - ✅ USING DATABASE IMAGE:`, imagePath);
         }
         
         if (!imagePath.startsWith('/') && !imagePath.startsWith('http')) {
