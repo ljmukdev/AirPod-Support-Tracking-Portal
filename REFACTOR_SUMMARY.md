@@ -128,3 +128,4 @@ public/images/examples/airpod-pro-2nd-gen-right.svg ✅ Tracked
 3. **Deploy to Railway** and verify images load correctly
 4. **If SVG files are updated in future**, bump `IMAGE_VERSION` in one place
 
+

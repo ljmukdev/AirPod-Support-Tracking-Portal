@@ -841,6 +841,36 @@ async function initializeDatabase() {
     }
 }
 
+// Normalize security barcode for comparison (removes hyphens and converts to uppercase)
+// This allows matching both hyphenated (ABC-123-DEF) and non-hyphenated (ABC123DEF) codes
+function normalizeSecurityBarcode(barcode) {
+    if (!barcode) return '';
+    return barcode.trim().toUpperCase().replace(/-/g, '');
+}
+
+// Create a MongoDB query that matches security barcode with or without hyphens
+// Since codes are stored WITH hyphens (e.g., "ABC-123-DEF") but users may enter WITHOUT hyphens (e.g., "ABC123DEF"),
+// we create a regex that matches the normalized (no-hyphen) version with optional hyphens inserted
+function createSecurityBarcodeQuery(barcode) {
+    if (!barcode) return null;
+    
+    const normalized = normalizeSecurityBarcode(barcode); // Remove all hyphens
+    const original = barcode.trim().toUpperCase(); // Keep original format
+    
+    // Create regex pattern: match normalized characters in sequence with optional hyphens between any characters
+    // Example: normalized "ABC123DEF" will match "ABC-123-DEF", "ABC123-DEF", "ABC-123DEF", etc.
+    // Pattern: A followed by optional hyphen, B followed by optional hyphen, etc.
+    const regexPattern = '^' + normalized.split('').join('[-]?') + '$';
+    
+    return {
+        $or: [
+            { security_barcode: original }, // Try exact match first (fastest, works if user entered with hyphens)
+            { security_barcode: normalized }, // Try normalized match (works if stored without hyphens)
+            { security_barcode: { $regex: regexPattern, $options: 'i' } } // Regex: normalized with optional hyphens
+        ]
+    };
+}
+
 // Initialize warranty pricing with default values
 async function initializeWarrantyPricing() {
     try {
@@ -1502,11 +1532,9 @@ app.post('/api/verify-barcode', requireDB, async (req, res) => {
     }
     
     try {
-        // Case-insensitive search - convert to uppercase for comparison
-        const normalizedBarcode = security_barcode.trim().toUpperCase();
-        const product = await db.collection('products').findOne({ 
-            security_barcode: normalizedBarcode 
-        });
+        // Search for barcode with or without hyphens
+        const barcodeQuery = createSecurityBarcodeQuery(security_barcode);
+        const product = await db.collection('products').findOne(barcodeQuery);
         
         if (!product) {
             res.status(404).json({ error: 'Invalid security code. Please check and try again.' });
@@ -1538,10 +1566,10 @@ app.post('/api/confirm-understanding', requireDB, async (req, res) => {
     }
     
     try {
-        // Case-insensitive search - convert to uppercase for comparison
-        const normalizedBarcode = security_barcode.trim().toUpperCase();
+        // Search for barcode with or without hyphens
+        const barcodeQuery = createSecurityBarcodeQuery(security_barcode);
         const result = await db.collection('products').updateOne(
-            { security_barcode: normalizedBarcode },
+            barcodeQuery,
             { 
                 $set: { 
                     confirmation_checked: true, 
@@ -1905,20 +1933,21 @@ app.post('/api/warranty/register', requireDB, async (req, res) => {
     
     // Verify product exists
     try {
-        // Case-insensitive search - convert to uppercase for comparison
-        const normalizedBarcode = security_barcode.trim().toUpperCase();
-        const product = await db.collection('products').findOne({ 
-            security_barcode: normalizedBarcode 
-        });
+        // Search for barcode with or without hyphens
+        const barcodeQuery = createSecurityBarcodeQuery(security_barcode);
+        const product = await db.collection('products').findOne(barcodeQuery);
         
         if (!product) {
             return res.status(404).json({ error: 'Product not found' });
         }
         
+        // Use the product's actual security_barcode (may have hyphens) for warranty lookup
+        const productBarcode = product.security_barcode;
+        
         // Check if warranty already registered for this product
-        const existingWarranty = await db.collection('warranties').findOne({
-            security_barcode: normalizedBarcode
-        });
+        // Use the same query function to handle both formats
+        const warrantyQuery = createSecurityBarcodeQuery(productBarcode);
+        const existingWarranty = await db.collection('warranties').findOne(warrantyQuery);
         
         if (existingWarranty) {
             return res.status(409).json({ 
@@ -1978,7 +2007,7 @@ app.post('/api/warranty/register', requireDB, async (req, res) => {
         
         const warranty = {
             warranty_id: warrantyId,
-            security_barcode: normalizedBarcode,
+            security_barcode: productBarcode, // Use product's actual barcode (with hyphens if stored that way)
             product_id: product._id.toString(),
             customer_name: customer_name.trim(),
             customer_email: customer_email.trim().toLowerCase(),
@@ -2138,11 +2167,9 @@ app.get('/api/product-info/:barcode', requireDB, async (req, res) => {
     const { barcode } = req.params;
     
     try {
-        // Case-insensitive search - convert to uppercase for comparison
-        const normalizedBarcode = barcode.trim().toUpperCase();
-        const product = await db.collection('products').findOne({ 
-            security_barcode: normalizedBarcode 
-        });
+        // Search for barcode with or without hyphens
+        const barcodeQuery = createSecurityBarcodeQuery(barcode);
+        const product = await db.collection('products').findOne(barcodeQuery);
         
         if (!product) {
             res.status(404).json({ error: 'Product not found' });

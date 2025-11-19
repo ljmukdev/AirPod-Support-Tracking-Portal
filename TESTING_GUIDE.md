@@ -157,3 +157,4 @@ https://airpodsupport.ljmuk.co.uk/warranty-registration.html?barcode=1234
 - [ ] Images display correctly in Step 1 compatibility check
 - [ ] No console errors
 
+
