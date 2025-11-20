@@ -846,14 +846,58 @@ function displayProductInfoOnStep1(data) {
     console.log('Part Model Number:', partModelNumber);
     console.log('Part Type:', data.part_type);
     console.log('Product Data:', data);
+    
+    // Set initial fallback message (will be updated by API if successful)
+    const compatiblePartsEl = document.getElementById('compatiblePartNumbers');
+    if (compatiblePartsEl) {
+        const compatibleParts = getCompatiblePartNumbers(partModelNumber, data.part_type);
+        console.log('[Compatible Parts] Fallback compatible parts:', compatibleParts);
+        
+        // Format message with part numbers and names
+        if (compatibleParts.length > 0) {
+            // Check if we have part numbers (start with A and digits)
+            const hasPartNumbers = compatibleParts.some(p => /^A\d+/.test(p));
+            
+            if (hasPartNumbers) {
+                // Format: "Part Name (PartNumber)"
+                // For A2968 (Right AirPod), compatible parts are A2699 (Left) and A2700 (Case)
+                const formatted = compatibleParts.map(partNum => {
+                    if (/^A\d+/.test(partNum)) {
+                        // Known part numbers - map to names
+                        if (partNum === 'A2699' || partNum === 'A2698' || partNum === 'A3048' || partNum === 'A3047') {
+                            // These are AirPods - determine left/right based on purchased part type
+                            if (data.part_type === 'right') {
+                                // Purchased right, compatible part must be left
+                                return `Left AirPod (${partNum})`;
+                            } else if (data.part_type === 'left') {
+                                // Purchased left, compatible part must be right
+                                return `Right AirPod (${partNum})`;
+                            } else {
+                                // Unknown, use generic
+                                return `AirPod (${partNum})`;
+                            }
+                        } else if (partNum === 'A2700' || partNum.includes('2700')) {
+                            return `Case (${partNum})`;
+                        } else {
+                            // Unknown part number - just show the number
+                            return partNum;
+                        }
+                    } else {
+                        // Generic name (fallback like "Left AirPod" or "Charging Case")
+                        return partNum;
+                    }
+                });
+                compatiblePartsEl.textContent = formatted.join(' & ');
+            } else {
+                // Generic names only - use as is
+                compatiblePartsEl.textContent = compatibleParts.join(' & ');
+            }
+        }
+    }
+    
     displayCompatiblePartExamples(partModelNumber, data.part_type).catch(err => {
         console.error('Error displaying examples:', err);
-        // Fallback to static message if API fails
-        const compatiblePartsEl = document.getElementById('compatiblePartNumbers');
-        if (compatiblePartsEl) {
-            const compatibleParts = getCompatiblePartNumbers(partModelNumber, data.part_type);
-            compatiblePartsEl.textContent = compatibleParts.join(' & ');
-        }
+        // Message already set above as fallback
     });
     
     // Hide security code entry section when product is displayed
