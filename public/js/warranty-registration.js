@@ -744,11 +744,15 @@ async function getCompatiblePartExamples(partModelNumber, partType) {
 
 // Get compatible part numbers based on purchased part
 function getCompatiblePartNumbers(partModelNumber, partType) {
-    // AirPods Pro 2nd Gen part numbers
+    // AirPods Pro 2nd Gen part numbers (USB-C)
     const partNumbers = {
-        'A2698': { type: 'left', compatible: ['A2699', 'A2700'] },  // Left AirPod
-        'A2699': { type: 'right', compatible: ['A2698', 'A2700'] }, // Right AirPod
-        'A2700': { type: 'case', compatible: ['A2698', 'A2699'] }   // Charging Case
+        'A2698': { type: 'left', compatible: ['A2699', 'A2700'] },  // Left AirPod USB-C
+        'A2699': { type: 'right', compatible: ['A2698', 'A2700'] }, // Right AirPod USB-C
+        'A2700': { type: 'case', compatible: ['A2698', 'A2699'] },  // Charging Case USB-C
+        // AirPods Pro 2nd Gen Lightning variants
+        'A2968': { type: 'right', compatible: ['A2699', 'A2700'] },  // Right AirPod Lightning (compatible with USB-C left and case)
+        'A3047': { type: 'right', compatible: ['A3048', 'A2700'] }, // Right AirPod USB-C (alternative)
+        'A3048': { type: 'left', compatible: ['A3047', 'A2700'] }   // Left AirPod USB-C (alternative)
     };
     
     // AirPods Pro 1st Gen part numbers
@@ -829,23 +833,25 @@ function displayProductInfoOnStep1(data) {
         step1Container.innerHTML = detailsHtml;
     }
     
-    // Update compatible part numbers in guidance
+    // Update purchased part number (will be updated with API data if available)
     const purchasedPartEl = document.getElementById('purchasedPartNumber');
-    const compatiblePartsEl = document.getElementById('compatiblePartNumbers');
     if (purchasedPartEl) {
         purchasedPartEl.textContent = partModelNumber || 'your part';
     }
-    if (compatiblePartsEl) {
-        compatiblePartsEl.textContent = compatiblePartsText;
-    }
     
-    // Load and display compatible part examples
+    // Load and display compatible part examples (this will also update the message dynamically)
     console.log('=== DISPLAYING COMPATIBLE PART EXAMPLES ===');
     console.log('Part Model Number:', partModelNumber);
     console.log('Part Type:', data.part_type);
     console.log('Product Data:', data);
     displayCompatiblePartExamples(partModelNumber, data.part_type).catch(err => {
         console.error('Error displaying examples:', err);
+        // Fallback to static message if API fails
+        const compatiblePartsEl = document.getElementById('compatiblePartNumbers');
+        if (compatiblePartsEl) {
+            const compatibleParts = getCompatiblePartNumbers(partModelNumber, data.part_type);
+            compatiblePartsEl.textContent = compatibleParts.join(' & ');
+        }
     });
     
     // Hide security code entry section when product is displayed
@@ -879,7 +885,27 @@ async function displayCompatiblePartExamples(partModelNumber, partType) {
     if (!exampleData || !exampleData.compatibleParts || exampleData.compatibleParts.length === 0) {
         console.log('No example data found, hiding container');
         examplesContainer.style.display = 'none';
+        // Fallback to static message
+        const compatiblePartsEl = document.getElementById('compatiblePartNumbers');
+        if (compatiblePartsEl) {
+            const compatibleParts = getCompatiblePartNumbers(partModelNumber, partType);
+            compatiblePartsEl.textContent = compatibleParts.join(' & ');
+        }
         return;
+    }
+    
+    // Update the message dynamically based on API response
+    const compatiblePartsEl = document.getElementById('compatiblePartNumbers');
+    if (compatiblePartsEl && exampleData.compatibleParts.length > 0) {
+        // Build message with actual part numbers from API
+        const partNumbers = exampleData.compatibleParts.map(p => p.partModelNumber).filter(Boolean);
+        if (partNumbers.length > 0) {
+            compatiblePartsEl.textContent = partNumbers.join(' & ');
+        } else {
+            // Fallback to part names if no part numbers
+            const partNames = exampleData.compatibleParts.map(p => p.name).filter(Boolean);
+            compatiblePartsEl.textContent = partNames.join(' & ');
+        }
     }
     
     // Clear existing content
