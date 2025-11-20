@@ -2519,9 +2519,10 @@ app.get('/api/admin/generations', requireAuth, requireDB, async (req, res) => {
 // Get compatible parts with example images (public endpoint for warranty registration)
 app.get('/api/compatible-parts/:partModelNumber', requireDB, async (req, res) => {
     const partModelNumber = req.params.partModelNumber;
+    const partTypeFromQuery = req.query.part_type; // Allow part_type to be passed as query parameter
     
     try {
-        console.log(`[Compatible Parts API] Request for part model number: "${partModelNumber}"`);
+        console.log(`[Compatible Parts API] Request for part model number: "${partModelNumber}", part_type: "${partTypeFromQuery || 'not provided'}"`);
         
         // Find the purchased part
         let purchasedPart = await db.collection('airpod_parts').findOne({ 
@@ -2541,8 +2542,34 @@ app.get('/api/compatible-parts/:partModelNumber', requireDB, async (req, res) =>
             }
         }
         
-        if (!purchasedPart) {
-            console.log(`[Compatible Parts API] Part not found: ${partModelNumber}`);
+        // If part not found in airpod_parts but part_type is provided, use that
+        // This handles cases where part model numbers are used differently (e.g., A2968 as right AirPod vs case)
+        let actualPartType = purchasedPart ? purchasedPart.part_type : null;
+        let generation = purchasedPart ? purchasedPart.generation : null;
+        
+        if (partTypeFromQuery && (!purchasedPart || actualPartType !== partTypeFromQuery)) {
+            console.log(`[Compatible Parts API] Using part_type from query parameter: ${partTypeFromQuery}`);
+            actualPartType = partTypeFromQuery;
+            
+            // Try to find generation from any part with this model number, or use a default
+            if (!generation && purchasedPart) {
+                generation = purchasedPart.generation;
+            } else if (!generation) {
+                // Try to infer generation from part number patterns
+                if (partModelNumber.startsWith('A269') || partModelNumber.startsWith('A270') || partModelNumber.startsWith('A296') || partModelNumber.startsWith('A304')) {
+                    generation = 'AirPods Pro (2nd Gen)';
+                } else if (partModelNumber.startsWith('A208') || partModelNumber.startsWith('A219')) {
+                    generation = 'AirPods Pro (1st Gen)';
+                } else if (partModelNumber.startsWith('A256')) {
+                    generation = 'AirPods (3rd Gen)';
+                } else if (partModelNumber.startsWith('A203') || partModelNumber.startsWith('A160')) {
+                    generation = 'AirPods (2nd Gen)';
+                }
+            }
+        }
+        
+        if (!actualPartType) {
+            console.log(`[Compatible Parts API] Part not found and no part_type provided: ${partModelNumber}`);
             return res.json({ 
                 ok: true,
                 data: {
@@ -2552,19 +2579,25 @@ app.get('/api/compatible-parts/:partModelNumber', requireDB, async (req, res) =>
             });
         }
         
-        console.log(`[Compatible Parts API] Found part: ${partModelNumber}, type: ${purchasedPart.part_type}, generation: ${purchasedPart.generation}`);
+        console.log(`[Compatible Parts API] Using part type: ${actualPartType}, generation: ${generation || 'unknown'}`);
         
         // Get all parts from the same generation
-        const sameGenerationParts = await db.collection('airpod_parts').find({
-            generation: purchasedPart.generation
-        }).toArray();
+        let sameGenerationParts = [];
+        if (generation) {
+            sameGenerationParts = await db.collection('airpod_parts').find({
+                generation: generation
+            }).toArray();
+        } else {
+            // If no generation found, get all parts (fallback)
+            sameGenerationParts = await db.collection('airpod_parts').find({}).toArray();
+        }
         
         console.log(`[Compatible Parts API] Found ${sameGenerationParts.length} parts in same generation`);
         
         // Determine compatible parts based on part type
         let compatibleParts = [];
         
-        if (purchasedPart.part_type === 'left') {
+        if (actualPartType === 'left') {
             // Compatible: right AirPod and case
             compatibleParts = sameGenerationParts
                 .filter(p => p.part_type === 'right' || p.part_type === 'case')
@@ -2577,7 +2610,7 @@ app.get('/api/compatible-parts/:partModelNumber', requireDB, async (req, res) =>
                         ? `${p.part_name} - should match your left AirPod`
                         : `${p.part_name} - USB-C or Lightning`
                 }));
-        } else if (purchasedPart.part_type === 'right') {
+        } else if (actualPartType === 'right') {
             // Compatible: left AirPod and case
             compatibleParts = sameGenerationParts
                 .filter(p => p.part_type === 'left' || p.part_type === 'case')
@@ -2590,7 +2623,7 @@ app.get('/api/compatible-parts/:partModelNumber', requireDB, async (req, res) =>
                         ? `${p.part_name} - should match your right AirPod`
                         : `${p.part_name} - USB-C or Lightning`
                 }));
-        } else if (purchasedPart.part_type === 'case') {
+        } else if (actualPartType === 'case') {
             // Compatible: left and right AirPods
             compatibleParts = sameGenerationParts
                 .filter(p => p.part_type === 'left' || p.part_type === 'right')
@@ -2605,15 +2638,23 @@ app.get('/api/compatible-parts/:partModelNumber', requireDB, async (req, res) =>
         
         console.log(`[Compatible Parts API] Returning ${compatibleParts.length} compatible parts`);
         
+        // Build purchasedPart info for response
+        const purchasedPartInfo = purchasedPart ? {
+            partModelNumber: purchasedPart.part_model_number,
+            partType: actualPartType, // Use actual part type (may be from query param)
+            name: purchasedPart.part_name,
+            generation: generation || purchasedPart.generation
+        } : {
+            partModelNumber: partModelNumber,
+            partType: actualPartType,
+            name: `${actualPartType === 'left' ? 'Left' : actualPartType === 'right' ? 'Right' : 'Case'} AirPod`,
+            generation: generation || 'Unknown'
+        };
+        
         res.json({
             ok: true,
             data: {
-                purchasedPart: {
-                    partModelNumber: purchasedPart.part_model_number,
-                    partType: purchasedPart.part_type,
-                    name: purchasedPart.part_name,
-                    generation: purchasedPart.generation
-                },
+                purchasedPart: purchasedPartInfo,
                 compatibleParts: compatibleParts
             }
         });

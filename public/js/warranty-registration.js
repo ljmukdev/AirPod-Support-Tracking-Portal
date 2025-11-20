@@ -679,8 +679,10 @@ async function getCompatiblePartExamples(partModelNumber, partType) {
     
     try {
         // Fetch compatible parts from database API
-        console.log('[Compatible Parts] Fetching from API:', `${API_BASE}/api/compatible-parts/${partModelNumber}`);
-        const response = await fetch(`${API_BASE}/api/compatible-parts/${partModelNumber}`);
+        // Pass part_type as query parameter to ensure correct compatible parts are returned
+        const apiUrl = `${API_BASE}/api/compatible-parts/${partModelNumber}${partType ? `?part_type=${encodeURIComponent(partType)}` : ''}`;
+        console.log('[Compatible Parts] Fetching from API:', apiUrl);
+        const response = await fetch(apiUrl);
         
         if (!response.ok) {
             console.warn(`[Compatible Parts] API returned status ${response.status}, falling back to static JSON`);
