@@ -899,12 +899,21 @@ async function displayCompatiblePartExamples(partModelNumber, partType) {
     // Update the message dynamically based on API response
     const compatiblePartsEl = document.getElementById('compatiblePartNumbers');
     if (compatiblePartsEl && exampleData.compatibleParts.length > 0) {
-        // Build message with actual part numbers from API
-        const partNumbers = exampleData.compatibleParts.map(p => p.partModelNumber).filter(Boolean);
-        if (partNumbers.length > 0) {
-            compatiblePartsEl.textContent = partNumbers.join(' & ');
+        // Build message with part names and model numbers: "Part Name (ModelNumber)"
+        const formattedParts = exampleData.compatibleParts.map(p => {
+            const partName = p.name || (p.partType === 'left' ? 'Left AirPod' : p.partType === 'right' ? 'Right AirPod' : p.partType === 'case' ? 'Case' : 'Part');
+            const modelNumber = p.partModelNumber || '';
+            if (modelNumber) {
+                return `${partName} (${modelNumber})`;
+            } else {
+                return partName;
+            }
+        }).filter(Boolean);
+        
+        if (formattedParts.length > 0) {
+            compatiblePartsEl.textContent = formattedParts.join(' & ');
         } else {
-            // Fallback to part names if no part numbers
+            // Fallback to part names if no formatting possible
             const partNames = exampleData.compatibleParts.map(p => p.name).filter(Boolean);
             compatiblePartsEl.textContent = partNames.join(' & ');
         }
