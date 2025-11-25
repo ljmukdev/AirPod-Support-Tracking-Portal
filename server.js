@@ -360,7 +360,10 @@ app.get('/uploads/authenticity/:filename', async (req, res) => {
     const authenticityImagesDir = path.join(currentUploadsDir, 'authenticity');
     const filePath = path.resolve(authenticityImagesDir, filename);
     
-    console.log(`[Authenticity] Serving image request: ${filename}`);
+    console.log(`[Authenticity] ===== IMAGE REQUEST RECEIVED =====`);
+    console.log(`[Authenticity] Request URL: ${req.url}`);
+    console.log(`[Authenticity] Request path: ${req.path}`);
+    console.log(`[Authenticity] Filename param: ${filename}`);
     console.log(`[Authenticity] Uploads directory: ${currentUploadsDir}`);
     console.log(`[Authenticity] Authenticity images directory: ${authenticityImagesDir}`);
     console.log(`[Authenticity] File path: ${filePath}`);
