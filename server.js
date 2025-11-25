@@ -939,8 +939,13 @@ async function populateInitialParts() {
         {generation: 'AirPods Pro (1st Gen)', part_name: 'Service Kit Replacement Pods (Left)', part_model_number: '661-17164', part_type: 'left', notes: 'Internal service kit', display_order: 5, date_added: new Date()},
         {generation: 'AirPods Pro (1st Gen)', part_name: 'Service Kit Replacement Pods (Right)', part_model_number: '661-17165', part_type: 'right', notes: 'Internal service kit', display_order: 6, date_added: new Date()},
         // AirPods Pro (2nd Gen)
-        {generation: 'AirPods Pro (2nd Gen)', part_name: 'Charging Case (USB-C MagSafe)', part_model_number: 'A2968', part_type: 'case', notes: 'USB-C version', display_order: 1, date_added: new Date()},
-        {generation: 'AirPods Pro (2nd Gen)', part_name: 'Charging Case (Lightning)', part_model_number: 'A2968-L', part_type: 'case', notes: 'Lightning version (compatibility case)', display_order: 2, date_added: new Date()}
+        {generation: 'AirPods Pro (2nd Gen)', part_name: 'Earbuds (Left)', part_model_number: 'A2698', part_type: 'left', notes: 'Left AirPod Pro 2nd Gen', display_order: 1, date_added: new Date()},
+        {generation: 'AirPods Pro (2nd Gen)', part_name: 'Earbuds (Right)', part_model_number: 'A2699', part_type: 'right', notes: 'Right AirPod Pro 2nd Gen', display_order: 2, date_added: new Date()},
+        {generation: 'AirPods Pro (2nd Gen)', part_name: 'Charging Case (USB-C MagSafe)', part_model_number: 'A2700', part_type: 'case', notes: 'USB-C MagSafe case', display_order: 3, date_added: new Date()},
+        {generation: 'AirPods Pro (2nd Gen)', part_name: 'Earbuds (Left) - USB-C', part_model_number: 'A3048', part_type: 'left', notes: 'Left AirPod Pro 2nd Gen USB-C variant', display_order: 4, date_added: new Date()},
+        {generation: 'AirPods Pro (2nd Gen)', part_name: 'Earbuds (Right) - USB-C', part_model_number: 'A3047', part_type: 'right', notes: 'Right AirPod Pro 2nd Gen USB-C variant', display_order: 5, date_added: new Date()},
+        {generation: 'AirPods Pro (2nd Gen)', part_name: 'Charging Case (USB-C MagSafe)', part_model_number: 'A2968', part_type: 'case', notes: 'USB-C version (alternative case)', display_order: 6, date_added: new Date()},
+        {generation: 'AirPods Pro (2nd Gen)', part_name: 'Charging Case (Lightning)', part_model_number: 'A2968-L', part_type: 'case', notes: 'Lightning version (compatibility case)', display_order: 7, date_added: new Date()}
     ];
     
     try {
@@ -2594,46 +2599,91 @@ app.get('/api/compatible-parts/:partModelNumber', requireDB, async (req, res) =>
         
         console.log(`[Compatible Parts API] Found ${sameGenerationParts.length} parts in same generation`);
         
-        // Determine compatible parts based on part type
+        // Define specific compatibility mappings for known part numbers
+        // This ensures we only show the correct compatible parts, not all parts of a type
+        const compatibilityMap = {
+            // AirPods Pro 2nd Gen
+            'A2698': ['A2699', 'A2700'],  // Left AirPod -> Right AirPod, Case
+            'A2699': ['A2698', 'A2700'],  // Right AirPod -> Left AirPod, Case
+            'A2700': ['A2698', 'A2699'],  // Case -> Left AirPod, Right AirPod
+            'A2968': ['A2699', 'A2700'],  // Right AirPod Lightning -> Left AirPod, Case
+            'A3047': ['A3048', 'A2700'],  // Right AirPod USB-C -> Left AirPod USB-C, Case
+            'A3048': ['A3047', 'A2700'],  // Left AirPod USB-C -> Right AirPod USB-C, Case
+            // AirPods Pro 1st Gen
+            'A2084': ['A2083', 'A2190'],  // Left AirPod -> Right AirPod, Case
+            'A2083': ['A2084', 'A2190'],  // Right AirPod -> Left AirPod, Case
+            'A2190': ['A2084', 'A2083'],  // Case -> Left AirPod, Right AirPod
+            // AirPods 3rd Gen
+            'A2564': ['A2565', 'A2566'],  // Left AirPod -> Right AirPod, Case
+            'A2565': ['A2564', 'A2566'],  // Right AirPod -> Left AirPod, Case
+            'A2566': ['A2564', 'A2565'],  // Case -> Left AirPod, Right AirPod
+            // AirPods 2nd Gen
+            'A2032': ['A2031', 'A1602'],  // Left AirPod -> Right AirPod, Case
+            'A2031': ['A2032', 'A1602'],  // Right AirPod -> Left AirPod, Case
+            'A1602': ['A2032', 'A2031'],  // Case -> Left AirPod, Right AirPod
+        };
+        
+        // Determine compatible parts based on part type and specific mappings
         let compatibleParts = [];
         
-        if (actualPartType === 'left') {
-            // Compatible: right AirPod and case
+        // First, try to use specific compatibility mapping
+        const compatiblePartNumbers = compatibilityMap[partModelNumber];
+        
+        if (compatiblePartNumbers && compatiblePartNumbers.length > 0) {
+            // Use specific compatibility mapping
+            console.log(`[Compatible Parts API] Using specific compatibility mapping for ${partModelNumber}: ${compatiblePartNumbers.join(', ')}`);
             compatibleParts = sameGenerationParts
-                .filter(p => p.part_type === 'right' || p.part_type === 'case')
+                .filter(p => compatiblePartNumbers.includes(p.part_model_number))
                 .map(p => ({
                     partModelNumber: p.part_model_number,
                     partType: p.part_type,
                     name: p.part_name,
                     exampleImage: p.example_image || null,
-                    description: p.part_type === 'right' 
-                        ? `${p.part_name} - should match your left AirPod`
+                    description: p.part_type === 'right' || p.part_type === 'left'
+                        ? `${p.part_name} - should match your ${actualPartType === 'left' ? 'left' : 'right'} AirPod`
                         : `${p.part_name} - USB-C or Lightning`
                 }));
-        } else if (actualPartType === 'right') {
-            // Compatible: left AirPod and case
-            compatibleParts = sameGenerationParts
-                .filter(p => p.part_type === 'left' || p.part_type === 'case')
-                .map(p => ({
-                    partModelNumber: p.part_model_number,
-                    partType: p.part_type,
-                    name: p.part_name,
-                    exampleImage: p.example_image || null,
-                    description: p.part_type === 'left' 
-                        ? `${p.part_name} - should match your right AirPod`
-                        : `${p.part_name} - USB-C or Lightning`
-                }));
-        } else if (actualPartType === 'case') {
-            // Compatible: left and right AirPods
-            compatibleParts = sameGenerationParts
-                .filter(p => p.part_type === 'left' || p.part_type === 'right')
-                .map(p => ({
-                    partModelNumber: p.part_model_number,
-                    partType: p.part_type,
-                    name: p.part_name,
-                    exampleImage: p.example_image || null,
-                    description: p.part_name
-                }));
+        } else {
+            // Fallback to type-based filtering if no specific mapping exists
+            console.log(`[Compatible Parts API] No specific mapping found, using type-based filtering`);
+            if (actualPartType === 'left') {
+                // Compatible: right AirPod and case
+                compatibleParts = sameGenerationParts
+                    .filter(p => p.part_type === 'right' || p.part_type === 'case')
+                    .map(p => ({
+                        partModelNumber: p.part_model_number,
+                        partType: p.part_type,
+                        name: p.part_name,
+                        exampleImage: p.example_image || null,
+                        description: p.part_type === 'right' 
+                            ? `${p.part_name} - should match your left AirPod`
+                            : `${p.part_name} - USB-C or Lightning`
+                    }));
+            } else if (actualPartType === 'right') {
+                // Compatible: left AirPod and case
+                compatibleParts = sameGenerationParts
+                    .filter(p => p.part_type === 'left' || p.part_type === 'case')
+                    .map(p => ({
+                        partModelNumber: p.part_model_number,
+                        partType: p.part_type,
+                        name: p.part_name,
+                        exampleImage: p.example_image || null,
+                        description: p.part_type === 'left' 
+                            ? `${p.part_name} - should match your right AirPod`
+                            : `${p.part_name} - USB-C or Lightning`
+                    }));
+            } else if (actualPartType === 'case') {
+                // Compatible: left and right AirPods
+                compatibleParts = sameGenerationParts
+                    .filter(p => p.part_type === 'left' || p.part_type === 'right')
+                    .map(p => ({
+                        partModelNumber: p.part_model_number,
+                        partType: p.part_type,
+                        name: p.part_name,
+                        exampleImage: p.example_image || null,
+                        description: p.part_name
+                    }));
+            }
         }
         
         console.log(`[Compatible Parts API] Returning ${compatibleParts.length} compatible parts`);
