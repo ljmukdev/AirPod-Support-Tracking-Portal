@@ -1252,8 +1252,15 @@ async function updateAuthenticityImages(partModelNumber, partType) {
         caseImgEl.onclick = null;
         airpodImgEl.onclick = null;
         
-        // Use addEventListener to ensure handlers work
-        caseImgEl.addEventListener('click', function(e) {
+        // Ensure images are clickable
+        caseImgEl.style.cursor = 'pointer';
+        airpodImgEl.style.cursor = 'pointer';
+        caseImgEl.style.pointerEvents = 'auto';
+        airpodImgEl.style.pointerEvents = 'auto';
+        
+        // Create click handler function for case image
+        const caseClickHandler = function(e) {
+            console.log('[Authenticity] ===== CASE IMAGE CLICKED =====');
             e.preventDefault();
             e.stopPropagation();
             
@@ -1264,7 +1271,7 @@ async function updateAuthenticityImages(partModelNumber, partType) {
             console.log('[Authenticity] Case image clicked!');
             console.log('[Authenticity] Stored dataset.actualImagePath:', imgPath);
             console.log('[Authenticity] Current this.src:', this.src);
-            console.log('[Authenticity] Current this.dataset:', this.dataset);
+            console.log('[Authenticity] Current this.dataset:', JSON.stringify(this.dataset));
             
             if (!imgPath) {
                 console.error('[Authenticity] No stored image path available for case image');
@@ -1276,8 +1283,9 @@ async function updateAuthenticityImages(partModelNumber, partType) {
                     openModal(0, [fallbackPath]);
                 } else {
                     console.error('[Authenticity] Cannot open modal - no valid image path');
+                    alert('Image path not available. Please refresh the page.');
                 }
-                return;
+                return false;
             }
             
             // Ensure we're using the relative path, not a full URL
@@ -1286,10 +1294,21 @@ async function updateAuthenticityImages(partModelNumber, partType) {
             
             console.log('[Authenticity] Opening case image modal with path:', pathToUse);
             console.log('[Authenticity] Full URL would be:', window.location.origin + pathToUse);
+            
+            // Test if openModal exists
+            if (typeof openModal !== 'function') {
+                console.error('[Authenticity] openModal function not found!');
+                alert('Modal function not available. Please refresh the page.');
+                return false;
+            }
+            
             openModal(0, [pathToUse]);
-        });
+            return false;
+        };
         
-        airpodImgEl.addEventListener('click', function(e) {
+        // Create click handler function for AirPod image
+        const airpodClickHandler = function(e) {
+            console.log('[Authenticity] ===== AIRPOD IMAGE CLICKED =====');
             e.preventDefault();
             e.stopPropagation();
             
@@ -1300,7 +1319,7 @@ async function updateAuthenticityImages(partModelNumber, partType) {
             console.log('[Authenticity] AirPod image clicked!');
             console.log('[Authenticity] Stored dataset.actualImagePath:', imgPath);
             console.log('[Authenticity] Current this.src:', this.src);
-            console.log('[Authenticity] Current this.dataset:', this.dataset);
+            console.log('[Authenticity] Current this.dataset:', JSON.stringify(this.dataset));
             
             if (!imgPath) {
                 console.error('[Authenticity] No stored image path available for AirPod image');
@@ -1312,8 +1331,9 @@ async function updateAuthenticityImages(partModelNumber, partType) {
                     openModal(0, [fallbackPath]);
                 } else {
                     console.error('[Authenticity] Cannot open modal - no valid image path');
+                    alert('Image path not available. Please refresh the page.');
                 }
-                return;
+                return false;
             }
             
             // Ensure we're using the relative path, not a full URL
@@ -1322,10 +1342,30 @@ async function updateAuthenticityImages(partModelNumber, partType) {
             
             console.log('[Authenticity] Opening AirPod image modal with path:', pathToUse);
             console.log('[Authenticity] Full URL would be:', window.location.origin + pathToUse);
+            
+            // Test if openModal exists
+            if (typeof openModal !== 'function') {
+                console.error('[Authenticity] openModal function not found!');
+                alert('Modal function not available. Please refresh the page.');
+                return false;
+            }
+            
             openModal(0, [pathToUse]);
-        });
+            return false;
+        };
+        
+        // Use addEventListener to ensure handlers work
+        caseImgEl.addEventListener('click', caseClickHandler, true); // Use capture phase
+        airpodImgEl.addEventListener('click', airpodClickHandler, true); // Use capture phase
+        
+        // Also set onclick as backup
+        caseImgEl.onclick = caseClickHandler;
+        airpodImgEl.onclick = airpodClickHandler;
         
         console.log('[Authenticity] Click handlers attached to images');
+        console.log('[Authenticity] Case image element:', caseImgEl);
+        console.log('[Authenticity] AirPod image element:', airpodImgEl);
+        console.log('[Authenticity] openModal function exists:', typeof openModal);
         
         console.log('[Authenticity] Set images:', { caseSrc, airpodSrc });
         console.log('[Authenticity] Updated onclick handlers for images');
