@@ -353,7 +353,7 @@ app.get('/uploads/examples/:filename', async (req, res) => {
     }
 });
 
-// Serve authenticity images
+// Serve authenticity images - MUST be before /uploads/:filename route
 app.get('/uploads/authenticity/:filename', async (req, res) => {
     const filename = req.params.filename;
     const currentUploadsDir = global.uploadsDir || uploadsDir;
@@ -372,7 +372,9 @@ app.get('/uploads/authenticity/:filename', async (req, res) => {
     // Check if directory exists
     if (!fs.existsSync(authenticityImagesDir)) {
         console.warn(`[Authenticity] Authenticity images directory does not exist: ${authenticityImagesDir}`);
-        return res.status(404).json({ error: 'Authenticity images directory not found' });
+        // Return 404 with proper content type for image (not JSON)
+        res.status(404).setHeader('Content-Type', 'text/plain').send('Authenticity images directory not found');
+        return;
     }
     
     // Check if file exists
@@ -381,7 +383,8 @@ app.get('/uploads/authenticity/:filename', async (req, res) => {
         const stats = fs.statSync(filePath);
         if (!stats.isFile()) {
             console.warn(`[Authenticity] Path exists but is not a file: ${filePath}`);
-            return res.status(404).json({ error: 'Path is not a file' });
+            res.status(404).setHeader('Content-Type', 'text/plain').send('Path is not a file');
+            return;
         }
         
         // Set appropriate content type
@@ -396,8 +399,10 @@ app.get('/uploads/authenticity/:filename', async (req, res) => {
             if (err) {
                 console.error(`[Authenticity] Error sending file: ${err.message}`);
                 if (!res.headersSent) {
-                    res.status(500).json({ error: 'Error serving image file' });
+                    res.status(500).setHeader('Content-Type', 'text/plain').send('Error serving image file');
                 }
+            } else {
+                console.log(`[Authenticity] Successfully served file: ${filename}`);
             }
         });
     } else {
@@ -406,11 +411,22 @@ app.get('/uploads/authenticity/:filename', async (req, res) => {
             const files = fs.readdirSync(authenticityImagesDir);
             console.warn(`[Authenticity] Image not found: ${filePath}`);
             console.warn(`[Authenticity] Directory contains ${files.length} file(s):`, files.slice(0, 10));
+            console.warn(`[Authenticity] Looking for filename: ${filename}`);
+            console.warn(`[Authenticity] Available files:`, files);
         } catch (dirErr) {
             console.error(`[Authenticity] Error reading directory: ${dirErr.message}`);
         }
-        res.status(404).json({ error: 'Image not found', filename });
+        // Return 404 with proper content type (not JSON - browsers expect image)
+        res.status(404).setHeader('Content-Type', 'text/plain').send(`Image not found: ${filename}`);
     }
+});
+
+// Log all /uploads/ requests for debugging
+app.use('/uploads', (req, res, next) => {
+    if (req.path && req.path.includes('authenticity')) {
+        console.log(`[Uploads Middleware] Authenticity request detected: ${req.path}`);
+    }
+    next();
 });
 
 // Explicit route for uploads BEFORE static middleware to handle missing files gracefully
@@ -421,6 +437,7 @@ app.get('/uploads/:filename', async (req, res, next) => {
     // Skip authenticity and example images - they're handled by specific routes above
     // Check the request path to see if it's an authenticity or example image request
     if (req.path && (req.path.startsWith('/uploads/authenticity/') || req.path.startsWith('/uploads/examples/'))) {
+        console.log(`[Uploads Route] Skipping ${req.path} - handled by specific route`);
         return next(); // Let the more specific route handle it
     }
     
