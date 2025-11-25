@@ -1248,7 +1248,12 @@ async function updateAuthenticityImages(partModelNumber, partType) {
             console.error('[Authenticity] Stored path was:', this.dataset.actualImagePath);
         });
         
-        caseImgEl.onclick = function(e) {
+        // Remove any existing click handlers first
+        caseImgEl.onclick = null;
+        airpodImgEl.onclick = null;
+        
+        // Use addEventListener to ensure handlers work
+        caseImgEl.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
             
@@ -1282,8 +1287,9 @@ async function updateAuthenticityImages(partModelNumber, partType) {
             console.log('[Authenticity] Opening case image modal with path:', pathToUse);
             console.log('[Authenticity] Full URL would be:', window.location.origin + pathToUse);
             openModal(0, [pathToUse]);
-        };
-        airpodImgEl.onclick = function(e) {
+        });
+        
+        airpodImgEl.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
             
@@ -1317,7 +1323,9 @@ async function updateAuthenticityImages(partModelNumber, partType) {
             console.log('[Authenticity] Opening AirPod image modal with path:', pathToUse);
             console.log('[Authenticity] Full URL would be:', window.location.origin + pathToUse);
             openModal(0, [pathToUse]);
-        };
+        });
+        
+        console.log('[Authenticity] Click handlers attached to images');
         
         console.log('[Authenticity] Set images:', { caseSrc, airpodSrc });
         console.log('[Authenticity] Updated onclick handlers for images');
