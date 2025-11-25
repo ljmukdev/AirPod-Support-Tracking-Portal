@@ -1248,10 +1248,18 @@ async function updateAuthenticityImages(partModelNumber, partType) {
             console.error('[Authenticity] Stored path was:', this.dataset.actualImagePath);
         });
         
-        caseImgEl.onclick = function() {
+        caseImgEl.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
             // Always use the stored actual path from dataset (set when image was loaded)
             // Don't use this.src as it might have been changed to a fallback SVG
             const imgPath = this.dataset.actualImagePath;
+            
+            console.log('[Authenticity] Case image clicked!');
+            console.log('[Authenticity] Stored dataset.actualImagePath:', imgPath);
+            console.log('[Authenticity] Current this.src:', this.src);
+            console.log('[Authenticity] Current this.dataset:', this.dataset);
             
             if (!imgPath) {
                 console.error('[Authenticity] No stored image path available for case image');
@@ -1267,14 +1275,26 @@ async function updateAuthenticityImages(partModelNumber, partType) {
                 return;
             }
             
-            console.log('[Authenticity] Opening case image modal with stored path:', imgPath);
-            console.log('[Authenticity] Image element src (for reference):', this.src);
-            openModal(0, [imgPath]);
+            // Ensure we're using the relative path, not a full URL
+            // The modal will handle converting it to the correct format
+            const pathToUse = imgPath.startsWith('http') ? imgPath : imgPath;
+            
+            console.log('[Authenticity] Opening case image modal with path:', pathToUse);
+            console.log('[Authenticity] Full URL would be:', window.location.origin + pathToUse);
+            openModal(0, [pathToUse]);
         };
-        airpodImgEl.onclick = function() {
+        airpodImgEl.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
             // Always use the stored actual path from dataset (set when image was loaded)
             // Don't use this.src as it might have been changed to a fallback SVG
             const imgPath = this.dataset.actualImagePath;
+            
+            console.log('[Authenticity] AirPod image clicked!');
+            console.log('[Authenticity] Stored dataset.actualImagePath:', imgPath);
+            console.log('[Authenticity] Current this.src:', this.src);
+            console.log('[Authenticity] Current this.dataset:', this.dataset);
             
             if (!imgPath) {
                 console.error('[Authenticity] No stored image path available for AirPod image');
@@ -1290,9 +1310,13 @@ async function updateAuthenticityImages(partModelNumber, partType) {
                 return;
             }
             
-            console.log('[Authenticity] Opening AirPod image modal with stored path:', imgPath);
-            console.log('[Authenticity] Image element src (for reference):', this.src);
-            openModal(0, [imgPath]);
+            // Ensure we're using the relative path, not a full URL
+            // The modal will handle converting it to the correct format
+            const pathToUse = imgPath.startsWith('http') ? imgPath : imgPath;
+            
+            console.log('[Authenticity] Opening AirPod image modal with path:', pathToUse);
+            console.log('[Authenticity] Full URL would be:', window.location.origin + pathToUse);
+            openModal(0, [pathToUse]);
         };
         
         console.log('[Authenticity] Set images:', { caseSrc, airpodSrc });
