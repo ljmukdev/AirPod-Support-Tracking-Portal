@@ -1190,6 +1190,14 @@ async function updateAuthenticityImages(partModelNumber, partType) {
         }
         
         // Set image sources (error handlers will catch 404s)
+        console.log('[Authenticity] Setting case image src to:', caseSrc);
+        console.log('[Authenticity] Setting AirPod image src to:', airpodSrc);
+        
+        // Store the actual paths BEFORE setting src (so we have them even if image fails)
+        caseImgEl.dataset.actualImagePath = caseSrc;
+        airpodImgEl.dataset.actualImagePath = airpodSrc;
+        
+        // Set image sources
         caseImgEl.src = caseSrc;
         airpodImgEl.src = airpodSrc;
         
@@ -1201,49 +1209,67 @@ async function updateAuthenticityImages(partModelNumber, partType) {
             ? 'Example AirPod showing markings' 
             : 'Generic AirPod markings diagram';
         
-        // Update onclick handlers to use the actual image paths
-        // Store the actual paths so we can use them in the modal even if the image fails to load
-        caseImgEl.dataset.actualImagePath = caseSrc;
-        airpodImgEl.dataset.actualImagePath = airpodSrc;
+        // Log when images actually load or fail
+        caseImgEl.addEventListener('load', function() {
+            console.log('[Authenticity] Case image loaded successfully from:', this.src);
+        });
+        caseImgEl.addEventListener('error', function() {
+            console.error('[Authenticity] Case image FAILED to load from:', this.src);
+            console.error('[Authenticity] Stored path was:', this.dataset.actualImagePath);
+        });
+        
+        airpodImgEl.addEventListener('load', function() {
+            console.log('[Authenticity] AirPod image loaded successfully from:', this.src);
+        });
+        airpodImgEl.addEventListener('error', function() {
+            console.error('[Authenticity] AirPod image FAILED to load from:', this.src);
+            console.error('[Authenticity] Stored path was:', this.dataset.actualImagePath);
+        });
         
         caseImgEl.onclick = function() {
-            // Use the stored actual path (relative), or fallback to current src (which might be full URL)
-            let imgPath = this.dataset.actualImagePath || this.src;
+            // Always use the stored actual path from dataset (set when image was loaded)
+            // Don't use this.src as it might have been changed to a fallback SVG
+            const imgPath = this.dataset.actualImagePath;
             
-            // If it's a full URL, extract just the path part for consistency
-            // But actually, let's use the full URL if available since that's what the browser resolved
             if (!imgPath) {
-                console.error('[Authenticity] No image path available for case image');
+                console.error('[Authenticity] No stored image path available for case image');
+                console.error('[Authenticity] Image element src:', this.src);
+                // Fallback to src only if dataset is missing
+                const fallbackPath = this.src;
+                if (fallbackPath && !fallbackPath.includes('airpod-case-markings.svg')) {
+                    console.warn('[Authenticity] Using fallback src:', fallbackPath);
+                    openModal(0, [fallbackPath]);
+                } else {
+                    console.error('[Authenticity] Cannot open modal - no valid image path');
+                }
                 return;
             }
             
-            // If dataset path exists and is relative, prefer it (more reliable)
-            if (this.dataset.actualImagePath) {
-                imgPath = this.dataset.actualImagePath;
-            }
-            
-            console.log('[Authenticity] Opening case image modal with path:', imgPath);
-            console.log('[Authenticity] Image element src:', this.src);
-            console.log('[Authenticity] Stored path:', this.dataset.actualImagePath);
+            console.log('[Authenticity] Opening case image modal with stored path:', imgPath);
+            console.log('[Authenticity] Image element src (for reference):', this.src);
             openModal(0, [imgPath]);
         };
         airpodImgEl.onclick = function() {
-            // Use the stored actual path (relative), or fallback to current src (which might be full URL)
-            let imgPath = this.dataset.actualImagePath || this.src;
+            // Always use the stored actual path from dataset (set when image was loaded)
+            // Don't use this.src as it might have been changed to a fallback SVG
+            const imgPath = this.dataset.actualImagePath;
             
             if (!imgPath) {
-                console.error('[Authenticity] No image path available for AirPod image');
+                console.error('[Authenticity] No stored image path available for AirPod image');
+                console.error('[Authenticity] Image element src:', this.src);
+                // Fallback to src only if dataset is missing
+                const fallbackPath = this.src;
+                if (fallbackPath && !fallbackPath.includes('airpod-stem-markings.svg')) {
+                    console.warn('[Authenticity] Using fallback src:', fallbackPath);
+                    openModal(0, [fallbackPath]);
+                } else {
+                    console.error('[Authenticity] Cannot open modal - no valid image path');
+                }
                 return;
             }
             
-            // If dataset path exists and is relative, prefer it (more reliable)
-            if (this.dataset.actualImagePath) {
-                imgPath = this.dataset.actualImagePath;
-            }
-            
-            console.log('[Authenticity] Opening AirPod image modal with path:', imgPath);
-            console.log('[Authenticity] Image element src:', this.src);
-            console.log('[Authenticity] Stored path:', this.dataset.actualImagePath);
+            console.log('[Authenticity] Opening AirPod image modal with stored path:', imgPath);
+            console.log('[Authenticity] Image element src (for reference):', this.src);
             openModal(0, [imgPath]);
         };
         
