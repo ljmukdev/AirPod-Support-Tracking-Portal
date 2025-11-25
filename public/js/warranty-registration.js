@@ -1362,10 +1362,73 @@ async function updateAuthenticityImages(partModelNumber, partType) {
         caseImgEl.onclick = caseClickHandler;
         airpodImgEl.onclick = airpodClickHandler;
         
+        // Add mousedown/mouseup listeners to verify clicks are being detected
+        caseImgEl.addEventListener('mousedown', function() {
+            console.log('[Authenticity] Case image mousedown detected');
+        });
+        caseImgEl.addEventListener('mouseup', function() {
+            console.log('[Authenticity] Case image mouseup detected');
+        });
+        airpodImgEl.addEventListener('mousedown', function() {
+            console.log('[Authenticity] AirPod image mousedown detected');
+        });
+        airpodImgEl.addEventListener('mouseup', function() {
+            console.log('[Authenticity] AirPod image mouseup detected');
+        });
+        
+        // Add visual indicator that images are clickable
+        caseImgEl.title = 'Click to enlarge authenticity image';
+        airpodImgEl.title = 'Click to enlarge authenticity image';
+        
+        // Check for any parent elements that might block clicks
+        let parent = caseImgEl.parentElement;
+        let depth = 0;
+        while (parent && depth < 5) {
+            const style = window.getComputedStyle(parent);
+            if (style.pointerEvents === 'none') {
+                console.warn('[Authenticity] WARNING: Parent element has pointer-events: none:', parent);
+            }
+            if (style.zIndex && parseInt(style.zIndex) > 1000) {
+                console.warn('[Authenticity] WARNING: Parent element has high z-index:', parent, style.zIndex);
+            }
+            parent = parent.parentElement;
+            depth++;
+        }
+        
         console.log('[Authenticity] Click handlers attached to images');
         console.log('[Authenticity] Case image element:', caseImgEl);
         console.log('[Authenticity] AirPod image element:', airpodImgEl);
         console.log('[Authenticity] openModal function exists:', typeof openModal);
+        
+        // Verify handlers are actually attached
+        const caseHasHandler = caseImgEl.onclick !== null || caseImgEl.addEventListener.toString().includes('native');
+        const airpodHasHandler = airpodImgEl.onclick !== null || airpodImgEl.addEventListener.toString().includes('native');
+        console.log('[Authenticity] Case image has onclick handler:', caseHasHandler);
+        console.log('[Authenticity] AirPod image has onclick handler:', airpodHasHandler);
+        
+        // Add a test function to window for manual testing
+        window.testAuthenticityModal = function(imageType) {
+            console.log('[Test] Testing authenticity modal for:', imageType);
+            const el = imageType === 'case' ? caseImgEl : airpodImgEl;
+            if (!el) {
+                console.error('[Test] Element not found for:', imageType);
+                return;
+            }
+            const path = el.dataset.actualImagePath || el.src;
+            console.log('[Test] Using path:', path);
+            console.log('[Test] openModal function:', typeof openModal);
+            if (typeof openModal === 'function') {
+                openModal(0, [path]);
+            } else {
+                console.error('[Test] openModal is not a function!');
+            }
+        };
+        console.log('[Authenticity] Test function available: window.testAuthenticityModal("case") or window.testAuthenticityModal("airpod")');
+        
+        // Also test if we can manually trigger click
+        console.log('[Authenticity] To test manually, run in console:');
+        console.log('[Authenticity]   document.getElementById("authenticityCaseImage").click()');
+        console.log('[Authenticity]   document.getElementById("authenticityAirPodImage").click()');
         
         console.log('[Authenticity] Set images:', { caseSrc, airpodSrc });
         console.log('[Authenticity] Updated onclick handlers for images');
@@ -1830,53 +1893,111 @@ function updateCarouselButtonsReview() {
 }
 
 function openModal(index, photos) {
+    console.log('[Modal] ===== openModal CALLED =====');
+    console.log('[Modal] Parameters:', { index, photos, photosLength: photos?.length });
+    console.log('[Modal] Stack trace:', new Error().stack);
+    
     currentReviewPhotoIndex = index;
     reviewPhotos = photos;
+    
     const modal = document.getElementById('imageModal');
     const modalImage = document.getElementById('modalImage');
     const modalClose = document.getElementById('modalClose');
     
-    if (!modal || !modalImage) return;
+    console.log('[Modal] Modal element found:', !!modal);
+    console.log('[Modal] ModalImage element found:', !!modalImage);
+    console.log('[Modal] ModalClose element found:', !!modalClose);
+    
+    if (!modal) {
+        console.error('[Modal] ERROR: Modal element not found!');
+        console.error('[Modal] Searching for modal...');
+        const allModals = document.querySelectorAll('[id*="modal"], [class*="modal"]');
+        console.error('[Modal] Found elements with modal in id/class:', allModals.length);
+        alert('Modal not found. Please refresh the page.');
+        return;
+    }
+    
+    if (!modalImage) {
+        console.error('[Modal] ERROR: ModalImage element not found!');
+        alert('Modal image element not found. Please refresh the page.');
+        return;
+    }
     
     const photo = photos[index];
-    if (!photo) return;
+    console.log('[Modal] Photo at index:', photo);
+    
+    if (!photo) {
+        console.error('[Modal] ERROR: No photo at index', index);
+        console.error('[Modal] Photos array:', photos);
+        return;
+    }
     
     // Handle both full URLs and relative paths
     let photoPath;
     if (photo.startsWith('http://') || photo.startsWith('https://')) {
         // Already a full URL, use as is
         photoPath = photo;
+        console.log('[Modal] Using full URL:', photoPath);
     } else {
         // Relative path - ensure it starts with /
         photoPath = photo.startsWith('/') ? photo : `/${photo}`;
+        console.log('[Modal] Using relative path:', photoPath);
     }
     
-    console.log('[Modal] Opening modal with photo path:', photoPath);
+    console.log('[Modal] Final photo path:', photoPath);
+    console.log('[Modal] Modal current display:', window.getComputedStyle(modal).display);
+    console.log('[Modal] ModalImage current src:', modalImage.src);
     
     // Set up error handler for modal image
     modalImage.onerror = function() {
-        console.error('[Modal] Failed to load image:', photoPath);
+        console.error('[Modal] ===== IMAGE FAILED TO LOAD =====');
+        console.error('[Modal] Failed path:', photoPath);
+        console.error('[Modal] Image element:', this);
+        console.error('[Modal] Current src:', this.src);
         // Try to show a helpful message or fallback
         this.alt = 'Image failed to load';
     };
     
     modalImage.onload = function() {
-        console.log('[Modal] Image loaded successfully:', photoPath);
+        console.log('[Modal] ===== IMAGE LOADED SUCCESSFULLY =====');
+        console.log('[Modal] Loaded path:', photoPath);
+        console.log('[Modal] Image dimensions:', this.naturalWidth, 'x', this.naturalHeight);
     };
     
+    console.log('[Modal] Setting image src to:', photoPath);
     modalImage.src = photoPath;
+    
+    console.log('[Modal] Setting modal display to block');
     modal.style.display = 'block';
     document.body.style.overflow = 'hidden';
+    
+    // Check if modal is actually visible
+    setTimeout(() => {
+        const computedStyle = window.getComputedStyle(modal);
+        console.log('[Modal] Modal display after setting:', computedStyle.display);
+        console.log('[Modal] Modal visibility:', computedStyle.visibility);
+        console.log('[Modal] Modal opacity:', computedStyle.opacity);
+        console.log('[Modal] Modal z-index:', computedStyle.zIndex);
+        
+        if (computedStyle.display === 'none') {
+            console.error('[Modal] ERROR: Modal display is still none!');
+            console.error('[Modal] Modal element:', modal);
+            console.error('[Modal] Modal inline style:', modal.style.cssText);
+        }
+    }, 100);
     
     // Ensure close button is visible
     if (modalClose) {
         modalClose.style.display = 'flex';
         modalClose.style.visibility = 'visible';
         modalClose.style.opacity = '1';
+        console.log('[Modal] Close button styles set');
     }
     
     // Update navigation button states
     updateModalNavigation();
+    
+    console.log('[Modal] ===== openModal COMPLETE =====');
 }
 
 // Setup image modal event listeners
