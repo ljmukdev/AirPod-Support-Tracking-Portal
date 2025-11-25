@@ -1201,7 +1201,26 @@ async function updateAuthenticityImages(partModelNumber, partType) {
             ? 'Example AirPod showing markings' 
             : 'Generic AirPod markings diagram';
         
+        // Update onclick handlers to use the actual image paths
+        // Store the actual paths so we can use them in the modal even if the image fails to load
+        caseImgEl.dataset.actualImagePath = caseSrc;
+        airpodImgEl.dataset.actualImagePath = airpodSrc;
+        
+        caseImgEl.onclick = function() {
+            // Use the stored actual path, or fallback to current src
+            const imgPath = this.dataset.actualImagePath || this.src;
+            console.log('[Authenticity] Opening case image modal with path:', imgPath);
+            openModal(0, [imgPath]);
+        };
+        airpodImgEl.onclick = function() {
+            // Use the stored actual path, or fallback to current src
+            const imgPath = this.dataset.actualImagePath || this.src;
+            console.log('[Authenticity] Opening AirPod image modal with path:', imgPath);
+            openModal(0, [imgPath]);
+        };
+        
         console.log('[Authenticity] Set images:', { caseSrc, airpodSrc });
+        console.log('[Authenticity] Updated onclick handlers for images');
     } catch (err) {
         console.error('[Authenticity] Fetch error:', err);
         // Hard fallback to SVGs
