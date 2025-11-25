@@ -1207,15 +1207,43 @@ async function updateAuthenticityImages(partModelNumber, partType) {
         airpodImgEl.dataset.actualImagePath = airpodSrc;
         
         caseImgEl.onclick = function() {
-            // Use the stored actual path, or fallback to current src
-            const imgPath = this.dataset.actualImagePath || this.src;
+            // Use the stored actual path (relative), or fallback to current src (which might be full URL)
+            let imgPath = this.dataset.actualImagePath || this.src;
+            
+            // If it's a full URL, extract just the path part for consistency
+            // But actually, let's use the full URL if available since that's what the browser resolved
+            if (!imgPath) {
+                console.error('[Authenticity] No image path available for case image');
+                return;
+            }
+            
+            // If dataset path exists and is relative, prefer it (more reliable)
+            if (this.dataset.actualImagePath) {
+                imgPath = this.dataset.actualImagePath;
+            }
+            
             console.log('[Authenticity] Opening case image modal with path:', imgPath);
+            console.log('[Authenticity] Image element src:', this.src);
+            console.log('[Authenticity] Stored path:', this.dataset.actualImagePath);
             openModal(0, [imgPath]);
         };
         airpodImgEl.onclick = function() {
-            // Use the stored actual path, or fallback to current src
-            const imgPath = this.dataset.actualImagePath || this.src;
+            // Use the stored actual path (relative), or fallback to current src (which might be full URL)
+            let imgPath = this.dataset.actualImagePath || this.src;
+            
+            if (!imgPath) {
+                console.error('[Authenticity] No image path available for AirPod image');
+                return;
+            }
+            
+            // If dataset path exists and is relative, prefer it (more reliable)
+            if (this.dataset.actualImagePath) {
+                imgPath = this.dataset.actualImagePath;
+            }
+            
             console.log('[Authenticity] Opening AirPod image modal with path:', imgPath);
+            console.log('[Authenticity] Image element src:', this.src);
+            console.log('[Authenticity] Stored path:', this.dataset.actualImagePath);
             openModal(0, [imgPath]);
         };
         
@@ -1693,7 +1721,29 @@ function openModal(index, photos) {
     const photo = photos[index];
     if (!photo) return;
     
-    const photoPath = photo.startsWith('/') ? photo : `/${photo}`;
+    // Handle both full URLs and relative paths
+    let photoPath;
+    if (photo.startsWith('http://') || photo.startsWith('https://')) {
+        // Already a full URL, use as is
+        photoPath = photo;
+    } else {
+        // Relative path - ensure it starts with /
+        photoPath = photo.startsWith('/') ? photo : `/${photo}`;
+    }
+    
+    console.log('[Modal] Opening modal with photo path:', photoPath);
+    
+    // Set up error handler for modal image
+    modalImage.onerror = function() {
+        console.error('[Modal] Failed to load image:', photoPath);
+        // Try to show a helpful message or fallback
+        this.alt = 'Image failed to load';
+    };
+    
+    modalImage.onload = function() {
+        console.log('[Modal] Image loaded successfully:', photoPath);
+    };
+    
     modalImage.src = photoPath;
     modal.style.display = 'block';
     document.body.style.overflow = 'hidden';
