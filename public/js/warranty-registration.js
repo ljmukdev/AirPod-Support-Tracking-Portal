@@ -1158,12 +1158,28 @@ async function updateAuthenticityImages(partModelNumber, partType) {
         console.log('[Authenticity] API response:', data);
         
         // Support both response formats (new structured and old flat)
-        const images = data.data?.images || {
-            caseImage: data.authenticity_case_image || null,
-            airpodImage: data.authenticity_airpod_image || null
-        };
+        console.log('[Authenticity] Full API response:', JSON.stringify(data, null, 2));
         
-        console.log('[Authenticity] Extracted images from API:', images);
+        let images;
+        if (data.data && data.data.images) {
+            // New structured format
+            images = data.data.images;
+            console.log('[Authenticity] Using structured format from data.data.images');
+        } else if (data.authenticity_case_image || data.authenticity_airpod_image) {
+            // Old flat format
+            images = {
+                caseImage: data.authenticity_case_image || null,
+                airpodImage: data.authenticity_airpod_image || null
+            };
+            console.log('[Authenticity] Using flat format from root level');
+        } else {
+            images = { caseImage: null, airpodImage: null };
+            console.warn('[Authenticity] No image data found in API response');
+        }
+        
+        console.log('[Authenticity] Extracted images:', images);
+        console.log('[Authenticity] caseImage value:', images.caseImage);
+        console.log('[Authenticity] airpodImage value:', images.airpodImage);
         
         // Determine image paths
         let caseSrc = FALLBACK_CASE_SVG;
@@ -1171,9 +1187,12 @@ async function updateAuthenticityImages(partModelNumber, partType) {
         
         // Update case image
         if (images.caseImage) {
+            // Ensure path starts with / and doesn't have double slashes
             caseSrc = images.caseImage.startsWith('/') 
                 ? images.caseImage 
                 : '/' + images.caseImage;
+            // Remove any double slashes (except after http:// or https://)
+            caseSrc = caseSrc.replace(/([^:]\/)\/+/g, '$1');
             console.log('[Authenticity] Using uploaded case image:', caseSrc);
         } else {
             console.log('[Authenticity] No case image found in database, using fallback SVG');
@@ -1181,9 +1200,12 @@ async function updateAuthenticityImages(partModelNumber, partType) {
         
         // Update AirPod image
         if (images.airpodImage) {
+            // Ensure path starts with / and doesn't have double slashes
             airpodSrc = images.airpodImage.startsWith('/') 
                 ? images.airpodImage 
                 : '/' + images.airpodImage;
+            // Remove any double slashes (except after http:// or https://)
+            airpodSrc = airpodSrc.replace(/([^:]\/)\/+/g, '$1');
             console.log('[Authenticity] Using uploaded AirPod image:', airpodSrc);
         } else {
             console.log('[Authenticity] No AirPod image found in database, using fallback SVG');
