@@ -1249,11 +1249,50 @@ async function updateAuthenticityImages(partModelNumber, partType) {
             }
         }
         
-        // Hide/show images based on show flags from API
+        // Get container references
         const gridContainer = document.getElementById('authenticityImagesGrid');
         const caseImageContainer = document.getElementById('caseImageContainer');
         const airpodImageContainer = document.getElementById('airpodImageContainer');
         
+        // Update instruction text based on which images are shown
+        if (instructionText) {
+            if (!showCaseImage && showAirpodImage) {
+                instructionText.textContent = 'Check on the AirPod stem for these markings:';
+            } else if (showCaseImage && !showAirpodImage) {
+                instructionText.textContent = 'Check inside your case lid for these markings:';
+            } else if (showCaseImage && showAirpodImage) {
+                instructionText.textContent = 'Check inside your case lid or on the AirPod stem for these markings:';
+            } else {
+                instructionText.textContent = 'Check your parts for these markings:';
+            }
+        }
+        
+        // Set image sources BEFORE showing containers (so images can start loading)
+        if (showCaseImage && caseSrc) {
+            // Store the actual path BEFORE setting src (so we have it even if image fails)
+            caseImgEl.dataset.actualImagePath = caseSrc;
+            caseImgEl.src = caseSrc;
+            console.log('[Authenticity] Set case image src to:', caseSrc);
+        } else {
+            // Clear src and dataset if image shouldn't be shown
+            caseImgEl.src = '';
+            caseImgEl.dataset.actualImagePath = '';
+            console.log('[Authenticity] Case image not shown - cleared src');
+        }
+        
+        if (showAirpodImage && airpodSrc) {
+            // Store the actual path BEFORE setting src (so we have it even if image fails)
+            airpodImgEl.dataset.actualImagePath = airpodSrc;
+            airpodImgEl.src = airpodSrc;
+            console.log('[Authenticity] Set AirPod image src to:', airpodSrc);
+        } else {
+            // Clear src and dataset if image shouldn't be shown
+            airpodImgEl.src = '';
+            airpodImgEl.dataset.actualImagePath = '';
+            console.log('[Authenticity] AirPod image not shown - cleared src');
+        }
+        
+        // Now show/hide containers based on what should be displayed
         // Hide case image container if showCaseImage is false
         if (!showCaseImage) {
             if (caseImageContainer) {
@@ -1262,11 +1301,13 @@ async function updateAuthenticityImages(partModelNumber, partType) {
             }
             caseImgEl.style.display = 'none';
         } else {
-            if (caseImageContainer) {
-                caseImageContainer.style.display = '';
+            if (caseImageContainer && caseSrc) {
+                caseImageContainer.style.display = 'block';
                 console.log('[Authenticity] Showing case image container');
             }
-            caseImgEl.style.display = '';
+            if (caseSrc) {
+                caseImgEl.style.display = 'block';
+            }
         }
         
         // Hide AirPod image container if showAirpodImage is false
@@ -1277,11 +1318,13 @@ async function updateAuthenticityImages(partModelNumber, partType) {
             }
             airpodImgEl.style.display = 'none';
         } else {
-            if (airpodImageContainer) {
-                airpodImageContainer.style.display = '';
+            if (airpodImageContainer && airpodSrc) {
+                airpodImageContainer.style.display = 'block';
                 console.log('[Authenticity] Showing AirPod image container');
             }
-            airpodImgEl.style.display = '';
+            if (airpodSrc) {
+                airpodImgEl.style.display = 'block';
+            }
         }
         
         // Show grid and adjust layout based on which images are visible
@@ -1305,40 +1348,6 @@ async function updateAuthenticityImages(partModelNumber, partType) {
                     console.log('[Authenticity] Resetting grid to two columns (both images visible)');
                 }
             }
-        }
-        
-        // Update instruction text based on which images are shown
-        if (instructionText) {
-            if (!showCaseImage && showAirpodImage) {
-                instructionText.textContent = 'Check on the AirPod stem for these markings:';
-            } else if (showCaseImage && !showAirpodImage) {
-                instructionText.textContent = 'Check inside your case lid for these markings:';
-            } else if (showCaseImage && showAirpodImage) {
-                instructionText.textContent = 'Check inside your case lid or on the AirPod stem for these markings:';
-            } else {
-                instructionText.textContent = 'Check your parts for these markings:';
-            }
-        }
-        
-        // Only set image sources if images should be shown (no fallback SVGs)
-        if (showCaseImage && caseSrc) {
-            // Store the actual path BEFORE setting src (so we have it even if image fails)
-            caseImgEl.dataset.actualImagePath = caseSrc;
-            caseImgEl.src = caseSrc;
-        } else {
-            // Clear src and dataset if image shouldn't be shown
-            caseImgEl.src = '';
-            caseImgEl.dataset.actualImagePath = '';
-        }
-        
-        if (showAirpodImage && airpodSrc) {
-            // Store the actual path BEFORE setting src (so we have it even if image fails)
-            airpodImgEl.dataset.actualImagePath = airpodSrc;
-            airpodImgEl.src = airpodSrc;
-        } else {
-            // Clear src and dataset if image shouldn't be shown
-            airpodImgEl.src = '';
-            airpodImgEl.dataset.actualImagePath = '';
         }
         
         // Update alt text
