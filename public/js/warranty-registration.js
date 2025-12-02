@@ -1184,6 +1184,8 @@ async function updateAuthenticityImages(partModelNumber, partType) {
         // Determine image paths
         let caseSrc = FALLBACK_CASE_SVG;
         let airpodSrc = FALLBACK_AIRPOD_SVG;
+        let showCaseImage = false;
+        let showAirpodImage = false;
         
         // Update case image
         if (images.caseImage) {
@@ -1193,9 +1195,10 @@ async function updateAuthenticityImages(partModelNumber, partType) {
                 : '/' + images.caseImage;
             // Remove any double slashes (except after http:// or https://)
             caseSrc = caseSrc.replace(/([^:]\/)\/+/g, '$1');
+            showCaseImage = true;
             console.log('[Authenticity] Using uploaded case image:', caseSrc);
         } else {
-            console.log('[Authenticity] No case image found in database, using fallback SVG');
+            console.log('[Authenticity] No case image found in database (or hidden by show flag)');
         }
         
         // Update AirPod image
@@ -1206,9 +1209,10 @@ async function updateAuthenticityImages(partModelNumber, partType) {
                 : '/' + images.airpodImage;
             // Remove any double slashes (except after http:// or https://)
             airpodSrc = airpodSrc.replace(/([^:]\/)\/+/g, '$1');
+            showAirpodImage = true;
             console.log('[Authenticity] Using uploaded AirPod image:', airpodSrc);
         } else {
-            console.log('[Authenticity] No AirPod image found in database, using fallback SVG');
+            console.log('[Authenticity] No AirPod image found in database (or hidden by show flag)');
         }
         
         // Set image sources (error handlers will catch 404s)
@@ -1227,57 +1231,76 @@ async function updateAuthenticityImages(partModelNumber, partType) {
             }
         }
         
-        // If partType is 'case', hide the case image container (only show AirPod stem)
+        // Hide/show images based on show flags from API (or partType logic as fallback)
         const gridContainer = caseImgEl.closest('div[style*="grid-template-columns"]');
-        // The parentElement should be the div containing the case image and its label text
-        // This is the div with "background: white" that wraps the case image and "Case: Open lid and look inside" text
-        let caseImageContainer = caseImgEl.parentElement;
+        // Find the container divs
+        const allContainers = gridContainer ? Array.from(gridContainer.children) : [];
+        const caseImageContainer = allContainers.find(div => 
+            div.textContent && div.textContent.includes('Case: Open lid')
+        ) || caseImgEl.parentElement;
+        const airpodImageContainer = allContainers.find(div => 
+            div.textContent && div.textContent.includes('AirPod: Check')
+        ) || airpodImgEl.parentElement;
         
-        // Verify we have the right container - it should contain the text "Case: Open lid"
-        if (caseImageContainer && !caseImageContainer.textContent.includes('Case: Open lid')) {
-            // Try to find the container that has the case text
-            const allContainers = gridContainer ? Array.from(gridContainer.children) : [];
-            caseImageContainer = allContainers.find(div => 
-                div.textContent && div.textContent.includes('Case: Open lid')
-            ) || caseImageContainer;
-        }
-        
-        if (partType === 'case') {
-            // Hide the entire case image container (image + label text "Case: Open lid and look inside")
+        // Hide case image container if showCaseImage is false
+        if (!showCaseImage) {
             if (caseImageContainer) {
                 caseImageContainer.style.display = 'none';
-                caseImageContainer.style.visibility = 'hidden';
-                caseImageContainer.style.height = '0';
-                caseImageContainer.style.overflow = 'hidden';
-                console.log('[Authenticity] Hiding case image container for case part type');
-                console.log('[Authenticity] Case container found:', !!caseImageContainer, 'Text content:', caseImageContainer.textContent);
-            } else {
-                console.warn('[Authenticity] Case image container not found!');
+                console.log('[Authenticity] Hiding case image container (show flag is false)');
             }
-            // Also hide the case image element itself as backup
             caseImgEl.style.display = 'none';
-            // Adjust grid to single column for AirPod image only
-            if (gridContainer) {
-                gridContainer.style.gridTemplateColumns = '1fr';
-                gridContainer.style.justifyItems = 'center';
-                console.log('[Authenticity] Adjusting grid to single column for case part type');
-            }
         } else {
-            // Show case image container for left/right parts
             if (caseImageContainer) {
                 caseImageContainer.style.display = '';
-                caseImageContainer.style.visibility = '';
-                caseImageContainer.style.height = '';
-                caseImageContainer.style.overflow = '';
-                console.log('[Authenticity] Showing case image container for', partType, 'part type');
+                console.log('[Authenticity] Showing case image container');
             }
-            // Show the case image element
             caseImgEl.style.display = '';
-            // Reset grid to two columns
-            if (gridContainer) {
+        }
+        
+        // Hide AirPod image container if showAirpodImage is false
+        if (!showAirpodImage) {
+            if (airpodImageContainer) {
+                airpodImageContainer.style.display = 'none';
+                console.log('[Authenticity] Hiding AirPod image container (show flag is false)');
+            }
+            airpodImgEl.style.display = 'none';
+        } else {
+            if (airpodImageContainer) {
+                airpodImageContainer.style.display = '';
+                console.log('[Authenticity] Showing AirPod image container');
+            }
+            airpodImgEl.style.display = '';
+        }
+        
+        // Adjust grid layout based on which images are visible
+        if (gridContainer) {
+            if (!showCaseImage && !showAirpodImage) {
+                // Both hidden - hide grid entirely
+                gridContainer.style.display = 'none';
+            } else if (!showCaseImage || !showAirpodImage) {
+                // One hidden - single column
+                gridContainer.style.gridTemplateColumns = '1fr';
+                gridContainer.style.justifyItems = 'center';
+                console.log('[Authenticity] Adjusting grid to single column (one image hidden)');
+            } else {
+                // Both visible - two columns
                 gridContainer.style.gridTemplateColumns = '1fr 1fr';
                 gridContainer.style.justifyItems = '';
-                console.log('[Authenticity] Resetting grid to two columns for', partType, 'part type');
+                gridContainer.style.display = '';
+                console.log('[Authenticity] Resetting grid to two columns (both images visible)');
+            }
+        }
+        
+        // Update instruction text based on which images are shown
+        if (instructionText) {
+            if (!showCaseImage && showAirpodImage) {
+                instructionText.textContent = 'Check on the AirPod stem for these markings:';
+            } else if (showCaseImage && !showAirpodImage) {
+                instructionText.textContent = 'Check inside your case lid for these markings:';
+            } else if (showCaseImage && showAirpodImage) {
+                instructionText.textContent = 'Check inside your case lid or on the AirPod stem for these markings:';
+            } else {
+                instructionText.textContent = 'Check your parts for these markings:';
             }
         }
         

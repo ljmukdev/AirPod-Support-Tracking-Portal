@@ -281,6 +281,12 @@ if (partForm) {
             const caseImageFile = document.getElementById('authenticity_case_image').files[0];
             const airpodImageFile = document.getElementById('authenticity_airpod_image').files[0];
             
+            // Add checkbox values for showing images
+            const showCaseImage = document.getElementById('show_case_image').checked;
+            const showAirpodImage = document.getElementById('show_airpod_image').checked;
+            formData.append('show_case_image', showCaseImage);
+            formData.append('show_airpod_image', showAirpodImage);
+            
             if (exampleImageFile) {
                 formData.append('example_image', exampleImageFile);
             }
@@ -358,10 +364,22 @@ async function editPart(id) {
                     casePreview.innerHTML = '';
                 }
                 
+                // Set checkbox for showing case image (default to true if not set)
+                const showCaseImageCheckbox = document.getElementById('show_case_image');
+                if (showCaseImageCheckbox) {
+                    showCaseImageCheckbox.checked = part.show_case_image !== false; // Default to true
+                }
+                
                 if (part.authenticity_airpod_image && airpodPreview) {
                     airpodPreview.innerHTML = `<img src="${part.authenticity_airpod_image}" style="max-width: 200px; max-height: 150px; border-radius: 4px; border: 1px solid #ddd;"><br><small style="color: #666; font-size: 0.8rem;">Current image (upload new to replace)</small>`;
                 } else if (airpodPreview) {
                     airpodPreview.innerHTML = '';
+                }
+                
+                // Set checkbox for showing AirPod image (default to true if not set)
+                const showAirpodImageCheckbox = document.getElementById('show_airpod_image');
+                if (showAirpodImageCheckbox) {
+                    showAirpodImageCheckbox.checked = part.show_airpod_image !== false; // Default to true
                 }
                 
                 formTitle.textContent = 'Edit Part';
