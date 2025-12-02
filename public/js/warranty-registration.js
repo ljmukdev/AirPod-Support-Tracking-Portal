@@ -1229,14 +1229,33 @@ async function updateAuthenticityImages(partModelNumber, partType) {
         
         // If partType is 'case', hide the case image container (only show AirPod stem)
         const gridContainer = caseImgEl.closest('div[style*="grid-template-columns"]');
-        const caseImageContainer = caseImgEl.parentElement;
+        // The parentElement should be the div containing the case image and its label text
+        // This is the div with "background: white" that wraps the case image and "Case: Open lid and look inside" text
+        let caseImageContainer = caseImgEl.parentElement;
+        
+        // Verify we have the right container - it should contain the text "Case: Open lid"
+        if (caseImageContainer && !caseImageContainer.textContent.includes('Case: Open lid')) {
+            // Try to find the container that has the case text
+            const allContainers = gridContainer ? Array.from(gridContainer.children) : [];
+            caseImageContainer = allContainers.find(div => 
+                div.textContent && div.textContent.includes('Case: Open lid')
+            ) || caseImageContainer;
+        }
         
         if (partType === 'case') {
-            // Hide the case image container
+            // Hide the entire case image container (image + label text "Case: Open lid and look inside")
             if (caseImageContainer) {
                 caseImageContainer.style.display = 'none';
+                caseImageContainer.style.visibility = 'hidden';
+                caseImageContainer.style.height = '0';
+                caseImageContainer.style.overflow = 'hidden';
                 console.log('[Authenticity] Hiding case image container for case part type');
+                console.log('[Authenticity] Case container found:', !!caseImageContainer, 'Text content:', caseImageContainer.textContent);
+            } else {
+                console.warn('[Authenticity] Case image container not found!');
             }
+            // Also hide the case image element itself as backup
+            caseImgEl.style.display = 'none';
             // Adjust grid to single column for AirPod image only
             if (gridContainer) {
                 gridContainer.style.gridTemplateColumns = '1fr';
@@ -1247,8 +1266,13 @@ async function updateAuthenticityImages(partModelNumber, partType) {
             // Show case image container for left/right parts
             if (caseImageContainer) {
                 caseImageContainer.style.display = '';
+                caseImageContainer.style.visibility = '';
+                caseImageContainer.style.height = '';
+                caseImageContainer.style.overflow = '';
                 console.log('[Authenticity] Showing case image container for', partType, 'part type');
             }
+            // Show the case image element
+            caseImgEl.style.display = '';
             // Reset grid to two columns
             if (gridContainer) {
                 gridContainer.style.gridTemplateColumns = '1fr 1fr';
