@@ -1215,6 +1215,48 @@ async function updateAuthenticityImages(partModelNumber, partType) {
         console.log('[Authenticity] Setting case image src to:', caseSrc);
         console.log('[Authenticity] Setting AirPod image src to:', airpodSrc);
         
+        // Update instruction text based on part type
+        const instructionText = document.querySelector('.verification-step[data-step="2"] p[style*="color: #6c757d"]');
+        if (instructionText) {
+            if (partType === 'case') {
+                instructionText.textContent = 'Check on the AirPod stem for these markings:';
+                console.log('[Authenticity] Updated instruction text for case part type');
+            } else {
+                instructionText.textContent = 'Check inside your case lid or on the AirPod stem for these markings:';
+                console.log('[Authenticity] Updated instruction text for', partType, 'part type');
+            }
+        }
+        
+        // If partType is 'case', hide the case image container (only show AirPod stem)
+        const gridContainer = caseImgEl.closest('div[style*="grid-template-columns"]');
+        const caseImageContainer = caseImgEl.parentElement;
+        
+        if (partType === 'case') {
+            // Hide the case image container
+            if (caseImageContainer) {
+                caseImageContainer.style.display = 'none';
+                console.log('[Authenticity] Hiding case image container for case part type');
+            }
+            // Adjust grid to single column for AirPod image only
+            if (gridContainer) {
+                gridContainer.style.gridTemplateColumns = '1fr';
+                gridContainer.style.justifyItems = 'center';
+                console.log('[Authenticity] Adjusting grid to single column for case part type');
+            }
+        } else {
+            // Show case image container for left/right parts
+            if (caseImageContainer) {
+                caseImageContainer.style.display = '';
+                console.log('[Authenticity] Showing case image container for', partType, 'part type');
+            }
+            // Reset grid to two columns
+            if (gridContainer) {
+                gridContainer.style.gridTemplateColumns = '1fr 1fr';
+                gridContainer.style.justifyItems = '';
+                console.log('[Authenticity] Resetting grid to two columns for', partType, 'part type');
+            }
+        }
+        
         // Store the actual paths BEFORE setting src (so we have them even if image fails)
         caseImgEl.dataset.actualImagePath = caseSrc;
         airpodImgEl.dataset.actualImagePath = airpodSrc;
