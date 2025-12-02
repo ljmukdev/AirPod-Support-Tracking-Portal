@@ -1117,33 +1117,47 @@ async function updateAuthenticityImages(partModelNumber, partType) {
         return;
     }
     
-    // Set up error handlers with fallback
+    // Set up error handlers - but don't use fallback SVGs if image is intentionally hidden
     caseImgEl.onerror = (event) => {
         const currentSrc = caseImgEl.src;
-        console.error('[Authenticity] Case image failed to load:', currentSrc);
-        console.error('[Authenticity] Error event:', event);
-        if (currentSrc !== location.origin + FALLBACK_CASE_SVG && !currentSrc.includes('airpod-case-markings.svg')) {
-            console.warn('[Authenticity] Case image failed to load, falling back to SVG. Original src was:', currentSrc);
-            caseImgEl.src = FALLBACK_CASE_SVG;
+        // Only log error if src is not empty (meaning we tried to load an image)
+        if (currentSrc && currentSrc !== '') {
+            console.error('[Authenticity] Case image failed to load:', currentSrc);
+            console.error('[Authenticity] Error event:', event);
+            // Don't fall back to SVG - if image fails, just hide it
+            caseImgEl.style.display = 'none';
+            const caseImageContainer = caseImgEl.closest('div[style*="background: white"]') || caseImgEl.parentElement;
+            if (caseImageContainer && caseImageContainer.textContent.includes('Case: Open lid')) {
+                caseImageContainer.style.display = 'none';
+            }
         }
     };
     
     caseImgEl.onload = () => {
-        console.log('[Authenticity] Case image loaded successfully:', caseImgEl.src);
+        if (caseImgEl.src && caseImgEl.src !== '') {
+            console.log('[Authenticity] Case image loaded successfully:', caseImgEl.src);
+        }
     };
     
     airpodImgEl.onerror = (event) => {
         const currentSrc = airpodImgEl.src;
-        console.error('[Authenticity] AirPod image failed to load:', currentSrc);
-        console.error('[Authenticity] Error event:', event);
-        if (currentSrc !== location.origin + FALLBACK_AIRPOD_SVG && !currentSrc.includes('airpod-stem-markings.svg')) {
-            console.warn('[Authenticity] AirPod image failed to load, falling back to SVG. Original src was:', currentSrc);
-            airpodImgEl.src = FALLBACK_AIRPOD_SVG;
+        // Only log error if src is not empty (meaning we tried to load an image)
+        if (currentSrc && currentSrc !== '') {
+            console.error('[Authenticity] AirPod image failed to load:', currentSrc);
+            console.error('[Authenticity] Error event:', event);
+            // Don't fall back to SVG - if image fails, just hide it
+            airpodImgEl.style.display = 'none';
+            const airpodImageContainer = airpodImgEl.closest('div[style*="background: white"]') || airpodImgEl.parentElement;
+            if (airpodImageContainer && airpodImageContainer.textContent.includes('AirPod: Check')) {
+                airpodImageContainer.style.display = 'none';
+            }
         }
     };
     
     airpodImgEl.onload = () => {
-        console.log('[Authenticity] AirPod image loaded successfully:', airpodImgEl.src);
+        if (airpodImgEl.src && airpodImgEl.src !== '') {
+            console.log('[Authenticity] AirPod image loaded successfully:', airpodImgEl.src);
+        }
     };
     
     try {
@@ -1181,13 +1195,13 @@ async function updateAuthenticityImages(partModelNumber, partType) {
         console.log('[Authenticity] caseImage value:', images.caseImage);
         console.log('[Authenticity] airpodImage value:', images.airpodImage);
         
-        // Determine image paths
-        let caseSrc = FALLBACK_CASE_SVG;
-        let airpodSrc = FALLBACK_AIRPOD_SVG;
+        // Determine which images should be shown (only if they exist and are not hidden by show flags)
+        let caseSrc = null;
+        let airpodSrc = null;
         let showCaseImage = false;
         let showAirpodImage = false;
         
-        // Update case image
+        // Update case image - only set if image exists (show flag is handled by API returning null)
         if (images.caseImage) {
             // Ensure path starts with / and doesn't have double slashes
             caseSrc = images.caseImage.startsWith('/') 
@@ -1198,10 +1212,10 @@ async function updateAuthenticityImages(partModelNumber, partType) {
             showCaseImage = true;
             console.log('[Authenticity] Using uploaded case image:', caseSrc);
         } else {
-            console.log('[Authenticity] No case image found in database (or hidden by show flag)');
+            console.log('[Authenticity] No case image found in database (or hidden by show flag) - will hide container');
         }
         
-        // Update AirPod image
+        // Update AirPod image - only set if image exists (show flag is handled by API returning null)
         if (images.airpodImage) {
             // Ensure path starts with / and doesn't have double slashes
             airpodSrc = images.airpodImage.startsWith('/') 
@@ -1212,12 +1226,16 @@ async function updateAuthenticityImages(partModelNumber, partType) {
             showAirpodImage = true;
             console.log('[Authenticity] Using uploaded AirPod image:', airpodSrc);
         } else {
-            console.log('[Authenticity] No AirPod image found in database (or hidden by show flag)');
+            console.log('[Authenticity] No AirPod image found in database (or hidden by show flag) - will hide container');
         }
         
-        // Set image sources (error handlers will catch 404s)
-        console.log('[Authenticity] Setting case image src to:', caseSrc);
-        console.log('[Authenticity] Setting AirPod image src to:', airpodSrc);
+        // Only set image sources if we have actual images (not fallbacks)
+        if (showCaseImage && caseSrc) {
+            console.log('[Authenticity] Setting case image src to:', caseSrc);
+        }
+        if (showAirpodImage && airpodSrc) {
+            console.log('[Authenticity] Setting AirPod image src to:', airpodSrc);
+        }
         
         // Update instruction text based on part type
         const instructionText = document.querySelector('.verification-step[data-step="2"] p[style*="color: #6c757d"]');
@@ -1304,13 +1322,26 @@ async function updateAuthenticityImages(partModelNumber, partType) {
             }
         }
         
-        // Store the actual paths BEFORE setting src (so we have them even if image fails)
-        caseImgEl.dataset.actualImagePath = caseSrc;
-        airpodImgEl.dataset.actualImagePath = airpodSrc;
+        // Only set image sources if images should be shown (no fallback SVGs)
+        if (showCaseImage && caseSrc) {
+            // Store the actual path BEFORE setting src (so we have it even if image fails)
+            caseImgEl.dataset.actualImagePath = caseSrc;
+            caseImgEl.src = caseSrc;
+        } else {
+            // Clear src and dataset if image shouldn't be shown
+            caseImgEl.src = '';
+            caseImgEl.dataset.actualImagePath = '';
+        }
         
-        // Set image sources
-        caseImgEl.src = caseSrc;
-        airpodImgEl.src = airpodSrc;
+        if (showAirpodImage && airpodSrc) {
+            // Store the actual path BEFORE setting src (so we have it even if image fails)
+            airpodImgEl.dataset.actualImagePath = airpodSrc;
+            airpodImgEl.src = airpodSrc;
+        } else {
+            // Clear src and dataset if image shouldn't be shown
+            airpodImgEl.src = '';
+            airpodImgEl.dataset.actualImagePath = '';
+        }
         
         // Update alt text
         caseImgEl.alt = images.caseImage 
@@ -1523,9 +1554,23 @@ async function updateAuthenticityImages(partModelNumber, partType) {
         console.log('[Authenticity] Updated onclick handlers for images');
     } catch (err) {
         console.error('[Authenticity] Fetch error:', err);
-        // Hard fallback to SVGs
-        caseImgEl.src = FALLBACK_CASE_SVG;
-        airpodImgEl.src = FALLBACK_AIRPOD_SVG;
+        // Don't use fallback SVGs - just hide containers if fetch fails
+        const gridContainer = caseImgEl.closest('div[style*="grid-template-columns"]');
+        const caseImageContainer = caseImgEl.closest('div[style*="background: white"]') || caseImgEl.parentElement;
+        const airpodImageContainer = airpodImgEl.closest('div[style*="background: white"]') || airpodImgEl.parentElement;
+        
+        if (caseImageContainer && caseImageContainer.textContent && caseImageContainer.textContent.includes('Case: Open lid')) {
+            caseImageContainer.style.display = 'none';
+        }
+        if (airpodImageContainer && airpodImageContainer.textContent && airpodImageContainer.textContent.includes('AirPod: Check')) {
+            airpodImageContainer.style.display = 'none';
+        }
+        if (gridContainer) {
+            gridContainer.style.display = 'none';
+        }
+        // Clear image sources
+        caseImgEl.src = '';
+        airpodImgEl.src = '';
     }
 }
 
