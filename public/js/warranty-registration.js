@@ -1111,9 +1111,25 @@ async function updateAuthenticityImages(partModelNumber, partType) {
     
     const caseImgEl = document.getElementById('authenticityCaseImage');
     const airpodImgEl = document.getElementById('authenticityAirPodImage');
+    const gridContainer = document.getElementById('authenticityImagesGrid');
+    const caseImageContainer = document.getElementById('caseImageContainer');
+    const airpodImageContainer = document.getElementById('airpodImageContainer');
+    
+    console.log('[Authenticity] Elements found:', {
+        caseImgEl: !!caseImgEl,
+        airpodImgEl: !!airpodImgEl,
+        gridContainer: !!gridContainer,
+        caseImageContainer: !!caseImageContainer,
+        airpodImageContainer: !!airpodImageContainer
+    });
     
     if (!caseImgEl || !airpodImgEl) {
         console.error('[Authenticity] Image elements not found');
+        return;
+    }
+    
+    if (!gridContainer || !caseImageContainer || !airpodImageContainer) {
+        console.error('[Authenticity] Container elements not found');
         return;
     }
     
@@ -1249,10 +1265,7 @@ async function updateAuthenticityImages(partModelNumber, partType) {
             }
         }
         
-        // Get container references
-        const gridContainer = document.getElementById('authenticityImagesGrid');
-        const caseImageContainer = document.getElementById('caseImageContainer');
-        const airpodImageContainer = document.getElementById('airpodImageContainer');
+        // Container references already obtained at function start
         
         // Update instruction text based on which images are shown
         if (instructionText) {
@@ -1293,60 +1306,56 @@ async function updateAuthenticityImages(partModelNumber, partType) {
         }
         
         // Now show/hide containers based on what should be displayed
-        // Hide case image container if showCaseImage is false
-        if (!showCaseImage) {
+        // If API returned an image, show it (API already handled show flags by returning null if hidden)
+        if (showCaseImage && caseSrc) {
+            if (caseImageContainer) {
+                caseImageContainer.style.display = 'block';
+                console.log('[Authenticity] Showing case image container with src:', caseSrc);
+            }
+            caseImgEl.style.display = 'block';
+        } else {
             if (caseImageContainer) {
                 caseImageContainer.style.display = 'none';
-                console.log('[Authenticity] Hiding case image container (show flag is false)');
+                console.log('[Authenticity] Hiding case image container - showCaseImage:', showCaseImage, 'caseSrc:', caseSrc);
             }
             caseImgEl.style.display = 'none';
-        } else {
-            if (caseImageContainer && caseSrc) {
-                caseImageContainer.style.display = 'block';
-                console.log('[Authenticity] Showing case image container');
-            }
-            if (caseSrc) {
-                caseImgEl.style.display = 'block';
-            }
         }
         
-        // Hide AirPod image container if showAirpodImage is false
-        if (!showAirpodImage) {
+        // If API returned an image, show it (API already handled show flags by returning null if hidden)
+        if (showAirpodImage && airpodSrc) {
+            if (airpodImageContainer) {
+                airpodImageContainer.style.display = 'block';
+                console.log('[Authenticity] Showing AirPod image container with src:', airpodSrc);
+            }
+            airpodImgEl.style.display = 'block';
+        } else {
             if (airpodImageContainer) {
                 airpodImageContainer.style.display = 'none';
-                console.log('[Authenticity] Hiding AirPod image container (show flag is false)');
+                console.log('[Authenticity] Hiding AirPod image container - showAirpodImage:', showAirpodImage, 'airpodSrc:', airpodSrc);
             }
             airpodImgEl.style.display = 'none';
-        } else {
-            if (airpodImageContainer && airpodSrc) {
-                airpodImageContainer.style.display = 'block';
-                console.log('[Authenticity] Showing AirPod image container');
-            }
-            if (airpodSrc) {
-                airpodImgEl.style.display = 'block';
-            }
         }
         
         // Show grid and adjust layout based on which images are visible
         if (gridContainer) {
-            if (!showCaseImage && !showAirpodImage) {
-                // Both hidden - hide grid entirely
-                gridContainer.style.display = 'none';
-                console.log('[Authenticity] Hiding grid (both images hidden)');
-            } else {
+            if (showCaseImage && caseSrc || showAirpodImage && airpodSrc) {
                 // At least one image visible - show grid
                 gridContainer.style.display = 'grid';
-                if (!showCaseImage || !showAirpodImage) {
-                    // One hidden - single column
-                    gridContainer.style.gridTemplateColumns = '1fr';
-                    gridContainer.style.justifyItems = 'center';
-                    console.log('[Authenticity] Adjusting grid to single column (one image hidden)');
-                } else {
+                if ((showCaseImage && caseSrc) && (showAirpodImage && airpodSrc)) {
                     // Both visible - two columns
                     gridContainer.style.gridTemplateColumns = '1fr 1fr';
                     gridContainer.style.justifyItems = '';
-                    console.log('[Authenticity] Resetting grid to two columns (both images visible)');
+                    console.log('[Authenticity] Showing grid with two columns (both images visible)');
+                } else {
+                    // One visible - single column
+                    gridContainer.style.gridTemplateColumns = '1fr';
+                    gridContainer.style.justifyItems = 'center';
+                    console.log('[Authenticity] Showing grid with single column (one image visible)');
                 }
+            } else {
+                // Both hidden - hide grid entirely
+                gridContainer.style.display = 'none';
+                console.log('[Authenticity] Hiding grid (no images to show)');
             }
         }
         
