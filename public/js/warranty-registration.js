@@ -1126,8 +1126,8 @@ async function updateAuthenticityImages(partModelNumber, partType) {
             console.error('[Authenticity] Error event:', event);
             // Don't fall back to SVG - if image fails, just hide it
             caseImgEl.style.display = 'none';
-            const caseImageContainer = caseImgEl.closest('div[style*="background: white"]') || caseImgEl.parentElement;
-            if (caseImageContainer && caseImageContainer.textContent.includes('Case: Open lid')) {
+            const caseImageContainer = document.getElementById('caseImageContainer');
+            if (caseImageContainer) {
                 caseImageContainer.style.display = 'none';
             }
         }
@@ -1147,8 +1147,8 @@ async function updateAuthenticityImages(partModelNumber, partType) {
             console.error('[Authenticity] Error event:', event);
             // Don't fall back to SVG - if image fails, just hide it
             airpodImgEl.style.display = 'none';
-            const airpodImageContainer = airpodImgEl.closest('div[style*="background: white"]') || airpodImgEl.parentElement;
-            if (airpodImageContainer && airpodImageContainer.textContent.includes('AirPod: Check')) {
+            const airpodImageContainer = document.getElementById('airpodImageContainer');
+            if (airpodImageContainer) {
                 airpodImageContainer.style.display = 'none';
             }
         }
@@ -1249,16 +1249,10 @@ async function updateAuthenticityImages(partModelNumber, partType) {
             }
         }
         
-        // Hide/show images based on show flags from API (or partType logic as fallback)
-        const gridContainer = caseImgEl.closest('div[style*="grid-template-columns"]');
-        // Find the container divs
-        const allContainers = gridContainer ? Array.from(gridContainer.children) : [];
-        const caseImageContainer = allContainers.find(div => 
-            div.textContent && div.textContent.includes('Case: Open lid')
-        ) || caseImgEl.parentElement;
-        const airpodImageContainer = allContainers.find(div => 
-            div.textContent && div.textContent.includes('AirPod: Check')
-        ) || airpodImgEl.parentElement;
+        // Hide/show images based on show flags from API
+        const gridContainer = document.getElementById('authenticityImagesGrid');
+        const caseImageContainer = document.getElementById('caseImageContainer');
+        const airpodImageContainer = document.getElementById('airpodImageContainer');
         
         // Hide case image container if showCaseImage is false
         if (!showCaseImage) {
@@ -1290,22 +1284,26 @@ async function updateAuthenticityImages(partModelNumber, partType) {
             airpodImgEl.style.display = '';
         }
         
-        // Adjust grid layout based on which images are visible
+        // Show grid and adjust layout based on which images are visible
         if (gridContainer) {
             if (!showCaseImage && !showAirpodImage) {
                 // Both hidden - hide grid entirely
                 gridContainer.style.display = 'none';
-            } else if (!showCaseImage || !showAirpodImage) {
-                // One hidden - single column
-                gridContainer.style.gridTemplateColumns = '1fr';
-                gridContainer.style.justifyItems = 'center';
-                console.log('[Authenticity] Adjusting grid to single column (one image hidden)');
+                console.log('[Authenticity] Hiding grid (both images hidden)');
             } else {
-                // Both visible - two columns
-                gridContainer.style.gridTemplateColumns = '1fr 1fr';
-                gridContainer.style.justifyItems = '';
-                gridContainer.style.display = '';
-                console.log('[Authenticity] Resetting grid to two columns (both images visible)');
+                // At least one image visible - show grid
+                gridContainer.style.display = 'grid';
+                if (!showCaseImage || !showAirpodImage) {
+                    // One hidden - single column
+                    gridContainer.style.gridTemplateColumns = '1fr';
+                    gridContainer.style.justifyItems = 'center';
+                    console.log('[Authenticity] Adjusting grid to single column (one image hidden)');
+                } else {
+                    // Both visible - two columns
+                    gridContainer.style.gridTemplateColumns = '1fr 1fr';
+                    gridContainer.style.justifyItems = '';
+                    console.log('[Authenticity] Resetting grid to two columns (both images visible)');
+                }
             }
         }
         
@@ -1555,14 +1553,14 @@ async function updateAuthenticityImages(partModelNumber, partType) {
     } catch (err) {
         console.error('[Authenticity] Fetch error:', err);
         // Don't use fallback SVGs - just hide containers if fetch fails
-        const gridContainer = caseImgEl.closest('div[style*="grid-template-columns"]');
-        const caseImageContainer = caseImgEl.closest('div[style*="background: white"]') || caseImgEl.parentElement;
-        const airpodImageContainer = airpodImgEl.closest('div[style*="background: white"]') || airpodImgEl.parentElement;
+        const gridContainer = document.getElementById('authenticityImagesGrid');
+        const caseImageContainer = document.getElementById('caseImageContainer');
+        const airpodImageContainer = document.getElementById('airpodImageContainer');
         
-        if (caseImageContainer && caseImageContainer.textContent && caseImageContainer.textContent.includes('Case: Open lid')) {
+        if (caseImageContainer) {
             caseImageContainer.style.display = 'none';
         }
-        if (airpodImageContainer && airpodImageContainer.textContent && airpodImageContainer.textContent.includes('AirPod: Check')) {
+        if (airpodImageContainer) {
             airpodImageContainer.style.display = 'none';
         }
         if (gridContainer) {
