@@ -2843,21 +2843,18 @@ app.get('/api/authenticity-images/:partModelNumber', requireDB, async (req, res)
         }
         // LOGIC: If purchased part is CASE
         else if (purchasedPart.part_type === 'case') {
-            // Case image: from the purchased part itself (only if show_case_image is true)
-            if (purchasedPart.show_case_image !== false) {
-                caseImage = purchasedPart.authenticity_case_image || null;
-                console.log(`[Authenticity API] Purchased part case image:`, caseImage);
-            } else {
-                console.log(`[Authenticity API] Case image hidden by show_case_image flag`);
-            }
-            
+            // Case image: DO NOT send - case is sealed in box and cannot be verified at this stage
+            // Users should only verify the AirPods themselves during authenticity check
+            caseImage = null;
+            console.log(`[Authenticity API] Case product - NOT sending case image (case is sealed in box)`);
+
             // AirPod image: prefer LEFT, then RIGHT from same generation (only if show_airpod_image is true)
             const leftPart = sameGenerationParts.find(p => p.part_type === 'left');
             const rightPart = sameGenerationParts.find(p => p.part_type === 'right');
-            
+
             console.log(`[Authenticity API] Looking for AirPod image - Left part:`, leftPart ? { model: leftPart.part_model_number, hasImg: !!leftPart.authenticity_airpod_image, showFlag: leftPart.show_airpod_image } : 'not found');
             console.log(`[Authenticity API] Looking for AirPod image - Right part:`, rightPart ? { model: rightPart.part_model_number, hasImg: !!rightPart.authenticity_airpod_image, showFlag: rightPart.show_airpod_image } : 'not found');
-            
+
             if (leftPart && leftPart.authenticity_airpod_image && leftPart.show_airpod_image !== false) {
                 airpodImage = leftPart.authenticity_airpod_image;
                 console.log(`[Authenticity API] Using left part AirPod image:`, airpodImage);
@@ -2867,8 +2864,8 @@ app.get('/api/authenticity-images/:partModelNumber', requireDB, async (req, res)
             } else {
                 console.warn(`[Authenticity API] No AirPod image found in compatible parts (or hidden by show flag)`);
             }
-            
-            console.log(`[Authenticity API] CASE part - Case from purchased, AirPod from generation LEFT/RIGHT part`);
+
+            console.log(`[Authenticity API] CASE part - Only AirPod image from generation LEFT/RIGHT part (case is sealed)`);
         }
         
         console.log(`[Authenticity API] Final images being returned:`, { caseImage, airpodImage });
