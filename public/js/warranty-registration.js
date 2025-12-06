@@ -243,6 +243,23 @@ function setupEventListeners() {
     
     // Continue buttons
     document.getElementById('continueBtn1')?.addEventListener('click', function() {
+        const continueBtn = document.getElementById('continueBtn1');
+        const buttonText = continueBtn ? continueBtn.textContent.trim() : '';
+        
+        // Check if button says "Continue to Contact Information" - this means verification is complete
+        if (buttonText === 'Continue to Contact Information' && appState.productData) {
+            console.log('[Continue] Button indicates verification complete, going to contact details');
+            showStep(3);
+            return;
+        }
+        
+        // Check if all verification steps are completed
+        if (verificationState && verificationState.completedSteps && verificationState.completedSteps.size === verificationState.totalSteps && appState.productData) {
+            console.log('[Continue] All verification steps complete, going to contact details');
+            showStep(3);
+            return;
+        }
+        
         // Check if product record is displayed on step 1
         const productDisplay = document.getElementById('productRecordDisplay');
         const isProductDisplayed = productDisplay && productDisplay.style.display !== 'none';
