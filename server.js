@@ -2,7 +2,19 @@ const express = require('express');
 const { MongoClient, ObjectId } = require('mongodb');
 const bodyParser = require('body-parser');
 const session = require('express-session');
-const MongoStore = require('connect-mongo');
+// Import connect-mongo - try different import styles for compatibility
+let MongoStore;
+try {
+    // Try v6 style (default export)
+    MongoStore = require('connect-mongo').default;
+    if (!MongoStore) {
+        // Try direct import
+        MongoStore = require('connect-mongo');
+    }
+} catch (e) {
+    console.error('Error importing connect-mongo:', e);
+    MongoStore = null;
+}
 const path = require('path');
 const multer = require('multer');
 const fs = require('fs');
@@ -617,13 +629,37 @@ app.use(session({
     secret: process.env.SESSION_SECRET || 'LJM_SECURE_SESSION_KEY_2024',
     resave: false,
     saveUninitialized: false,
-    store: mongoSessionUrl ? MongoStore.create({
-        mongoUrl: mongoSessionUrl,
-        touchAfter: 24 * 3600, // lazy session update - only update session once per 24 hours
-        crypto: {
-            secret: process.env.SESSION_SECRET || 'LJM_SECURE_SESSION_KEY_2024'
+    store: mongoSessionUrl ? (() => {
+        try {
+            // connect-mongo v6 uses MongoStore.create() static method
+            // If that doesn't exist, try constructor
+            if (MongoStore && typeof MongoStore.create === 'function') {
+                return MongoStore.create({
+                    mongoUrl: mongoSessionUrl,
+                    touchAfter: 24 * 3600,
+                    crypto: {
+                        secret: process.env.SESSION_SECRET || 'LJM_SECURE_SESSION_KEY_2024'
+                    }
+                });
+            } else if (MongoStore && typeof MongoStore === 'function') {
+                // Constructor API (older versions)
+                return new MongoStore({
+                    mongoUrl: mongoSessionUrl,
+                    touchAfter: 24 * 3600,
+                    crypto: {
+                        secret: process.env.SESSION_SECRET || 'LJM_SECURE_SESSION_KEY_2024'
+                    }
+                });
+            } else {
+                console.warn('MongoStore not available, falling back to MemoryStore');
+                return undefined;
+            }
+        } catch (error) {
+            console.error('Error creating MongoStore:', error.message);
+            console.error('Falling back to MemoryStore');
+            return undefined; // Fall back to MemoryStore
         }
-    }) : undefined, // Fall back to MemoryStore if MongoDB URL not available
+    })() : undefined, // Fall back to MemoryStore if MongoDB URL not available
     cookie: {
         secure: process.env.NODE_ENV === 'production', // Use secure cookies in production (HTTPS)
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
