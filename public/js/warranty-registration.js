@@ -2341,21 +2341,35 @@ function showStep(stepNumber) {
     console.log('showStep called with stepNumber:', stepNumber, 'currentStep:', appState.currentStep);
     console.trace('showStep call stack'); // This will show where it's being called from
     
+    // Check if all verification steps are complete (allow navigation to step 3)
+    const allVerificationStepsComplete = verificationState && verificationState.completedSteps && 
+                                         verificationState.completedSteps.size === verificationState.totalSteps;
+    const continueBtn = document.getElementById('continueBtn1');
+    const buttonText = continueBtn ? continueBtn.textContent.trim() : '';
+    const isVerificationComplete = allVerificationStepsComplete || buttonText === 'Continue to Contact Information';
+    
     // Prevent auto-advance from step 1 to step 3 if product is being displayed
-    if (stepNumber === 3 && appState.currentStep === 1) {
+    // BUT allow it if verification is complete
+    if (stepNumber === 3 && appState.currentStep === 1 && !isVerificationComplete) {
         const productDisplay = document.getElementById('productRecordDisplay');
         const isProductDisplayed = productDisplay && productDisplay.style.display !== 'none';
         if (isProductDisplayed || appState.productData) {
-            console.log('BLOCKED: Preventing auto-advance from step 1 to step 3 - product is displayed');
+            console.log('BLOCKED: Preventing auto-advance from step 1 to step 3 - product is displayed (verification not complete)');
             console.log('Product display visible:', isProductDisplayed, 'Product data exists:', !!appState.productData);
             return; // Stay on step 1
         }
     }
     
     // Also prevent if we're on step 1 and have product data but haven't shown it yet
-    if (stepNumber === 3 && appState.currentStep === 1 && appState.productData) {
-        console.log('BLOCKED: Preventing step 3 - product data loaded but should stay on step 1');
+    // BUT allow it if verification is complete
+    if (stepNumber === 3 && appState.currentStep === 1 && appState.productData && !isVerificationComplete) {
+        console.log('BLOCKED: Preventing step 3 - product data loaded but should stay on step 1 (verification not complete)');
         return;
+    }
+    
+    // If verification is complete, allow navigation
+    if (stepNumber === 3 && isVerificationComplete) {
+        console.log('ALLOWED: Navigation to step 3 - verification complete');
     }
     
     // Hide all steps
