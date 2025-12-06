@@ -15,6 +15,7 @@
     "mongodb": "^6.3.0",
     "body-parser": "^1.20.2",
     "express-session": "^1.17.3",
+    "connect-mongo": "^5.1.0",
     "multer": "^1.4.5-lts.1",
     "stripe": "^14.21.0"
   }
