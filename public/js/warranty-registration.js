@@ -1231,6 +1231,14 @@ async function updateAuthenticityImages(partModelNumber, partType) {
             console.log('[Authenticity] No case image found in database (or hidden by show flag) - will hide container');
         }
         
+        // If the product itself is a case, hide the case image in authenticity check
+        // The case is secured behind the security seal until user confirms details and is instructed to open the box
+        if (partType === 'case') {
+            showCaseImage = false;
+            caseSrc = null;
+            console.log('[Authenticity] Product is a case - hiding case image from authenticity check (case is sealed)');
+        }
+        
         // Update AirPod image - only set if image exists (show flag is handled by API returning null)
         if (images.airpodImage) {
             // Ensure path starts with / and doesn't have double slashes
@@ -1253,32 +1261,29 @@ async function updateAuthenticityImages(partModelNumber, partType) {
             console.log('[Authenticity] Setting AirPod image src to:', airpodSrc);
         }
         
-        // Update instruction text based on part type
+        // Update instruction text based on part type and which images are shown
         const instructionText = document.querySelector('.verification-step[data-step="2"] p[style*="color: #6c757d"]');
         if (instructionText) {
+            // If the product is a case, always instruct to check AirPod stem (case is sealed)
             if (partType === 'case') {
                 instructionText.textContent = 'Check on the AirPod stem for these markings:';
-                console.log('[Authenticity] Updated instruction text for case part type');
+                console.log('[Authenticity] Updated instruction text for case part type (case is sealed)');
             } else {
-                instructionText.textContent = 'Check inside your case lid or on the AirPod stem for these markings:';
+                // For other part types, update based on which images are shown
+                if (!showCaseImage && showAirpodImage) {
+                    instructionText.textContent = 'Check on the AirPod stem for these markings:';
+                } else if (showCaseImage && !showAirpodImage) {
+                    instructionText.textContent = 'Check inside your case lid for these markings:';
+                } else if (showCaseImage && showAirpodImage) {
+                    instructionText.textContent = 'Check inside your case lid or on the AirPod stem for these markings:';
+                } else {
+                    instructionText.textContent = 'Check your parts for these markings:';
+                }
                 console.log('[Authenticity] Updated instruction text for', partType, 'part type');
             }
         }
         
         // Container references already obtained at function start
-        
-        // Update instruction text based on which images are shown
-        if (instructionText) {
-            if (!showCaseImage && showAirpodImage) {
-                instructionText.textContent = 'Check on the AirPod stem for these markings:';
-            } else if (showCaseImage && !showAirpodImage) {
-                instructionText.textContent = 'Check inside your case lid for these markings:';
-            } else if (showCaseImage && showAirpodImage) {
-                instructionText.textContent = 'Check inside your case lid or on the AirPod stem for these markings:';
-            } else {
-                instructionText.textContent = 'Check your parts for these markings:';
-            }
-        }
         
         // Set image sources BEFORE showing containers (so images can start loading)
         if (showCaseImage && caseSrc) {
