@@ -2,6 +2,7 @@ const express = require('express');
 const { MongoClient, ObjectId } = require('mongodb');
 const bodyParser = require('body-parser');
 const session = require('express-session');
+const MongoStore = require('connect-mongo');
 const path = require('path');
 const multer = require('multer');
 const fs = require('fs');
@@ -594,14 +595,36 @@ app.use(express.static('public', {
     maxAge: process.env.NODE_ENV === 'production' ? '1d' : '0' // Cache for 1 day in production, no cache in development
 }));
 
-// Session configuration
-// Note: MemoryStore warning is expected in development. For production with multiple instances,
-// consider using Redis or MongoDB session store (requires additional setup).
+// Session configuration with MongoDB store
+// Construct MongoDB connection URL for session store
+function getMongoSessionUrl() {
+    const MONGOUSER = process.env.MONGOUSER || process.env.MONGODB_USER || process.env.MONGO_INITDB_ROOT_USERNAME;
+    const MONGOPASSWORD = process.env.MONGOPASSWORD || process.env.MONGODB_PASSWORD || process.env.MONGO_INITDB_ROOT_PASSWORD;
+    const MONGOHOST = process.env.MONGOHOST || process.env.MONGODB_HOST || process.env.RAILWAY_PRIVATE_DOMAIN;
+    const MONGOPORT = process.env.MONGOPORT || process.env.MONGODB_PORT || process.env.RAILWAY_TCP_PROXY_PORT || '27017';
+    const MONGODATABASE = process.env.MONGODATABASE || process.env.MONGODB_DATABASE || 'AutoRestockDB';
+
+    if (MONGOUSER && MONGOPASSWORD && MONGOHOST) {
+        const encodedPassword = encodeURIComponent(MONGOPASSWORD);
+        return `mongodb://${MONGOUSER}:${encodedPassword}@${MONGOHOST}:${MONGOPORT}/${MONGODATABASE}?authSource=admin`;
+    }
+    return null;
+}
+
+const mongoSessionUrl = getMongoSessionUrl();
+
 app.use(session({
     secret: process.env.SESSION_SECRET || 'LJM_SECURE_SESSION_KEY_2024',
     resave: false,
     saveUninitialized: false,
-    cookie: { 
+    store: mongoSessionUrl ? MongoStore.create({
+        mongoUrl: mongoSessionUrl,
+        touchAfter: 24 * 3600, // lazy session update - only update session once per 24 hours
+        crypto: {
+            secret: process.env.SESSION_SECRET || 'LJM_SECURE_SESSION_KEY_2024'
+        }
+    }) : undefined, // Fall back to MemoryStore if MongoDB URL not available
+    cookie: {
         secure: process.env.NODE_ENV === 'production', // Use secure cookies in production (HTTPS)
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
         httpOnly: true
