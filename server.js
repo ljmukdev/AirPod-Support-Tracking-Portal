@@ -617,7 +617,7 @@ app.use(session({
     secret: process.env.SESSION_SECRET || 'LJM_SECURE_SESSION_KEY_2024',
     resave: false,
     saveUninitialized: false,
-    store: mongoSessionUrl ? MongoStore.create({
+    store: mongoSessionUrl ? new MongoStore({
         mongoUrl: mongoSessionUrl,
         touchAfter: 24 * 3600, // lazy session update - only update session once per 24 hours
         crypto: {
