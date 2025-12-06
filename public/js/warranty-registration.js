@@ -274,7 +274,7 @@ function setupEventListeners() {
     });
     document.getElementById('continueBtn2')?.addEventListener('click', () => {
         // Product review complete, go to contact details
-        showStep(3);
+        showStep(3, true); // Force navigation when button is clicked
     });
     document.getElementById('continueBtn3')?.addEventListener('click', handleContactDetailsSubmit);
     document.getElementById('continueBtn4')?.addEventListener('click', () => {
