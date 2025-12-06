@@ -1642,11 +1642,19 @@ function initializeVerificationSteps() {
     verificationState.completedSteps.clear();
     verificationState.listenersAttached = false;
     
-    // Reset all checkboxes
-    const allCheckboxes = ['verifyCompatibility', 'verifyAuthenticity', 'verifySerialNumbers', 'verifyCondition', 'verifyReady'];
-    allCheckboxes.forEach(id => {
-        const checkbox = document.getElementById(id);
-        if (checkbox) checkbox.checked = false;
+    // Reset all radio buttons
+    const allRadioGroups = [
+        { name: 'verifyCompatibility', yesId: 'verifyCompatibilityYes', noId: 'verifyCompatibilityNo' },
+        { name: 'verifyAuthenticity', yesId: 'verifyAuthenticityYes', noId: 'verifyAuthenticityNo' },
+        { name: 'verifySerialNumbers', yesId: 'verifySerialNumbersYes', noId: 'verifySerialNumbersNo' },
+        { name: 'verifyCondition', yesId: 'verifyConditionYes', noId: 'verifyConditionNo' },
+        { name: 'verifyReady', yesId: 'verifyReadyYes', noId: 'verifyReadyNo' }
+    ];
+    allRadioGroups.forEach(group => {
+        const yesRadio = document.getElementById(group.yesId);
+        const noRadio = document.getElementById(group.noId);
+        if (yesRadio) yesRadio.checked = false;
+        if (noRadio) noRadio.checked = false;
     });
     
     // Disable continue button initially
@@ -1662,23 +1670,27 @@ function initializeVerificationSteps() {
     // Show first step
     showVerificationStep(1);
     
-    // Setup checkbox handlers
-    const checkboxes = {
-        1: document.getElementById('verifyCompatibility'),
-        2: document.getElementById('verifyAuthenticity'),
-        3: document.getElementById('verifySerialNumbers'),
-        4: document.getElementById('verifyCondition'),
-        5: document.getElementById('verifyReady')
+    // Setup radio button handlers for each verification step
+    const radioGroups = {
+        1: { name: 'verifyCompatibility', yesId: 'verifyCompatibilityYes', noId: 'verifyCompatibilityNo' },
+        2: { name: 'verifyAuthenticity', yesId: 'verifyAuthenticityYes', noId: 'verifyAuthenticityNo' },
+        3: { name: 'verifySerialNumbers', yesId: 'verifySerialNumbersYes', noId: 'verifySerialNumbersNo' },
+        4: { name: 'verifyCondition', yesId: 'verifyConditionYes', noId: 'verifyConditionNo' },
+        5: { name: 'verifyReady', yesId: 'verifyReadyYes', noId: 'verifyReadyNo' }
     };
     
-    // Handle checkbox changes
+    // Handle radio button changes
     if (!verificationState.listenersAttached) {
-        Object.keys(checkboxes).forEach(stepNum => {
-            const checkbox = checkboxes[stepNum];
-            if (checkbox) {
-                checkbox.addEventListener('change', function() {
-                    const stepNumber = parseInt(stepNum);
-                    if (this.checked) {
+        Object.keys(radioGroups).forEach(stepNum => {
+            const group = radioGroups[stepNum];
+            const stepNumber = parseInt(stepNum);
+            const yesRadio = document.getElementById(group.yesId);
+            const noRadio = document.getElementById(group.noId);
+            
+            // Handle "Yes" selection
+            if (yesRadio) {
+                yesRadio.addEventListener('change', function() {
+                    if (this.checked && this.value === 'yes') {
                         verificationState.completedSteps.add(stepNumber);
                         
                         // Auto-advance to next step after a short delay
@@ -1698,12 +1710,17 @@ function initializeVerificationSteps() {
                                 }
                             }
                         }, 500);
-                    } else {
-                        verificationState.completedSteps.delete(stepNumber);
-                        const continueBtn = document.getElementById('continueBtn1');
-                        if (continueBtn) {
-                            continueBtn.disabled = true;
-                        }
+                    }
+                });
+            }
+            
+            // Handle "No" selection - redirect to eBay return
+            if (noRadio) {
+                noRadio.addEventListener('change', function() {
+                    if (this.checked && this.value === 'no') {
+                        console.log(`[Verification] Step ${stepNumber} - "No" selected, redirecting to eBay return`);
+                        // Redirect to eBay return instructions page
+                        window.location.href = 'ebay-return.html';
                     }
                 });
             }

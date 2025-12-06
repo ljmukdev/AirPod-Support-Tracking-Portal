@@ -1128,10 +1128,16 @@
                                                 </div>
                                             </div>
                                             
-                                            <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 12px; background: #f8f9fa; border-radius: 8px;">
-                                                <input type="checkbox" id="verifyCompatibility" style="width: 20px; height: 20px; cursor: pointer;">
-                                                <span style="color: #1a1a1a; font-weight: 500;">Yes, my existing parts are compatible</span>
-                                            </label>
+                                            <div style="display: flex; flex-direction: column; gap: 12px;">
+                                                <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 12px; background: #f8f9fa; border-radius: 8px;">
+                                                    <input type="radio" name="verifyCompatibility" id="verifyCompatibilityYes" value="yes" style="width: 20px; height: 20px; cursor: pointer;">
+                                                    <span style="color: #1a1a1a; font-weight: 500;">Yes, my existing parts are compatible</span>
+                                                </label>
+                                                <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 12px; background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px;">
+                                                    <input type="radio" name="verifyCompatibility" id="verifyCompatibilityNo" value="no" style="width: 20px; height: 20px; cursor: pointer;">
+                                                    <span style="color: #1a1a1a; font-weight: 500;">No, my parts are not compatible</span>
+                                                </label>
+                                            </div>
                                         </div>
                                     </div>
                                     
@@ -1155,10 +1161,16 @@
                                                 </div>
                                             </div>
                                             
-                                            <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 12px; background: #f8f9fa; border-radius: 8px;">
-                                                <input type="checkbox" id="verifyAuthenticity" style="width: 20px; height: 20px; cursor: pointer;">
-                                                <span style="color: #1a1a1a; font-weight: 500;">Yes, my parts have the correct markings</span>
-                                            </label>
+                                            <div style="display: flex; flex-direction: column; gap: 12px;">
+                                                <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 12px; background: #f8f9fa; border-radius: 8px;">
+                                                    <input type="radio" name="verifyAuthenticity" id="verifyAuthenticityYes" value="yes" style="width: 20px; height: 20px; cursor: pointer;">
+                                                    <span style="color: #1a1a1a; font-weight: 500;">Yes, my parts have the correct markings</span>
+                                                </label>
+                                                <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 12px; background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px;">
+                                                    <input type="radio" name="verifyAuthenticity" id="verifyAuthenticityNo" value="no" style="width: 20px; height: 20px; cursor: pointer;">
+                                                    <span style="color: #1a1a1a; font-weight: 500;">No, my parts do not have the correct markings</span>
+                                                </label>
+                                            </div>
                                         </div>
                                     </div>
 
@@ -1169,10 +1181,16 @@
                                             <p style="color: #6c757d; margin-bottom: 16px; line-height: 1.6;">
                                                 Authentic AirPods have unique serial numbers on each part (left AirPod, right AirPod, and case). Check that each serial number is different.
                                             </p>
-                                            <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 12px; background: #f8f9fa; border-radius: 8px;">
-                                                <input type="checkbox" id="verifySerialNumbers" style="width: 20px; height: 20px; cursor: pointer;">
-                                                <span style="color: #1a1a1a; font-weight: 500;">Yes, each part has a different serial number</span>
-                                            </label>
+                                            <div style="display: flex; flex-direction: column; gap: 12px;">
+                                                <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 12px; background: #f8f9fa; border-radius: 8px;">
+                                                    <input type="radio" name="verifySerialNumbers" id="verifySerialNumbersYes" value="yes" style="width: 20px; height: 20px; cursor: pointer;">
+                                                    <span style="color: #1a1a1a; font-weight: 500;">Yes, each part has a different serial number</span>
+                                                </label>
+                                                <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 12px; background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px;">
+                                                    <input type="radio" name="verifySerialNumbers" id="verifySerialNumbersNo" value="no" style="width: 20px; height: 20px; cursor: pointer;">
+                                                    <span style="color: #1a1a1a; font-weight: 500;">No, the serial numbers are the same or missing</span>
+                                                </label>
+                                            </div>
                                         </div>
                                     </div>
 
@@ -1183,10 +1201,16 @@
                                             <p style="color: #6c757d; margin-bottom: 16px; line-height: 1.6;">
                                                 Review the product photos above. Check that the condition matches what you expected.
                                             </p>
-                                            <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 12px; background: #f8f9fa; border-radius: 8px;">
-                                                <input type="checkbox" id="verifyCondition" style="width: 20px; height: 20px; cursor: pointer;">
-                                                <span style="color: #1a1a1a; font-weight: 500;">Yes, the condition is acceptable</span>
-                                            </label>
+                                            <div style="display: flex; flex-direction: column; gap: 12px;">
+                                                <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 12px; background: #f8f9fa; border-radius: 8px;">
+                                                    <input type="radio" name="verifyCondition" id="verifyConditionYes" value="yes" style="width: 20px; height: 20px; cursor: pointer;">
+                                                    <span style="color: #1a1a1a; font-weight: 500;">Yes, the condition is acceptable</span>
+                                                </label>
+                                                <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 12px; background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px;">
+                                                    <input type="radio" name="verifyCondition" id="verifyConditionNo" value="no" style="width: 20px; height: 20px; cursor: pointer;">
+                                                    <span style="color: #1a1a1a; font-weight: 500;">No, the condition is not acceptable</span>
+                                                </label>
+                                            </div>
                                         </div>
                                     </div>
                                     
@@ -1200,10 +1224,16 @@
                                             <div class="warranty-warning" style="margin-bottom: 16px;">
                                                 <strong>⚠️ Remember:</strong> Do NOT open the packaging until you're certain this is the correct item.
                                             </div>
-                                            <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 12px; background: #f8f9fa; border-radius: 8px;">
-                                                <input type="checkbox" id="verifyReady" style="width: 20px; height: 20px; cursor: pointer;">
-                                                <span style="color: #1a1a1a; font-weight: 500;">I'm ready to continue with registration</span>
-                                            </label>
+                                            <div style="display: flex; flex-direction: column; gap: 12px;">
+                                                <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 12px; background: #f8f9fa; border-radius: 8px;">
+                                                    <input type="radio" name="verifyReady" id="verifyReadyYes" value="yes" style="width: 20px; height: 20px; cursor: pointer;">
+                                                    <span style="color: #1a1a1a; font-weight: 500;">I'm ready to continue with registration</span>
+                                                </label>
+                                                <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 12px; background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px;">
+                                                    <input type="radio" name="verifyReady" id="verifyReadyNo" value="no" style="width: 20px; height: 20px; cursor: pointer;">
+                                                    <span style="color: #1a1a1a; font-weight: 500;">I want to return this item</span>
+                                                </label>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
