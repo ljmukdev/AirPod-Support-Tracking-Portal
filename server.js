@@ -617,14 +617,14 @@ app.use(session({
     secret: process.env.SESSION_SECRET || 'LJM_SECURE_SESSION_KEY_2024',
     resave: false,
     saveUninitialized: false,
-    store: mongoSessionUrl ? new MongoStore({
+    store: mongoSessionUrl ? MongoStore.create({
         mongoUrl: mongoSessionUrl,
         touchAfter: 24 * 3600, // lazy session update - only update session once per 24 hours
         crypto: {
             secret: process.env.SESSION_SECRET || 'LJM_SECURE_SESSION_KEY_2024'
         }
     }) : undefined, // Fall back to MemoryStore if MongoDB URL not available
-    cookie: { 
+    cookie: {
         secure: process.env.NODE_ENV === 'production', // Use secure cookies in production (HTTPS)
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
         httpOnly: true
