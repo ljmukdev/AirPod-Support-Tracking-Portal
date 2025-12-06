@@ -1613,7 +1613,7 @@ async function updateAuthenticityImages(partModelNumber, partType) {
 // Verification step state
 let verificationState = {
     currentStep: 1,
-    totalSteps: 4,
+    totalSteps: 5,
     completedSteps: new Set(),
     listenersAttached: false
 };
@@ -1626,7 +1626,7 @@ function initializeVerificationSteps() {
     verificationState.listenersAttached = false;
     
     // Reset all checkboxes
-    const allCheckboxes = ['verifyCompatibility', 'verifyAuthenticity', 'verifyCondition', 'verifyReady'];
+    const allCheckboxes = ['verifyCompatibility', 'verifyAuthenticity', 'verifySerialNumbers', 'verifyCondition', 'verifyReady'];
     allCheckboxes.forEach(id => {
         const checkbox = document.getElementById(id);
         if (checkbox) checkbox.checked = false;
@@ -1649,8 +1649,9 @@ function initializeVerificationSteps() {
     const checkboxes = {
         1: document.getElementById('verifyCompatibility'),
         2: document.getElementById('verifyAuthenticity'),
-        3: document.getElementById('verifyCondition'),
-        4: document.getElementById('verifyReady')
+        3: document.getElementById('verifySerialNumbers'),
+        4: document.getElementById('verifyCondition'),
+        5: document.getElementById('verifyReady')
     };
     
     // Handle checkbox changes

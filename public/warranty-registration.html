@@ -1155,21 +1155,29 @@
                                                 </div>
                                             </div>
                                             
-                                            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 16px;">
-                                                <div style="display: flex; align-items: center; gap: 8px;">
-                                                    <strong style="color: #284064;">✓</strong>
-                                                    <span>Different serial numbers on each part</span>
-                                                </div>
-                                            </div>
                                             <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 12px; background: #f8f9fa; border-radius: 8px;">
                                                 <input type="checkbox" id="verifyAuthenticity" style="width: 20px; height: 20px; cursor: pointer;">
                                                 <span style="color: #1a1a1a; font-weight: 500;">Yes, my parts have the correct markings</span>
                                             </label>
                                         </div>
                                     </div>
-                                    
-                                    <!-- Step 3: Condition Check -->
+
+                                    <!-- Step 3: Serial Number Uniqueness -->
                                     <div class="verification-step" data-step="3" style="display: none;">
+                                        <div style="background: white; border: 2px solid #e8ecf1; border-radius: 12px; padding: 24px;">
+                                            <h4 style="margin-top: 0; color: #1a1a1a; font-size: 1.1rem; margin-bottom: 12px;">Does each part have a different serial number?</h4>
+                                            <p style="color: #6c757d; margin-bottom: 16px; line-height: 1.6;">
+                                                Authentic AirPods have unique serial numbers on each part (left AirPod, right AirPod, and case). Check that each serial number is different.
+                                            </p>
+                                            <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 12px; background: #f8f9fa; border-radius: 8px;">
+                                                <input type="checkbox" id="verifySerialNumbers" style="width: 20px; height: 20px; cursor: pointer;">
+                                                <span style="color: #1a1a1a; font-weight: 500;">Yes, each part has a different serial number</span>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <!-- Step 4: Condition Check -->
+                                    <div class="verification-step" data-step="4" style="display: none;">
                                         <div style="background: white; border: 2px solid #e8ecf1; border-radius: 12px; padding: 24px;">
                                             <h4 style="margin-top: 0; color: #1a1a1a; font-size: 1.1rem; margin-bottom: 12px;">Are you happy with the product condition?</h4>
                                             <p style="color: #6c757d; margin-bottom: 16px; line-height: 1.6;">
@@ -1182,8 +1190,8 @@
                                         </div>
                                     </div>
                                     
-                                    <!-- Step 4: Final Confirmation -->
-                                    <div class="verification-step" data-step="4" style="display: none;">
+                                    <!-- Step 5: Final Confirmation -->
+                                    <div class="verification-step" data-step="5" style="display: none;">
                                         <div style="background: white; border: 2px solid #e8ecf1; border-radius: 12px; padding: 24px;">
                                             <h4 style="margin-top: 0; color: #1a1a1a; font-size: 1.1rem; margin-bottom: 12px;">Ready to proceed?</h4>
                                             <p style="color: #6c757d; margin-bottom: 16px; line-height: 1.6;">
