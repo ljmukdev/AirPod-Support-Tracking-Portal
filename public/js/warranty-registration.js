@@ -1109,6 +1109,10 @@ function getFallbackExampleImage(partType, partModelNumber) {
 async function updateAuthenticityImages(partModelNumber, partType) {
     console.log('[Authenticity] updateAuthenticityImages called for:', partModelNumber, partType);
     
+    // Normalize partType to lowercase for consistent comparison
+    const normalizedPartType = partType ? partType.toLowerCase().trim() : '';
+    console.log('[Authenticity] Normalized partType:', normalizedPartType);
+    
     const caseImgEl = document.getElementById('authenticityCaseImage');
     const airpodImgEl = document.getElementById('authenticityAirPodImage');
     const gridContainer = document.getElementById('authenticityImagesGrid');
@@ -1131,6 +1135,17 @@ async function updateAuthenticityImages(partModelNumber, partType) {
     if (!gridContainer || !caseImageContainer || !airpodImageContainer) {
         console.error('[Authenticity] Container elements not found');
         return;
+    }
+    
+    // Immediately hide case image container if product is a case (before fetching images)
+    if (normalizedPartType === 'case') {
+        if (caseImageContainer) {
+            caseImageContainer.style.display = 'none';
+            console.log('[Authenticity] Immediately hiding case image container - product is a case');
+        }
+        if (caseImgEl) {
+            caseImgEl.style.display = 'none';
+        }
     }
     
     // Set up error handlers - but don't use fallback SVGs if image is intentionally hidden
@@ -1233,7 +1248,7 @@ async function updateAuthenticityImages(partModelNumber, partType) {
         
         // If the product itself is a case, hide the case image in authenticity check
         // The case is secured behind the security seal until user confirms details and is instructed to open the box
-        if (partType === 'case') {
+        if (normalizedPartType === 'case') {
             showCaseImage = false;
             caseSrc = null;
             console.log('[Authenticity] Product is a case - hiding case image from authenticity check (case is sealed)');
@@ -1265,7 +1280,7 @@ async function updateAuthenticityImages(partModelNumber, partType) {
         const instructionText = document.querySelector('.verification-step[data-step="2"] p[style*="color: #6c757d"]');
         if (instructionText) {
             // If the product is a case, always instruct to check AirPod stem (case is sealed)
-            if (partType === 'case') {
+            if (normalizedPartType === 'case') {
                 instructionText.textContent = 'Check on the AirPod stem for these markings:';
                 console.log('[Authenticity] Updated instruction text for case part type (case is sealed)');
             } else {
