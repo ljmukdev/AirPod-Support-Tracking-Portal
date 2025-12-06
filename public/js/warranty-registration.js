@@ -1677,6 +1677,7 @@ function initializeVerificationSteps() {
                                 const continueBtn = document.getElementById('continueBtn1');
                                 if (continueBtn) {
                                     continueBtn.disabled = false;
+                                    continueBtn.textContent = 'Continue to Contact Information';
                                 }
                             }
                         }, 500);
