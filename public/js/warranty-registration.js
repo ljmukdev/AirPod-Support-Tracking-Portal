@@ -1065,7 +1065,7 @@ const FALLBACK_CASE_SVG = '/images/airpod-case-markings.svg';
 const FALLBACK_AIRPOD_SVG = '/images/airpod-stem-markings.svg';
 
 // Image version for cache-busting - bump this when SVG files are updated
-const IMAGE_VERSION = '1.2.0.028';
+const IMAGE_VERSION = '1.2.0.033';
 
 // Get fallback example image based on part type and model number
 // Returns path with cache-busting query parameter
@@ -1682,22 +1682,27 @@ function initializeVerificationSteps() {
             const yesRadio = document.getElementById(group.yesId);
             const noRadio = document.getElementById(group.noId);
             
-            // Handle "Yes" selection
+            // Handle "Yes" selection - auto-advance immediately
             if (yesRadio) {
-                yesRadio.addEventListener('change', function() {
+                // Use both 'change' and 'click' events to ensure it triggers
+                const handleYesSelection = function() {
                     if (this.checked && this.value === 'yes') {
                         verificationState.completedSteps.add(stepNumber);
+                        console.log(`[Verification] Step ${stepNumber} - "Yes" selected, auto-advancing...`);
                         
-                        // Auto-advance to next step after a short delay
+                        // Auto-advance to next step immediately (with minimal delay for smooth transition)
                         setTimeout(() => {
+                            // Check if there are more verification steps
                             if (verificationState.currentStep < verificationState.totalSteps) {
                                 verificationState.currentStep++;
+                                console.log(`[Verification] Advancing to step ${verificationState.currentStep}`);
                                 showVerificationStep(verificationState.currentStep);
                                 if (currentStepEl) currentStepEl.textContent = verificationState.currentStep;
                             }
                             
                             // When all verification steps are complete, automatically proceed to Contact Information
                             if (verificationState.completedSteps.size === verificationState.totalSteps) {
+                                console.log('[Verification] All steps complete, automatically proceeding to Contact Information');
                                 const continueBtn = document.getElementById('continueBtn1');
                                 if (continueBtn) {
                                     // Hide the button since we're auto-progressing
@@ -1706,13 +1711,16 @@ function initializeVerificationSteps() {
                                 
                                 // Automatically proceed to Contact Information step after a brief delay
                                 setTimeout(() => {
-                                    console.log('[Verification] All steps complete, automatically proceeding to Contact Information');
                                     showStep(3, true); // Force navigation to step 3
-                                }, 800); // Slightly longer delay to show completion
+                                }, 500); // Brief delay to show completion before moving to contact info
                             }
-                        }, 500);
+                        }, 200); // Minimal delay for smooth UI transition
                     }
-                });
+                };
+                
+                // Attach both events to ensure it works reliably
+                yesRadio.addEventListener('change', handleYesSelection);
+                yesRadio.addEventListener('click', handleYesSelection);
             }
             
             // Handle "No" selection - redirect to eBay return
