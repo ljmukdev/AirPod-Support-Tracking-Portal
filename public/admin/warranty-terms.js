@@ -1,6 +1,10 @@
 // Warranty Terms & Conditions Management
-// API_BASE is already declared in admin.js - just use it directly
-// No need to redeclare - it's available globally from admin.js
+// Ensure API_BASE is available - reference from window or use empty string
+if (typeof window.API_BASE === 'undefined') {
+    window.API_BASE = '';
+}
+// Reference the global API_BASE without redeclaring
+var API_BASE = window.API_BASE;
 
 // Check authentication
 checkAuth();
