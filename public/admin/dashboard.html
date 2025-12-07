@@ -7,28 +7,50 @@
     <link rel="stylesheet" href="../css/styles.css">
 
     <script>
-        // Inline version display - always runs immediately
+        // Inline version display - fetches from API to always show current version
         (function() {
-            function showVersion() {
-                var el = document.createElement('div');
-                el.id = 'version-display';
-                el.style.cssText = 'position:fixed;top:10px;right:10px;font-size:0.7rem;color:rgba(0,0,0,0.7);font-family:"Courier New",monospace;z-index:99999;padding:4px 8px;background:rgba(255,255,255,0.9);border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.2);pointer-events:none;';
-                el.textContent = 'v1.2.0.001';
-                el.title = 'Version 1.2.0 (Revision 001)';
-                if (document.body) {
-                    document.body.appendChild(el);
+            var API_BASE = window.API_BASE || '';
+            function showVersion(versionData) {
+                var el = document.getElementById('version-display');
+                if (!el) {
+                    el = document.createElement('div');
+                    el.id = 'version-display';
+                    el.style.cssText = 'position:fixed;top:10px;right:10px;font-size:0.7rem;color:rgba(0,0,0,0.7);font-family:"Courier New",monospace;z-index:99999;padding:4px 8px;background:rgba(255,255,255,0.9);border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.2);pointer-events:none;';
+                    if (document.body) {
+                        document.body.appendChild(el);
+                    } else {
+                        setTimeout(function() {
+                            if (document.body) document.body.appendChild(el);
+                        }, 100);
+                    }
+                }
+                if (versionData) {
+                    var versionText = 'v' + versionData.version + '.' + versionData.revision;
+                    el.textContent = versionText;
+                    el.title = 'Version ' + versionData.version + ' (Revision ' + versionData.revision + ')';
                 } else {
-                    setTimeout(function() {
-                        if (document.body) document.body.appendChild(el);
-                    }, 100);
+                    el.textContent = 'v1.2.0.042';
+                    el.title = 'Version 1.2.0 (Revision 042)';
                 }
             }
+            
+            // Fetch version from API
+            fetch(API_BASE + '/api/version')
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                    showVersion(data);
+                })
+                .catch(function(err) {
+                    console.log('Version fetch failed, using default');
+                    showVersion(null);
+                });
+            
+            // Also show immediately with default
             if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', showVersion);
+                document.addEventListener('DOMContentLoaded', function() { showVersion(null); });
             } else {
-                showVersion();
+                showVersion(null);
             }
-            setTimeout(showVersion, 1000);
         })();
     </script>
 </head>
