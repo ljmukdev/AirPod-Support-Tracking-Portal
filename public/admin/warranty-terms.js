@@ -3,17 +3,20 @@
 if (typeof window.API_BASE === 'undefined') {
     window.API_BASE = '';
 }
-// Reference the global API_BASE without redeclaring
-var API_BASE = window.API_BASE;
 
 // Check authentication
 checkAuth();
+
+// Helper function to get API_BASE without redeclaring
+function getApiBase() {
+    return window.API_BASE || '';
+}
 
 // Load current terms and version history
 async function loadTermsData() {
     try {
         // Load current active version
-        const currentResponse = await fetch(`${API_BASE}/api/admin/warranty-terms/current`);
+        const currentResponse = await fetch(`${getApiBase()}/api/admin/warranty-terms/current`);
         if (currentResponse.ok) {
             const current = await currentResponse.json();
             if (current.terms) {
@@ -23,7 +26,7 @@ async function loadTermsData() {
         }
 
         // Load version history
-        const versionsResponse = await fetch(`${API_BASE}/api/admin/warranty-terms/versions`);
+        const versionsResponse = await fetch(`${getApiBase()}/api/admin/warranty-terms/versions`);
         if (versionsResponse.ok) {
             const versions = await versionsResponse.json();
             displayVersionHistory(versions.versions || []);
@@ -31,7 +34,7 @@ async function loadTermsData() {
         }
 
         // Load active warranties count
-        const warrantiesResponse = await fetch(`${API_BASE}/api/admin/warranties`);
+        const warrantiesResponse = await fetch(`${getApiBase()}/api/admin/warranties`);
         if (warrantiesResponse.ok) {
             const data = await warrantiesResponse.json();
             document.getElementById('activeWarranties').textContent = data.warranties?.length || 0;
@@ -96,7 +99,7 @@ function displayVersionHistory(versions) {
 // View a specific version
 async function viewVersion(versionNumber) {
     try {
-        const response = await fetch(`${API_BASE}/api/admin/warranty-terms/version/${versionNumber}`);
+        const response = await fetch(`${getApiBase()}/api/admin/warranty-terms/version/${versionNumber}`);
         if (response.ok) {
             const data = await response.json();
             if (data.terms) {
@@ -130,7 +133,7 @@ async function viewVersion(versionNumber) {
 // Copy version content to editor
 async function copyVersion(versionNumber) {
     try {
-        const response = await fetch(`${API_BASE}/api/admin/warranty-terms/version/${versionNumber}`);
+        const response = await fetch(`${getApiBase()}/api/admin/warranty-terms/version/${versionNumber}`);
         if (response.ok) {
             const data = await response.json();
             if (data.terms) {
@@ -173,7 +176,7 @@ document.getElementById('saveNewVersion')?.addEventListener('click', async () =>
     }
 
     try {
-        const response = await fetch(`${API_BASE}/api/admin/warranty-terms`, {
+        const response = await fetch(`${getApiBase()}/api/admin/warranty-terms`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -202,7 +205,7 @@ document.getElementById('saveNewVersion')?.addEventListener('click', async () =>
 // Logout
 document.getElementById('logoutButton')?.addEventListener('click', async () => {
     try {
-        const response = await fetch(`${API_BASE}/api/admin/logout`, { method: 'POST' });
+        const response = await fetch(`${getApiBase()}/api/admin/logout`, { method: 'POST' });
         if (response.ok) {
             window.location.href = 'login.html';
         }
