@@ -113,8 +113,8 @@ function initializePage() {
                     }
                     const continueBtn = document.getElementById('continueBtn1');
                     if (continueBtn) {
-                        continueBtn.disabled = false;
-                        continueBtn.textContent = 'Continue to Contact Information';
+                        // Hide button - workflow will auto-progress when verification is complete
+                        continueBtn.style.display = 'none';
                     }
                 });
             } else {
@@ -162,8 +162,8 @@ function initializePage() {
                     // Enable continue button
                     const continueBtn = document.getElementById('continueBtn1');
                     if (continueBtn) {
-                        continueBtn.disabled = false;
-                        continueBtn.textContent = 'Continue to Contact Information';
+                        // Hide button - workflow will auto-progress when verification is complete
+                        continueBtn.style.display = 'none';
                     }
                 }).catch((error) => {
                     console.error('Failed to load product info:', error);
@@ -244,16 +244,9 @@ function setupEventListeners() {
     // Continue buttons
     document.getElementById('continueBtn1')?.addEventListener('click', function() {
         const continueBtn = document.getElementById('continueBtn1');
-        const buttonText = continueBtn ? continueBtn.textContent.trim() : '';
         
-        // Check if button says "Continue to Contact Information" - this means verification is complete
-        if (buttonText === 'Continue to Contact Information' && appState.productData) {
-            console.log('[Continue] Button indicates verification complete, going to contact details');
-            showStep(3, true); // Force navigation
-            return;
-        }
-        
-        // Check if all verification steps are completed
+        // Check if all verification steps are completed - if so, auto-progression should have already happened
+        // But handle manual click just in case
         if (verificationState && verificationState.completedSteps && verificationState.completedSteps.size === verificationState.totalSteps && appState.productData) {
             console.log('[Continue] All verification steps complete, going to contact details');
             showStep(3, true); // Force navigation
@@ -264,11 +257,13 @@ function setupEventListeners() {
         const productDisplay = document.getElementById('productRecordDisplay');
         const isProductDisplayed = productDisplay && productDisplay.style.display !== 'none';
         
-        // If product is displayed on step 1, go to contact details
+        // If product is displayed but verification not complete, don't allow manual progression
+        // User must complete verification questions which will auto-progress
         if (isProductDisplayed && appState.productData) {
-            showStep(3, true); // Force navigation - user clicked button
+            console.log('[Continue] Product displayed but verification not complete - user must complete verification questions');
+            return; // Don't allow manual progression - verification questions will guide them
         } else {
-            // Otherwise validate security code
+            // Otherwise validate security code (initial entry)
             validateSecurityCode();
         }
     });
@@ -446,9 +441,9 @@ async function validateSecurityCode() {
                         productDisplay.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                     }, 100);
                 }
-                // Enable continue button
-                continueBtn.disabled = false;
-                continueBtn.textContent = 'Continue to Contact Information';
+                // Hide continue button during verification - workflow will auto-progress when verification is complete
+                // Button will remain hidden until verification completes, then auto-progresses to Contact Information
+                continueBtn.style.display = 'none';
             }).catch((error) => {
                 console.error('Failed to load product info:', error);
                 showError('Product found but details could not be loaded. Please try again.');
@@ -1701,13 +1696,19 @@ function initializeVerificationSteps() {
                                 if (currentStepEl) currentStepEl.textContent = verificationState.currentStep;
                             }
                             
-                            // Enable continue button when all steps complete
+                            // When all verification steps are complete, automatically proceed to Contact Information
                             if (verificationState.completedSteps.size === verificationState.totalSteps) {
                                 const continueBtn = document.getElementById('continueBtn1');
                                 if (continueBtn) {
-                                    continueBtn.disabled = false;
-                                    continueBtn.textContent = 'Continue to Contact Information';
+                                    // Hide the button since we're auto-progressing
+                                    continueBtn.style.display = 'none';
                                 }
+                                
+                                // Automatically proceed to Contact Information step after a brief delay
+                                setTimeout(() => {
+                                    console.log('[Verification] All steps complete, automatically proceeding to Contact Information');
+                                    showStep(3, true); // Force navigation to step 3
+                                }, 800); // Slightly longer delay to show completion
                             }
                         }, 500);
                     }
