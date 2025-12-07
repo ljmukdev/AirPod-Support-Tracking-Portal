@@ -1687,19 +1687,30 @@ function initializeVerificationSteps() {
                 // Use both 'change' and 'click' events to ensure it triggers
                 const handleYesSelection = function() {
                     if (this.checked && this.value === 'yes') {
-                        verificationState.completedSteps.add(stepNumber);
-                        console.log(`[Verification] Step ${stepNumber} - "Yes" selected, auto-advancing...`);
+                        // Get the actual step number from the radio button's data or ID
+                        const actualStepNumber = stepNumber; // This should be 1-5
+                        verificationState.completedSteps.add(actualStepNumber);
+                        console.log(`[Verification] Step ${actualStepNumber} - "Yes" selected, auto-advancing...`);
+                        console.log(`[Verification] Completed steps: ${verificationState.completedSteps.size}/${verificationState.totalSteps}`);
                         
                         // Auto-advance to next step immediately (with minimal delay for smooth transition)
                         setTimeout(() => {
                             // Check if all verification steps are complete FIRST
-                            const allStepsComplete = verificationState.completedSteps.size === verificationState.totalSteps;
+                            const completedCount = verificationState.completedSteps.size;
+                            const totalCount = verificationState.totalSteps;
+                            const allStepsComplete = completedCount === totalCount;
                             
-                            if (allStepsComplete) {
+                            // Special case: If step 5 (last step) is selected, proceed regardless
+                            const isLastStep = actualStepNumber === totalCount;
+                            
+                            console.log(`[Verification] Checking completion: ${completedCount} === ${totalCount} = ${allStepsComplete}, isLastStep: ${isLastStep}`);
+                            
+                            if (allStepsComplete || isLastStep) {
                                 console.log('[Verification] ✅ All steps complete!', {
-                                    completedSteps: verificationState.completedSteps.size,
-                                    totalSteps: verificationState.totalSteps,
-                                    currentStep: verificationState.currentStep
+                                    completedSteps: completedCount,
+                                    totalSteps: totalCount,
+                                    currentStep: verificationState.currentStep,
+                                    completedSet: Array.from(verificationState.completedSteps)
                                 });
                                 
                                 // Hide the continue button immediately
@@ -1737,6 +1748,34 @@ function initializeVerificationSteps() {
                                 console.log(`[Verification] Advancing to step ${verificationState.currentStep}`);
                                 showVerificationStep(verificationState.currentStep);
                                 if (currentStepEl) currentStepEl.textContent = verificationState.currentStep;
+                            } else {
+                                // We're on the last step - check if we should proceed
+                                console.log('[Verification] ⚠️ Last step reached - checking completion status');
+                                console.log('[Verification] Debug info:', {
+                                    completedSteps: completedCount,
+                                    totalSteps: totalCount,
+                                    currentStep: verificationState.currentStep,
+                                    completedSet: Array.from(verificationState.completedSteps),
+                                    allStepsComplete: allStepsComplete
+                                });
+                                
+                                // If all steps are complete but the check above didn't catch it, proceed anyway
+                                if (completedCount >= totalCount) {
+                                    console.log('[Verification] ✅ All steps complete (fallback check)!');
+                                    const continueBtn = document.getElementById('continueBtn1');
+                                    if (continueBtn) {
+                                        continueBtn.style.display = 'none';
+                                        continueBtn.disabled = true;
+                                    }
+                                    const verificationStepsContainer = document.getElementById('verificationSteps');
+                                    if (verificationStepsContainer) {
+                                        verificationStepsContainer.style.display = 'none';
+                                    }
+                                    setTimeout(() => {
+                                        console.log('[Verification] 🚀 Navigating to Contact Information (step 3)');
+                                        showStep(3, true);
+                                    }, 300);
+                                }
                             }
                         }, 200); // Minimal delay for smooth UI transition
                     }
