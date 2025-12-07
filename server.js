@@ -366,6 +366,48 @@ app.get('/uploads/examples/:filename', async (req, res) => {
     }
 });
 
+// Serve add-on sales images - MUST be before /uploads/:filename route
+app.get('/uploads/addon-sales/:filename', async (req, res) => {
+    const filename = req.params.filename;
+    const currentUploadsDir = global.uploadsDir || uploadsDir;
+    const addonSalesImagesDir = path.join(currentUploadsDir, 'addon-sales');
+    const filePath = path.resolve(addonSalesImagesDir, filename);
+    
+    // Check if directory exists
+    if (!fs.existsSync(addonSalesImagesDir)) {
+        res.status(404).setHeader('Content-Type', 'text/plain').send('Add-on sales images directory not found');
+        return;
+    }
+    
+    // Check if file exists
+    if (fs.existsSync(filePath)) {
+        const stats = fs.statSync(filePath);
+        if (!stats.isFile()) {
+            res.status(404).setHeader('Content-Type', 'text/plain').send('Path is not a file');
+            return;
+        }
+        
+        // Set appropriate content type
+        const ext = path.extname(filename).toLowerCase();
+        const contentType = ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' :
+                           ext === '.png' ? 'image/png' :
+                           ext === '.gif' ? 'image/gif' :
+                           ext === '.webp' ? 'image/webp' : 'application/octet-stream';
+        
+        res.setHeader('Content-Type', contentType);
+        res.sendFile(filePath, (err) => {
+            if (err) {
+                console.error(`[Add-On Sales] Error sending file: ${err.message}`);
+                if (!res.headersSent) {
+                    res.status(500).setHeader('Content-Type', 'text/plain').send('Error serving image file');
+                }
+            }
+        });
+    } else {
+        res.status(404).setHeader('Content-Type', 'text/plain').send(`Image not found: ${filename}`);
+    }
+});
+
 // Serve authenticity images - MUST be before /uploads/:filename route
 app.get('/uploads/authenticity/:filename', async (req, res) => {
     const filename = req.params.filename;
@@ -447,9 +489,9 @@ app.use('/uploads', (req, res, next) => {
 app.get('/uploads/:filename', async (req, res, next) => {
     const filename = req.params.filename;
     
-    // Skip authenticity and example images - they're handled by specific routes above
-    // Check the request path to see if it's an authenticity or example image request
-    if (req.path && (req.path.startsWith('/uploads/authenticity/') || req.path.startsWith('/uploads/examples/'))) {
+    // Skip authenticity, example, and addon-sales images - they're handled by specific routes above
+    // Check the request path to see if it's an authenticity, example, or addon-sales image request
+    if (req.path && (req.path.startsWith('/uploads/authenticity/') || req.path.startsWith('/uploads/examples/') || req.path.startsWith('/uploads/addon-sales/'))) {
         console.log(`[Uploads Route] Skipping ${req.path} - handled by specific route`);
         return next(); // Let the more specific route handle it
     }
@@ -2790,6 +2832,274 @@ app.get('/api/admin/generations', requireAuth, requireDB, async (req, res) => {
     }
 });
 
+// Add-On Sales API endpoints
+
+// Get all add-on sales
+app.get('/api/admin/addon-sales', requireAuth, requireDB, async (req, res) => {
+    try {
+        const addonSales = await db.collection('addon_sales')
+            .find({})
+            .sort({ name: 1 })
+            .toArray();
+        
+        const addonSalesWithStringIds = addonSales.map(addon => ({
+            ...addon,
+            _id: addon._id.toString()
+        }));
+        
+        res.json({ addonSales: addonSalesWithStringIds });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Get single add-on sale
+app.get('/api/admin/addon-sale/:id', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    
+    try {
+        if (!ObjectId.isValid(id)) {
+            return res.status(400).json({ error: 'Invalid add-on sale ID' });
+        }
+        
+        const addonSale = await db.collection('addon_sales').findOne({ _id: new ObjectId(id) });
+        
+        if (!addonSale) {
+            return res.status(404).json({ error: 'Add-on sale not found' });
+        }
+        
+        res.json({ 
+            addonSale: {
+                ...addonSale,
+                _id: addonSale._id.toString()
+            }
+        });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Create add-on sale
+app.post('/api/admin/addon-sale', requireAuth, requireDB, upload.single('image'), async (req, res) => {
+    const { name, description, price, active, associated_generations, associated_part_models } = req.body;
+    
+    if (!name || !price) {
+        return res.status(400).json({ error: 'Name and price are required' });
+    }
+    
+    const priceNum = parseFloat(price);
+    if (isNaN(priceNum) || priceNum < 0) {
+        return res.status(400).json({ error: 'Valid price is required' });
+    }
+    
+    try {
+        // Parse associations
+        let generations = [];
+        let partModels = [];
+        
+        if (associated_generations) {
+            try {
+                generations = JSON.parse(associated_generations);
+            } catch (e) {
+                generations = Array.isArray(associated_generations) ? associated_generations : [];
+            }
+        }
+        
+        if (associated_part_models) {
+            try {
+                partModels = JSON.parse(associated_part_models);
+            } catch (e) {
+                partModels = Array.isArray(associated_part_models) ? associated_part_models : [];
+            }
+        }
+        
+        if (generations.length === 0 && partModels.length === 0) {
+            return res.status(400).json({ error: 'At least one product association (generation or part model) is required' });
+        }
+        
+        // Handle image upload
+        let imagePath = null;
+        if (req.file) {
+            const currentUploadsDir = global.uploadsDir || uploadsDir;
+            const addonImagesDir = path.join(currentUploadsDir, 'addon-sales');
+            
+            // Ensure directory exists
+            if (!fs.existsSync(addonImagesDir)) {
+                fs.mkdirSync(addonImagesDir, { recursive: true });
+            }
+            
+            // Move file to addon-sales directory
+            const newFilename = `addon_${Date.now()}${path.extname(req.file.originalname)}`;
+            const newPath = path.join(addonImagesDir, newFilename);
+            fs.renameSync(req.file.path, newPath);
+            imagePath = `/uploads/addon-sales/${newFilename}`;
+        }
+        
+        const addonSale = {
+            name: name.trim(),
+            description: description ? description.trim() : null,
+            price: priceNum,
+            image: imagePath,
+            active: active === 'true' || active === true,
+            associated_generations: generations,
+            associated_part_models: partModels,
+            created_at: new Date(),
+            updated_at: new Date()
+        };
+        
+        const result = await db.collection('addon_sales').insertOne(addonSale);
+        console.log('Add-on sale created:', result.insertedId.toString());
+        res.json({ success: true, message: 'Add-on sale created successfully', id: result.insertedId.toString() });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Update add-on sale
+app.put('/api/admin/addon-sale/:id', requireAuth, requireDB, upload.single('image'), async (req, res) => {
+    const id = req.params.id;
+    const { name, description, price, active, associated_generations, associated_part_models } = req.body;
+    
+    if (!name || !price) {
+        return res.status(400).json({ error: 'Name and price are required' });
+    }
+    
+    const priceNum = parseFloat(price);
+    if (isNaN(priceNum) || priceNum < 0) {
+        return res.status(400).json({ error: 'Valid price is required' });
+    }
+    
+    try {
+        if (!ObjectId.isValid(id)) {
+            return res.status(400).json({ error: 'Invalid add-on sale ID' });
+        }
+        
+        // Get existing add-on sale
+        const existingAddon = await db.collection('addon_sales').findOne({ _id: new ObjectId(id) });
+        if (!existingAddon) {
+            return res.status(404).json({ error: 'Add-on sale not found' });
+        }
+        
+        // Parse associations
+        let generations = [];
+        let partModels = [];
+        
+        if (associated_generations) {
+            try {
+                generations = JSON.parse(associated_generations);
+            } catch (e) {
+                generations = Array.isArray(associated_generations) ? associated_generations : [];
+            }
+        }
+        
+        if (associated_part_models) {
+            try {
+                partModels = JSON.parse(associated_part_models);
+            } catch (e) {
+                partModels = Array.isArray(associated_part_models) ? associated_part_models : [];
+            }
+        }
+        
+        if (generations.length === 0 && partModels.length === 0) {
+            return res.status(400).json({ error: 'At least one product association (generation or part model) is required' });
+        }
+        
+        // Handle image upload
+        let imagePath = existingAddon.image || null;
+        if (req.file) {
+            const currentUploadsDir = global.uploadsDir || uploadsDir;
+            const addonImagesDir = path.join(currentUploadsDir, 'addon-sales');
+            
+            // Ensure directory exists
+            if (!fs.existsSync(addonImagesDir)) {
+                fs.mkdirSync(addonImagesDir, { recursive: true });
+            }
+            
+            // Delete old image if exists
+            if (imagePath) {
+                const oldPath = path.join(currentUploadsDir, imagePath.replace('/uploads/', ''));
+                if (fs.existsSync(oldPath)) {
+                    fs.unlinkSync(oldPath);
+                }
+            }
+            
+            // Move new file to addon-sales directory
+            const newFilename = `addon_${Date.now()}${path.extname(req.file.originalname)}`;
+            const newPath = path.join(addonImagesDir, newFilename);
+            fs.renameSync(req.file.path, newPath);
+            imagePath = `/uploads/addon-sales/${newFilename}`;
+        }
+        
+        const updateData = {
+            name: name.trim(),
+            description: description ? description.trim() : null,
+            price: priceNum,
+            image: imagePath,
+            active: active === 'true' || active === true,
+            associated_generations: generations,
+            associated_part_models: partModels,
+            updated_at: new Date()
+        };
+        
+        const result = await db.collection('addon_sales').updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updateData }
+        );
+        
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ error: 'Add-on sale not found' });
+        }
+        
+        console.log('Add-on sale updated:', id);
+        res.json({ success: true, message: 'Add-on sale updated successfully' });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Delete add-on sale
+app.delete('/api/admin/addon-sale/:id', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    
+    try {
+        if (!ObjectId.isValid(id)) {
+            return res.status(400).json({ error: 'Invalid add-on sale ID' });
+        }
+        
+        // Get add-on sale to delete image
+        const addonSale = await db.collection('addon_sales').findOne({ _id: new ObjectId(id) });
+        
+        if (!addonSale) {
+            return res.status(404).json({ error: 'Add-on sale not found' });
+        }
+        
+        // Delete image if exists
+        if (addonSale.image) {
+            const currentUploadsDir = global.uploadsDir || uploadsDir;
+            const imagePath = path.join(currentUploadsDir, addonSale.image.replace('/uploads/', ''));
+            if (fs.existsSync(imagePath)) {
+                fs.unlinkSync(imagePath);
+            }
+        }
+        
+        const result = await db.collection('addon_sales').deleteOne({ _id: new ObjectId(id) });
+        
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ error: 'Add-on sale not found' });
+        }
+        
+        console.log('Add-on sale deleted:', id);
+        res.json({ success: true, message: 'Add-on sale deleted successfully' });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // Get compatible parts with example images (public endpoint for warranty registration)
 app.get('/api/compatible-parts/:partModelNumber', requireDB, async (req, res) => {
     const partModelNumber = req.params.partModelNumber;
@@ -3134,6 +3444,10 @@ app.get('/admin/dashboard', requireAuthHTML, (req, res) => {
 
 app.get('/admin/parts', requireAuthHTML, (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin', 'parts.html'));
+});
+
+app.get('/admin/addon-sales', requireAuthHTML, (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'admin', 'addon-sales.html'));
 });
 
 // Catch all route - serve index.html for SPA-like behavior

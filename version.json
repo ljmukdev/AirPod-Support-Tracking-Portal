@@ -1,8 +1,18 @@
 {
-  "version": "1.2.1",
+  "version": "1.2.2",
   "build": "2024-12-19",
   "revision": "001",
   "changelog": [
+    {
+      "version": "1.2.2",
+      "date": "2024-12-19",
+      "changes": [
+        "Added Add-On Sales admin page for creating and managing add-on sales items",
+        "Added product association feature - link add-on sales to products by generation or part model number",
+        "Added image upload support for add-on sales items",
+        "Added CRUD API endpoints for add-on sales management"
+      ]
+    },
     {
       "version": "1.2.1",
       "date": "2024-12-19",

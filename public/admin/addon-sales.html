@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Add-On Sales | LJM Admin</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <style>
+        .addon-container {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 30px;
+            margin-top: 30px;
+        }
+        @media (max-width: 968px) {
+            .addon-container {
+                grid-template-columns: 1fr;
+            }
+        }
+        .addon-form {
+            background-color: var(--background-white);
+            padding: 30px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 100px;
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+        }
+        .addon-list {
+            background-color: var(--background-white);
+            padding: 30px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+        }
+        .addon-item {
+            background-color: var(--secondary-gray);
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: var(--border-radius);
+            border-left: 4px solid var(--accent-teal);
+        }
+        .addon-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 10px;
+        }
+        .addon-item-title {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: var(--primary-navy);
+        }
+        .addon-item-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .addon-item-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+            font-size: 0.9rem;
+        }
+        .addon-detail {
+            color: var(--text-dark);
+        }
+        .addon-detail-label {
+            font-weight: 500;
+            color: #666;
+        }
+        .edit-button {
+            background-color: var(--accent-teal);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        .edit-button:hover {
+            background-color: var(--accent-teal-hover);
+        }
+        .delete-button {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        .delete-button:hover {
+            background-color: #c82333;
+        }
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .button-cancel {
+            background-color: #6c757d;
+        }
+        .button-cancel:hover {
+            background-color: #5a6268;
+        }
+        .product-associations {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: var(--border-radius);
+        }
+        .product-associations h4 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: var(--primary-navy);
+            font-size: 1rem;
+        }
+        .association-options {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .association-option {
+            flex: 1;
+        }
+        .association-option label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--text-dark);
+        }
+        .association-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #e8ecf1;
+            border-radius: 4px;
+            padding: 10px;
+            background: white;
+        }
+        .association-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 0;
+        }
+        .association-item input[type="checkbox"] {
+            margin: 0;
+        }
+        .association-item label {
+            margin: 0;
+            font-weight: normal;
+            cursor: pointer;
+            flex: 1;
+        }
+        .image-preview {
+            margin-top: 10px;
+            max-width: 200px;
+        }
+        .image-preview img {
+            width: 100%;
+            border-radius: 4px;
+            border: 2px solid #e8ecf1;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        .status-active {
+            background-color: #28a745;
+            color: white;
+        }
+        .status-inactive {
+            background-color: #6c757d;
+            color: white;
+        }
+    </style>
+
+    <script src="../js/admin.js"></script>
+    <script>
+        // Inline version display - fetches from API to always show current version
+        (function() {
+            var apiBase = window.API_BASE || '';
+            function showVersion(versionData) {
+                var el = document.getElementById('version-display');
+                if (!el) {
+                    el = document.createElement('div');
+                    el.id = 'version-display';
+                    el.style.cssText = 'position:fixed;top:10px;right:10px;font-size:0.7rem;color:rgba(0,0,0,0.7);font-family:"Courier New",monospace;z-index:99999;padding:4px 8px;background:rgba(255,255,255,0.9);border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.2);pointer-events:none;';
+                    if (document.body) {
+                        document.body.appendChild(el);
+                    } else {
+                        setTimeout(function() {
+                            if (document.body) document.body.appendChild(el);
+                        }, 100);
+                    }
+                }
+                if (versionData) {
+                    var versionText = 'v' + versionData.version + '.' + versionData.revision;
+                    el.textContent = versionText;
+                    el.title = 'Version ' + versionData.version + ' (Revision ' + versionData.revision + ')';
+                } else {
+                    el.textContent = 'v1.2.1.001';
+                    el.title = 'Version 1.2.1 (Revision 001)';
+                }
+            }
+            
+            // Fetch version from API
+            fetch(apiBase + '/api/version')
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                    showVersion(data);
+                })
+                .catch(function(err) {
+                    console.log('Version fetch failed, using default');
+                    showVersion(null);
+                });
+            
+            // Also show immediately with default
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function() { showVersion(null); });
+            } else {
+                showVersion(null);
+            }
+        })();
+    </script>
+</head>
+<body class="admin-panel">
+    <div class="admin-container">
+        <div class="admin-header">
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <div class="header-logo">
+                    <div class="logo-circle">
+                        <span class="logo-text">LJM</span>
+                    </div>
+                </div>
+                <h1>Manage Add-On Sales</h1>
+            </div>
+            <div>
+                <a href="dashboard.html" style="color: white; text-decoration: none; margin-right: 15px;">Dashboard</a>
+                <a href="parts.html" style="color: white; text-decoration: none; margin-right: 15px;">Parts</a>
+                <a href="warranties.html" style="color: white; text-decoration: none; margin-right: 15px;">Warranties</a>
+                <a href="warranty-pricing.html" style="color: white; text-decoration: none; margin-right: 15px;">Pricing</a>
+                <a href="warranty-terms.html" style="color: white; text-decoration: none; margin-right: 15px;">T&Cs</a>
+                <button class="logout-button" id="logoutButton">Logout</button>
+            </div>
+        </div>
+
+        <div class="addon-container">
+            <!-- Add/Edit Form -->
+            <div class="addon-form">
+                <h2 id="formTitle">Add New Add-On Sale</h2>
+                <form id="addonForm">
+                    <input type="hidden" id="addonId" name="addonId">
+                    
+                    <div class="form-group">
+                        <label for="name">Name/Title *</label>
+                        <input 
+                            type="text" 
+                            id="name" 
+                            name="name" 
+                            required
+                            placeholder="e.g., Premium Carrying Case"
+                        >
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="description">Description</label>
+                        <textarea 
+                            id="description" 
+                            name="description" 
+                            rows="4"
+                            placeholder="Describe this add-on sale item..."
+                        ></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="price">Price (£) *</label>
+                        <input 
+                            type="number" 
+                            id="price" 
+                            name="price" 
+                            required
+                            step="0.01"
+                            min="0"
+                            placeholder="0.00"
+                        >
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="image">Image (optional)</label>
+                        <input 
+                            type="file" 
+                            id="image" 
+                            name="image"
+                            accept="image/*"
+                        >
+                        <small style="color: #666; font-size: 0.85rem;">Product image for display</small>
+                        <div id="imagePreview" class="image-preview"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="active" name="active" checked>
+                            <span>Active (show in customer portal)</span>
+                        </label>
+                    </div>
+                    
+                    <hr style="margin: 30px 0; border: none; border-top: 2px solid #e8ecf1;">
+                    
+                    <div class="product-associations">
+                        <h4>Associate with Products</h4>
+                        <p style="color: #666; font-size: 0.9rem; margin-bottom: 15px;">
+                            Select which products this add-on sale should be available for. You can associate by generation or by specific part model numbers.
+                        </p>
+                        
+                        <div class="association-options">
+                            <div class="association-option">
+                                <label>Associate by Generation</label>
+                                <select id="generationFilter" multiple style="width: 100%; min-height: 100px;">
+                                    <option value="">Loading generations...</option>
+                                </select>
+                            </div>
+                            <div class="association-option">
+                                <label>Associate by Part Model Number</label>
+                                <div class="association-list" id="partModelList">
+                                    <p style="text-align: center; color: #666; padding: 20px;">Loading parts...</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-top: 15px;">
+                            <strong>Selected Associations:</strong>
+                            <div id="selectedAssociations" style="margin-top: 10px; padding: 10px; background: white; border-radius: 4px; min-height: 50px; font-size: 0.9rem; color: #666;">
+                                None selected
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="errorMessage" class="error-message"></div>
+                    <div id="successMessage" class="success-message"></div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="button" id="submitButton">
+                            <span id="submitButtonText">Add Add-On Sale</span>
+                        </button>
+                        <button type="button" class="button button-cancel" id="cancelButton" style="display: none;">
+                            Cancel
+                        </button>
+                    </div>
+                    <div class="spinner" id="spinner"></div>
+                </form>
+            </div>
+
+            <!-- Add-On Sales List -->
+            <div class="addon-list">
+                <h2>All Add-On Sales</h2>
+                <div id="addonList">
+                    <p style="text-align: center; padding: 40px; color: #666;">Loading add-on sales...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="addon-sales.js?v=1.2.1"></script>
+</body>
+</html>
+
