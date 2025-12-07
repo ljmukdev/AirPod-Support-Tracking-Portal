@@ -277,6 +277,12 @@ function setupEventListeners() {
         trackEvent('warranty_confirmed');
         showStep(5);
     });
+    document.getElementById('skipWarrantyStep4')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        trackEvent('warranty_skipped', { step: 4 });
+        // Skip to accessories step (step 6) or setup instructions (step 7)
+        showStep(7);
+    });
     document.getElementById('continueBtn5')?.addEventListener('click', () => {
         trackEvent('warranty_selected', { plan: appState.selectedWarranty });
         showStep(6);
@@ -1065,7 +1071,7 @@ const FALLBACK_CASE_SVG = '/images/airpod-case-markings.svg';
 const FALLBACK_AIRPOD_SVG = '/images/airpod-stem-markings.svg';
 
 // Image version for cache-busting - bump this when SVG files are updated
-const IMAGE_VERSION = '1.2.0.036';
+const IMAGE_VERSION = '1.2.0.037';
 
 // Get fallback example image based on part type and model number
 // Returns path with cache-busting query parameter
