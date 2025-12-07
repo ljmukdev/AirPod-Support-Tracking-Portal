@@ -1,5 +1,8 @@
 // Warranty Terms & Conditions Management
-const API_BASE = window.API_BASE || '';
+// Use API_BASE from admin.js (already loaded) - don't redeclare
+if (typeof API_BASE === 'undefined') {
+    var API_BASE = window.API_BASE || '';
+}
 
 // Check authentication
 checkAuth();
