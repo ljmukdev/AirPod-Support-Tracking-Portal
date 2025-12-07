@@ -3296,6 +3296,66 @@ app.get('/api/compatible-parts/:partModelNumber', requireDB, async (req, res) =>
     }
 });
 
+// Get add-on sales for a product (public endpoint for warranty registration)
+app.get('/api/addon-sales', requireDB, async (req, res) => {
+    const generation = req.query.generation;
+    const partModelNumber = req.query.part_model_number;
+    
+    try {
+        console.log(`[Add-On Sales API] Request for generation: "${generation}", part_model_number: "${partModelNumber}"`);
+        
+        if (!generation && !partModelNumber) {
+            return res.json({ addonSales: [] });
+        }
+        
+        // Build query to find matching add-on sales
+        const query = {
+            active: true // Only return active add-on sales
+        };
+        
+        // Match by generation OR part model number
+        const orConditions = [];
+        
+        if (generation) {
+            orConditions.push({ associated_generations: generation });
+        }
+        
+        if (partModelNumber) {
+            orConditions.push({ associated_part_models: partModelNumber });
+        }
+        
+        if (orConditions.length > 0) {
+            query.$or = orConditions;
+        }
+        
+        console.log(`[Add-On Sales API] Query:`, JSON.stringify(query, null, 2));
+        
+        const addonSales = await db.collection('addon_sales')
+            .find(query)
+            .sort({ name: 1 })
+            .toArray();
+        
+        console.log(`[Add-On Sales API] Found ${addonSales.length} matching add-on sales`);
+        
+        // Format response
+        const formattedAddonSales = addonSales.map(addon => ({
+            id: addon._id.toString(),
+            name: addon.name,
+            description: addon.description,
+            price: addon.price,
+            image: addon.image || addon.image_url, // Support both field names
+            active: addon.active
+        }));
+        
+        res.json({ addonSales: formattedAddonSales });
+    } catch (err) {
+        console.error('[Add-On Sales API] Database error:', err);
+        res.status(500).json({ 
+            error: 'Database error: ' + err.message 
+        });
+    }
+});
+
 // Get authenticity images for a part (public endpoint for warranty registration)
 app.get('/api/authenticity-images/:partModelNumber', requireDB, async (req, res) => {
     const partModelNumber = req.params.partModelNumber;

@@ -833,293 +833,17 @@ function showError(message) {
     const errorMessage = document.getElementById('errorMessage');
     if (errorMessage) {
         errorMessage.textContent = message;
-        errorMessage.classList.add('show');
+        errorMessage.style.display = 'block';
         setTimeout(() => {
-            errorMessage.classList.remove('show');
+            errorMessage.style.display = 'none';
         }, 5000);
     }
 }
 
-// Show success animation
-function showSuccessAnimation() {
-    const successAnimation = document.getElementById('successAnimation');
-    if (successAnimation) {
-        successAnimation.classList.add('show');
-    }
-}
-
-// Load product info
-async function loadProductInfo(barcode, skipValidation = false) {
-    console.log('loadProductInfo called with barcode:', barcode, 'skipValidation:', skipValidation);
-    try {
-        const response = await fetch(`${API_BASE}/api/product-info/${encodeURIComponent(barcode)}`);
-        const data = await response.json();
-        
-        console.log('Product data received:', data);
-            
-            if (data.error) {
-            console.error('Product data has error:', data.error);
-            if (!skipValidation) {
-                showError('Product not found. Please check your security code.');
-            }
-            return Promise.reject(new Error('Product not found'));
-        }
-        
-        appState.productData = data;
-        saveState();
-        
-        // Only display product info for warranty confirmation step (step 4)
-        // When loading for step 1, displayProductInfoOnStep1 will be called separately
-        if (appState.currentStep === 4 || (!skipValidation && appState.currentStep > 3)) {
-            console.log('Calling displayProductInfo for warranty confirmation');
-            displayProductInfo(data);
-            
-            // Calculate warranty expiry
-            const expiryDate = new Date();
-            expiryDate.setDate(expiryDate.getDate() + 30);
-            const expiryEl = document.getElementById('warrantyExpiry');
-            if (expiryEl) {
-                expiryEl.textContent = expiryDate.toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                });
-            }
-            
-            // Show warranty confirmation after animation
-            if (!skipValidation) {
-                // Show success animation first
-                showSuccessAnimation();
-                setTimeout(() => {
-                    const confirmationEl = document.getElementById('warrantyConfirmation');
-                    if (confirmationEl) {
-                        confirmationEl.style.display = 'block';
-                    }
-                }, 2000);
-            } else {
-                // Skip animation for resumed sessions
-                console.log('Skipping animation, showing warranty confirmation immediately');
-                const confirmationEl = document.getElementById('warrantyConfirmation');
-                const animationEl = document.getElementById('successAnimation');
-                if (confirmationEl) {
-                    confirmationEl.style.display = 'block';
-                    console.log('Warranty confirmation element found and displayed');
-                } else {
-                    console.error('Warranty confirmation element NOT found!');
-                }
-                if (animationEl) {
-                    animationEl.classList.remove('show');
-                    animationEl.style.display = 'none';
-                }
-            }
-        } else {
-            console.log('Skipping displayProductInfo - not on warranty confirmation step');
-        }
-        
-        console.log('loadProductInfo completed successfully');
-        return Promise.resolve(data);
-        
-    } catch (error) {
-        console.error('Error loading product:', error);
-        if (!skipValidation) {
-            showError('Failed to load product information. Please try again.');
-        }
-        return Promise.reject(error);
-    }
-}
-
-// Load AirPod examples database
-async function loadAirpodExamples() {
-    if (appState.airpodExamples) {
-        console.log('Using cached AirPod examples');
-        return appState.airpodExamples;
-    }
-    
-    try {
-        const jsonPath = `${API_BASE}/data/airpod-examples.json`;
-        console.log('Loading AirPod examples from:', jsonPath);
-        const response = await fetch(jsonPath);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log('AirPod examples JSON loaded successfully:', data);
-        appState.airpodExamples = data.examples;
-        return appState.airpodExamples;
-    } catch (error) {
-        console.error('Failed to load AirPod examples:', error);
-        return null;
-    }
-}
-
-// Get example images for compatible parts from database
-async function getCompatiblePartExamples(partModelNumber, partType) {
-    console.log('[Compatible Parts] getCompatiblePartExamples called for:', partModelNumber, partType);
-    
-    if (!partModelNumber) {
-        console.warn('[Compatible Parts] No part model number provided');
-        return null;
-    }
-    
-    try {
-        // Fetch compatible parts from database API
-        // Pass part_type as query parameter to ensure correct compatible parts are returned
-        const apiUrl = `${API_BASE}/api/compatible-parts/${partModelNumber}${partType ? `?part_type=${encodeURIComponent(partType)}` : ''}`;
-        console.log('[Compatible Parts] Fetching from API:', apiUrl);
-        const response = await fetch(apiUrl);
-        
-        if (!response.ok) {
-            console.warn(`[Compatible Parts] API returned status ${response.status}, falling back to static JSON`);
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log('[Compatible Parts] API response:', data);
-        
-        if (!data.ok || !data.data || !data.data.compatibleParts) {
-            console.warn('[Compatible Parts] Invalid API response structure, falling back to static JSON');
-            throw new Error('Invalid API response structure');
-        }
-        
-        const compatibleParts = data.data.compatibleParts;
-        
-        if (compatibleParts.length === 0) {
-            console.warn('[Compatible Parts] No compatible parts found in database, falling back to static JSON');
-            throw new Error('No compatible parts found');
-        }
-        
-        console.log(`[Compatible Parts] Found ${compatibleParts.length} compatible parts from database`);
-        
-        // Return data in the format expected by displayCompatiblePartExamples
-        return {
-            partModelNumber: data.data.purchasedPart.partModelNumber,
-            partType: data.data.purchasedPart.partType,
-            generation: data.data.purchasedPart.generation,
-            purchasedPart: {
-                name: data.data.purchasedPart.name,
-                exampleImage: null // Not needed for compatible parts display
-            },
-            compatibleParts: compatibleParts.map(part => ({
-                partModelNumber: part.partModelNumber,
-                partType: part.partType,
-                name: part.name,
-                exampleImage: part.exampleImage || null, // This comes from database, can be null
-                description: part.description
-            }))
-        };
-    } catch (err) {
-        console.error('[Compatible Parts] Error fetching from database:', err);
-        // Fallback to static JSON if database fetch fails
-        console.log('[Compatible Parts] Falling back to static JSON');
-        try {
-            const examples = await loadAirpodExamples();
-            
-            if (!examples || !examples[partModelNumber]) {
-                console.error('[Compatible Parts] Static JSON also failed or part not found');
-                return null;
-            }
-            
-            console.log('[Compatible Parts] Using static JSON data');
-            return examples[partModelNumber];
-        } catch (fallbackErr) {
-            console.error('[Compatible Parts] Fallback to static JSON also failed:', fallbackErr);
-            return null;
-        }
-    }
-}
-
-// Get compatible part numbers based on purchased part
-function getCompatiblePartNumbers(partModelNumber, partType) {
-    // AirPods Pro 2nd Gen part numbers (USB-C)
-    const partNumbers = {
-        'A2698': { type: 'left', compatible: ['A2699', 'A2700'] },  // Left AirPod USB-C
-        'A2699': { type: 'right', compatible: ['A2698', 'A2700'] }, // Right AirPod USB-C
-        'A2700': { type: 'case', compatible: ['A2698', 'A2699'] },  // Charging Case USB-C
-        // AirPods Pro 2nd Gen Lightning variants
-        'A2968': { type: 'right', compatible: ['A2699', 'A2700'] },  // Right AirPod Lightning (compatible with USB-C left and case)
-        'A3047': { type: 'right', compatible: ['A3048', 'A2700'] }, // Right AirPod USB-C (alternative)
-        'A3048': { type: 'left', compatible: ['A3047', 'A2700'] }   // Left AirPod USB-C (alternative)
-    };
-    
-    // AirPods Pro 1st Gen part numbers
-    const partNumbersGen1 = {
-        'A2084': { type: 'left', compatible: ['A2083', 'A2190'] },  // Left AirPod
-        'A2083': { type: 'right', compatible: ['A2084', 'A2190'] }, // Right AirPod
-        'A2190': { type: 'case', compatible: ['A2084', 'A2083'] }   // Charging Case
-    };
-    
-    // AirPods 3rd Gen part numbers
-    const partNumbersGen3 = {
-        'A2564': { type: 'left', compatible: ['A2565', 'A2566'] },  // Left AirPod
-        'A2565': { type: 'right', compatible: ['A2564', 'A2566'] }, // Right AirPod
-        'A2566': { type: 'case', compatible: ['A2564', 'A2565'] }   // Charging Case
-    };
-    
-    // AirPods 2nd Gen part numbers
-    const partNumbersGen2 = {
-        'A2032': { type: 'left', compatible: ['A2031', 'A1602'] },  // Left AirPod
-        'A2031': { type: 'right', compatible: ['A2032', 'A1602'] }, // Right AirPod
-        'A1602': { type: 'case', compatible: ['A2032', 'A2031'] }   // Charging Case
-    };
-    
-    // Check all part number sets
-    const allPartNumbers = { ...partNumbers, ...partNumbersGen1, ...partNumbersGen3, ...partNumbersGen2 };
-    
-    if (partModelNumber && allPartNumbers[partModelNumber]) {
-        return allPartNumbers[partModelNumber].compatible;
-    }
-    
-    // Fallback: if we know the part type, return generic message
-    if (partType === 'left') {
-        return ['Right AirPod', 'Charging Case'];
-    } else if (partType === 'right') {
-        return ['Left AirPod', 'Charging Case'];
-    } else if (partType === 'case') {
-        return ['Left AirPod', 'Right AirPod'];
-    }
-    
-    return ['the other two parts'];
-}
-
-// Display product info on step 1 (with photos)
+// Display product info on step 1
 function displayProductInfoOnStep1(data) {
-    const partTypeMap = {
-        'left': 'Left AirPod',
-        'right': 'Right AirPod',
-        'case': 'Charging Case'
-    };
-    const partType = partTypeMap[data.part_type] || data.part_type || 'Unknown';
+    appState.productData = data;
     const partModelNumber = data.part_model_number || '';
-    
-    // Get compatible part numbers
-    const compatibleParts = getCompatiblePartNumbers(partModelNumber, data.part_type);
-    const compatiblePartsText = compatibleParts.join(' & ');
-    
-    const detailsHtml = `
-        <div class="product-detail-item">
-            <span class="detail-label">Item:</span>
-            <span class="detail-value">${partType}</span>
-        </div>
-        <div class="product-detail-item">
-            <span class="detail-label">Product Name:</span>
-            <span class="detail-value">${data.generation || 'N/A'}</span>
-        </div>
-        <div class="product-detail-item">
-            <span class="detail-label">Product Code:</span>
-            <span class="detail-value">${partModelNumber || 'N/A'}</span>
-        </div>
-        <div class="product-detail-item">
-            <span class="detail-label">Serial Number:</span>
-            <span class="detail-value">${data.serial_number || 'N/A'}</span>
-        </div>
-    `;
-    
-    const step1Container = document.getElementById('productDetailsStep1');
-    if (step1Container) {
-        step1Container.innerHTML = detailsHtml;
-    }
     
     // Update purchased part number (will be updated with API data if available)
     const purchasedPartEl = document.getElementById('purchasedPartNumber');
@@ -1197,6 +921,145 @@ function displayProductInfoOnStep1(data) {
     
     // Initialize step-by-step verification
     initializeVerificationSteps();
+    
+    // Load add-on sales for this product when product info is available
+    if (data.generation && data.part_model_number) {
+        loadAddonSalesForProduct(data.generation, data.part_model_number).catch(err => {
+            console.error('Error loading add-on sales:', err);
+        });
+    }
+}
+
+// Load and display add-on sales for a product
+async function loadAddonSalesForProduct(generation, partModelNumber) {
+    console.log('[Add-On Sales] Loading add-on sales for generation:', generation, 'part_model_number:', partModelNumber);
+    
+    try {
+        const params = new URLSearchParams();
+        if (generation) params.append('generation', generation);
+        if (partModelNumber) params.append('part_model_number', partModelNumber);
+        
+        const response = await fetch(`${API_BASE}/api/addon-sales?${params.toString()}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('[Add-On Sales] API response:', data);
+        
+        if (data.addonSales && data.addonSales.length > 0) {
+            displayAddonSales(data.addonSales);
+        } else {
+            // Hide add-on sales section if no add-ons available
+            const addonSection = document.getElementById('addonSalesSection');
+            if (addonSection) {
+                addonSection.style.display = 'none';
+            }
+        }
+    } catch (err) {
+        console.error('[Add-On Sales] Error loading add-on sales:', err);
+        // Hide section on error
+        const addonSection = document.getElementById('addonSalesSection');
+        if (addonSection) {
+            addonSection.style.display = 'none';
+        }
+    }
+}
+
+// Display add-on sales in step 6
+function displayAddonSales(addonSales) {
+    console.log('[Add-On Sales] Displaying', addonSales.length, 'add-on sales');
+    
+    const grid = document.getElementById('addonSalesGrid');
+    const pricingContainer = document.getElementById('addonSalesPricing');
+    
+    if (!grid) {
+        console.error('[Add-On Sales] Grid container not found');
+        return;
+    }
+    
+    // Clear existing content
+    grid.innerHTML = '';
+    
+    // Display each add-on sale
+    addonSales.forEach((addon, index) => {
+        const addonItem = document.createElement('div');
+        addonItem.className = 'accessory-item';
+        addonItem.dataset.item = addon.id;
+        addonItem.dataset.addonId = addon.id;
+        
+        let imageHtml = '';
+        if (addon.image) {
+            const imagePath = addon.image.startsWith('/') ? addon.image : '/' + addon.image;
+            imageHtml = `<img src="${imagePath}" alt="${addon.name}" style="width: 100%; max-width: 150px; height: auto; border-radius: 8px; margin-bottom: 8px;">`;
+        }
+        
+        addonItem.innerHTML = `
+            ${imageHtml}
+            <h4>${escapeHtml(addon.name)}</h4>
+            <div class="warranty-price" style="font-size: 1.25rem;">£${parseFloat(addon.price || 0).toFixed(2)}</div>
+            ${addon.description ? `<p style="font-size: 0.85rem; color: #6c757d; margin-top: 4px;">${escapeHtml(addon.description)}</p>` : ''}
+        `;
+        
+        // Add click handler
+        addonItem.addEventListener('click', function() {
+            this.classList.toggle('selected');
+            const addonId = this.dataset.addonId;
+            if (this.classList.contains('selected')) {
+                if (!appState.selectedAccessories.includes(addonId)) {
+                    appState.selectedAccessories.push(addonId);
+                }
+            } else {
+                appState.selectedAccessories = appState.selectedAccessories.filter(id => id !== addonId);
+            }
+            updateAddonSalesPricing(addonSales);
+            saveState();
+        });
+        
+        grid.appendChild(addonItem);
+    });
+    
+    // Calculate and display bundle pricing
+    updateAddonSalesPricing(addonSales);
+    
+    // Show the section
+    const addonSection = document.getElementById('addonSalesSection');
+    if (addonSection) {
+        addonSection.style.display = 'block';
+    }
+}
+
+// Update add-on sales pricing display
+function updateAddonSalesPricing(addonSales) {
+    const pricingContainer = document.getElementById('addonSalesPricing');
+    if (!pricingContainer) return;
+    
+    const selectedAddons = addonSales.filter(addon => appState.selectedAccessories.includes(addon.id));
+    
+    if (selectedAddons.length === 0) {
+        pricingContainer.innerHTML = '';
+        return;
+    }
+    
+    const individualTotal = selectedAddons.reduce((sum, addon) => sum + parseFloat(addon.price || 0), 0);
+    const bundlePrice = individualTotal * 0.8; // 20% discount for bundle
+    const savings = individualTotal - bundlePrice;
+    
+    pricingContainer.innerHTML = `
+        <div class="price-comparison">
+            <span class="original-price">£${individualTotal.toFixed(2)}</span>
+            <span class="bundle-price">£${bundlePrice.toFixed(2)}</span>
+        </div>
+        <p style="color: #6c757d; margin-top: 8px;">Save £${savings.toFixed(2)} when you buy the bundle</p>
+    `;
+}
+
+// Helper function to escape HTML
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 // Display compatible part examples
@@ -2794,6 +2657,17 @@ function showStep(stepNumber, force = false) {
             setTimeout(() => startCountdownTimer(), 100);
             // Load and display warranty options dynamically
             loadAndDisplayWarrantyOptions();
+        }
+        
+        // Load add-on sales when showing step 6
+        if (stepNumber === 6 && appState.productData) {
+            const generation = appState.productData.generation;
+            const partModelNumber = appState.productData.part_model_number;
+            if (generation && partModelNumber) {
+                loadAddonSalesForProduct(generation, partModelNumber).catch(err => {
+                    console.error('Error loading add-on sales:', err);
+                });
+            }
         }
         
         // Load T&Cs when showing step 3

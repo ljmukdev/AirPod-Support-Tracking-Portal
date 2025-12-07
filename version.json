@@ -1,8 +1,19 @@
 {
-  "version": "1.2.2",
+  "version": "1.2.3",
   "build": "2024-12-19",
-  "revision": "001",
+  "revision": "002",
   "changelog": [
+    {
+      "version": "1.2.3",
+      "date": "2024-12-19",
+      "changes": [
+        "Fixed add-on sales product association - add-on sales now correctly match products by generation and part model number",
+        "Added dynamic add-on sales display in warranty registration flow (step 6)",
+        "Added API endpoint to fetch add-on sales for specific products",
+        "Fixed syntax error in warranty-registration.js",
+        "Updated add-on sales to display dynamically based on product associations"
+      ]
+    },
     {
       "version": "1.2.2",
       "date": "2024-12-19",

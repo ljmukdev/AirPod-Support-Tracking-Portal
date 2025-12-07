@@ -1,6 +1,6 @@
 {
   "name": "ljm-airpod-support",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "LJM AirPod Support & Tracking Portal",
   "main": "server.js",
   "scripts": {
