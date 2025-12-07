@@ -13,8 +13,8 @@
                 var el = document.createElement('div');
                 el.id = 'version-display';
                 el.style.cssText = 'position:fixed;top:10px;right:10px;font-size:0.7rem;color:rgba(0,0,0,0.7);font-family:"Courier New",monospace;z-index:99999;padding:4px 8px;background:rgba(255,255,255,0.9);border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.2);pointer-events:none;';
-                el.textContent = 'v1.2.0.037';
-                el.title = 'Version 1.2.0 (Revision 037)';
+                el.textContent = 'v1.2.0.038';
+                el.title = 'Version 1.2.0 (Revision 038)';
                 if (document.body) {
                     document.body.appendChild(el);
                 } else {
@@ -1421,7 +1421,7 @@
                                 </div>
                             </div>
                             <p style="margin: 24px 0 0 0; font-size: 1rem; opacity: 0.95; line-height: 1.6;">
-                                Extended protection plans start at just <strong style="font-size: 1.2rem;">$19.99</strong> for 6 months of comprehensive coverage
+                                Extended protection plans start at just <strong style="font-size: 1.2rem;" id="lowestWarrantyPrice">£19.99</strong> for <span id="lowestWarrantyMonths">6 months</span> of comprehensive coverage
                             </p>
                         </div>
                         
@@ -1588,7 +1588,7 @@
         </div>
     </div>
 
-    <script src="js/warranty-registration.js?v=1.2.0.037"></script>
+    <script src="js/warranty-registration.js?v=1.2.0.038"></script>
     <script src="js/version.js"></script>
 </body>
 </html>

@@ -511,6 +511,8 @@ function handleContactDetailsSubmit() {
             // Show success animation and warranty confirmation
             showStep(4);
             showSuccessAnimation();
+            // Load warranty pricing and update price display
+            loadAndDisplayLowestWarrantyPrice();
             setTimeout(() => {
                 const confirmationEl = document.getElementById('warrantyConfirmation');
                 if (confirmationEl) {
@@ -521,6 +523,73 @@ function handleContactDetailsSubmit() {
         console.error('Failed to register warranty:', error);
         alert('Failed to register warranty. Please try again.');
     });
+}
+
+// Load warranty pricing and display lowest price in step 4
+async function loadAndDisplayLowestWarrantyPrice() {
+    try {
+        const response = await fetch(`${API_BASE}/api/warranty/pricing`);
+        if (response.ok) {
+            const pricing = await response.json();
+            
+            // Find the lowest price and corresponding plan from enabled options
+            let lowestPrice = null;
+            let lowestPlan = null;
+            
+            for (const [plan, price] of Object.entries(pricing)) {
+                if (typeof price === 'number' && price > 0) {
+                    if (lowestPrice === null || price < lowestPrice) {
+                        lowestPrice = price;
+                        lowestPlan = plan;
+                    }
+                }
+            }
+            
+            // Fallback to default if no pricing found
+            if (lowestPrice === null) {
+                lowestPrice = 19.99;
+                lowestPlan = '6months';
+            }
+            
+            // Determine months text
+            let months = '6 months';
+            if (lowestPlan === '3months') months = '3 months';
+            else if (lowestPlan === '6months') months = '6 months';
+            else if (lowestPlan === '12months') months = '12 months';
+            
+            // Update the price display elements
+            const priceElement = document.getElementById('lowestWarrantyPrice');
+            const monthsElement = document.getElementById('lowestWarrantyMonths');
+            
+            if (priceElement) {
+                priceElement.textContent = `£${lowestPrice.toFixed(2)}`;
+            }
+            if (monthsElement) {
+                monthsElement.textContent = months;
+            }
+            
+            console.log('[Warranty Pricing] Loaded lowest price:', lowestPrice, 'for', months);
+        } else {
+            console.warn('[Warranty Pricing] Failed to load pricing, using default');
+            updatePriceDisplay(19.99, '6 months');
+        }
+    } catch (error) {
+        console.error('[Warranty Pricing] Error loading pricing:', error);
+        updatePriceDisplay(19.99, '6 months');
+    }
+}
+
+// Helper function to update price display
+function updatePriceDisplay(price, months) {
+    const priceElement = document.getElementById('lowestWarrantyPrice');
+    const monthsElement = document.getElementById('lowestWarrantyMonths');
+    
+    if (priceElement) {
+        priceElement.textContent = `£${price.toFixed(2)}`;
+    }
+    if (monthsElement) {
+        monthsElement.textContent = months;
+    }
 }
 
 // Register warranty with contact details
@@ -1071,7 +1140,7 @@ const FALLBACK_CASE_SVG = '/images/airpod-case-markings.svg';
 const FALLBACK_AIRPOD_SVG = '/images/airpod-stem-markings.svg';
 
 // Image version for cache-busting - bump this when SVG files are updated
-const IMAGE_VERSION = '1.2.0.037';
+const IMAGE_VERSION = '1.2.0.038';
 
 // Get fallback example image based on part type and model number
 // Returns path with cache-busting query parameter
