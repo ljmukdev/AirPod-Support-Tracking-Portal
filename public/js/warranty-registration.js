@@ -1692,27 +1692,51 @@ function initializeVerificationSteps() {
                         
                         // Auto-advance to next step immediately (with minimal delay for smooth transition)
                         setTimeout(() => {
-                            // Check if there are more verification steps
-                            if (verificationState.currentStep < verificationState.totalSteps) {
-                                verificationState.currentStep++;
-                                console.log(`[Verification] Advancing to step ${verificationState.currentStep}`);
-                                showVerificationStep(verificationState.currentStep);
-                                if (currentStepEl) currentStepEl.textContent = verificationState.currentStep;
-                            }
+                            // Check if all verification steps are complete FIRST
+                            const allStepsComplete = verificationState.completedSteps.size === verificationState.totalSteps;
                             
-                            // When all verification steps are complete, automatically proceed to Contact Information
-                            if (verificationState.completedSteps.size === verificationState.totalSteps) {
-                                console.log('[Verification] All steps complete, automatically proceeding to Contact Information');
+                            if (allStepsComplete) {
+                                console.log('[Verification] ✅ All steps complete!', {
+                                    completedSteps: verificationState.completedSteps.size,
+                                    totalSteps: verificationState.totalSteps,
+                                    currentStep: verificationState.currentStep
+                                });
+                                
+                                // Hide the continue button immediately
                                 const continueBtn = document.getElementById('continueBtn1');
                                 if (continueBtn) {
-                                    // Hide the button since we're auto-progressing
                                     continueBtn.style.display = 'none';
+                                    continueBtn.disabled = true;
+                                    console.log('[Verification] Continue button hidden');
+                                }
+                                
+                                // Hide verification steps container
+                                const verificationStepsContainer = document.getElementById('verificationSteps');
+                                if (verificationStepsContainer) {
+                                    verificationStepsContainer.style.display = 'none';
+                                }
+                                
+                                // Hide product record display section to clean up
+                                const productDisplay = document.getElementById('productRecordDisplay');
+                                if (productDisplay) {
+                                    // Don't hide it completely, just hide verification part
+                                    const verificationSection = productDisplay.querySelector('#verificationSteps');
+                                    if (verificationSection) {
+                                        verificationSection.style.display = 'none';
+                                    }
                                 }
                                 
                                 // Automatically proceed to Contact Information step after a brief delay
                                 setTimeout(() => {
+                                    console.log('[Verification] 🚀 Navigating to Contact Information (step 3)');
                                     showStep(3, true); // Force navigation to step 3
-                                }, 500); // Brief delay to show completion before moving to contact info
+                                }, 300); // Reduced delay for faster progression
+                            } else if (verificationState.currentStep < verificationState.totalSteps) {
+                                // There are more verification steps, advance to next one
+                                verificationState.currentStep++;
+                                console.log(`[Verification] Advancing to step ${verificationState.currentStep}`);
+                                showVerificationStep(verificationState.currentStep);
+                                if (currentStepEl) currentStepEl.textContent = verificationState.currentStep;
                             }
                         }, 200); // Minimal delay for smooth UI transition
                     }
