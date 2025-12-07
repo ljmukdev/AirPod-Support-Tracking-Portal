@@ -730,15 +730,6 @@ async function loadAndDisplayWarrantyOptions() {
             saveState();
         }
         
-        // Update "No Protection" price to £ (if it exists)
-        const noProtectionCard = document.querySelector('.warranty-card[data-plan="none"]');
-        if (noProtectionCard) {
-            const noProtectionPrice = noProtectionCard.querySelector('.warranty-price');
-            if (noProtectionPrice && noProtectionPrice.textContent.includes('$')) {
-                noProtectionPrice.textContent = noProtectionPrice.textContent.replace('$', '£');
-            }
-        }
-        
         console.log('[Warranty Options] Updated warranty cards with dynamic pricing');
     } catch (error) {
         console.error('[Warranty Options] Error loading warranty options:', error);
