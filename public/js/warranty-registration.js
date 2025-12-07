@@ -592,6 +592,159 @@ function updatePriceDisplay(price, months) {
     }
 }
 
+// Load and display warranty options dynamically in step 5
+async function loadAndDisplayWarrantyOptions() {
+    try {
+        const response = await fetch(`${API_BASE}/api/warranty/pricing`);
+        if (!response.ok) {
+            console.warn('[Warranty Options] Failed to load pricing, using defaults');
+            return;
+        }
+        
+        const pricing = await response.json();
+        console.log('[Warranty Options] Loaded pricing:', pricing);
+        
+        // Map of plan keys to HTML elements and display names
+        const planMapping = {
+            '3months': {
+                cardId: 'warranty3Month',
+                planId: '3month',
+                title: '3-Month Protection',
+                badge: null,
+                badgeStyle: null
+            },
+            '6months': {
+                cardId: 'warranty6Month',
+                planId: '6month',
+                title: '6-Month Protection',
+                badge: 'Most Popular',
+                badgeStyle: null
+            },
+            '12months': {
+                cardId: 'warranty12Month',
+                planId: '12month',
+                title: '12-Month Protection',
+                badge: 'Best Value',
+                badgeStyle: 'background: #ffc107; color: #856404;'
+            }
+        };
+        
+        // Hide all warranty cards first
+        Object.values(planMapping).forEach(plan => {
+            const card = document.getElementById(plan.cardId);
+            if (card) {
+                card.style.display = 'none';
+            }
+        });
+        
+        // Show and update enabled warranty options
+        let firstEnabledCard = null;
+        let lowestPrice = Infinity;
+        let lowestPricePlan = null;
+        
+        for (const [planKey, price] of Object.entries(pricing)) {
+            if (typeof price === 'number' && price > 0 && planMapping[planKey]) {
+                const plan = planMapping[planKey];
+                const card = document.getElementById(plan.cardId);
+                
+                if (card) {
+                    // Show the card
+                    card.style.display = 'block';
+                    card.setAttribute('data-plan', plan.planId);
+                    card.classList.remove('grayed-out');
+                    
+                    // Update price
+                    const priceElement = card.querySelector('.warranty-price');
+                    if (priceElement) {
+                        priceElement.textContent = `£${price.toFixed(2)}`;
+                        priceElement.style.color = ''; // Remove any red color
+                    }
+                    
+                    // Calculate and update monthly price
+                    const detailsElement = card.querySelector('.warranty-details');
+                    if (detailsElement) {
+                        const months = parseInt(planKey.replace('months', ''));
+                        const monthlyPrice = (price / months).toFixed(2);
+                        
+                        // For 12-month, show savings if applicable
+                        if (planKey === '12months' && pricing['6months']) {
+                            const savings = ((pricing['6months'] * 2 - price) / (pricing['6months'] * 2) * 100).toFixed(0);
+                            detailsElement.textContent = `Save ${savings}% • £${monthlyPrice}/month`;
+                        } else {
+                            detailsElement.textContent = `£${monthlyPrice}/month`;
+                        }
+                    }
+                    
+                    // Update title
+                    const titleElement = card.querySelector('h3');
+                    if (titleElement) {
+                        titleElement.textContent = plan.title;
+                    }
+                    
+                    // Update badge if exists
+                    let badgeElement = card.querySelector('.warranty-badge');
+                    if (plan.badge) {
+                        if (!badgeElement) {
+                            badgeElement = document.createElement('div');
+                            badgeElement.className = 'warranty-badge';
+                            card.insertBefore(badgeElement, card.firstChild);
+                        }
+                        badgeElement.textContent = plan.badge;
+                        if (plan.badgeStyle) {
+                            badgeElement.setAttribute('style', plan.badgeStyle);
+                        } else {
+                            badgeElement.removeAttribute('style');
+                        }
+                    } else if (badgeElement) {
+                        badgeElement.remove();
+                    }
+                    
+                    // Track first enabled card and lowest price
+                    if (!firstEnabledCard) {
+                        firstEnabledCard = card;
+                    }
+                    if (price < lowestPrice) {
+                        lowestPrice = price;
+                        lowestPricePlan = card;
+                    }
+                }
+            }
+        }
+        
+        // If no cards are enabled, show default 6-month option
+        if (!firstEnabledCard) {
+            const defaultCard = document.getElementById('warranty6Month');
+            if (defaultCard) {
+                defaultCard.style.display = 'block';
+                firstEnabledCard = defaultCard;
+            }
+        }
+        
+        // Select the first enabled card (or lowest price if preferred)
+        if (firstEnabledCard) {
+            // Remove selected class from all cards
+            document.querySelectorAll('.warranty-card').forEach(c => c.classList.remove('selected'));
+            // Select the first enabled card
+            firstEnabledCard.classList.add('selected');
+            appState.selectedWarranty = firstEnabledCard.getAttribute('data-plan') || '6month';
+            saveState();
+        }
+        
+        // Update "No Protection" price to £ (if it exists)
+        const noProtectionCard = document.querySelector('.warranty-card[data-plan="none"]');
+        if (noProtectionCard) {
+            const noProtectionPrice = noProtectionCard.querySelector('.warranty-price');
+            if (noProtectionPrice && noProtectionPrice.textContent.includes('$')) {
+                noProtectionPrice.textContent = noProtectionPrice.textContent.replace('$', '£');
+            }
+        }
+        
+        console.log('[Warranty Options] Updated warranty cards with dynamic pricing');
+    } catch (error) {
+        console.error('[Warranty Options] Error loading warranty options:', error);
+    }
+}
+
 // Register warranty with contact details
 async function registerWarranty() {
     try {
@@ -1140,7 +1293,7 @@ const FALLBACK_CASE_SVG = '/images/airpod-case-markings.svg';
 const FALLBACK_AIRPOD_SVG = '/images/airpod-stem-markings.svg';
 
 // Image version for cache-busting - bump this when SVG files are updated
-const IMAGE_VERSION = '1.2.0.038';
+const IMAGE_VERSION = '1.2.0.039';
 
 // Get fallback example image based on part type and model number
 // Returns path with cache-busting query parameter
@@ -2590,9 +2743,11 @@ function showStep(stepNumber, force = false) {
             disableFocusOverlay();
         }
         
-        // Start countdown timer on warranty step
+        // Start countdown timer on warranty step and load warranty options
         if (stepNumber === 5) {
             setTimeout(() => startCountdownTimer(), 100);
+            // Load and display warranty options dynamically
+            loadAndDisplayWarrantyOptions();
         }
         
         // Auto-dismiss keyboard on mobile

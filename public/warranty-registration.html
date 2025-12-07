@@ -13,8 +13,8 @@
                 var el = document.createElement('div');
                 el.id = 'version-display';
                 el.style.cssText = 'position:fixed;top:10px;right:10px;font-size:0.7rem;color:rgba(0,0,0,0.7);font-family:"Courier New",monospace;z-index:99999;padding:4px 8px;background:rgba(255,255,255,0.9);border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.2);pointer-events:none;';
-                el.textContent = 'v1.2.0.038';
-                el.title = 'Version 1.2.0 (Revision 038)';
+                el.textContent = 'v1.2.0.039';
+                el.title = 'Version 1.2.0 (Revision 039)';
                 if (document.body) {
                     document.body.appendChild(el);
                 } else {
@@ -1447,20 +1447,25 @@
                     <div class="warranty-options">
                         <div class="warranty-card grayed-out" data-plan="none">
                             <h3>No Protection</h3>
-                            <div class="warranty-price" style="color: #dc3545;">$89</div>
+                            <div class="warranty-price" style="color: #dc3545;">£89</div>
                             <div class="warranty-details">Replacement cost risk</div>
+                        </div>
+                        <div class="warranty-card" data-plan="3month" id="warranty3Month" style="display: none;">
+                            <h3>3-Month Protection</h3>
+                            <div class="warranty-price">£0.00</div>
+                            <div class="warranty-details">£0.00/month</div>
                         </div>
                         <div class="warranty-card selected" data-plan="6month" id="warranty6Month">
                             <div class="warranty-badge">Most Popular</div>
                             <h3>6-Month Protection</h3>
-                            <div class="warranty-price">$19.99</div>
-                            <div class="warranty-details">$3.33/month</div>
+                            <div class="warranty-price">£0.00</div>
+                            <div class="warranty-details">£0.00/month</div>
                         </div>
                         <div class="warranty-card" data-plan="12month" id="warranty12Month">
                             <div class="warranty-badge" style="background: #ffc107; color: #856404;">Best Value</div>
                             <h3>12-Month Protection</h3>
-                            <div class="warranty-price">$29.99</div>
-                            <div class="warranty-details">Save 25% • $2.50/month</div>
+                            <div class="warranty-price">£0.00</div>
+                            <div class="warranty-details">£0.00/month</div>
                         </div>
                     </div>
                     
@@ -1588,7 +1593,7 @@
         </div>
     </div>
 
-    <script src="js/warranty-registration.js?v=1.2.0.038"></script>
+    <script src="js/warranty-registration.js?v=1.2.0.039"></script>
     <script src="js/version.js"></script>
 </body>
 </html>
