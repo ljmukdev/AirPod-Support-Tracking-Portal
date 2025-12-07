@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Warranty Terms & Conditions | LJM AirPod Support</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <style>
+        .terms-form {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .terms-card {
+            background: var(--background-white);
+            padding: 25px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+        }
+        .terms-card h3 {
+            margin-top: 0;
+            color: var(--primary-navy);
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--secondary-gray);
+        }
+        .version-list {
+            margin: 20px 0;
+        }
+        .version-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: var(--border-radius);
+            margin-bottom: 10px;
+            border-left: 4px solid var(--accent-teal);
+        }
+        .version-item.current {
+            border-left-color: #28a745;
+            background: #f0f9ff;
+        }
+        .version-info {
+            flex: 1;
+        }
+        .version-number {
+            font-weight: 600;
+            color: var(--primary-navy);
+            font-size: 1.1rem;
+        }
+        .version-date {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 5px;
+        }
+        .version-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .terms-editor {
+            margin: 20px 0;
+        }
+        .terms-editor textarea {
+            width: 100%;
+            min-height: 400px;
+            padding: 15px;
+            border: 2px solid #e8ecf1;
+            border-radius: var(--border-radius);
+            font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'San Francisco', 'Segoe UI', sans-serif;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            resize: vertical;
+        }
+        .terms-editor textarea:focus {
+            outline: none;
+            border-color: var(--accent-teal);
+        }
+        .preview-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: var(--border-radius);
+            border: 2px solid #e8ecf1;
+        }
+        .preview-section h4 {
+            margin-top: 0;
+            color: var(--primary-navy);
+        }
+        .preview-content {
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 15px;
+            background: white;
+            border-radius: 6px;
+            white-space: pre-wrap;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+        .current-version-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            background: #28a745;
+            color: white;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        .stats-box {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #284064 0%, #1e2f4a 100%);
+            color: white;
+            padding: 20px;
+            border-radius: var(--border-radius);
+            text-align: center;
+        }
+        .stat-card .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .stat-card .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+    </style>
+    <script src="../js/admin.js"></script>
+</head>
+<body class="admin-panel">
+    <div class="admin-container">
+        <div class="admin-header">
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <div class="header-logo">
+                    <div class="logo-circle">
+                        <span class="logo-text">LJM</span>
+                    </div>
+                </div>
+                <h1>Warranty Terms & Conditions</h1>
+            </div>
+            <div>
+                <a href="dashboard.html" style="color: white; text-decoration: none; margin-right: 15px;">Dashboard</a>
+                <a href="parts.html" style="color: white; text-decoration: none; margin-right: 15px;">Parts</a>
+                <a href="warranties.html" style="color: white; text-decoration: none; margin-right: 15px;">Warranties</a>
+                <a href="warranty-pricing.html" style="color: white; text-decoration: none; margin-right: 15px;">Pricing</a>
+                <button class="logout-button" id="logoutButton">Logout</button>
+            </div>
+        </div>
+
+        <div class="admin-form terms-form">
+            <div class="stats-box">
+                <div class="stat-card">
+                    <div class="stat-label">Current Version</div>
+                    <div class="stat-value" id="currentVersion">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total Versions</div>
+                    <div class="stat-value" id="totalVersions">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Active Warranties</div>
+                    <div class="stat-value" id="activeWarranties">-</div>
+                </div>
+            </div>
+
+            <div class="terms-card">
+                <h3>Create New Version</h3>
+                <p style="color: #666; margin-bottom: 20px;">
+                    When you update the terms, a new version will be created. Users registering warranties will be bound to the version active at the time of registration.
+                </p>
+                
+                <div class="terms-editor">
+                    <label for="termsContent" style="display: block; margin-bottom: 10px; font-weight: 600; color: var(--primary-navy);">
+                        Terms & Conditions Content:
+                    </label>
+                    <textarea id="termsContent" placeholder="Enter warranty terms and conditions here..."></textarea>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button class="button button-primary" id="saveNewVersion">Create New Version</button>
+                    <button class="button button-secondary" id="previewTerms">Preview</button>
+                </div>
+
+                <div id="previewSection" class="preview-section" style="display: none;">
+                    <h4>Preview:</h4>
+                    <div class="preview-content" id="previewContent"></div>
+                </div>
+            </div>
+
+            <div class="terms-card">
+                <h3>Version History</h3>
+                <div class="version-list" id="versionList">
+                    <p style="text-align: center; color: #666; padding: 40px;">Loading versions...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="warranty-terms.js"></script>
+</body>
+</html>
+

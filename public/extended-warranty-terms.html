@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="LJM AirPod Support - Extended Warranty Terms & Conditions">
+    <title>Extended Warranty Terms | LJM AirPod Support</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'San Francisco', 'Segoe UI', sans-serif;
+            background: #f5f7fa;
+            line-height: 1.6;
+            color: #1a1a1a;
+        }
+        .warranty-terms-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+        .key-points {
+            background: linear-gradient(135deg, #284064 0%, #1e2f4a 100%);
+            color: white;
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 32px;
+            box-shadow: 0 4px 16px rgba(40, 64, 100, 0.2);
+        }
+        .key-points h2 {
+            color: white;
+            margin-top: 0;
+            margin-bottom: 16px;
+            font-size: 1.5rem;
+        }
+        .key-points ul {
+            margin: 0;
+            padding-left: 24px;
+        }
+        .key-points li {
+            margin: 12px 0;
+            font-size: 1rem;
+        }
+        .terms-section {
+            background: white;
+            padding: 28px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+        .terms-section h3 {
+            color: #284064;
+            margin-top: 0;
+            margin-bottom: 16px;
+            font-size: 1.25rem;
+            font-weight: 600;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e8ecf1;
+        }
+        .terms-section h4 {
+            color: #284064;
+            margin-top: 20px;
+            margin-bottom: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        .terms-section p {
+            margin: 12px 0;
+            color: #4a5568;
+        }
+        .terms-section ul, .terms-section ol {
+            margin: 16px 0;
+            padding-left: 28px;
+        }
+        .terms-section li {
+            margin: 8px 0;
+            color: #4a5568;
+        }
+        .covered-box {
+            background: #f0f9ff;
+            border-left: 4px solid #28a745;
+            padding: 16px;
+            margin: 20px 0;
+            border-radius: 6px;
+        }
+        .covered-box h4 {
+            color: #28a745;
+            margin-top: 0;
+            margin-bottom: 12px;
+        }
+        .not-covered-box {
+            background: #fff5f5;
+            border-left: 4px solid #dc3545;
+            padding: 16px;
+            margin: 20px 0;
+            border-radius: 6px;
+        }
+        .not-covered-box h4 {
+            color: #dc3545;
+            margin-top: 0;
+            margin-bottom: 12px;
+        }
+        .important-note {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 16px;
+            margin: 20px 0;
+            border-radius: 6px;
+        }
+        .important-note strong {
+            color: #856404;
+        }
+        .collapsible {
+            cursor: pointer;
+            user-select: none;
+        }
+        .collapsible::before {
+            content: '▼ ';
+            display: inline-block;
+            transition: transform 0.3s;
+            margin-right: 8px;
+        }
+        .collapsible.collapsed::before {
+            transform: rotate(-90deg);
+        }
+        .collapsible-content {
+            max-height: 2000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        .collapsible-content.collapsed {
+            max-height: 0;
+        }
+        @media (max-width: 640px) {
+            .warranty-terms-container {
+                padding: 16px;
+            }
+            .terms-section {
+                padding: 20px;
+            }
+            .key-points {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <a href="index.html" class="home-link">Home</a>
+        <div class="header-logo">
+            <div class="logo-circle">
+                <span class="logo-text">LJM</span>
+            </div>
+        </div>
+        <h1>LJM</h1>
+    </header>
+
+    <main class="warranty-terms-container">
+        <div class="key-points">
+            <h2>🛡️ Extended Warranty - Key Points</h2>
+            <ul>
+                <li><strong>Covers:</strong> Manufacturing defects and hardware failures (battery, charging, audio, pairing issues)</li>
+                <li><strong>Not Covered:</strong> Physical damage, water damage, loss, theft, cosmetic wear, normal battery degradation</li>
+                <li><strong>Claims Process:</strong> Report within warranty period, provide photos/video, return original item (you pay postage)</li>
+                <li><strong>Replacement:</strong> Equivalent refurbished part within 5-7 working days after inspection</li>
+            </ul>
+        </div>
+
+        <div class="terms-section">
+            <h1 style="color: #284064; margin-top: 0;">Extended Warranty Terms & Conditions</h1>
+            <p><strong>Last Updated:</strong> <span id="lastUpdated">December 2024</span></p>
+            <p>These terms apply to extended warranty coverage purchased for AirPod parts (earbuds, cases, charging cases) sold through our eBay store. <strong>Please review these terms carefully.</strong> Warranty terms may be updated periodically - please check our eBay store for the most current version.</p>
+        </div>
+
+        <div class="terms-section">
+            <h3 class="collapsible" onclick="toggleSection(this)">1. What Is Covered</h3>
+            <div class="collapsible-content">
+                <div class="covered-box">
+                    <h4>✓ Covered Under Warranty</h4>
+                    <ul>
+                        <li><strong>Manufacturing defects</strong> that affect functionality</li>
+                        <li><strong>Complete battery failure</strong> (not reduced battery life)</li>
+                        <li><strong>Charging failures</strong> due to hardware fault</li>
+                        <li><strong>Audio cutting out</strong> or complete audio failure</li>
+                        <li><strong>Pairing failures</strong> caused by hardware fault (not software or device compatibility)</li>
+                        <li><strong>Hardware malfunctions</strong> that prevent normal operation</li>
+                    </ul>
+                </div>
+                <p>Coverage applies only to defects that existed at the time of purchase or develop during normal use within the warranty period.</p>
+            </div>
+        </div>
+
+        <div class="terms-section">
+            <h3 class="collapsible" onclick="toggleSection(this)">2. What Is NOT Covered</h3>
+            <div class="collapsible-content">
+                <div class="not-covered-box">
+                    <h4>✗ Not Covered Under Warranty</h4>
+                    <ul>
+                        <li><strong>Physical damage</strong> (drops, impacts, cracks, dents)</li>
+                        <li><strong>Water damage</strong> or liquid exposure (including sweat, humidity damage)</li>
+                        <li><strong>Loss or theft</strong> of the item</li>
+                        <li><strong>Cosmetic wear</strong> (scratches, scuffs, discoloration)</li>
+                        <li><strong>Normal battery degradation</strong> or reduced battery life over time</li>
+                        <li><strong>Misuse or abuse</strong> of the product</li>
+                        <li><strong>Unauthorized repairs</strong> or modifications</li>
+                        <li><strong>Connection issues</strong> caused by customer's devices or settings</li>
+                        <li><strong>Software issues</strong> or firmware problems</li>
+                        <li><strong>Compatibility issues</strong> with non-Apple devices</li>
+                        <li><strong>General wear and tear</strong> from normal use</li>
+                        <li><strong>Damage from improper storage</strong> or handling</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="terms-section">
+            <h3 class="collapsible" onclick="toggleSection(this)">3. Making a Warranty Claim</h3>
+            <div class="collapsible-content">
+                <h4>Requirements for All Claims:</h4>
+                <ol>
+                    <li><strong>Proof of Purchase:</strong> You must provide your original eBay purchase receipt or order confirmation</li>
+                    <li><strong>Proof of Warranty:</strong> You must provide proof of extended warranty purchase</li>
+                    <li><strong>Report Within Period:</strong> Issue must be reported within the active warranty period</li>
+                    <li><strong>Documentation:</strong> You must provide clear photos and/or video showing the issue before returning the item</li>
+                    <li><strong>Return Original Item:</strong> You must return the original item purchased (serial numbers must match where applicable)</li>
+                    <li><strong>Return Postage:</strong> You are responsible for return postage costs (Royal Mail Signed For recommended for tracking)</li>
+                </ol>
+                
+                <div class="important-note">
+                    <strong>⚠️ Important:</strong> Before returning, ensure you have backed up any data and unpaired the device from your Apple ID. We are not responsible for data loss.
+                </div>
+            </div>
+        </div>
+
+        <div class="terms-section">
+            <h3 class="collapsible" onclick="toggleSection(this)">4. Replacement Process</h3>
+            <div class="collapsible-content">
+                <h4>How Replacements Work:</h4>
+                <ul>
+                    <li><strong>Inspection Period:</strong> We have 5-7 working days to inspect returned items after receipt</li>
+                    <li><strong>Replacement Type:</strong> Replacements will be with equivalent refurbished parts of the same generation (not necessarily new or exact serial match)</li>
+                    <li><strong>Replacement Postage:</strong> We cover the cost of sending replacement items</li>
+                    <li><strong>One Replacement Maximum:</strong> One replacement per warranty period maximum</li>
+                    <li><strong>Right to Inspect:</strong> We reserve the right to inspect returned items before issuing replacements</li>
+                </ul>
+                
+                <div class="important-note">
+                    <strong>⚠️ Note:</strong> If the returned item shows evidence of physical damage, tampering, liquid damage, misuse, or normal wear and tear, we reserve the right to deny the claim and return the item at your expense.
+                </div>
+            </div>
+        </div>
+
+        <div class="terms-section">
+            <h3 class="collapsible" onclick="toggleSection(this)">5. Warranty Limitations</h3>
+            <div class="collapsible-content">
+                <ul>
+                    <li><strong>Non-Transferable:</strong> Warranty coverage is non-transferable and applies only to the original purchaser</li>
+                    <li><strong>No Refunds:</strong> No refunds on warranty purchase itself - only replacement parts under valid claims</li>
+                    <li><strong>eBay Return Period:</strong> This warranty does not extend the original eBay return period</li>
+                    <li><strong>Serial Numbers:</strong> Serial numbers must match original purchase where applicable</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="terms-section">
+            <h3 class="collapsible" onclick="toggleSection(this)">6. Protection Against Abuse</h3>
+            <div class="collapsible-content">
+                <h4>We Reserve the Right To:</h4>
+                <ul>
+                    <li><strong>Deny claims</strong> if returned items show evidence of tampering, physical damage, liquid damage, misuse, or normal wear and tear</li>
+                    <li><strong>Refuse service</strong> to customers with a pattern of excessive or suspicious claims</li>
+                    <li><strong>Cancel warranty</strong> without refund if false claims are made</li>
+                    <li><strong>Require return</strong> of the original item - substitutes will not be accepted</li>
+                </ul>
+                
+                <div class="important-note">
+                    <strong>⚠️ Warning:</strong> Evidence of tampering, false claims, or attempting to return non-original items will void your warranty and may result in no refund and warranty cancellation.
+                </div>
+            </div>
+        </div>
+
+        <div class="terms-section">
+            <h3 class="collapsible" onclick="toggleSection(this)">7. Contact & Support</h3>
+            <div class="collapsible-content">
+                <p>To make a warranty claim or for questions about your warranty coverage:</p>
+                <ul>
+                    <li>Contact us through eBay Messages using your original order</li>
+                    <li>Include your order number and warranty purchase confirmation</li>
+                    <li>Provide photos/video of the issue before returning</li>
+                </ul>
+                <p><strong>Please note:</strong> Warranty terms may be updated periodically. Always check our eBay store listing for the most current warranty terms before making a claim.</p>
+            </div>
+        </div>
+
+        <div class="terms-section" style="background: #f8f9fa; border: 2px solid #e8ecf1;">
+            <h3 style="margin-top: 0;">Legal Notice</h3>
+            <p style="font-size: 0.9rem; color: #6c757d; margin-bottom: 0;">By purchasing extended warranty coverage, you acknowledge that you have read, understood, and agree to be bound by these Terms & Conditions. These terms are governed by UK law. LJM reserves the right to update these terms at any time, and updated terms will apply to all warranty purchases made after the update date.</p>
+        </div>
+    </main>
+
+    <script>
+        function toggleSection(element) {
+            const content = element.nextElementSibling;
+            element.classList.toggle('collapsed');
+            content.classList.toggle('collapsed');
+        }
+
+        // Set last updated date
+        document.getElementById('lastUpdated').textContent = new Date().toLocaleDateString('en-GB', { 
+            year: 'numeric', 
+            month: 'long' 
+        });
+    </script>
+</body>
+</html>
+

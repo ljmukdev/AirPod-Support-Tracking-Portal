@@ -23,7 +23,9 @@ const appState = {
     exitIntentShown: false,
     sessionStartTime: Date.now(),
     skippedStep1: false, // Track if step 1 was skipped (coming from home page)
-    airpodExamples: null // Store loaded example images database
+    airpodExamples: null, // Store loaded example images database
+    termsVersion: null, // Current T&Cs version
+    termsAccepted: false // T&Cs acceptance status
 };
 
 // Load saved state from localStorage
@@ -502,8 +504,16 @@ function handleContactDetailsSubmit() {
         return;
     }
     
+    // Check T&Cs acceptance
+    const termsAccepted = document.getElementById('termsAccepted')?.checked;
+    if (!termsAccepted) {
+        alert('You must accept the Terms & Conditions to continue');
+        return;
+    }
+    
     // Save contact details
     appState.contactDetails = { name, email, phone };
+    appState.termsAccepted = true;
     saveState();
     
     // Register warranty with contact details
@@ -523,6 +533,49 @@ function handleContactDetailsSubmit() {
         console.error('Failed to register warranty:', error);
         alert('Failed to register warranty. Please try again.');
     });
+}
+
+// Load Terms & Conditions
+async function loadTermsAndConditions() {
+    try {
+        const response = await fetch(`${API_BASE}/api/warranty-terms/current`);
+        if (response.ok) {
+            const data = await response.json();
+            const termsContentEl = document.getElementById('termsContent');
+            const termsVersionEl = document.getElementById('termsVersion');
+            const termsAcceptedEl = document.getElementById('termsAccepted');
+            
+            if (termsContentEl) {
+                termsContentEl.textContent = data.content || 'No terms and conditions available.';
+            }
+            
+            if (termsVersionEl) {
+                termsVersionEl.textContent = data.version || '1';
+            }
+            
+            // Store version in appState
+            appState.termsVersion = data.version || 1;
+            
+            // Reset acceptance checkbox
+            if (termsAcceptedEl) {
+                termsAcceptedEl.checked = false;
+            }
+            
+            console.log('[T&Cs] Loaded version', data.version);
+        } else {
+            console.error('[T&Cs] Failed to load terms');
+            const termsContentEl = document.getElementById('termsContent');
+            if (termsContentEl) {
+                termsContentEl.textContent = 'Unable to load terms and conditions. Please try again later.';
+            }
+        }
+    } catch (error) {
+        console.error('[T&Cs] Error loading terms:', error);
+        const termsContentEl = document.getElementById('termsContent');
+        if (termsContentEl) {
+            termsContentEl.textContent = 'Unable to load terms and conditions. Please try again later.';
+        }
+    }
 }
 
 // Load warranty pricing and display lowest price in step 4
@@ -751,7 +804,9 @@ async function registerWarranty() {
                 customer_phone: appState.contactDetails.phone,
                 extended_warranty: 'none', // Standard 30-day warranty
                 warranty_price: 0,
-                marketing_consent: false
+                marketing_consent: false,
+                terms_version: appState.termsVersion,
+                terms_accepted: true
             })
         });
         
@@ -1284,7 +1339,7 @@ const FALLBACK_CASE_SVG = '/images/airpod-case-markings.svg';
 const FALLBACK_AIRPOD_SVG = '/images/airpod-stem-markings.svg';
 
 // Image version for cache-busting - bump this when SVG files are updated
-const IMAGE_VERSION = '1.2.0.041';
+const IMAGE_VERSION = '1.2.0.042';
 
 // Get fallback example image based on part type and model number
 // Returns path with cache-busting query parameter
@@ -2739,6 +2794,11 @@ function showStep(stepNumber, force = false) {
             setTimeout(() => startCountdownTimer(), 100);
             // Load and display warranty options dynamically
             loadAndDisplayWarrantyOptions();
+        }
+        
+        // Load T&Cs when showing step 3
+        if (stepNumber === 3) {
+            loadTermsAndConditions();
         }
         
         // Auto-dismiss keyboard on mobile

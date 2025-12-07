@@ -898,10 +898,22 @@ async function initializeDatabase() {
             await db.collection('warranties').createIndex({ customer_email: 1 });
             await db.collection('warranties').createIndex({ registration_date: -1 });
             await db.collection('warranties').createIndex({ warranty_id: 1 }, { unique: true });
+            await db.collection('warranties').createIndex({ terms_version: 1 });
         } catch (err) {
             // Indexes may already exist, ignore error
             if (!err.message.includes('already exists') && !err.message.includes('E11000')) {
                 console.error('Warning: Could not create warranty indexes:', err.message);
+            }
+        }
+        
+        // Create indexes for warranty_terms collection
+        try {
+            await db.collection('warranty_terms').createIndex({ version: 1 }, { unique: true });
+            await db.collection('warranty_terms').createIndex({ created_at: -1 });
+        } catch (err) {
+            // Indexes may already exist, ignore error
+            if (!err.message.includes('already exists') && !err.message.includes('E11000')) {
+                console.error('Warning: Could not create warranty_terms indexes:', err.message);
             }
         }
         
@@ -1879,6 +1891,140 @@ app.post('/api/admin/warranty-pricing', requireAuth, requireDB, async (req, res)
     }
 });
 
+// ========== Warranty Terms & Conditions API ==========
+
+// Get current active terms version (Public - for registration)
+app.get('/api/warranty-terms/current', requireDB, async (req, res) => {
+    try {
+        const currentTerms = await db.collection('warranty_terms').findOne(
+            {},
+            { sort: { version: -1 } }
+        );
+        
+        if (!currentTerms) {
+            // Return default terms if none exist
+            return res.json({
+                version: 1,
+                content: 'No terms and conditions have been set yet.',
+                created_at: new Date(),
+                created_by: 'system'
+            });
+        }
+        
+        res.json({
+            version: currentTerms.version,
+            content: currentTerms.content,
+            created_at: currentTerms.created_at,
+            created_by: currentTerms.created_by
+        });
+    } catch (err) {
+        console.error('Error fetching current warranty terms:', err);
+        res.status(500).json({ error: 'Failed to fetch warranty terms' });
+    }
+});
+
+// Get current active terms version (Admin)
+app.get('/api/admin/warranty-terms/current', requireAuth, requireDB, async (req, res) => {
+    try {
+        const currentTerms = await db.collection('warranty_terms').findOne(
+            {},
+            { sort: { version: -1 } }
+        );
+        
+        if (!currentTerms) {
+            return res.json({ terms: null });
+        }
+        
+        res.json({ terms: currentTerms });
+    } catch (err) {
+        console.error('Error fetching current warranty terms:', err);
+        res.status(500).json({ error: 'Failed to fetch warranty terms' });
+    }
+});
+
+// Get all terms versions (Admin)
+app.get('/api/admin/warranty-terms/versions', requireAuth, requireDB, async (req, res) => {
+    try {
+        const versions = await db.collection('warranty_terms').find({}).sort({ version: -1 }).toArray();
+        
+        // Count active warranties per version
+        const versionsWithCounts = await Promise.all(versions.map(async (version) => {
+            const count = await db.collection('warranties').countDocuments({
+                terms_version: version.version
+            });
+            return {
+                ...version,
+                active_warranties: count
+            };
+        }));
+        
+        res.json({ versions: versionsWithCounts });
+    } catch (err) {
+        console.error('Error fetching warranty terms versions:', err);
+        res.status(500).json({ error: 'Failed to fetch warranty terms versions' });
+    }
+});
+
+// Get specific terms version (Admin)
+app.get('/api/admin/warranty-terms/version/:version', requireAuth, requireDB, async (req, res) => {
+    try {
+        const version = parseInt(req.params.version);
+        if (isNaN(version)) {
+            return res.status(400).json({ error: 'Invalid version number' });
+        }
+        
+        const terms = await db.collection('warranty_terms').findOne({ version });
+        
+        if (!terms) {
+            return res.status(404).json({ error: 'Version not found' });
+        }
+        
+        res.json({ terms });
+    } catch (err) {
+        console.error('Error fetching warranty terms version:', err);
+        res.status(500).json({ error: 'Failed to fetch warranty terms version' });
+    }
+});
+
+// Create new terms version (Admin)
+app.post('/api/admin/warranty-terms', requireAuth, requireDB, async (req, res) => {
+    const { content } = req.body;
+    
+    if (!content || typeof content !== 'string' || !content.trim()) {
+        return res.status(400).json({ error: 'Terms content is required' });
+    }
+    
+    try {
+        // Get the highest version number
+        const latestVersion = await db.collection('warranty_terms').findOne(
+            {},
+            { sort: { version: -1 } }
+        );
+        
+        const newVersion = latestVersion ? latestVersion.version + 1 : 1;
+        
+        const newTerms = {
+            version: newVersion,
+            content: content.trim(),
+            created_at: new Date(),
+            created_by: req.session.username || 'admin'
+        };
+        
+        await db.collection('warranty_terms').insertOne(newTerms);
+        
+        console.log(`✅ New warranty terms version ${newVersion} created by ${req.session.username || 'admin'}`);
+        
+        res.json({
+            success: true,
+            version: newVersion,
+            message: `Version ${newVersion} created successfully`
+        });
+    } catch (err) {
+        console.error('Error creating warranty terms version:', err);
+        res.status(500).json({ error: 'Failed to create warranty terms version' });
+    }
+});
+
 // Version API endpoint (Public)
 app.get('/api/version', (req, res) => {
     try {
@@ -1988,7 +2134,9 @@ app.post('/api/warranty/register', requireDB, async (req, res) => {
         extended_warranty,
         marketing_consent,
         warranty_price,
-        payment_intent_id
+        payment_intent_id,
+        terms_version,
+        terms_accepted
     } = req.body;
     
     // Check if user wants to register warranty (if they opted out, they might skip this)
@@ -2007,6 +2155,28 @@ app.post('/api/warranty/register', requireDB, async (req, res) => {
         return res.status(400).json({ 
             error: 'Customer name and email are required for warranty registration' 
         });
+    }
+    
+    // Validate terms acceptance
+    if (!terms_accepted) {
+        return res.status(400).json({ 
+            error: 'You must accept the Terms & Conditions to register a warranty' 
+        });
+    }
+    
+    // Get current terms version if not provided
+    let finalTermsVersion = terms_version;
+    if (!finalTermsVersion) {
+        try {
+            const currentTerms = await db.collection('warranty_terms').findOne(
+                {},
+                { sort: { version: -1 } }
+            );
+            finalTermsVersion = currentTerms ? currentTerms.version : 1;
+        } catch (err) {
+            console.error('Error fetching current terms version:', err);
+            finalTermsVersion = 1; // Default to version 1 if error
+        }
     }
     
     // Email validation
@@ -2111,6 +2281,9 @@ app.post('/api/warranty/register', requireDB, async (req, res) => {
             payment_intent_id: payment_intent_id || null,
             payment_status: payment_intent_id ? 'paid' : 'free',
             marketing_consent: marketing_consent || false,
+            terms_version: finalTermsVersion,
+            terms_accepted: true,
+            terms_accepted_date: registrationDate,
             registration_date: registrationDate,
             status: 'active',
             claims_count: 0,
