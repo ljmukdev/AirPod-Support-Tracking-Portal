@@ -133,7 +133,8 @@
     <script>
         // Inline version display - fetches from API to always show current version
         (function() {
-            var API_BASE = window.API_BASE || '';
+            // Use window.API_BASE directly to avoid redeclaration conflicts
+            var apiBase = window.API_BASE || '';
             function showVersion(versionData) {
                 var el = document.getElementById('version-display');
                 if (!el) {
@@ -159,7 +160,7 @@
             }
             
             // Fetch version from API
-            fetch(API_BASE + '/api/version')
+            fetch(apiBase + '/api/version')
                 .then(function(res) { return res.json(); })
                 .then(function(data) {
                     showVersion(data);
@@ -247,7 +248,7 @@
         </div>
     </div>
 
-    <script src="warranty-terms.js"></script>
+    <script src="warranty-terms.js?v=1.2.1"></script>
 </body>
 </html>
 

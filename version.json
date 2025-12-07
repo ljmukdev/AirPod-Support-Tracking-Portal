@@ -1,8 +1,17 @@
 {
-  "version": "1.2.0",
+  "version": "1.2.1",
   "build": "2024-12-19",
-  "revision": "042",
+  "revision": "001",
   "changelog": [
+    {
+      "version": "1.2.1",
+      "date": "2024-12-19",
+      "changes": [
+        "Fixed API_BASE duplicate declaration error in warranty-terms.js",
+        "Added version display to warranty-terms admin page",
+        "Improved script loading to prevent variable conflicts"
+      ]
+    },
     {
       "version": "1.2.0",
       "date": "2024-12-19",
