@@ -406,13 +406,16 @@ function handleSecurityCodeInput(e) {
 // Load product information from API
 async function loadProductInfo(securityCode, skipValidation = false) {
     try {
+        console.log('Loading product info for barcode:', securityCode);
         const response = await fetch(`${API_BASE}/api/verify-barcode`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ security_barcode: securityCode })
         });
         
+        console.log('API response status:', response.status);
         const data = await response.json();
+        console.log('API response data:', data);
         
         if (response.ok && data.success) {
             // Store product data
