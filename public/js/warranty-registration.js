@@ -416,6 +416,8 @@ async function loadProductInfo(securityCode, skipValidation = false) {
         console.log('API response status:', response.status);
         const data = await response.json();
         console.log('API response data:', data);
+        console.log('API response part_name:', data.part_name);
+        console.log('API response part_model_number:', data.part_model_number);
         
         if (response.ok && data.success) {
             // Store product data
