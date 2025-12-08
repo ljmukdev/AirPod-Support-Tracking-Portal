@@ -601,8 +601,20 @@
                 var el = document.createElement('div');
                 el.id = 'version-display';
                 el.className = 'version-display';
-                el.textContent = 'v1.2.0.044';
-                el.title = 'Version 1.2.0 (Revision 043)';
+                el.textContent = 'v1.2.3.012';
+                el.title = 'Version 1.2.3 (Revision 012)';
+                // Fetch version from API to ensure it's up to date
+                fetch('/api/version')
+                    .then(function(res) { return res.json(); })
+                    .then(function(data) {
+                        if (data && data.version && data.revision) {
+                            el.textContent = 'v' + data.version + '.' + data.revision;
+                            el.title = 'Version ' + data.version + ' (Revision ' + data.revision + ')';
+                        }
+                    })
+                    .catch(function(err) {
+                        console.log('Version fetch failed, using inline version');
+                    });
                 if (document.body) {
                     document.body.appendChild(el);
                 } else {
