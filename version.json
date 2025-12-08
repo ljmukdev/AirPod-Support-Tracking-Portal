@@ -1,8 +1,18 @@
 {
   "version": "1.2.3",
   "build": "2024-12-19",
-  "revision": "007",
+  "revision": "008",
   "changelog": [
+    {
+      "version": "1.2.3",
+      "date": "2024-12-19",
+      "changes": [
+        "Fixed compatible parts API response parsing - now correctly extracts compatibleParts array",
+        "Fixed compatible parts display to use example images from database instead of silhouette placeholders",
+        "Simplified associated parts selection - replaced autocomplete with checkbox list filtered by generation",
+        "Associated parts now only show parts from the same generation to reduce scrolling"
+      ]
+    },
     {
       "version": "1.2.3",
       "date": "2024-12-19",
