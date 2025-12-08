@@ -81,6 +81,7 @@ function initializePage() {
     const urlParams = new URLSearchParams(window.location.search);
     const barcodeFromUrl = urlParams.get('barcode');
     const paymentSuccess = urlParams.get('payment') === 'success';
+    // GoCardless returns redirect_flow_id in the URL after redirect
     const redirectFlowId = urlParams.get('redirect_flow_id') || sessionStorage.getItem('gocardless_redirect_flow_id');
     
     console.log('Barcode from URL:', barcodeFromUrl);
@@ -89,6 +90,7 @@ function initializePage() {
     
     // Handle GoCardless payment success redirect
     if (paymentSuccess && redirectFlowId) {
+        console.log('[Payment] Detected payment success redirect, handling...');
         handleGoCardlessPaymentSuccess(redirectFlowId);
         return; // Don't continue with normal initialization
     }

@@ -2329,6 +2329,7 @@ app.post('/api/gocardless/create-redirect-flow', requireDB, async (req, res) => 
     
     try {
         const baseUrl = req.protocol + '://' + req.get('host');
+        // Note: GoCardless will append redirect_flow_id to the success URL automatically
         const redirectFlow = await gocardless.redirectFlows.create({
             description: description || 'Extended warranty purchase',
             sessionToken: req.sessionID, // Use session ID as token
