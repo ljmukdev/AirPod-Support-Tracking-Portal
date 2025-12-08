@@ -357,78 +357,81 @@ if (partForm) {
     });
 }
 
-// Custom autocomplete dropdown functionality
-let autocompleteTimeout;
-let selectedIndex = -1;
-
-function showAutocompleteSuggestions(searchTerm) {
-    const dropdown = document.getElementById('associatedPartsDropdown');
-    const input = document.getElementById('associated_parts');
-    
-    if (!dropdown || !input) return;
-    
-    if (!searchTerm || searchTerm.trim().length === 0) {
-        dropdown.style.display = 'none';
+// Populate associated parts checkboxes
+function populateAssociatedPartsCheckboxes(currentPartModelNumber = null) {
+    const container = document.getElementById('associatedPartsCheckboxes');
+    if (!container) {
+        console.warn('[Associated Parts] Container not found');
         return;
     }
     
     if (!allPartsData || allPartsData.length === 0) {
-        dropdown.style.display = 'none';
+        container.innerHTML = '<p style="color: #666; font-size: 0.9rem; margin: 0;">No parts available. Parts will appear here once loaded.</p>';
         return;
     }
     
-    const searchLower = searchTerm.toLowerCase();
-    const modelNumbers = [...new Set(allPartsData.map(part => part.part_model_number).filter(Boolean))];
-    const matches = modelNumbers.filter(num => 
-        num.toLowerCase().includes(searchLower)
-    ).sort().slice(0, 10); // Limit to 10 suggestions
+    // Get current selected parts
+    const hiddenInput = document.getElementById('associated_parts');
+    const selectedParts = hiddenInput && hiddenInput.value 
+        ? JSON.parse(hiddenInput.value || '[]')
+        : [];
     
-    if (matches.length === 0) {
-        dropdown.style.display = 'none';
-        return;
-    }
-    
-    dropdown.innerHTML = '';
-    selectedIndex = -1;
-    
-    matches.forEach((modelNumber, index) => {
-        const item = document.createElement('div');
-        item.style.cssText = 'padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #eee;';
-        item.textContent = modelNumber;
-        item.dataset.value = modelNumber;
-        
-        item.addEventListener('mouseenter', function() {
-            // Remove highlight from all items
-            dropdown.querySelectorAll('div').forEach(d => {
-                d.style.background = 'white';
-                d.style.color = '#1a1a1a';
-            });
-            this.style.background = '#0064D2';
-            this.style.color = 'white';
-            selectedIndex = index;
-        });
-        
-        item.addEventListener('click', function() {
-            const currentValue = input.value.trim();
-            const parts = currentValue ? currentValue.split(',').map(p => p.trim()).filter(p => p.length > 0) : [];
-            if (!parts.includes(modelNumber)) {
-                parts.push(modelNumber);
-                input.value = parts.join(', ');
-                updateAssociatedPartsTags(parts);
-            }
-            dropdown.style.display = 'none';
-            input.focus();
-        });
-        
-        dropdown.appendChild(item);
+    // Group parts by generation
+    const partsByGeneration = {};
+    allPartsData.forEach(part => {
+        if (!partsByGeneration[part.generation]) {
+            partsByGeneration[part.generation] = [];
+        }
+        // Don't show the current part in the list
+        if (part.part_model_number !== currentPartModelNumber) {
+            partsByGeneration[part.generation].push(part);
+        }
     });
     
-    dropdown.style.display = 'block';
+    let html = '';
+    Object.keys(partsByGeneration).sort().forEach(generation => {
+        html += `<div style="margin-bottom: 16px;">`;
+        html += `<div style="font-weight: 600; color: #284064; margin-bottom: 8px; font-size: 0.95rem;">${escapeHtml(generation)}</div>`;
+        
+        partsByGeneration[generation].forEach(part => {
+            const isChecked = selectedParts.includes(part.part_model_number);
+            const partTypeLabel = part.part_type === 'left' ? 'Left AirPod' : part.part_type === 'right' ? 'Right AirPod' : 'Case';
+            html += `
+                <label style="display: flex; align-items: center; gap: 8px; padding: 6px 8px; cursor: pointer; border-radius: 4px; transition: background 0.2s;" 
+                       onmouseover="this.style.background='#e7f3ff'" 
+                       onmouseout="this.style.background='transparent'">
+                    <input type="checkbox" 
+                           class="associated-part-checkbox" 
+                           value="${escapeHtml(part.part_model_number)}"
+                           ${isChecked ? 'checked' : ''}
+                           style="width: 18px; height: 18px; cursor: pointer;">
+                    <span style="font-size: 0.9rem; color: #1a1a1a;">
+                        <strong>${escapeHtml(part.part_model_number)}</strong> - ${escapeHtml(part.part_name)} (${partTypeLabel})
+                    </span>
+                </label>
+            `;
+        });
+        
+        html += `</div>`;
+    });
+    
+    container.innerHTML = html || '<p style="color: #666; font-size: 0.9rem; margin: 0;">No other parts available.</p>';
+    
+    // Add event listeners to update hidden input
+    container.querySelectorAll('.associated-part-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', updateAssociatedPartsFromCheckboxes);
+    });
 }
 
-function updateAssociatedPartsAutocomplete() {
-    // This function is now just for initialization - the real work is done by showAutocompleteSuggestions
-    console.log('[Autocomplete] Autocomplete system ready with', allPartsData ? allPartsData.length : 0, 'parts');
+// Update hidden input from checkboxes
+function updateAssociatedPartsFromCheckboxes() {
+    const checkboxes = document.querySelectorAll('.associated-part-checkbox:checked');
+    const selectedParts = Array.from(checkboxes).map(cb => cb.value);
+    const hiddenInput = document.getElementById('associated_parts');
+    if (hiddenInput) {
+        hiddenInput.value = JSON.stringify(selectedParts);
+    }
+    console.log('[Associated Parts] Updated:', selectedParts);
 }
 
 // Get associated parts array from input field
@@ -499,122 +502,24 @@ function updateAssociatedPartsTags(partsArray) {
     });
 }
 
-// Setup input field listener with custom autocomplete
-function setupAssociatedPartsInput() {
-    const associatedPartsInput = document.getElementById('associated_parts');
-    const dropdown = document.getElementById('associatedPartsDropdown');
-    
-    if (!associatedPartsInput) {
-        console.warn('[Autocomplete] Input field not found, retrying...');
-        setTimeout(setupAssociatedPartsInput, 500);
-        return;
+// Initialize associated parts checkboxes when parts are loaded
+function initializeAssociatedPartsCheckboxes() {
+    if (allPartsData && allPartsData.length > 0) {
+        const partModelNumber = document.getElementById('part_model_number').value;
+        populateAssociatedPartsCheckboxes(partModelNumber || null);
+    } else {
+        // Wait for parts to load
+        setTimeout(initializeAssociatedPartsCheckboxes, 500);
     }
-    
-    console.log('[Autocomplete] Setting up input field listeners, allPartsData:', allPartsData ? allPartsData.length : 0);
-    
-    let updateTimeout;
-    
-    // Show autocomplete suggestions as user types
-    associatedPartsInput.addEventListener('input', function(e) {
-        const value = this.value;
-        // Get the last part being typed (after the last comma)
-        const parts = value.split(',');
-        const currentPart = parts[parts.length - 1].trim();
-        
-        clearTimeout(autocompleteTimeout);
-        autocompleteTimeout = setTimeout(() => {
-            showAutocompleteSuggestions(currentPart);
-        }, 200);
-        
-        // Update tags
-        clearTimeout(updateTimeout);
-        updateTimeout = setTimeout(() => {
-            const allParts = getAssociatedPartsFromInput();
-            updateAssociatedPartsTags(allParts);
-        }, 300);
-    });
-    
-    // Handle keyboard navigation
-    associatedPartsInput.addEventListener('keydown', function(e) {
-        const dropdown = document.getElementById('associatedPartsDropdown');
-        if (!dropdown || dropdown.style.display === 'none') {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                const currentValue = this.value.trim();
-                if (currentValue) {
-                    const parts = currentValue.split(',').map(p => p.trim()).filter(p => p.length > 0);
-                    const lastPart = parts[parts.length - 1].toUpperCase();
-                    const match = allPartsData.find(p => 
-                        p.part_model_number && p.part_model_number.toUpperCase() === lastPart
-                    );
-                    if (match && !parts.slice(0, -1).includes(match.part_model_number)) {
-                        parts[parts.length - 1] = match.part_model_number;
-                        this.value = parts.join(', ');
-                        updateAssociatedPartsTags(parts);
-                    }
-                    if (dropdown) dropdown.style.display = 'none';
-                }
-            }
-            return;
-        }
-        
-        const items = dropdown.querySelectorAll('div');
-        if (items.length === 0) return;
-        
-        if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
-            items[selectedIndex].dispatchEvent(new MouseEvent('mouseenter'));
-            items[selectedIndex].scrollIntoView({ block: 'nearest' });
-        } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            selectedIndex = Math.max(selectedIndex - 1, -1);
-            if (selectedIndex >= 0) {
-                items[selectedIndex].dispatchEvent(new MouseEvent('mouseenter'));
-                items[selectedIndex].scrollIntoView({ block: 'nearest' });
-            } else {
-                items.forEach(item => {
-                    item.style.background = 'white';
-                    item.style.color = '#1a1a1a';
-                });
-            }
-        } else if (e.key === 'Enter' && selectedIndex >= 0) {
-            e.preventDefault();
-            items[selectedIndex].click();
-        } else if (e.key === 'Escape') {
-            dropdown.style.display = 'none';
-            selectedIndex = -1;
-        }
-    });
-    
-    // Hide dropdown when clicking outside
-    document.addEventListener('click', function(e) {
-        if (!associatedPartsInput.contains(e.target) && dropdown && !dropdown.contains(e.target)) {
-            dropdown.style.display = 'none';
-        }
-    });
-    
-    // Update tags on blur
-    associatedPartsInput.addEventListener('blur', function() {
-        setTimeout(() => {
-            const parts = getAssociatedPartsFromInput();
-            updateAssociatedPartsTags(parts);
-        }, 200); // Delay to allow click events on dropdown
-    });
 }
 
 // Initialize when DOM is ready
-console.log('[Autocomplete] Setting up initialization');
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-        console.log('[Autocomplete] DOMContentLoaded, setting up input');
-        setTimeout(setupAssociatedPartsInput, 100);
-        setTimeout(setupAssociatedPartsInput, 1000);
+        setTimeout(initializeAssociatedPartsCheckboxes, 500);
     });
 } else {
-    console.log('[Autocomplete] DOM ready, setting up input immediately');
-    setTimeout(setupAssociatedPartsInput, 100);
-    setTimeout(setupAssociatedPartsInput, 1000);
+    setTimeout(initializeAssociatedPartsCheckboxes, 500);
 }
 
 // Edit part
@@ -637,14 +542,14 @@ async function editPart(id) {
                 document.getElementById('notes').value = part.notes || '';
                 document.getElementById('display_order').value = part.display_order || 0;
                 
-                // Populate associated parts
-                const associatedPartsField = document.getElementById('associated_parts');
-                if (associatedPartsField && part.associated_parts && Array.isArray(part.associated_parts)) {
-                    associatedPartsField.value = part.associated_parts.join(', ');
-                    updateAssociatedPartsTags(part.associated_parts);
-                } else if (associatedPartsField) {
-                    associatedPartsField.value = '';
-                    updateAssociatedPartsTags([]);
+                // Populate associated parts checkboxes
+                const associatedPartsHidden = document.getElementById('associated_parts');
+                if (associatedPartsHidden && part.associated_parts && Array.isArray(part.associated_parts)) {
+                    associatedPartsHidden.value = JSON.stringify(part.associated_parts);
+                    populateAssociatedPartsCheckboxes(part.part_model_number);
+                } else if (associatedPartsHidden) {
+                    associatedPartsHidden.value = JSON.stringify([]);
+                    populateAssociatedPartsCheckboxes(part.part_model_number);
                 }
                 
                 // Show existing images if they exist
@@ -703,7 +608,8 @@ function cancelEdit() {
     document.getElementById('exampleImagePreview').innerHTML = '';
     document.getElementById('caseImagePreview').innerHTML = '';
     document.getElementById('airpodImagePreview').innerHTML = '';
-    updateAssociatedPartsTags([]); // Clear tags
+    document.getElementById('associated_parts').value = JSON.stringify([]);
+    populateAssociatedPartsCheckboxes(); // Clear checkboxes
     formTitle.textContent = 'Add New Part';
     submitButtonText.textContent = 'Add Part';
     cancelButton.style.display = 'none';
