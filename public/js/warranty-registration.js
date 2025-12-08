@@ -1753,7 +1753,7 @@ async function processGoCardlessPayment() {
     
     if (processPaymentBtn) {
         processPaymentBtn.disabled = true;
-        processPaymentBtn.textContent = 'Setting up payment...';
+        processPaymentBtn.textContent = 'Processing...';
     }
     
     if (paymentError) {
@@ -1830,7 +1830,7 @@ async function processGoCardlessPayment() {
         }
         if (processPaymentBtn) {
             processPaymentBtn.disabled = false;
-            processPaymentBtn.textContent = 'Set Up Direct Debit & Pay';
+            processPaymentBtn.textContent = 'Pay Securely';
         }
     }
 }
