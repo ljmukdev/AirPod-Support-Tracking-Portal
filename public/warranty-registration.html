@@ -153,64 +153,19 @@
             z-index: 2;
         }
         
-        /* Align header elements with card edges */
-        /* Card is 800px centered in 1200px container with 24px padding */
-        /* Card left edge: (1200 - 800) / 2 + 24 = 224px from container left */
-        /* Card right edge: 224 + 800 = 1024px from container left */
-        @media (min-width: 1200px) {
-            .header-content {
-                position: relative;
-            }
-            
-            .logo {
-                position: absolute;
-                left: calc((100% - 1200px) / 2 + 224px);
-            }
-            
-            .nav-links {
-                position: absolute;
-                right: calc((100% - 1200px) / 2 + (1200 - 1024px));
-            }
-        }
-        
         .card-body {
             padding: 36px 48px;
         }
         
-        /* Responsive container and card adjustments */
-        @media (max-width: 1199px) {
-            .container {
-                padding: 20px 24px 40px 24px;
-            }
-        }
-        
-        @media (max-width: 768px) {
-            .container {
-                padding: 16px 20px 32px 20px;
-            }
-            
+        @media (min-width: 768px) {
             .card-body {
-                padding: 32px 28px;
+                padding: 40px 48px;
             }
         }
         
         @media (max-width: 640px) {
-            .container {
-                padding: 16px 16px 24px 16px;
-            }
-            
             .card-body {
                 padding: 32px 24px;
-            }
-        }
-        
-        @media (max-width: 480px) {
-            .container {
-                padding: 12px 12px 20px 12px;
-            }
-            
-            .card-body {
-                padding: 24px 20px;
             }
         }
         
