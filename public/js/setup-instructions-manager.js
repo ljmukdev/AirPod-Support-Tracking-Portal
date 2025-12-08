@@ -6,8 +6,7 @@ console.log('[Setup Instructions Manager] Script loading...');
 if (typeof window.API_BASE === 'undefined') {
     window.API_BASE = '';
 }
-// Use the global API_BASE without redeclaring
-const API_BASE = window.API_BASE;
+// Use window.API_BASE directly throughout to avoid redeclaration issues
 
 let allGenerations = [];
 let allParts = [];
@@ -44,8 +43,9 @@ function setupEventListeners() {
 // Load generations from API
 async function loadGenerations() {
     try {
-        console.log('[Setup Instructions] Loading generations from:', `${API_BASE}/api/admin/generations`);
-        const response = await fetch(`${API_BASE}/api/admin/generations`);
+        const apiBase = window.API_BASE || '';
+        console.log('[Setup Instructions] Loading generations from:', `${apiBase}/api/admin/generations`);
+        const response = await fetch(`${apiBase}/api/admin/generations`);
         console.log('[Setup Instructions] Response status:', response.status);
         
         if (!response.ok) {
@@ -89,7 +89,8 @@ async function loadGenerations() {
 // Load parts from API
 async function loadParts() {
     try {
-        const response = await fetch(`${API_BASE}/api/admin/parts`);
+        const apiBase = window.API_BASE || '';
+        const response = await fetch(`${apiBase}/api/admin/parts`);
         if (!response.ok) throw new Error('Failed to load parts');
         const data = await response.json();
         allParts = data.parts || [];
@@ -163,7 +164,8 @@ function removeInstructionStep(stepIndex) {
 // Load all setup instructions
 async function loadInstructions() {
     try {
-        const response = await fetch(`${API_BASE}/api/admin/setup-instructions`);
+        const apiBase = window.API_BASE || '';
+        const response = await fetch(`${apiBase}/api/admin/setup-instructions`);
         if (!response.ok) throw new Error('Failed to load instructions');
         const data = await response.json();
         
@@ -261,9 +263,10 @@ async function handleFormSubmit(e) {
     }
     
     try {
+        const apiBase = window.API_BASE || '';
         const url = editingId 
-            ? `${API_BASE}/api/admin/setup-instructions/${editingId}`
-            : `${API_BASE}/api/admin/setup-instructions`;
+            ? `${apiBase}/api/admin/setup-instructions/${editingId}`
+            : `${apiBase}/api/admin/setup-instructions`;
         
         const method = editingId ? 'PUT' : 'POST';
         
@@ -290,7 +293,8 @@ async function handleFormSubmit(e) {
 // Edit an instruction set
 async function editInstruction(id) {
     try {
-        const response = await fetch(`${API_BASE}/api/admin/setup-instructions/${id}`);
+        const apiBase = window.API_BASE || '';
+        const response = await fetch(`${apiBase}/api/admin/setup-instructions/${id}`);
         if (!response.ok) throw new Error('Failed to load instruction');
         const instruction = await response.json();
         
@@ -336,7 +340,8 @@ async function deleteInstruction(id) {
     }
     
     try {
-        const response = await fetch(`${API_BASE}/api/admin/setup-instructions/${id}`, {
+        const apiBase = window.API_BASE || '';
+        const response = await fetch(`${apiBase}/api/admin/setup-instructions/${id}`, {
             method: 'DELETE'
         });
         
