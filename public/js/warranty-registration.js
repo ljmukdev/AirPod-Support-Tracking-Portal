@@ -2729,7 +2729,7 @@ function setupMarkingsVerificationListeners() {
             
             // Continue to Contact Information step (step 2 in main flow)
             setTimeout(() => {
-                console.log('[Markings Verification] Navigating to Contact Information step');
+                console.log('[Markings Verification] Navigating to Contact Information step (step 2)');
                 // showStep will set appState.currentStep = 2 and call updateProgressIndicator() internally
                 showStep(2, true); // Force navigation to step 2 (Contact Information)
             }, 300);
@@ -2925,7 +2925,7 @@ function initializeVerificationSteps() {
                                 // Automatically proceed to Contact Information step after a brief delay
                                 setTimeout(() => {
                                     console.log('[Verification] 🚀 Navigating to Contact Information (step 2)');
-                                    showStep(2, true); // Force navigation to step 2 (Contact Information)
+                                    showStep(2, true); // Force navigation to step 2 (Contact Information) - NOT step 3!
                                 }, 300); // Reduced delay for faster progression
                             } else if (verificationState.currentStep < verificationState.totalSteps) {
                                 // There are more verification steps, advance to next one
