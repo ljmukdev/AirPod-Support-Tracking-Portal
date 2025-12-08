@@ -2391,10 +2391,14 @@ function setupMarkingsVerificationListeners() {
                 continueBtn.disabled = true;
             }
             
-            // Continue to Contact Information step (step 3 in main flow, but step 4 in the overall flow)
+            // Continue to Contact Information step (step 3 in main flow)
             setTimeout(() => {
                 console.log('[Markings Verification] Navigating to Contact Information step');
+                // Ensure appState.currentStep is set to 3 before calling showStep
+                appState.currentStep = 3;
                 showStep(3, true); // Force navigation to step 3 (Contact Information)
+                // Update progress indicator to ensure it reflects step 3
+                updateProgressIndicator();
             }, 300);
         }
     };
