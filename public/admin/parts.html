@@ -221,9 +221,8 @@
                                 name="associated_parts" 
                                 placeholder="e.g., A3047, A2968"
                                 autocomplete="off"
-                                list="associatedPartsSuggestions"
                             >
-                            <datalist id="associatedPartsSuggestions"></datalist>
+                            <div id="associatedPartsDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-radius: 4px; max-height: 200px; overflow-y: auto; z-index: 1000; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-top: 2px;"></div>
                         </div>
                         <small style="color: #666; font-size: 0.85rem;">Start typing a model number to see suggestions, or enter comma-separated model numbers. These will be shown with images during warranty registration.</small>
                         <div id="associatedPartsTags" style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; min-height: 32px;"></div>
