@@ -21,7 +21,7 @@
                 el.id = 'version-display';
                 el.className = 'version-display';
                 el.style.cssText = 'position:fixed;top:10px;right:10px;font-size:0.7rem;color:rgba(0,0,0,0.7);font-family:"Courier New",monospace;z-index:99999;padding:4px 8px;background:rgba(255,255,255,0.9);border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.2);pointer-events:none;';
-                el.textContent = 'v1.2.3.026';
+                el.textContent = 'v1.2.3.027';
                 el.title = 'Version 1.2.3 (Revision 026)';
                 if (document.body) {
                     document.body.appendChild(el);
@@ -2008,7 +2008,7 @@
                     </div>
                     
                     <h2 style="text-align: center; margin-bottom: 8px;">Complete Your Purchase</h2>
-                    <p style="text-align: center; color: #6c757d; margin-bottom: 32px;">Secure bank payment powered by GoCardless</p>
+                    <p style="text-align: center; color: #6c757d; margin-bottom: 32px;">Secure payment powered by Stripe</p>
                     
                     <div id="paymentSummary" style="background: #f8f9fa; border-radius: 12px; padding: 24px; margin-bottom: 24px;">
                         <h3 style="margin-top: 0; margin-bottom: 16px; color: #1a1a1a;">Order Summary</h3>
@@ -2023,16 +2023,10 @@
                         </div>
                     </div>
                     
-                    <!-- GoCardless Payment Info -->
-                    <div style="background: #e7f3ff; border: 2px solid #0064D2; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
-                        <div style="display: flex; align-items: start; gap: 12px;">
-                            <div style="font-size: 24px;">🔒</div>
-                            <div style="flex: 1;">
-                                <h4 style="margin: 0 0 8px 0; color: #0064D2; font-size: 1.1rem;">Secure Bank Payment</h4>
-                                <p style="margin: 0; color: #1a1a1a; font-size: 0.95rem; line-height: 1.6;">
-                                    You'll be redirected to securely enter your bank details for this one-off payment. Your payment will be processed securely and you'll be redirected back to complete your registration.
-                                </p>
-                            </div>
+                    <!-- Stripe Payment Element Container -->
+                    <div style="background: #ffffff; border: 2px solid #e8ecf1; border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                        <div id="stripe-payment-element">
+                            <!-- Stripe Elements will be mounted here -->
                         </div>
                     </div>
                     
@@ -2043,8 +2037,14 @@
                     </button>
                     
                     <div style="text-align: center; margin-top: 16px;">
-                        <p style="color: #6c757d; font-size: 0.85rem; margin-bottom: 8px;">Powered by</p>
-                        <img src="https://gocardless.com/static/images/gocardless-logo.svg" alt="GoCardless" style="height: 24px; opacity: 0.7;" onerror="this.style.display='none'">
+                        <p style="color: #6c757d; font-size: 0.85rem; margin-bottom: 8px;">Secured by</p>
+                        <div style="display: inline-flex; align-items: center; gap: 8px;">
+                            <svg width="60" height="24" viewBox="0 0 60 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M8.5 12C8.5 9.5 10.5 7.5 13 7.5C15.5 7.5 17.5 9.5 17.5 12C17.5 14.5 15.5 16.5 13 16.5C10.5 16.5 8.5 14.5 8.5 12Z" fill="#635BFF"/>
+                                <path d="M22 7.5H25V16.5H22V7.5ZM28 7.5H31L33.5 13L36 7.5H39V16.5H36V11L33.5 16.5H30.5L28 11V16.5H25V7.5H28Z" fill="#635BFF"/>
+                            </svg>
+                            <span style="color: #635BFF; font-weight: 600; font-size: 0.9rem;">Stripe</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2074,6 +2074,8 @@
         </div>
     </div>
 
+    <!-- Stripe.js -->
+    <script src="https://js.stripe.com/v3/"></script>
     <script src="js/warranty-registration.js?v=1.2.3.026"></script>
 </body>
 </html>

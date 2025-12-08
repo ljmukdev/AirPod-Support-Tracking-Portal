@@ -1,8 +1,17 @@
 {
   "version": "1.2.3",
   "build": "2024-12-19",
-  "revision": "026",
+  "revision": "027",
   "changelog": [
+    {
+      "version": "1.2.3",
+      "date": "2024-12-19",
+      "changes": [
+        "Restored Stripe as primary payment method - Stripe handles one-off card payments",
+        "Commented out GoCardless code (GoCardless is for Direct Debits, not one-off payments)",
+        "Stripe payment flow fully functional with payment intents and Elements integration"
+      ]
+    },
     {
       "version": "1.2.3",
       "date": "2024-12-19",

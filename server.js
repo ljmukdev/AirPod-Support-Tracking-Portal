@@ -26,7 +26,9 @@ if (process.env.STRIPE_SECRET_KEY) {
     console.warn('⚠️  Stripe secret key not set - payment features will be disabled');
 }
 
-// Initialize GoCardless
+// Initialize GoCardless (DISABLED - Using Stripe for card payments)
+// GoCardless is primarily for Direct Debits, Stripe handles one-off card payments
+/*
 let gocardless = null;
 if (process.env.GOCARDLESS_ACCESS_TOKEN) {
     const gocardlessLib = require('gocardless-nodejs');
@@ -46,6 +48,7 @@ if (process.env.GOCARDLESS_ACCESS_TOKEN) {
 } else {
     console.warn('⚠️  GoCardless access token not set - payment features will be disabled');
 }
+*/
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -2220,8 +2223,10 @@ app.get('/api/version', (req, res) => {
     }
 });
 
-// Payment API endpoints (GoCardless)
+// Payment API endpoints (GoCardless) - DISABLED - Using Stripe instead
+// GoCardless endpoints commented out - Stripe handles one-off card payments
 
+/*
 // Get GoCardless configuration (Public)
 app.get('/api/payment/config', (req, res) => {
     try {
@@ -2244,8 +2249,9 @@ app.get('/api/payment/config', (req, res) => {
         });
     }
 });
+*/
 
-// Stripe API endpoints (kept for backward compatibility)
+// Stripe API endpoints (ACTIVE - Primary payment method for card payments)
 
 // Get Stripe publishable key (Public)
 app.get('/api/stripe/config', (req, res) => {
@@ -2310,8 +2316,8 @@ app.post('/api/stripe/create-payment-intent', requireDB, async (req, res) => {
     }
 });
 
-// GoCardless API endpoints
-
+// GoCardless API endpoints - DISABLED - Using Stripe instead
+/*
 // Create redirect flow for Direct Debit mandate setup (Public)
 app.post('/api/gocardless/create-redirect-flow', requireDB, async (req, res) => {
     const { amount, description, successUrl, customerEmail, customerName } = req.body;
@@ -2369,7 +2375,8 @@ app.post('/api/gocardless/create-redirect-flow', requireDB, async (req, res) => 
     }
 });
 
-// Complete redirect flow and create payment (Public)
+// Complete redirect flow and create payment (Public) - DISABLED
+/*
 app.post('/api/gocardless/complete-redirect-flow', requireDB, async (req, res) => {
     const { redirectFlowId, amount, description } = req.body;
     
@@ -2436,8 +2443,10 @@ app.post('/api/gocardless/complete-redirect-flow', requireDB, async (req, res) =
         });
     }
 });
+*/
 
-// GoCardless webhook endpoint (Public - but should verify webhook secret)
+// GoCardless webhook endpoint (Public - but should verify webhook secret) - DISABLED
+/*
 app.post('/api/gocardless/webhook', requireDB, async (req, res) => {
     const signature = req.headers['webhook-signature'];
     const webhookSecret = process.env.GOCARDLESS_WEBHOOK_SECRET;
@@ -2491,6 +2500,7 @@ app.post('/api/gocardless/webhook', requireDB, async (req, res) => {
         res.status(500).json({ error: 'Webhook processing failed' });
     }
 });
+*/
 
 // Register warranty (Public)
 // Reconditioning request endpoint
