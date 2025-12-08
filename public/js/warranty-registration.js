@@ -4290,14 +4290,22 @@ function showStep(stepNumber, force = false) {
         
         // Handle step 4 (30-day Warranty Confirmation)
         if (stepNumber === 4) {
+            console.log('[Step 4] Handling step 4 display');
             const successAnimation = document.getElementById('successAnimation');
             const warrantyConfirmation = document.getElementById('warrantyConfirmation');
             
+            console.log('[Step 4] successAnimation element:', successAnimation);
+            console.log('[Step 4] warrantyConfirmation element:', warrantyConfirmation);
+            
             // Hide success animation and show warranty confirmation
             if (successAnimation) {
+                console.log('[Step 4] Hiding success animation');
                 successAnimation.style.display = 'none';
+            } else {
+                console.warn('[Step 4] successAnimation element not found!');
             }
             if (warrantyConfirmation) {
+                console.log('[Step 4] Showing warranty confirmation');
                 warrantyConfirmation.style.display = 'block';
                 
                 // Load warranty pricing
