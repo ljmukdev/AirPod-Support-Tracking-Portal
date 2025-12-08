@@ -3057,9 +3057,60 @@ function canAdvanceStep() {
     return true;
 }
 
+// Handle return feedback submission
+function handleReturnFeedback() {
+    const submitBtn = document.getElementById('submitReturnFeedback');
+    if (submitBtn) {
+        submitBtn.addEventListener('click', async function() {
+            const returnReason = document.getElementById('returnReason').value;
+            const returnComments = document.getElementById('returnComments').value.trim();
+            
+            if (!returnReason) {
+                alert('Please select a reason for return');
+                return;
+            }
+            
+            // Disable button and show loading
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Submitting...';
+            
+            try {
+                // Send feedback to server (optional - you can implement an API endpoint for this)
+                // For now, we'll just log it and redirect
+                console.log('Return feedback:', {
+                    reason: returnReason,
+                    comments: returnComments,
+                    securityCode: appState.securityCode,
+                    productData: appState.productData
+                });
+                
+                // Track analytics
+                trackEvent('return_feedback_submitted', {
+                    reason: returnReason,
+                    hasComments: returnComments.length > 0
+                });
+                
+                // Small delay for UX
+                setTimeout(() => {
+                    // Redirect to eBay return page
+                    window.location.href = 'ebay-return.html';
+                }, 500);
+            } catch (error) {
+                console.error('Error submitting feedback:', error);
+                // Still redirect even if feedback fails
+                window.location.href = 'ebay-return.html';
+            }
+        });
+    }
+}
+
 // Initialize on page load
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializePage);
+    document.addEventListener('DOMContentLoaded', function() {
+        initializePage();
+        handleReturnFeedback();
+    });
 } else {
     initializePage();
+    handleReturnFeedback();
 }
