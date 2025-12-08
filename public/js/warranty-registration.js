@@ -311,6 +311,16 @@ function setupEventListeners() {
     });
     document.getElementById('continueBtn7')?.addEventListener('click', finishSetup);
     
+    // Back button from payment page
+    document.getElementById('backFromPaymentBtn')?.addEventListener('click', () => {
+        // Go back to step 6 (accessories) if there are accessories, otherwise step 5 (warranty)
+        if (appState.selectedAccessories && appState.selectedAccessories.length > 0) {
+            showStep(6);
+        } else {
+            showStep(5);
+        }
+    });
+    
     // Reconditioning form submission - attach listener when form exists (will be set up when form is shown)
     
     // Warranty selection
