@@ -3144,6 +3144,11 @@ function showStep(stepNumber, force = false) {
             loadAndDisplayWarrantyOptions();
         }
         
+        // Load setup instructions when showing step 7
+        if (stepNumber === 7 && appState.productData) {
+            loadSetupInstructions();
+        }
+        
         // Load add-on sales when showing step 6
         if (stepNumber === 6 && appState.productData) {
             const generation = appState.productData.generation;

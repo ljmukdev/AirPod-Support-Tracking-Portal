@@ -2964,6 +2964,230 @@ app.get('/api/admin/generations', requireAuth, requireDB, async (req, res) => {
     }
 });
 
+// Setup Instructions API endpoints
+
+// Get all setup instructions (admin)
+app.get('/api/admin/setup-instructions', requireAuth, requireDB, async (req, res) => {
+    try {
+        const instructions = await db.collection('setup_instructions')
+            .find({})
+            .sort({ generation: 1, part_model_number: 1 })
+            .toArray();
+        
+        const instructionsWithStringIds = instructions.map(inst => ({
+            ...inst,
+            _id: inst._id.toString()
+        }));
+        
+        res.json({ instructions: instructionsWithStringIds });
+    } catch (err) {
+        console.error('[Setup Instructions] Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Get a specific setup instruction (admin)
+app.get('/api/admin/setup-instructions/:id', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    
+    try {
+        if (!ObjectId.isValid(id)) {
+            return res.status(400).json({ error: 'Invalid instruction ID' });
+        }
+        
+        const instruction = await db.collection('setup_instructions').findOne({ _id: new ObjectId(id) });
+        
+        if (!instruction) {
+            return res.status(404).json({ error: 'Setup instruction not found' });
+        }
+        
+        res.json({
+            ...instruction,
+            _id: instruction._id.toString()
+        });
+    } catch (err) {
+        console.error('[Setup Instructions] Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Create new setup instructions (admin)
+app.post('/api/admin/setup-instructions', requireAuth, requireDB, async (req, res) => {
+    const { generation, part_model_number, instructions } = req.body;
+    
+    if (!generation || !instructions || !Array.isArray(instructions) || instructions.length === 0) {
+        return res.status(400).json({ error: 'Generation and at least one instruction step are required' });
+    }
+    
+    // Validate instruction steps
+    for (let i = 0; i < instructions.length; i++) {
+        const step = instructions[i];
+        if (!step.title || !step.instruction) {
+            return res.status(400).json({ error: `Step ${i + 1} must have both title and instruction text` });
+        }
+    }
+    
+    try {
+        // Check if instruction set already exists for this generation/part combination
+        const existingQuery = {
+            generation: generation,
+            part_model_number: part_model_number || null
+        };
+        
+        const existing = await db.collection('setup_instructions').findOne(existingQuery);
+        if (existing) {
+            return res.status(400).json({ 
+                error: 'Setup instructions already exist for this generation' + (part_model_number ? ` and part model` : '') 
+            });
+        }
+        
+        const newInstruction = {
+            generation: generation,
+            part_model_number: part_model_number || null,
+            instructions: instructions.map((step, index) => ({
+                step_number: step.step_number || (index + 1),
+                title: step.title.trim(),
+                instruction: step.instruction.trim()
+            })),
+            created_at: new Date(),
+            updated_at: new Date()
+        };
+        
+        const result = await db.collection('setup_instructions').insertOne(newInstruction);
+        
+        res.json({
+            success: true,
+            _id: result.insertedId.toString(),
+            ...newInstruction
+        });
+    } catch (err) {
+        console.error('[Setup Instructions] Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Update setup instructions (admin)
+app.put('/api/admin/setup-instructions/:id', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    const { generation, part_model_number, instructions } = req.body;
+    
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid instruction ID' });
+    }
+    
+    if (!generation || !instructions || !Array.isArray(instructions) || instructions.length === 0) {
+        return res.status(400).json({ error: 'Generation and at least one instruction step are required' });
+    }
+    
+    // Validate instruction steps
+    for (let i = 0; i < instructions.length; i++) {
+        const step = instructions[i];
+        if (!step.title || !step.instruction) {
+            return res.status(400).json({ error: `Step ${i + 1} must have both title and instruction text` });
+        }
+    }
+    
+    try {
+        const existing = await db.collection('setup_instructions').findOne({ _id: new ObjectId(id) });
+        if (!existing) {
+            return res.status(404).json({ error: 'Setup instruction not found' });
+        }
+        
+        // Check if another instruction set exists for this generation/part combination (excluding current)
+        const existingQuery = {
+            generation: generation,
+            part_model_number: part_model_number || null,
+            _id: { $ne: new ObjectId(id) }
+        };
+        
+        const duplicate = await db.collection('setup_instructions').findOne(existingQuery);
+        if (duplicate) {
+            return res.status(400).json({ 
+                error: 'Another setup instruction set already exists for this generation' + (part_model_number ? ` and part model` : '') 
+            });
+        }
+        
+        const updateData = {
+            generation: generation,
+            part_model_number: part_model_number || null,
+            instructions: instructions.map((step, index) => ({
+                step_number: step.step_number || (index + 1),
+                title: step.title.trim(),
+                instruction: step.instruction.trim()
+            })),
+            updated_at: new Date()
+        };
+        
+        const result = await db.collection('setup_instructions').updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updateData }
+        );
+        
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ error: 'Setup instruction not found' });
+        }
+        
+        res.json({ success: true, message: 'Setup instructions updated successfully' });
+    } catch (err) {
+        console.error('[Setup Instructions] Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Delete setup instructions (admin)
+app.delete('/api/admin/setup-instructions/:id', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    
+    try {
+        if (!ObjectId.isValid(id)) {
+            return res.status(400).json({ error: 'Invalid instruction ID' });
+        }
+        
+        const result = await db.collection('setup_instructions').deleteOne({ _id: new ObjectId(id) });
+        
+        if (result.deletedCount === 0) {
+            res.status(404).json({ error: 'Setup instruction not found' });
+        } else {
+            res.json({ success: true, message: 'Setup instruction deleted successfully' });
+        }
+    } catch (err) {
+        console.error('[Setup Instructions] Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Get setup instructions for public use (by generation or part_model_number)
+app.get('/api/setup-instructions/:identifier', requireDB, async (req, res) => {
+    const identifier = req.params.identifier;
+    
+    try {
+        // Try to find by part_model_number first
+        let instruction = await db.collection('setup_instructions').findOne({
+            part_model_number: identifier
+        });
+        
+        // If not found, try by generation
+        if (!instruction) {
+            instruction = await db.collection('setup_instructions').findOne({
+                generation: identifier,
+                part_model_number: null
+            });
+        }
+        
+        if (!instruction) {
+            return res.status(404).json({ error: 'Setup instructions not found for this part or generation' });
+        }
+        
+        res.json({
+            ...instruction,
+            _id: instruction._id.toString()
+        });
+    } catch (err) {
+        console.error('[Setup Instructions] Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // Add-On Sales API endpoints
 
 // Get all add-on sales

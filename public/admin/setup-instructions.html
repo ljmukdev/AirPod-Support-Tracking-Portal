@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Setup Instructions | LJM Admin</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <style>
+        .instructions-container {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 30px;
+            margin-top: 30px;
+        }
+        @media (max-width: 968px) {
+            .instructions-container {
+                grid-template-columns: 1fr;
+            }
+        }
+        .instructions-form {
+            background-color: var(--background-white);
+            padding: 30px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 100px;
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+        }
+        .instructions-list {
+            background-color: var(--background-white);
+            padding: 30px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+        }
+        .instruction-item {
+            background-color: var(--secondary-gray);
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: var(--border-radius);
+            border-left: 4px solid var(--accent-teal);
+        }
+        .instruction-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 10px;
+        }
+        .instruction-item-title {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: var(--primary-navy);
+        }
+        .instruction-item-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .instruction-steps-preview {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+        .instruction-step-preview {
+            margin: 5px 0;
+            padding-left: 15px;
+        }
+        .edit-button {
+            background-color: var(--accent-teal);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        .edit-button:hover {
+            background-color: var(--accent-teal-hover);
+        }
+        .delete-button {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        .delete-button:hover {
+            background-color: #c82333;
+        }
+        .generation-group {
+            margin-bottom: 30px;
+        }
+        .generation-header {
+            background-color: var(--primary-navy);
+            color: white;
+            padding: 15px;
+            border-radius: var(--border-radius);
+            margin-bottom: 15px;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .button-cancel {
+            background-color: #6c757d;
+        }
+        .button-cancel:hover {
+            background-color: #5a6268;
+        }
+        .instruction-steps-container {
+            margin-top: 20px;
+        }
+        .instruction-step-item {
+            background-color: #f8f9fa;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+        .instruction-step-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .instruction-step-number {
+            font-weight: 600;
+            color: var(--primary-navy);
+        }
+        .remove-step-button {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        .remove-step-button:hover {
+            background-color: #c82333;
+        }
+        .add-step-button {
+            background-color: var(--accent-teal);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-top: 10px;
+        }
+        .add-step-button:hover {
+            background-color: var(--accent-teal-hover);
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: var(--text-dark);
+        }
+        .form-group input[type="text"],
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-family: inherit;
+        }
+        .form-group textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+    </style>
+
+    <script>
+        // Inline version display
+        (function() {
+            function showVersion() {
+                var el = document.getElementById('version-display');
+                if (!el) {
+                    el = document.createElement('div');
+                    el.id = 'version-display';
+                    el.style.cssText = 'position:fixed;top:10px;right:10px;font-size:0.7rem;color:rgba(0,0,0,0.7);font-family:"Courier New",monospace;z-index:99999;padding:4px 8px;background:rgba(255,255,255,0.9);border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.2);pointer-events:none;';
+                    if (document.body) {
+                        document.body.appendChild(el);
+                    } else {
+                        setTimeout(function() {
+                            if (document.body) document.body.appendChild(el);
+                        }, 100);
+                    }
+                }
+                fetch('/api/version')
+                    .then(function(res) { return res.json(); })
+                    .then(function(data) {
+                        if (data && data.version && data.revision) {
+                            el.textContent = 'v' + data.version + '.' + data.revision;
+                            el.title = 'Version ' + data.version + ' (Revision ' + data.revision + ')';
+                        }
+                    })
+                    .catch(function(err) {
+                        el.textContent = 'v1.2.3.012';
+                        el.title = 'Version 1.2.3 (Revision 012)';
+                    });
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', showVersion);
+            } else {
+                showVersion();
+            }
+        })();
+    </script>
+</head>
+<body class="admin-panel">
+    <div class="admin-container">
+        <div class="admin-header">
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <div class="header-logo">
+                    <div class="logo-circle">
+                        <span class="logo-text">LJM</span>
+                    </div>
+                </div>
+                <h1>Manage Setup Instructions</h1>
+            </div>
+            <div>
+                <a href="dashboard.html" style="color: white; text-decoration: none; margin-right: 15px;">Dashboard</a>
+                <a href="parts.html" style="color: white; text-decoration: none; margin-right: 15px;">Manage Parts</a>
+                <a href="warranty-pricing.html" style="color: white; text-decoration: none; margin-right: 15px;">Warranty Pricing</a>
+                <button class="logout-button" id="logoutButton">Logout</button>
+            </div>
+        </div>
+
+        <div class="instructions-container">
+            <!-- Form Section -->
+            <div class="instructions-form">
+                <h2 id="formTitle">Add New Setup Instructions</h2>
+                <form id="instructionForm">
+                    <input type="hidden" id="instruction_id" name="instruction_id">
+                    
+                    <div class="form-group">
+                        <label for="generation">Generation *</label>
+                        <select id="generation" name="generation" required>
+                            <option value="">Select Generation</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="part_model_number">Part Model Number (Optional)</label>
+                        <select id="part_model_number" name="part_model_number">
+                            <option value="">All parts in generation</option>
+                        </select>
+                        <small style="color: #666; font-size: 0.85rem; display: block; margin-top: 5px;">
+                            Leave blank to apply to all parts in the generation, or select a specific part
+                        </small>
+                    </div>
+
+                    <div class="instruction-steps-container">
+                        <h3 style="margin-top: 20px; margin-bottom: 15px;">Setup Steps</h3>
+                        <div id="instructionSteps">
+                            <!-- Steps will be dynamically added here -->
+                        </div>
+                        <button type="button" class="add-step-button" id="addStepButton">+ Add Step</button>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary" id="submitButton">Save Instructions</button>
+                        <button type="button" class="btn button-cancel" id="cancelButton" style="display: none;">Cancel</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- List Section -->
+            <div class="instructions-list">
+                <h2>Existing Setup Instructions</h2>
+                <div id="instructionsList">
+                    <p>Loading instructions...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/admin.js"></script>
+    <script src="../js/setup-instructions-manager.js"></script>
+</body>
+</html>
+
