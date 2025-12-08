@@ -2439,6 +2439,19 @@ function initializeVerificationSteps() {
                                 step.style.display = 'none';
                             });
                             
+                            // Hide verification steps container
+                            const verificationStepsContainer = document.getElementById('verificationSteps');
+                            if (verificationStepsContainer) {
+                                verificationStepsContainer.style.display = 'none';
+                            }
+                            
+                            // Hide the continue button
+                            const continueBtn = document.getElementById('continueBtn1');
+                            if (continueBtn) {
+                                continueBtn.style.display = 'none';
+                                continueBtn.disabled = true;
+                            }
+                            
                             // Show second-level authenticity step
                             const secondLevelStep = document.getElementById('secondLevelAuthenticityStep');
                             if (secondLevelStep) {
