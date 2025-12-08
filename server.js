@@ -2555,7 +2555,7 @@ app.post('/api/admin/part', requireAuth, requireDB, upload.fields([
     { name: 'authenticity_case_image', maxCount: 1 },
     { name: 'authenticity_airpod_image', maxCount: 1 }
 ]), async (req, res) => {
-    const { generation, part_name, part_model_number, part_type, notes, display_order, show_case_image, show_airpod_image } = req.body;
+    const { generation, part_name, part_model_number, part_type, notes, display_order, show_case_image, show_airpod_image, associated_parts } = req.body;
     
     if (!generation || !part_name || !part_model_number || !part_type) {
         return res.status(400).json({ error: 'Generation, part name, part model number, and part type are required' });
