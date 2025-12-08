@@ -1388,6 +1388,15 @@ async function loadSetupInstructions(partModelNumber, generation) {
         setupStepCheckboxes();
         
         console.log('[Setup Instructions] Successfully loaded', sortedInstructions.length, 'steps');
+        
+        // Verify help checkbox was added
+        const helpCheckboxes = document.querySelectorAll('#setupSteps input[data-help="true"]');
+        console.log('[Setup Instructions] Help checkboxes found:', helpCheckboxes.length);
+        if (helpCheckboxes.length === 0) {
+            console.warn('[Setup Instructions] No help checkboxes found - they may not have been rendered');
+        } else {
+            console.log('[Setup Instructions] Help checkbox found for step:', helpCheckboxes[0].dataset.step);
+        }
     } catch (error) {
         console.error('[Setup Instructions] Error loading instructions:', error);
         // Keep default instructions on error
