@@ -1680,14 +1680,27 @@ app.post('/api/verify-barcode', requireDB, async (req, res) => {
             // Get part name from airpod_parts collection
             let partName = null;
             if (product.part_model_number) {
-                const partDoc = await db.collection('airpod_parts').findOne({
+                // Try exact match first
+                let partDoc = await db.collection('airpod_parts').findOne({
                     part_model_number: product.part_model_number
                 });
+                
+                // If not found, try case-insensitive search
+                if (!partDoc) {
+                    console.log('[Verify Barcode] Exact match failed, trying case-insensitive search for', product.part_model_number);
+                    const allParts = await db.collection('airpod_parts').find({}).toArray();
+                    partDoc = allParts.find(p => 
+                        p.part_model_number && 
+                        p.part_model_number.toUpperCase() === product.part_model_number.toUpperCase()
+                    );
+                }
+                
                 if (partDoc && partDoc.part_name) {
                     partName = partDoc.part_name;
                     console.log('[Verify Barcode] Found part name:', partName, 'for model', product.part_model_number);
                 } else {
                     console.log('[Verify Barcode] No part name found for model', product.part_model_number);
+                    console.log('[Verify Barcode] Searched in airpod_parts collection');
                 }
             }
             
