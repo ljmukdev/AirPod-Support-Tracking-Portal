@@ -1,12 +1,13 @@
 // Setup Instructions Manager
 console.log('[Setup Instructions Manager] Script loading...');
 
-// Define API_BASE globally if not already defined
+// Use API_BASE from admin.js (already defined globally)
+// If admin.js hasn't loaded yet, define it
 if (typeof window.API_BASE === 'undefined') {
     window.API_BASE = '';
 }
-// Reference the global API_BASE
-var API_BASE = window.API_BASE;
+// Use the global API_BASE without redeclaring
+const API_BASE = window.API_BASE;
 
 let allGenerations = [];
 let allParts = [];
