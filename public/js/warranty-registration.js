@@ -1354,20 +1354,15 @@ async function loadSetupInstructions(partModelNumber, generation) {
             }
             
             // Use 'instruction' field, not 'description'
-            // Add "Need help" option for step 6 (last step)
-            const isLastStep = index === sortedInstructions.length - 1;
-            console.log(`[Setup Instructions] Step ${stepNum} (index ${index}): isLastStep = ${isLastStep}, total steps = ${sortedInstructions.length}`);
-            const helpCheckboxHtml = isLastStep ? `
+            // Add "Need help" option for every step
+            const helpCheckboxHtml = `
                 <div class="step-checkbox" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e8ecf1;">
                     <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 12px; background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px;">
                         <input type="checkbox" data-step="${stepNum}" data-help="true" style="width: 20px; height: 20px; cursor: pointer;">
-                        <span style="color: #856404; font-weight: 500;">I'm struggling with this step / This is not working / I need help</span>
+                        <span style="color: #856404; font-weight: 500;">I'm struggling with this step / I need help</span>
                     </label>
                 </div>
-            ` : '';
-            if (isLastStep) {
-                console.log(`[Setup Instructions] Adding help checkbox for step ${stepNum}`);
-            }
+            `;
             
             stepDiv.innerHTML = `
                 <h3>${escapeHtml(step.title || `Step ${stepNum}`)}</h3>
@@ -1389,14 +1384,9 @@ async function loadSetupInstructions(partModelNumber, generation) {
         
         console.log('[Setup Instructions] Successfully loaded', sortedInstructions.length, 'steps');
         
-        // Verify help checkbox was added
+        // Verify help checkboxes were added
         const helpCheckboxes = document.querySelectorAll('#setupSteps input[data-help="true"]');
-        console.log('[Setup Instructions] Help checkboxes found:', helpCheckboxes.length);
-        if (helpCheckboxes.length === 0) {
-            console.warn('[Setup Instructions] No help checkboxes found - they may not have been rendered');
-        } else {
-            console.log('[Setup Instructions] Help checkbox found for step:', helpCheckboxes[0].dataset.step);
-        }
+        console.log('[Setup Instructions] Help checkboxes found:', helpCheckboxes.length, '(should be', sortedInstructions.length, ')');
     } catch (error) {
         console.error('[Setup Instructions] Error loading instructions:', error);
         // Keep default instructions on error
