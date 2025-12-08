@@ -341,6 +341,140 @@ if (partForm) {
     });
 }
 
+// Update autocomplete datalist with all part model numbers
+function updateAssociatedPartsAutocomplete() {
+    const datalist = document.getElementById('associatedPartsSuggestions');
+    if (!datalist) return;
+    
+    // Clear existing options
+    datalist.innerHTML = '';
+    
+    // Get unique part model numbers
+    const modelNumbers = [...new Set(allPartsData.map(part => part.part_model_number).filter(Boolean))];
+    
+    // Add each model number as an option
+    modelNumbers.sort().forEach(modelNumber => {
+        const option = document.createElement('option');
+        option.value = modelNumber;
+        datalist.appendChild(option);
+    });
+}
+
+// Get associated parts array from input field
+function getAssociatedPartsFromInput() {
+    const input = document.getElementById('associated_parts');
+    if (!input) return [];
+    const value = input.value.trim();
+    if (!value) return [];
+    return value.split(',').map(p => p.trim()).filter(p => p.length > 0);
+}
+
+// Update input field from array
+function updateAssociatedPartsInput(partsArray) {
+    const input = document.getElementById('associated_parts');
+    if (!input) return;
+    input.value = partsArray.join(', ');
+}
+
+// Update associated parts tags display
+function updateAssociatedPartsTags(partsArray) {
+    const tagsContainer = document.getElementById('associatedPartsTags');
+    if (!tagsContainer) return;
+    
+    // Clear existing tags
+    tagsContainer.innerHTML = '';
+    
+    if (!partsArray || partsArray.length === 0) {
+        return;
+    }
+    
+    // Create a tag for each part
+    partsArray.forEach((partNumber, index) => {
+        const tag = document.createElement('div');
+        tag.style.cssText = 'display: inline-flex; align-items: center; gap: 6px; background: #e7f3ff; border: 1px solid #0064D2; border-radius: 16px; padding: 6px 12px; font-size: 0.9rem; color: #0064D2;';
+        
+        const partText = document.createElement('span');
+        partText.textContent = partNumber;
+        partText.style.cssText = 'font-weight: 500;';
+        
+        const removeBtn = document.createElement('button');
+        removeBtn.innerHTML = '×';
+        removeBtn.type = 'button';
+        removeBtn.style.cssText = 'background: none; border: none; color: #0064D2; font-size: 1.2rem; font-weight: bold; cursor: pointer; padding: 0; margin-left: 4px; line-height: 1; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: all 0.2s;';
+        removeBtn.title = 'Remove ' + partNumber;
+        
+        // Hover effect
+        removeBtn.addEventListener('mouseenter', function() {
+            this.style.background = '#0064D2';
+            this.style.color = 'white';
+        });
+        removeBtn.addEventListener('mouseleave', function() {
+            this.style.background = 'none';
+            this.style.color = '#0064D2';
+        });
+        
+        // Remove handler
+        removeBtn.addEventListener('click', function() {
+            // Remove from array
+            const currentParts = getAssociatedPartsFromInput();
+            const updatedParts = currentParts.filter(p => p !== partNumber);
+            updateAssociatedPartsInput(updatedParts);
+            updateAssociatedPartsTags(updatedParts);
+        });
+        
+        tag.appendChild(partText);
+        tag.appendChild(removeBtn);
+        tagsContainer.appendChild(tag);
+    });
+}
+
+// Setup input field listener to update tags as user types
+const associatedPartsInput = document.getElementById('associated_parts');
+if (associatedPartsInput) {
+    let updateTimeout;
+    
+    // Update tags as user types (debounced)
+    associatedPartsInput.addEventListener('input', function() {
+        clearTimeout(updateTimeout);
+        updateTimeout = setTimeout(() => {
+            const parts = getAssociatedPartsFromInput();
+            updateAssociatedPartsTags(parts);
+        }, 300);
+    });
+    
+    // Update tags when user selects from autocomplete or presses comma/enter
+    associatedPartsInput.addEventListener('change', function() {
+        const parts = getAssociatedPartsFromInput();
+        updateAssociatedPartsTags(parts);
+    });
+    
+    // Handle Enter key to add current value and clear input
+    associatedPartsInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const currentValue = this.value.trim();
+            if (currentValue) {
+                const existingParts = getAssociatedPartsFromInput();
+                // Check if already added
+                if (!existingParts.includes(currentValue)) {
+                    const updatedParts = [...existingParts, currentValue];
+                    updateAssociatedPartsInput(updatedParts);
+                    updateAssociatedPartsTags(updatedParts);
+                    this.value = '';
+                } else {
+                    this.value = '';
+                }
+            }
+        }
+    });
+    
+    // Also update on blur
+    associatedPartsInput.addEventListener('blur', function() {
+        const parts = getAssociatedPartsFromInput();
+        updateAssociatedPartsTags(parts);
+    });
+}
+
 // Edit part
 async function editPart(id) {
     try {
