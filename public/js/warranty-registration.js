@@ -141,6 +141,9 @@ function initializePage() {
                     securityCodeEntry.style.display = 'none';
                 }
                 
+                // Show progress indicator immediately when coming from home page
+                updateProgressIndicator();
+                
                 // Ensure we're on step 1 first
                 showStep(1);
                 
