@@ -420,17 +420,20 @@ async function loadProductInfo(securityCode, skipValidation = false) {
         console.log('API response part_model_number:', data.part_model_number);
         
         if (response.ok && data.success) {
-            // Store product data
+            // Store product data (include all fields from API including part_name)
             appState.productData = {
                 part_type: data.part_type,
                 serial_number: data.serial_number,
                 generation: data.generation,
                 part_model_number: data.part_model_number,
+                part_name: data.part_name || null, // Include part_name from API
                 photos: data.photos || [],
                 ebay_order_number: data.ebay_order_number || null,
                 date_added: data.date_added,
-                notes: data.notes || null
+                notes: data.notes || null,
+                associated_parts: data.associated_parts || []
             };
+            console.log('[Load Product Info] Stored product data with part_name:', appState.productData.part_name);
             
             if (!skipValidation) {
                 appState.securityCode = securityCode;
