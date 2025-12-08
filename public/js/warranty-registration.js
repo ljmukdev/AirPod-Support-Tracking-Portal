@@ -4130,10 +4130,12 @@ function showStep(stepNumber, force = false) {
                     console.log('[showStep] Calling loadSetupInstructions');
                     loadSetupInstructions(partModelNumber, generation);
                 } else {
-                    console.warn('[showStep] No partModelNumber or generation available');
+                    console.warn('[showStep] No partModelNumber or generation available - setting up default instructions');
+                    setupStepCheckboxes();
                 }
             } else {
-                console.warn('[showStep] appState.productData is null/undefined');
+                console.warn('[showStep] appState.productData is null/undefined - setting up default instructions');
+                setupStepCheckboxes();
             }
         }
         
