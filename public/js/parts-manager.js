@@ -667,48 +667,52 @@ if (document.getElementById('partsList')) {
     setInterval(loadParts, 30000);
 }
 
-// Ensure autocomplete is populated after a short delay to allow DOM and data to be ready
-(function initAutocomplete() {
-    console.log('[Autocomplete Init] Starting initialization, readyState:', document.readyState);
+// Ensure autocomplete is populated - run this code immediately
+console.log('[Autocomplete Init] Script loaded, readyState:', document.readyState);
+
+function tryPopulateAutocomplete() {
+    console.log('[Autocomplete Init] Attempting to populate, allPartsData length:', allPartsData ? allPartsData.length : 0);
+    const datalist = document.getElementById('associatedPartsSuggestions');
+    const input = document.getElementById('associated_parts');
+    console.log('[Autocomplete Init] Datalist found:', !!datalist, 'Input found:', !!input);
     
-    function tryPopulate() {
-        console.log('[Autocomplete Init] Attempting to populate, allPartsData length:', allPartsData ? allPartsData.length : 0);
-        const datalist = document.getElementById('associatedPartsSuggestions');
-        const input = document.getElementById('associated_parts');
-        console.log('[Autocomplete Init] Datalist found:', !!datalist, 'Input found:', !!input);
-        
-        if (allPartsData && allPartsData.length > 0) {
-            updateAssociatedPartsAutocomplete();
-        } else {
-            // Try loading parts if not loaded
-            console.log('[Autocomplete Init] No parts data, attempting to load...');
-            fetch(`${API_BASE}/api/admin/parts`)
-                .then(res => res.json())
-                .then(data => {
-                    if (data.parts) {
-                        allPartsData = data.parts;
-                        console.log('[Autocomplete Init] Loaded', allPartsData.length, 'parts');
-                        updateAssociatedPartsAutocomplete();
-                    }
-                })
-                .catch(err => console.error('[Autocomplete Init] Error loading parts:', err));
-        }
-    }
-    
-    // Try immediately if DOM is ready
-    if (document.readyState === 'complete' || document.readyState === 'interactive') {
-        console.log('[Autocomplete Init] DOM ready, trying immediately');
-        setTimeout(tryPopulate, 100);
-        setTimeout(tryPopulate, 1000); // Retry after parts load
-        setTimeout(tryPopulate, 2000); // Final retry
+    if (allPartsData && allPartsData.length > 0) {
+        updateAssociatedPartsAutocomplete();
     } else {
-        console.log('[Autocomplete Init] Waiting for DOMContentLoaded');
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('[Autocomplete Init] DOMContentLoaded fired');
-            setTimeout(tryPopulate, 100);
-            setTimeout(tryPopulate, 1000);
-            setTimeout(tryPopulate, 2000);
-        });
+        // Try loading parts if not loaded
+        console.log('[Autocomplete Init] No parts data, attempting to load...');
+        fetch(`${API_BASE}/api/admin/parts`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.parts) {
+                    allPartsData = data.parts;
+                    console.log('[Autocomplete Init] Loaded', allPartsData.length, 'parts');
+                    updateAssociatedPartsAutocomplete();
+                }
+            })
+            .catch(err => console.error('[Autocomplete Init] Error loading parts:', err));
     }
-})();
+}
+
+// Try multiple times to ensure it runs
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    console.log('[Autocomplete Init] DOM ready, trying immediately');
+    setTimeout(tryPopulateAutocomplete, 100);
+    setTimeout(tryPopulateAutocomplete, 1000);
+    setTimeout(tryPopulateAutocomplete, 2000);
+} else {
+    console.log('[Autocomplete Init] Waiting for DOMContentLoaded');
+    document.addEventListener('DOMContentLoaded', () => {
+        console.log('[Autocomplete Init] DOMContentLoaded fired');
+        setTimeout(tryPopulateAutocomplete, 100);
+        setTimeout(tryPopulateAutocomplete, 1000);
+        setTimeout(tryPopulateAutocomplete, 2000);
+    });
+}
+
+// Also try after window load
+window.addEventListener('load', () => {
+    console.log('[Autocomplete Init] Window load event fired');
+    setTimeout(tryPopulateAutocomplete, 500);
+});
 
