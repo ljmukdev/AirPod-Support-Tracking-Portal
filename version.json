@@ -1,8 +1,15 @@
 {
   "version": "1.2.3",
   "build": "2024-12-19",
-  "revision": "008",
+  "revision": "009",
   "changelog": [
+    {
+      "version": "1.2.3",
+      "date": "2024-12-19",
+      "changes": [
+        "Fixed undefined showSuccessAnimation function call error on warranty registration completion"
+      ]
+    },
     {
       "version": "1.2.3",
       "date": "2024-12-19",
