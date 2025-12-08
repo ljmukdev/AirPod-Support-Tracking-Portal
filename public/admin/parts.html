@@ -113,8 +113,8 @@
                 var el = document.createElement('div');
                 el.id = 'version-display';
                 el.style.cssText = 'position:fixed;top:10px;right:10px;font-size:0.7rem;color:rgba(0,0,0,0.7);font-family:"Courier New",monospace;z-index:99999;padding:4px 8px;background:rgba(255,255,255,0.9);border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.2);pointer-events:none;';
-                el.textContent = 'v1.2.3.007';
-                el.title = 'Version 1.2.3 (Revision 007)';
+                el.textContent = 'v1.2.3.010';
+                el.title = 'Version 1.2.3 (Revision 010)';
                 if (document.body) {
                     document.body.appendChild(el);
                 } else {
@@ -215,6 +215,16 @@
                     <div class="form-group">
                         <label>Associated Parts</label>
                         <small style="color: #666; font-size: 0.85rem; display: block; margin-bottom: 12px;">Select the compatible parts that work with this part. These will be shown with images during warranty registration.</small>
+
+                        <!-- Selected parts display -->
+                        <div id="selectedPartsList" style="min-height: 40px; border: 2px solid #007bff; border-radius: 4px; padding: 12px; background: #e7f3ff; margin-bottom: 12px; display: none;">
+                            <div style="font-weight: 600; color: #284064; margin-bottom: 8px; font-size: 0.9rem;">Selected Compatible Parts:</div>
+                            <div id="selectedPartsContainer" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                <!-- Selected parts will appear here -->
+                            </div>
+                        </div>
+
+                        <!-- Checkboxes for selection -->
                         <div id="associatedPartsCheckboxes" style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 12px; background: #f8f9fa;">
                             <p style="color: #666; font-size: 0.9rem; margin: 0 0 12px 0;">Loading parts...</p>
                         </div>
@@ -314,7 +324,7 @@
     </div>
 
     <script src="../js/admin.js"></script>
-    <script src="../js/parts-manager.js?v=1.2.3.009"></script>
+    <script src="../js/parts-manager.js?v=1.2.3.010"></script>
     <script src="../js/version.js"></script>
 </body>
 </html>

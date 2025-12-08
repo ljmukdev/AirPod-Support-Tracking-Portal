@@ -285,10 +285,16 @@ if (partForm) {
         const notes = document.getElementById('notes').value.trim();
         const displayOrder = parseInt(document.getElementById('display_order').value) || 0;
         const associatedPartsInput = document.getElementById('associated_parts').value.trim();
-        // Parse comma-separated model numbers into array
-        const associatedParts = associatedPartsInput 
-            ? associatedPartsInput.split(',').map(p => p.trim()).filter(p => p.length > 0)
-            : [];
+        // Parse JSON array of model numbers
+        let associatedParts = [];
+        if (associatedPartsInput) {
+            try {
+                associatedParts = JSON.parse(associatedPartsInput);
+            } catch (e) {
+                console.warn('[Form Submit] Failed to parse associated_parts as JSON, treating as empty array:', e);
+                associatedParts = [];
+            }
+        }
         
         if (!generation || !partName || !partModelNumber || !partType) {
             showError('All required fields must be filled');
@@ -452,13 +458,86 @@ function populateAssociatedPartsCheckboxes(currentPartModelNumber = null, curren
         
         html += `</div>`;
     });
-    
+
     container.innerHTML = html;
-    
+
     // Add event listeners to update hidden input
     container.querySelectorAll('.associated-part-checkbox').forEach(checkbox => {
         checkbox.addEventListener('change', updateAssociatedPartsFromCheckboxes);
     });
+
+    // Render the selected parts list
+    renderSelectedParts();
+}
+
+// Render selected parts with remove buttons
+function renderSelectedParts() {
+    const hiddenInput = document.getElementById('associated_parts');
+    const selectedPartsContainer = document.getElementById('selectedPartsContainer');
+    const selectedPartsList = document.getElementById('selectedPartsList');
+
+    if (!hiddenInput || !selectedPartsContainer || !selectedPartsList) return;
+
+    let selectedParts = [];
+    try {
+        selectedParts = JSON.parse(hiddenInput.value || '[]');
+    } catch (e) {
+        selectedParts = [];
+    }
+
+    if (selectedParts.length === 0) {
+        selectedPartsList.style.display = 'none';
+        return;
+    }
+
+    selectedPartsList.style.display = 'block';
+
+    // Find the full part data for each selected part
+    let html = '';
+    selectedParts.forEach(partModelNumber => {
+        const part = allPartsData.find(p => p.part_model_number === partModelNumber);
+        if (part) {
+            const partTypeLabel = part.part_type === 'left' ? 'Left AirPod' : part.part_type === 'right' ? 'Right AirPod' : 'Case';
+            html += `
+                <div style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; background: white; border: 1px solid #007bff; border-radius: 20px; font-size: 0.85rem;">
+                    <span><strong>${escapeHtml(part.part_model_number)}</strong> - ${escapeHtml(part.part_name)} (${partTypeLabel})</span>
+                    <button type="button"
+                            onclick="removeAssociatedPart('${escapeHtml(partModelNumber)}')"
+                            style="background: none; border: none; color: #dc3545; cursor: pointer; font-size: 1.1rem; line-height: 1; padding: 0; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;"
+                            title="Remove this part">×</button>
+                </div>
+            `;
+        }
+    });
+
+    selectedPartsContainer.innerHTML = html;
+}
+
+// Remove a part from the selected list
+function removeAssociatedPart(partModelNumber) {
+    const hiddenInput = document.getElementById('associated_parts');
+    if (!hiddenInput) return;
+
+    let selectedParts = [];
+    try {
+        selectedParts = JSON.parse(hiddenInput.value || '[]');
+    } catch (e) {
+        selectedParts = [];
+    }
+
+    // Remove from array
+    selectedParts = selectedParts.filter(p => p !== partModelNumber);
+    hiddenInput.value = JSON.stringify(selectedParts);
+
+    // Uncheck the checkbox
+    const checkbox = document.querySelector(`.associated-part-checkbox[value="${partModelNumber}"]`);
+    if (checkbox) {
+        checkbox.checked = false;
+    }
+
+    // Re-render
+    renderSelectedParts();
+    console.log('[Associated Parts] Removed:', partModelNumber, 'Remaining:', selectedParts);
 }
 
 // Update hidden input from checkboxes
@@ -469,6 +548,7 @@ function updateAssociatedPartsFromCheckboxes() {
     if (hiddenInput) {
         hiddenInput.value = JSON.stringify(selectedParts);
     }
+    renderSelectedParts();
     console.log('[Associated Parts] Updated:', selectedParts);
 }
 
@@ -636,6 +716,7 @@ async function deletePart(id) {
 // Make functions available globally (for backwards compatibility)
 window.editPart = editPart;
 window.deletePart = deletePart;
+window.removeAssociatedPart = removeAssociatedPart;
 
 // Escape HTML
 function escapeHtml(text) {
