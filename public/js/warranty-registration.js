@@ -2445,7 +2445,6 @@ function initializeVerificationSteps() {
     if (continueBtn) continueBtn.disabled = true;
     
     // Verification step counter removed - using main progress bar instead
-    if (totalStepsEl) totalStepsEl.textContent = verificationState.totalSteps;
     
     // Show first step
     showVerificationStep(1);
