@@ -1460,7 +1460,7 @@
                                         <option value="found_better_deal">Found a better deal elsewhere</option>
                                         <option value="other">Other reason</option>
                                     </select>
-                                </div>
+                        </div>
                                 <div style="margin-bottom: 16px;">
                                     <label style="display: block; margin-bottom: 8px; color: #1a1a1a; font-weight: 500;">Additional Comments (Optional)</label>
                                     <textarea id="returnComments" rows="4" style="width: 100%; padding: 12px; border: 2px solid #e8ecf1; border-radius: 8px; font-size: 0.95rem; font-family: inherit; resize: vertical;" placeholder="Please provide any additional details about your return..."></textarea>
@@ -1470,9 +1470,9 @@
                                 </button>
                             </div>
                         </div>
+                        </div>
                     </div>
-                </div>
-                
+                    
                 <!-- Authenticity Check Step (shown when user selects "No" on serial number uniqueness) -->
                 <div id="authenticityCheckStep" style="display: none;">
                     <div class="card-body">
@@ -1484,8 +1484,8 @@
                                     <strong>Important:</strong> If your AirPod parts have identical serial numbers or missing serial numbers, they may be counterfeit. 
                                     Please check the authenticity markings on your existing parts using the images below.
                                 </p>
-                            </div>
-                            
+                    </div>
+                    
                             <div style="margin-bottom: 24px;">
                                 <h5 style="color: #1a1a1a; margin-bottom: 12px; font-size: 1rem;">Check Your Parts for These Markings:</h5>
                                 
@@ -1499,13 +1499,13 @@
                                         <img id="authenticityCheckAirpodImage" src="" alt="Markings on AirPod stem" style="width: 100%; max-width: 300px; height: auto; display: block; margin: 0 auto 8px; border-radius: 8px; cursor: pointer;">
                                         <div style="font-size: 0.85rem; color: #6c757d; font-weight: 600;">AirPod: Check the stem</div>
                                     </div>
-                                </div>
-                                
+                    </div>
+                    
                                 <p style="color: #6c757d; margin-bottom: 16px; line-height: 1.6;">
                                     Look for regulatory markings such as <strong>CE</strong>, <strong>R-NZ</strong>, or other certification marks that indicate authentic Apple products.
                                 </p>
-                            </div>
-                            
+                </div>
+                
                             <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #e8ecf1;">
                                 <button type="button" onclick="window.location.href='ebay-return.html'" style="padding: 10px 20px; background: #0064D2; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
                                     Continue to Return Process
@@ -1730,7 +1730,7 @@
                         <div class="success-icon">✓</div>
                         <h2 style="color: #28a745;">Success!</h2>
                     </div>
-                    <div class="warranty-confirmation" id="warrantyConfirmation" style="display: none !important;">
+                    <div class="warranty-confirmation" id="warrantyConfirmation" style="display: none;">
                         <div style="text-align: center; margin-bottom: 32px;">
                             <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #28a745 0%, #20c997 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; box-shadow: 0 4px 20px rgba(40, 167, 69, 0.3);">
                                 <span style="font-size: 40px; color: white;">✓</span>
@@ -1873,9 +1873,9 @@
                                     <p style="color: #6c757d; margin-bottom: 0; line-height: 1.6;">
                                         Start the pairing process again from the beginning. This will reset all setup steps and guide you through each one again.
                                     </p>
-                                </div>
                             </div>
                         </div>
+                            </div>
                         
                         <!-- Option 2: Free Reconditioning Service -->
                         <div class="help-option-card" id="helpOptionRecondition" style="background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%); border: 2px solid #ffc107; border-radius: 12px; padding: 24px; cursor: pointer; transition: all 0.3s ease; position: relative;">
@@ -1895,7 +1895,7 @@
                                     <p style="color: #856404; margin-bottom: 0; line-height: 1.6; font-weight: 500;">
                                         <strong>All completely free!</strong> We just ask for your positive feedback in return.
                                     </p>
-                                </div>
+                        </div>
                             </div>
                         </div>
                         
@@ -1990,14 +1990,14 @@
                                 <span style="color: #1a1a1a; font-size: 0.95rem; line-height: 1.5;">
                                     I understand that in return for this free service, I will provide positive feedback about my experience *
                                 </span>
-                            </label>
-                        </div>
+                                </label>
+                            </div>
                         
                         <button type="submit" class="continue-btn" id="submitReconditioningForm" style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);">
                             Submit Request
                         </button>
                     </form>
-                </div>
+                        </div>
                 
                 <!-- Step 7: Stripe Payment -->
                 <div class="step-container" id="step7" data-step="7">
@@ -2008,7 +2008,7 @@
                         <h3 style="margin-top: 0; margin-bottom: 16px; color: #1a1a1a;">Order Summary</h3>
                         <div id="paymentItems" style="margin-bottom: 16px;">
                             <!-- Items will be dynamically added here -->
-                        </div>
+                    </div>
                         <div style="border-top: 2px solid #e8ecf1; padding-top: 16px; margin-top: 16px;">
                             <div style="display: flex; justify-content: space-between; font-size: 1.2rem; font-weight: 600; color: #1a1a1a;">
                                 <span>Total:</span>
