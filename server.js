@@ -2565,7 +2565,7 @@ app.post('/api/admin/part', requireAuth, requireDB, upload.fields([
         return res.status(400).json({ error: 'Part type must be left, right, or case' });
     }
     
-    console.log('Adding new part:', { generation, part_name, part_model_number, part_type });
+    console.log('Adding new part:', { generation, part_name, part_model_number, part_type, associated_parts });
     
     try {
         const currentUploadsDir = global.uploadsDir || uploadsDir;
@@ -2623,18 +2623,24 @@ app.post('/api/admin/part', requireAuth, requireDB, upload.fields([
         // Parse associated_parts (comes as JSON string from FormData)
         let associatedPartsArray = [];
         if (associated_parts) {
+            console.log('[POST Part] Received associated_parts:', associated_parts, 'Type:', typeof associated_parts);
             try {
                 associatedPartsArray = typeof associated_parts === 'string' 
                     ? JSON.parse(associated_parts) 
                     : associated_parts;
                 // Ensure it's an array
                 if (!Array.isArray(associatedPartsArray)) {
+                    console.warn('[POST Part] associated_parts is not an array:', associatedPartsArray);
                     associatedPartsArray = [];
+                } else {
+                    console.log('[POST Part] Parsed associated_parts array:', associatedPartsArray);
                 }
             } catch (err) {
-                console.warn('Error parsing associated_parts:', err);
+                console.warn('[POST Part] Error parsing associated_parts:', err);
                 associatedPartsArray = [];
             }
+        } else {
+            console.log('[POST Part] No associated_parts provided');
         }
         
         const part = {
@@ -2653,6 +2659,7 @@ app.post('/api/admin/part', requireAuth, requireDB, upload.fields([
             date_added: new Date()
         };
         
+        console.log('[POST Part] Saving part with associated_parts:', part.associated_parts);
         const result = await db.collection('airpod_parts').insertOne(part);
         console.log('Part added successfully, id:', result.insertedId.toString());
         res.json({ success: true, message: 'Part added successfully', id: result.insertedId.toString() });
