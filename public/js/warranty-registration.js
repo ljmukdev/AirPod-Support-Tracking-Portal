@@ -587,33 +587,57 @@ function handleContactDetailsSubmit() {
     });
 }
 
-// Format Terms & Conditions content with proper capitalization and structure
+// Format Terms & Conditions content with proper headings, font sizes, and professional styling
 function formatTermsContent(content) {
     if (!content) return '';
     
     // Split into lines and format
     const lines = content.split('\n');
-    const formattedLines = lines.map(line => {
+    const formattedLines = [];
+    
+    lines.forEach((line, index) => {
         const trimmed = line.trim();
-        if (!trimmed) return '';
-        
-        // Check if line is a heading (all caps, ends with colon, or starts with number)
-        if (trimmed.match(/^[A-Z\s]+:$/) || trimmed.match(/^\d+\.\s+[A-Z]/) || trimmed.match(/^[A-Z][A-Z\s]{10,}$/)) {
-            // Keep headings as-is (already capitalized)
-            return trimmed;
+        if (!trimmed) {
+            formattedLines.push('');
+            return;
         }
         
-        // Check if line starts with a number (section number)
-        if (trimmed.match(/^\d+\./)) {
-            // Capitalize first letter after number
-            return trimmed.replace(/^(\d+\.\s*)([a-z])/, (match, num, letter) => num + letter.toUpperCase());
+        // Check if line is a main heading (all caps, ends with colon, or specific patterns)
+        if (trimmed.match(/^[A-Z\s]{5,}:?$/) && trimmed.length < 50) {
+            formattedLines.push(`<h4 style="font-size: 1rem; font-weight: 700; color: #1a1a1a; margin: 20px 0 8px 0; text-transform: uppercase; letter-spacing: 0.5px;">${trimmed.replace(':', '')}</h4>`);
+            return;
         }
         
-        // Capitalize first letter of each sentence
-        return trimmed.replace(/^([a-z])/, (match, letter) => letter.toUpperCase());
+        // Check if line starts with a number followed by a period (section heading)
+        if (trimmed.match(/^\d+\.\s+[A-Z]/)) {
+            const match = trimmed.match(/^(\d+\.\s+)(.+)$/);
+            if (match) {
+                formattedLines.push(`<h5 style="font-size: 0.95rem; font-weight: 600; color: #284064; margin: 16px 0 6px 0;">${match[1]}${match[2]}</h5>`);
+                return;
+            }
+        }
+        
+        // Check if line starts with a letter followed by a period (sub-section)
+        if (trimmed.match(/^[a-z]\)\s+[A-Z]/i)) {
+            const match = trimmed.match(/^([a-z]\)\s+)(.+)$/i);
+            if (match) {
+                formattedLines.push(`<p style="font-size: 0.9rem; font-weight: 500; color: #1a1a1a; margin: 10px 0 4px 20px;">${match[1]}${match[2]}</p>`);
+                return;
+            }
+        }
+        
+        // Check if line starts with a dash or bullet
+        if (trimmed.match(/^[-•]\s+/)) {
+            formattedLines.push(`<p style="font-size: 0.85rem; color: #6c757d; margin: 6px 0 4px 20px; line-height: 1.6;">${trimmed}</p>`);
+            return;
+        }
+        
+        // Regular paragraph text
+        const capitalized = trimmed.replace(/^([a-z])/, (match, letter) => letter.toUpperCase());
+        formattedLines.push(`<p style="font-size: 0.9rem; color: #1a1a1a; margin: 8px 0; line-height: 1.7;">${capitalized}</p>`);
     });
     
-    return formattedLines.join('\n');
+    return formattedLines.join('');
 }
 
 // Load Terms & Conditions
@@ -628,9 +652,9 @@ async function loadTermsAndConditions() {
             
             if (termsContentEl) {
                 const content = data.content || 'No terms and conditions available.';
-                // Format the terms content with proper capitalization and structure
+                // Format the terms content with proper headings, font sizes, and styling
                 const formattedContent = formatTermsContent(content);
-                termsContentEl.textContent = formattedContent;
+                termsContentEl.innerHTML = formattedContent;
             }
             
             if (termsVersionEl) {
