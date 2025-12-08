@@ -91,10 +91,35 @@
             box-sizing: border-box;
         }
         
+        /* Align header content with card content */
+        @media (min-width: 1200px) {
+            .header-content {
+                /* Calculate padding to align with centered 800px card in 1200px container */
+                /* Card is centered: (1200 - 800) / 2 = 200px from edges */
+                /* Container has 24px padding, so card starts at 200px from container edge */
+                /* To align header, we need same visual alignment */
+                padding-left: calc((100% - 1200px) / 2 + 24px);
+                padding-right: calc((100% - 1200px) / 2 + 24px);
+            }
+        }
+        
+        @media (max-width: 1199px) {
+            .header-content {
+                padding: 0 24px;
+            }
+        }
+        
+        @media (max-width: 640px) {
+            .header-content {
+                padding: 0 16px;
+            }
+        }
+        
         .logo {
             display: flex;
             align-items: center;
             gap: 12px;
+            flex-shrink: 0;
         }
         
         .logo-icon {
@@ -109,6 +134,7 @@
             color: white;
             font-size: 15px;
             letter-spacing: -0.5px;
+            flex-shrink: 0;
         }
         
         .logo-text {
@@ -116,11 +142,14 @@
             font-size: 18px;
             font-weight: 600;
             letter-spacing: -0.3px;
+            white-space: nowrap;
         }
         
         .nav-links {
             display: flex;
-            gap: 36px;
+            gap: 24px;
+            flex-shrink: 0;
+            align-items: center;
         }
         
         .nav-links a {
@@ -130,6 +159,7 @@
             font-weight: 500;
             transition: color 0.2s;
             cursor: pointer;
+            white-space: nowrap;
         }
         
         .nav-links a:hover:not(.disabled-nav) {
@@ -140,6 +170,63 @@
             opacity: 0.3;
             cursor: not-allowed !important;
             pointer-events: none;
+        }
+        
+        /* Responsive header adjustments */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-wrap: wrap;
+                gap: 12px;
+            }
+            
+            .logo {
+                flex: 1;
+                min-width: 0;
+            }
+            
+            .logo-text {
+                font-size: 16px;
+            }
+            
+            .logo-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 14px;
+            }
+            
+            .nav-links {
+                gap: 16px;
+                width: 100%;
+                justify-content: flex-start;
+            }
+            
+            .nav-links a {
+                font-size: 13px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .header {
+                padding: 12px 0;
+            }
+            
+            .logo-text {
+                font-size: 14px;
+            }
+            
+            .logo-icon {
+                width: 36px;
+                height: 36px;
+                font-size: 13px;
+            }
+            
+            .nav-links {
+                gap: 12px;
+            }
+            
+            .nav-links a {
+                font-size: 12px;
+            }
         }
         
         /* Progress Indicator */
@@ -223,9 +310,40 @@
             padding: 36px 48px;
         }
         
+        /* Responsive container and card adjustments */
+        @media (max-width: 1199px) {
+            .container {
+                padding: 20px 24px 40px 24px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 16px 20px 32px 20px;
+            }
+            
+            .card-body {
+                padding: 32px 28px;
+            }
+        }
+        
         @media (max-width: 640px) {
+            .container {
+                padding: 16px 16px 24px 16px;
+            }
+            
             .card-body {
                 padding: 32px 24px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .container {
+                padding: 12px 12px 20px 12px;
+            }
+            
+            .card-body {
+                padding: 24px 20px;
             }
         }
         
