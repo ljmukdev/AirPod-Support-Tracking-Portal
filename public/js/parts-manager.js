@@ -374,8 +374,9 @@ function populateAssociatedPartsCheckboxes(currentPartModelNumber = null) {
     
     console.log('[Associated Parts] Container found, checking parts data...');
     if (!allPartsData || allPartsData.length === 0) {
-        console.log('[Associated Parts] No parts data yet, showing loading message');
-        container.innerHTML = '<p style="color: #666; font-size: 0.9rem; margin: 0;">No parts available. Parts will appear here once loaded.</p>';
+        console.log('[Associated Parts] No parts data yet, will retry when parts are loaded');
+        // Don't show "No parts available" - keep "Loading parts..." message
+        // The function will be called again when parts are loaded
         return;
     }
     
