@@ -1267,7 +1267,15 @@ async function getCompatiblePartExamples(partModelNumber, partType) {
         const data = await response.json();
         console.log('[Compatible Parts] API response:', data);
         
-        return data;
+        // API returns { ok: true, data: { compatibleParts: [...] } }
+        // Return the data object directly so compatibleParts is accessible
+        if (data && data.data && data.data.compatibleParts) {
+            return { compatibleParts: data.data.compatibleParts };
+        } else if (data && data.compatibleParts) {
+            return { compatibleParts: data.compatibleParts };
+        }
+        
+        return { compatibleParts: [] };
     } catch (error) {
         console.error('[Compatible Parts] Error fetching compatible parts:', error);
         return { compatibleParts: [] };
