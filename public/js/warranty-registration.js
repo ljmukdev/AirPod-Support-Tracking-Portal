@@ -81,35 +81,16 @@ function initializePage() {
     const urlParams = new URLSearchParams(window.location.search);
     const barcodeFromUrl = urlParams.get('barcode');
     const paymentSuccess = urlParams.get('payment') === 'success';
-    // Stripe returns payment intent ID in the URL after redirect
-    const paymentIntentId = urlParams.get('intent');
-    // GoCardless returns redirect_flow_id in the URL after redirect (legacy support)
+    // GoCardless returns redirect_flow_id in the URL after redirect
     const redirectFlowId = urlParams.get('redirect_flow_id') || sessionStorage.getItem('gocardless_redirect_flow_id');
     
     console.log('Barcode from URL:', barcodeFromUrl);
     console.log('Payment success:', paymentSuccess);
-    console.log('Payment intent ID:', paymentIntentId);
     console.log('Redirect flow ID:', redirectFlowId);
     
-    // Handle Stripe payment success redirect
-    if (paymentSuccess && paymentIntentId) {
-        console.log('[Payment] Detected Stripe payment success redirect, handling...');
-        // Store payment intent ID and complete registration
-        appState.paymentIntentId = paymentIntentId;
-        saveState();
-        // Remove payment params from URL
-        const newUrl = window.location.pathname + (window.location.search.replace(/[?&]payment=success(&intent=[^&]*)?/g, '').replace(/^&/, '?') || '');
-        window.history.replaceState({}, '', newUrl);
-        // Complete the registration
-        setTimeout(() => {
-            finishSetup();
-        }, 500);
-        return; // Don't continue with normal initialization
-    }
-    
-    // Handle GoCardless payment success redirect (legacy support)
+    // Handle GoCardless payment success redirect
     if (paymentSuccess && redirectFlowId) {
-        console.log('[Payment] Detected GoCardless payment success redirect, handling...');
+        console.log('[Payment] Detected payment success redirect, handling...');
         handleGoCardlessPaymentSuccess(redirectFlowId);
         return; // Don't continue with normal initialization
     }
@@ -1644,25 +1625,37 @@ function removeItemFromBasket(itemType, itemId) {
     });
 }
 
-// Initialize Stripe payment
+// Initialize GoCardless payment
 function initializeStripePayment() {
-    console.log('[Payment] Initializing Stripe payment');
+    console.log('[Payment] Initializing GoCardless payment');
     
-    // Set up Stripe Elements
-    setupStripeElements();
+    // Check if payment system is configured
+    checkPaymentConfig();
+    
+    // Set up payment button handler
+    const processPaymentBtn = document.getElementById('processPaymentBtn');
+    if (processPaymentBtn) {
+        // Remove any existing listeners
+        const newBtn = processPaymentBtn.cloneNode(true);
+        processPaymentBtn.parentNode.replaceChild(newBtn, processPaymentBtn);
+        
+        newBtn.addEventListener('click', async () => {
+            await processGoCardlessPayment();
+        });
+    }
 }
 
-// Check payment configuration (Stripe)
+// Check payment configuration
 async function checkPaymentConfig() {
     try {
-        const response = await fetch(`${API_BASE}/api/stripe/config`);
+        const response = await fetch(`${API_BASE}/api/payment/config`);
         const data = await response.json();
         
-        if (!data.publishableKey) {
+        if (!data.configured) {
             const paymentError = document.getElementById('paymentError');
             if (paymentError) {
                 paymentError.style.cssText = 'display: block; background: #fff3cd; color: #856404; padding: 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #ffc107;';
-                paymentError.textContent = data.error || 'Payment system not configured. Please add STRIPE_PUBLISHABLE_KEY to environment variables.';
+                paymentError.textContent = data.error || 'Payment system not configured';
             }
             
             const processPaymentBtn = document.getElementById('processPaymentBtn');
@@ -1679,16 +1672,40 @@ async function checkPaymentConfig() {
 async function setupStripeElements() {
     console.log('[Payment] Setting up Stripe Elements');
     
+    // Check if Stripe.js is loaded
+    if (typeof Stripe === 'undefined') {
+        console.error('[Payment] Stripe.js library not loaded');
+        const paymentElementContainer = document.getElementById('stripe-payment-element');
+        if (paymentElementContainer) {
+            paymentElementContainer.innerHTML = `
+                <div style="background: #f8d7da; border: 2px solid #dc3545; border-radius: 8px; padding: 20px; text-align: center;">
+                    <p style="color: #721c24; margin: 0;">Stripe.js library failed to load. Please refresh the page.</p>
+                </div>
+            `;
+        }
+        return;
+    }
+    
     const paymentElementContainer = document.getElementById('stripe-payment-element');
     if (!paymentElementContainer) {
         console.error('[Payment] Payment element container not found');
         return;
     }
     
+    // Show loading state
+    paymentElementContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #6c757d;">Loading payment form...</div>';
+    
     // Fetch Stripe publishable key from server
     try {
+        console.log('[Payment] Fetching Stripe config from:', `${API_BASE}/api/stripe/config`);
         const configResponse = await fetch(`${API_BASE}/api/stripe/config`);
+        
+        if (!configResponse.ok) {
+            throw new Error(`HTTP error! status: ${configResponse.status}`);
+        }
+        
         const configData = await configResponse.json();
+        console.log('[Payment] Stripe config response:', configData);
         
         if (!configData.publishableKey) {
             console.warn('[Payment] Stripe not configured:', configData.error || 'No publishable key');
@@ -1708,7 +1725,7 @@ async function setupStripeElements() {
         }
         
         const stripePublishableKey = configData.publishableKey;
-        console.log('[Payment] Stripe publishable key loaded');
+        console.log('[Payment] Stripe publishable key loaded:', stripePublishableKey.substring(0, 20) + '...');
         
         // Initialize Stripe
         const stripe = Stripe(stripePublishableKey);
@@ -1732,10 +1749,22 @@ async function setupStripeElements() {
         
         // Create payment element
         const paymentElement = elements.create('payment');
-        paymentElement.mount('#stripe-payment-element');
-        window.paymentElementInstance = paymentElement; // Store globally
         
-        console.log('[Payment] Stripe Elements initialized successfully');
+        // Mount payment element with error handling
+        try {
+            paymentElement.mount('#stripe-payment-element');
+            window.paymentElementInstance = paymentElement; // Store globally
+            console.log('[Payment] Stripe Elements initialized successfully');
+        } catch (mountError) {
+            console.error('[Payment] Error mounting Stripe Elements:', mountError);
+            paymentElementContainer.innerHTML = `
+                <div style="background: #f8d7da; border: 2px solid #dc3545; border-radius: 8px; padding: 20px; text-align: center;">
+                    <p style="color: #721c24; margin: 0;">Error loading payment form: ${mountError.message || 'Unknown error'}</p>
+                    <p style="color: #721c24; margin: 10px 0 0 0; font-size: 0.9rem;">Please check the browser console for details.</p>
+                </div>
+            `;
+            return;
+        }
         
         // Handle payment button click
         const processPaymentBtn = document.getElementById('processPaymentBtn');
@@ -1751,11 +1780,15 @@ async function setupStripeElements() {
         
     } catch (error) {
         console.error('[Payment] Error setting up Stripe:', error);
-        paymentElementContainer.innerHTML = `
-            <div style="background: #f8d7da; border: 2px solid #dc3545; border-radius: 8px; padding: 20px; text-align: center;">
-                <p style="color: #721c24; margin: 0;">Error loading payment system. Please try again later.</p>
-            </div>
-        `;
+        const paymentElementContainer = document.getElementById('stripe-payment-element');
+        if (paymentElementContainer) {
+            paymentElementContainer.innerHTML = `
+                <div style="background: #f8d7da; border: 2px solid #dc3545; border-radius: 8px; padding: 20px; text-align: center;">
+                    <p style="color: #721c24; margin: 0;">Error loading payment system: ${error.message || 'Unknown error'}</p>
+                    <p style="color: #721c24; margin: 10px 0 0 0; font-size: 0.9rem;">Please check the browser console for details.</p>
+                </div>
+            `;
+        }
     }
 }
 
@@ -1998,11 +2031,6 @@ async function processStripePayment(stripe, paymentElement) {
         
         // Payment successful
         console.log('[Payment] Payment successful:', paymentIntent);
-        
-        // Store payment intent ID in appState
-        appState.paymentIntentId = data.paymentIntentId;
-        saveState();
-        
         trackEvent('payment_completed', {
             amount: totalAmount,
             warranty: appState.selectedWarranty,
@@ -2013,11 +2041,12 @@ async function processStripePayment(stripe, paymentElement) {
         // Show success message
         if (paymentError) {
             paymentError.style.cssText = 'display: block; background: #d4edda; color: #155724; padding: 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #c3e6cb;';
-            paymentError.textContent = '✓ Payment successful! Completing registration...';
+            paymentError.textContent = '✓ Payment successful! Redirecting...';
         }
         
-        // Complete the registration process immediately (no redirect needed if payment succeeded without redirect)
+        // Redirect to success page or continue with registration
         setTimeout(() => {
+            // Complete the registration process
             finishSetup();
         }, 1500);
         
@@ -5060,73 +5089,19 @@ function showLastChancePopup() {
 }
 
 // Finish setup
-async function finishSetup() {
-    try {
-        // Calculate warranty price
-        let warrantyPrice = 0;
-        let extendedWarranty = 'none';
-        
-        if (appState.selectedWarranty && appState.selectedWarranty !== 'none') {
-            extendedWarranty = appState.selectedWarranty;
-            const warrantyCard = document.querySelector(`.warranty-card[data-plan="${appState.selectedWarranty}"]`);
-            if (warrantyCard) {
-                const priceText = warrantyCard.querySelector('.warranty-price')?.textContent || '£0.00';
-                warrantyPrice = parseFloat(priceText.replace(/[£,]/g, '')) || 0;
-            }
-        }
-        
-        // Prepare warranty registration data
-        const registrationData = {
-            security_barcode: appState.securityCode,
-            customer_name: appState.contactDetails?.name || '',
-            customer_email: appState.contactDetails?.email || '',
-            customer_phone: appState.contactDetails?.phone || null,
-            billing_address: appState.contactDetails?.billingAddress || null,
-            extended_warranty: extendedWarranty,
-            warranty_price: warrantyPrice,
-            payment_intent_id: appState.paymentIntentId || null,
-            marketing_consent: appState.contactDetails?.marketingConsent || false,
-            terms_version: appState.termsVersion,
-            terms_accepted: true
-        };
-        
-        console.log('[Finish Setup] Submitting warranty registration:', registrationData);
-        
-        // Submit warranty registration
-        const response = await fetch(`${API_BASE}/api/warranty/register`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(registrationData)
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok && data.success) {
-            console.log('[Finish Setup] Warranty registered successfully');
-            trackEvent('setup_completed', {
-                warranty: appState.selectedWarranty,
-                accessories: appState.selectedAccessories,
-                timeSpent: Math.round((Date.now() - appState.sessionStartTime) / 1000),
-                paymentIntentId: appState.paymentIntentId
-            });
-            
-            // Clear saved state
-            localStorage.removeItem('warrantyRegistrationState');
-            sessionStorage.removeItem('gocardless_redirect_flow_id');
-            sessionStorage.removeItem('gocardless_amount');
-            
-            // Show success message
-            alert('Setup completed! Thank you for registering your warranty.');
-            // window.location.href = 'confirmation.html';
-        } else {
-            throw new Error(data.error || 'Failed to register warranty');
-        }
-    } catch (error) {
-        console.error('[Finish Setup] Error completing registration:', error);
-        alert('Error completing registration: ' + (error.message || 'Please contact support.'));
-    }
+function finishSetup() {
+    trackEvent('setup_completed', {
+        warranty: appState.selectedWarranty,
+        accessories: appState.selectedAccessories,
+        timeSpent: Math.round((Date.now() - appState.sessionStartTime) / 1000)
+    });
+    
+    // Clear saved state
+    localStorage.removeItem('warrantyRegistrationState');
+    
+    // Redirect to confirmation or next page
+    alert('Setup completed! Thank you for registering your warranty.');
+    // window.location.href = 'confirmation.html';
 }
 
 // Prevent clicking outside active section
