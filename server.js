@@ -2390,8 +2390,9 @@ app.post('/api/gocardless/complete-redirect-flow', requireDB, async (req, res) =
     
     try {
         // Complete the redirect flow to get the mandate
+        // GoCardless API uses snake_case
         const completedFlow = await gocardless.redirectFlows.complete(redirectFlowId, {
-            sessionToken: req.sessionID
+            session_token: req.sessionID
         });
         
         console.log(`✅ Redirect flow completed: ${redirectFlowId}, Mandate: ${completedFlow.links.mandate}`);
