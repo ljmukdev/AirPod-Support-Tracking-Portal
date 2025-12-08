@@ -382,21 +382,11 @@ function updateAssociatedPartsAutocomplete() {
     
     console.log('[Autocomplete] Populating datalist with', modelNumbers.length, 'model numbers:', modelNumbers.slice(0, 10), modelNumbers.length > 10 ? '...' : '');
     
-    // Add each model number as an option (with both original and uppercase for better matching)
+    // Add each model number as an option
     modelNumbers.sort().forEach(modelNumber => {
         const option = document.createElement('option');
         option.value = modelNumber;
-        // Also add a label to help with display
-        option.textContent = modelNumber;
         datalist.appendChild(option);
-    });
-    
-    // Also add lowercase versions for case-insensitive matching (some browsers need this)
-    modelNumbers.forEach(modelNumber => {
-        const lowerOption = document.createElement('option');
-        lowerOption.value = modelNumber.toLowerCase();
-        lowerOption.setAttribute('data-original', modelNumber);
-        datalist.appendChild(lowerOption);
     });
     
     // Verify it was added
