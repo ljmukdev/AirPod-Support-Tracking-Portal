@@ -586,17 +586,10 @@ function handleContactDetailsSubmit() {
     saveState();
     
     // Register warranty with contact details
+    // After registration, go to step 3 (Setup Instructions)
     registerWarranty().then(() => {
-            // Show warranty confirmation
-            showStep(4);
-            // Load warranty pricing and update price display
-            loadAndDisplayLowestWarrantyPrice();
-            setTimeout(() => {
-                const confirmationEl = document.getElementById('warrantyConfirmation');
-                if (confirmationEl) {
-                    confirmationEl.style.display = 'block';
-                }
-            }, 2000);
+            // Go to Setup Instructions (step 3)
+            showStep(3);
     }).catch((error) => {
         console.error('Failed to register warranty:', error);
         alert('Failed to register warranty. Please try again.');
