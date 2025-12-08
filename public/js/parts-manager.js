@@ -80,15 +80,12 @@ async function loadParts() {
             // Store all parts for associated parts selection
             allPartsData = data.parts;
             console.log('[Parts Manager] Stored', allPartsData.length, 'parts in allPartsData');
-            
+
             // Always populate checkboxes after loading parts
             const partModelNumber = document.getElementById('part_model_number')?.value || null;
             console.log('[Parts Manager] Populating checkboxes, current part:', partModelNumber);
             populateAssociatedPartsCheckboxes(partModelNumber);
-        } else {
-            console.warn('[Parts Manager] Condition failed - response.ok:', response.ok, 'data.parts:', !!data.parts);
-        }
-            
+
             if (data.parts.length === 0) {
                 partsList.innerHTML = '<p style="text-align: center; padding: 40px; color: #666;">No parts found. Add your first part above.</p>';
                 return;
@@ -285,10 +282,16 @@ if (partForm) {
         const notes = document.getElementById('notes').value.trim();
         const displayOrder = parseInt(document.getElementById('display_order').value) || 0;
         const associatedPartsInput = document.getElementById('associated_parts').value.trim();
-        // Parse comma-separated model numbers into array
-        const associatedParts = associatedPartsInput 
-            ? associatedPartsInput.split(',').map(p => p.trim()).filter(p => p.length > 0)
-            : [];
+        // Parse JSON array of model numbers
+        let associatedParts = [];
+        if (associatedPartsInput) {
+            try {
+                associatedParts = JSON.parse(associatedPartsInput);
+            } catch (e) {
+                console.warn('[Form Submit] Failed to parse associated_parts as JSON, treating as empty array:', e);
+                associatedParts = [];
+            }
+        }
         
         if (!generation || !partName || !partModelNumber || !partType) {
             showError('All required fields must be filled');
