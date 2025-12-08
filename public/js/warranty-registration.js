@@ -2397,8 +2397,11 @@ function setupMarkingsVerificationListeners() {
                 // Ensure appState.currentStep is set to 3 before calling showStep
                 appState.currentStep = 3;
                 showStep(3, true); // Force navigation to step 3 (Contact Information)
-                // Update progress indicator to ensure it reflects step 3
-                updateProgressIndicator();
+                // Update progress indicator after a small delay to ensure DOM has updated
+                setTimeout(() => {
+                    updateProgressIndicator();
+                    console.log('[Markings Verification] Progress indicator updated to step 3');
+                }, 100);
             }, 300);
         }
     };
