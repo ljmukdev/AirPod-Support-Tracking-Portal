@@ -660,34 +660,43 @@ function escapeHtml(text) {
 
 // Initialize
 if (document.getElementById('partsList')) {
-    loadParts().then(() => {
-        // Ensure autocomplete is populated after parts load
-        updateAssociatedPartsAutocomplete();
-    });
+    loadParts();
     loadGenerations();
     
     // Refresh parts every 30 seconds
-    setInterval(() => {
-        loadParts().then(() => {
-            updateAssociatedPartsAutocomplete();
-        });
-    }, 30000);
+    setInterval(loadParts, 30000);
 }
 
-// Also populate autocomplete when page loads (in case parts are already loaded)
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        setTimeout(() => {
-            if (allPartsData.length > 0) {
-                updateAssociatedPartsAutocomplete();
-            }
-        }, 1000);
-    });
-} else {
-    setTimeout(() => {
-        if (allPartsData.length > 0) {
+// Ensure autocomplete is populated after a short delay to allow DOM and data to be ready
+(function initAutocomplete() {
+    function tryPopulate() {
+        console.log('[Autocomplete Init] Attempting to populate, allPartsData length:', allPartsData.length);
+        if (allPartsData && allPartsData.length > 0) {
             updateAssociatedPartsAutocomplete();
+        } else {
+            // Try loading parts if not loaded
+            console.log('[Autocomplete Init] No parts data, attempting to load...');
+            fetch(`${API_BASE}/api/admin/parts`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.parts) {
+                        allPartsData = data.parts;
+                        console.log('[Autocomplete Init] Loaded', allPartsData.length, 'parts');
+                        updateAssociatedPartsAutocomplete();
+                    }
+                })
+                .catch(err => console.error('[Autocomplete Init] Error loading parts:', err));
         }
-    }, 1000);
-}
+    }
+    
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(tryPopulate, 500);
+            setTimeout(tryPopulate, 1500); // Retry after parts load
+        });
+    } else {
+        setTimeout(tryPopulate, 500);
+        setTimeout(tryPopulate, 1500); // Retry after parts load
+    }
+})();
 

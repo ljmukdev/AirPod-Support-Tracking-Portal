@@ -1,8 +1,17 @@
 {
   "version": "1.2.3",
   "build": "2024-12-19",
-  "revision": "006",
+  "revision": "007",
   "changelog": [
+    {
+      "version": "1.2.3",
+      "date": "2024-12-19",
+      "changes": [
+        "Added autocomplete suggestions for associated parts field with visual tag display",
+        "Added remove buttons on associated parts tags for easy management",
+        "Fixed autocomplete initialization to ensure datalist is populated correctly"
+      ]
+    },
     {
       "version": "1.2.3",
       "date": "2024-12-19",
