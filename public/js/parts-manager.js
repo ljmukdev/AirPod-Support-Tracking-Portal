@@ -669,8 +669,14 @@ if (document.getElementById('partsList')) {
 
 // Ensure autocomplete is populated after a short delay to allow DOM and data to be ready
 (function initAutocomplete() {
+    console.log('[Autocomplete Init] Starting initialization, readyState:', document.readyState);
+    
     function tryPopulate() {
-        console.log('[Autocomplete Init] Attempting to populate, allPartsData length:', allPartsData.length);
+        console.log('[Autocomplete Init] Attempting to populate, allPartsData length:', allPartsData ? allPartsData.length : 0);
+        const datalist = document.getElementById('associatedPartsSuggestions');
+        const input = document.getElementById('associated_parts');
+        console.log('[Autocomplete Init] Datalist found:', !!datalist, 'Input found:', !!input);
+        
         if (allPartsData && allPartsData.length > 0) {
             updateAssociatedPartsAutocomplete();
         } else {
@@ -689,14 +695,20 @@ if (document.getElementById('partsList')) {
         }
     }
     
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
-            setTimeout(tryPopulate, 500);
-            setTimeout(tryPopulate, 1500); // Retry after parts load
-        });
+    // Try immediately if DOM is ready
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        console.log('[Autocomplete Init] DOM ready, trying immediately');
+        setTimeout(tryPopulate, 100);
+        setTimeout(tryPopulate, 1000); // Retry after parts load
+        setTimeout(tryPopulate, 2000); // Final retry
     } else {
-        setTimeout(tryPopulate, 500);
-        setTimeout(tryPopulate, 1500); // Retry after parts load
+        console.log('[Autocomplete Init] Waiting for DOMContentLoaded');
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('[Autocomplete Init] DOMContentLoaded fired');
+            setTimeout(tryPopulate, 100);
+            setTimeout(tryPopulate, 1000);
+            setTimeout(tryPopulate, 2000);
+        });
     }
 })();
 
