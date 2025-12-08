@@ -587,6 +587,35 @@ function handleContactDetailsSubmit() {
     });
 }
 
+// Format Terms & Conditions content with proper capitalization and structure
+function formatTermsContent(content) {
+    if (!content) return '';
+    
+    // Split into lines and format
+    const lines = content.split('\n');
+    const formattedLines = lines.map(line => {
+        const trimmed = line.trim();
+        if (!trimmed) return '';
+        
+        // Check if line is a heading (all caps, ends with colon, or starts with number)
+        if (trimmed.match(/^[A-Z\s]+:$/) || trimmed.match(/^\d+\.\s+[A-Z]/) || trimmed.match(/^[A-Z][A-Z\s]{10,}$/)) {
+            // Keep headings as-is (already capitalized)
+            return trimmed;
+        }
+        
+        // Check if line starts with a number (section number)
+        if (trimmed.match(/^\d+\./)) {
+            // Capitalize first letter after number
+            return trimmed.replace(/^(\d+\.\s*)([a-z])/, (match, num, letter) => num + letter.toUpperCase());
+        }
+        
+        // Capitalize first letter of each sentence
+        return trimmed.replace(/^([a-z])/, (match, letter) => letter.toUpperCase());
+    });
+    
+    return formattedLines.join('\n');
+}
+
 // Load Terms & Conditions
 async function loadTermsAndConditions() {
     try {
@@ -598,7 +627,10 @@ async function loadTermsAndConditions() {
             const termsAcceptedEl = document.getElementById('termsAccepted');
             
             if (termsContentEl) {
-                termsContentEl.textContent = data.content || 'No terms and conditions available.';
+                const content = data.content || 'No terms and conditions available.';
+                // Format the terms content with proper capitalization and structure
+                const formattedContent = formatTermsContent(content);
+                termsContentEl.textContent = formattedContent;
             }
             
             if (termsVersionEl) {
