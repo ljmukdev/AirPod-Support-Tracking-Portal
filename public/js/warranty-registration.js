@@ -1299,15 +1299,31 @@ async function loadSetupInstructions(partModelNumber, generation) {
         return;
     }
     
-    // Try to fetch by part_model_number first, then by generation
-    let identifier = partModelNumber || generation;
-    if (!identifier) {
+    if (!partModelNumber && !generation) {
         console.error('[Setup Instructions] No identifier provided (partModelNumber or generation)');
         return;
     }
     
     try {
-        const response = await fetch(`${API_BASE}/api/setup-instructions/${encodeURIComponent(identifier)}`);
+        // Try to fetch by part_model_number first, then by generation
+        let response;
+        let identifier = partModelNumber;
+        
+        if (partModelNumber) {
+            console.log('[Setup Instructions] Trying part_model_number:', partModelNumber);
+            response = await fetch(`${API_BASE}/api/setup-instructions/${encodeURIComponent(partModelNumber)}`);
+            
+            // If not found and we have generation, try generation
+            if (!response.ok && response.status === 404 && generation) {
+                console.log('[Setup Instructions] Part-specific not found, trying generation:', generation);
+                identifier = generation;
+                response = await fetch(`${API_BASE}/api/setup-instructions/${encodeURIComponent(generation)}`);
+            }
+        } else if (generation) {
+            console.log('[Setup Instructions] Trying generation:', generation);
+            identifier = generation;
+            response = await fetch(`${API_BASE}/api/setup-instructions/${encodeURIComponent(generation)}`);
+        }
         
         if (!response.ok) {
             if (response.status === 404) {
