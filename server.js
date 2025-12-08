@@ -1677,13 +1677,27 @@ app.post('/api/verify-barcode', requireDB, async (req, res) => {
         if (!product) {
             res.status(404).json({ error: 'Invalid security code. Please check and try again.' });
         } else {
+            // Get part name from airpod_parts collection
+            let partName = null;
+            if (product.part_model_number) {
+                const partDoc = await db.collection('airpod_parts').findOne({
+                    part_model_number: product.part_model_number
+                });
+                if (partDoc && partDoc.part_name) {
+                    partName = partDoc.part_name;
+                    console.log('[Verify Barcode] Found part name:', partName, 'for model', product.part_model_number);
+                } else {
+                    console.log('[Verify Barcode] No part name found for model', product.part_model_number);
+                }
+            }
+            
             // Get associated parts details if they exist
             let associatedPartsDetails = [];
             if (product.associated_parts && Array.isArray(product.associated_parts) && product.associated_parts.length > 0) {
                 console.log('[Verify Barcode] Product has associated_parts:', product.associated_parts);
 
                 // Fetch full details for each associated part
-                const associatedPartsDocs = await db.collection('parts').find({
+                const associatedPartsDocs = await db.collection('airpod_parts').find({
                     part_model_number: { $in: product.associated_parts }
                 }).toArray();
 
@@ -1710,6 +1724,7 @@ app.post('/api/verify-barcode', requireDB, async (req, res) => {
                 serial_number: product.serial_number,
                 generation: product.generation,
                 part_model_number: product.part_model_number,
+                part_name: partName || null,
                 photos: product.photos || [],
                 ebay_order_number: product.ebay_order_number || null,
                 date_added: product.date_added,
