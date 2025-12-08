@@ -1,8 +1,16 @@
 {
   "version": "1.2.3",
   "build": "2024-12-19",
-  "revision": "011",
+  "revision": "012",
   "changelog": [
+    {
+      "version": "1.2.3",
+      "date": "2024-12-19",
+      "changes": [
+        "Fixed API to include part_name in verify-barcode response by looking up from airpod_parts collection",
+        "Fixed associated parts lookup to use correct collection name (airpod_parts)"
+      ]
+    },
     {
       "version": "1.2.3",
       "date": "2024-12-19",
