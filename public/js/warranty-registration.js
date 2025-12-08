@@ -248,7 +248,7 @@ function setupEventListeners() {
                 
                 // If product is displayed on step 1, go to contact details
                 if (isProductDisplayed && appState.productData) {
-                    showStep(3);
+                    showStep(2); // Go to step 2 (Contact Info)
                 } else {
                     validateSecurityCode();
                 }
@@ -266,7 +266,7 @@ function setupEventListeners() {
         // But handle manual click just in case
         if (verificationState && verificationState.completedSteps && verificationState.completedSteps.size === verificationState.totalSteps && appState.productData) {
             console.log('[Continue] All verification steps complete, going to contact details');
-            showStep(3, true); // Force navigation
+            showStep(2, true); // Force navigation to step 2 (Contact Info)
             return;
         }
         
@@ -284,11 +284,11 @@ function setupEventListeners() {
             validateSecurityCode();
         }
     });
-    document.getElementById('continueBtn2')?.addEventListener('click', () => {
-        // Product review complete, go to contact details
-        showStep(3);
+    document.getElementById('continueBtn2')?.addEventListener('click', handleContactDetailsSubmit);
+    document.getElementById('continueBtn3')?.addEventListener('click', () => {
+        // Setup instructions complete, go to warranty confirmation
+        showStep(4);
     });
-    document.getElementById('continueBtn3')?.addEventListener('click', handleContactDetailsSubmit);
     document.getElementById('continueBtn4')?.addEventListener('click', () => {
         // Warranty confirmed, go to extended warranty upsell
         trackEvent('warranty_confirmed');
@@ -297,8 +297,8 @@ function setupEventListeners() {
     document.getElementById('skipWarrantyStep4')?.addEventListener('click', (e) => {
         e.preventDefault();
         trackEvent('warranty_skipped', { step: 4 });
-        // Skip to accessories step (step 6) or setup instructions (step 7)
-        showStep(7);
+        // Skip to accessories step (step 6)
+        showStep(6);
     });
     document.getElementById('continueBtn5')?.addEventListener('click', () => {
         trackEvent('warranty_selected', { plan: appState.selectedWarranty });
@@ -306,7 +306,7 @@ function setupEventListeners() {
     });
     document.getElementById('continueBtn6')?.addEventListener('click', () => {
         trackEvent('accessories_selected', { items: appState.selectedAccessories });
-        showStep(7);
+        showStep(7); // Go to Stripe payment
     });
     document.getElementById('continueBtn7')?.addEventListener('click', finishSetup);
     
@@ -1385,10 +1385,210 @@ async function loadSetupInstructions(partModelNumber, generation) {
     }
 }
 
+// Load payment summary for step 7
+function loadPaymentSummary() {
+    console.log('[Payment] Loading payment summary');
+    
+    const paymentItemsContainer = document.getElementById('paymentItems');
+    const paymentTotalEl = document.getElementById('paymentTotal');
+    
+    if (!paymentItemsContainer || !paymentTotalEl) {
+        console.error('[Payment] Payment summary elements not found');
+        return;
+    }
+    
+    let total = 0;
+    const items = [];
+    
+    // Add extended warranty if selected
+    if (appState.selectedWarranty && appState.selectedWarranty !== 'none') {
+        // Get warranty price from warranty options
+        const warrantyCard = document.querySelector(`.warranty-card[data-plan="${appState.selectedWarranty}"]`);
+        if (warrantyCard) {
+            const priceText = warrantyCard.querySelector('.warranty-price')?.textContent || '£0.00';
+            const price = parseFloat(priceText.replace(/[£,]/g, '')) || 0;
+            if (price > 0) {
+                const months = appState.selectedWarranty === '6month' ? '6' : appState.selectedWarranty === '12month' ? '12' : '3';
+                items.push({
+                    name: `${months}-Month Extended Warranty`,
+                    price: price
+                });
+                total += price;
+            }
+        }
+    }
+    
+    // Add accessories if selected
+    if (appState.selectedAccessories && appState.selectedAccessories.length > 0) {
+        // Note: Accessory prices would need to be fetched from addon sales data
+        // For now, we'll add a placeholder
+        items.push({
+            name: `${appState.selectedAccessories.length} Accessory Item(s)`,
+            price: 0 // Will be calculated from actual addon sales data
+        });
+    }
+    
+    // Render items
+    paymentItemsContainer.innerHTML = '';
+    items.forEach(item => {
+        const itemDiv = document.createElement('div');
+        itemDiv.style.cssText = 'display: flex; justify-content: space-between; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #e8ecf1;';
+        itemDiv.innerHTML = `
+            <span style="color: #1a1a1a;">${escapeHtml(item.name)}</span>
+            <span style="color: #1a1a1a; font-weight: 500;">£${item.price.toFixed(2)}</span>
+        `;
+        paymentItemsContainer.appendChild(itemDiv);
+    });
+    
+    // Update total
+    paymentTotalEl.textContent = `£${total.toFixed(2)}`;
+    
+    console.log('[Payment] Payment summary loaded:', { items, total });
+}
+
+// Initialize Stripe payment
+function initializeStripePayment() {
+    console.log('[Payment] Initializing Stripe payment');
+    
+    // Check if Stripe is loaded
+    if (typeof Stripe === 'undefined') {
+        console.error('[Payment] Stripe.js not loaded');
+        // Load Stripe.js
+        const script = document.createElement('script');
+        script.src = 'https://js.stripe.com/v3/';
+        script.onload = () => {
+            console.log('[Payment] Stripe.js loaded');
+            setupStripeElements();
+        };
+        document.head.appendChild(script);
+    } else {
+        setupStripeElements();
+    }
+}
+
+// Setup Stripe Elements
+function setupStripeElements() {
+    // TODO: Get Stripe publishable key from server/config
+    // For now, this is a placeholder - you'll need to add your Stripe publishable key
+    const stripePublishableKey = ''; // Add your Stripe publishable key here
+    
+    if (!stripePublishableKey) {
+        console.warn('[Payment] Stripe publishable key not configured');
+        const paymentElement = document.getElementById('stripe-payment-element');
+        if (paymentElement) {
+            paymentElement.innerHTML = '<p style="color: #856404; padding: 20px; text-align: center;">Payment processing will be configured shortly.</p>';
+        }
+        return;
+    }
+    
+    const stripe = Stripe(stripePublishableKey);
+    const elements = stripe.elements();
+    
+    // Create payment element
+    const paymentElement = elements.create('payment');
+    paymentElement.mount('#stripe-payment-element');
+    
+    // Handle payment button click
+    const processPaymentBtn = document.getElementById('processPaymentBtn');
+    if (processPaymentBtn) {
+        processPaymentBtn.addEventListener('click', async () => {
+            await processStripePayment(stripe, paymentElement);
+        });
+    }
+}
+
+// Process Stripe payment
+async function processStripePayment(stripe, paymentElement) {
+    const processPaymentBtn = document.getElementById('processPaymentBtn');
+    const paymentError = document.getElementById('paymentError');
+    
+    if (processPaymentBtn) {
+        processPaymentBtn.disabled = true;
+        processPaymentBtn.textContent = 'Processing...';
+    }
+    
+    if (paymentError) {
+        paymentError.style.display = 'none';
+    }
+    
+    try {
+        // Create payment intent on server
+        const response = await fetch(`${API_BASE}/api/create-payment-intent`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                amount: calculateTotalAmount(),
+                currency: 'gbp',
+                warranty: appState.selectedWarranty,
+                accessories: appState.selectedAccessories
+            })
+        });
+        
+        const { clientSecret, error: serverError } = await response.json();
+        
+        if (serverError) {
+            throw new Error(serverError);
+        }
+        
+        // Confirm payment with Stripe
+        const { error: confirmError } = await stripe.confirmPayment({
+            elements: { payment: paymentElement },
+            confirmParams: {
+                return_url: `${window.location.origin}/warranty-registration.html?payment=success`
+            }
+        });
+        
+        if (confirmError) {
+            throw confirmError;
+        }
+        
+        // Payment successful
+        console.log('[Payment] Payment successful');
+        trackEvent('payment_completed', {
+            amount: calculateTotalAmount(),
+            warranty: appState.selectedWarranty,
+            accessories: appState.selectedAccessories.length
+        });
+        
+    } catch (error) {
+        console.error('[Payment] Payment error:', error);
+        if (paymentError) {
+            paymentError.textContent = error.message || 'Payment failed. Please try again.';
+            paymentError.style.display = 'block';
+        }
+        if (processPaymentBtn) {
+            processPaymentBtn.disabled = false;
+            processPaymentBtn.textContent = 'Pay Now';
+        }
+    }
+}
+
+// Calculate total amount in pence (Stripe uses smallest currency unit)
+function calculateTotalAmount() {
+    let total = 0;
+    
+    // Add warranty price
+    if (appState.selectedWarranty && appState.selectedWarranty !== 'none') {
+        const warrantyCard = document.querySelector(`.warranty-card[data-plan="${appState.selectedWarranty}"]`);
+        if (warrantyCard) {
+            const priceText = warrantyCard.querySelector('.warranty-price')?.textContent || '£0.00';
+            const price = parseFloat(priceText.replace(/[£,]/g, '')) || 0;
+            total += price * 100; // Convert to pence
+        }
+    }
+    
+    // Add accessory prices (would need to fetch from addon sales data)
+    // TODO: Calculate from actual addon sales prices
+    
+    return Math.round(total);
+}
+
 // Setup checkbox handlers for setup steps
 function setupStepCheckboxes() {
     const checkboxes = document.querySelectorAll('#setupSteps input[type="checkbox"]');
-    const continueBtn = document.getElementById('continueBtn7');
+    const continueBtn = document.getElementById('continueBtn3');
     
     checkboxes.forEach((checkbox, index) => {
         checkbox.addEventListener('change', function() {
@@ -2534,11 +2734,11 @@ function setupMarkingsVerificationListeners() {
                 continueBtn.disabled = true;
             }
             
-            // Continue to Contact Information step (step 3 in main flow)
+            // Continue to Contact Information step (step 2 in main flow)
             setTimeout(() => {
                 console.log('[Markings Verification] Navigating to Contact Information step');
-                // showStep will set appState.currentStep = 3 and call updateProgressIndicator() internally
-                showStep(3, true); // Force navigation to step 3 (Contact Information)
+                // showStep will set appState.currentStep = 2 and call updateProgressIndicator() internally
+                showStep(2, true); // Force navigation to step 2 (Contact Information)
             }, 300);
         }
     };
@@ -2731,8 +2931,8 @@ function initializeVerificationSteps() {
                                 
                                 // Automatically proceed to Contact Information step after a brief delay
                                 setTimeout(() => {
-                                    console.log('[Verification] 🚀 Navigating to Contact Information (step 3)');
-                                    showStep(3, true); // Force navigation to step 3
+                                    console.log('[Verification] 🚀 Navigating to Contact Information (step 2)');
+                                    showStep(2, true); // Force navigation to step 2 (Contact Information)
                                 }, 300); // Reduced delay for faster progression
                             } else if (verificationState.currentStep < verificationState.totalSteps) {
                                 // There are more verification steps, advance to next one
@@ -3710,13 +3910,19 @@ function showStep(stepNumber, force = false) {
             loadAndDisplayWarrantyOptions();
         }
         
-        // Load setup instructions when showing step 7
-        if (stepNumber === 7 && appState.productData) {
+        // Load setup instructions when showing step 3
+        if (stepNumber === 3 && appState.productData) {
             const partModelNumber = appState.productData.part_model_number;
             const generation = appState.productData.generation;
             if (partModelNumber || generation) {
                 loadSetupInstructions(partModelNumber, generation);
             }
+        }
+        
+        // Load payment summary when showing step 7 (Stripe payment)
+        if (stepNumber === 7) {
+            loadPaymentSummary();
+            initializeStripePayment();
         }
         
         // Load add-on sales when showing step 6

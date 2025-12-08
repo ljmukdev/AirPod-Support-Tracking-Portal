@@ -1586,56 +1586,8 @@
                     })();
                 </script>
                 
-                <!-- Step 2: Product Record Review -->
+                <!-- Step 2: Contact Information (moved from step 3) -->
                 <div class="step-container" id="step2" data-step="2">
-                    <h2 style="text-align: center; margin-bottom: 8px;">Verify Your Product</h2>
-                    <p style="text-align: center; color: #6c757d; margin-bottom: 32px;">Please review your product details and photos before opening</p>
-                    
-                    <!-- Product Details -->
-                    <div class="product-details" id="productDetailsReview"></div>
-                    
-                    <!-- Photo Carousel -->
-                    <div id="photoCarouselReview" style="margin: 32px 0; display: none;">
-                        <h3 style="margin: 0 0 16px 0; color: #1a1a1a; font-size: 1.1rem; font-weight: 600;">Product Photos</h3>
-                        <div class="photo-carousel">
-                            <button class="carousel-button carousel-prev" id="carouselPrevReview" aria-label="Previous photo">‹</button>
-                            <div class="carousel-container" id="carouselContainerReview">
-                                <!-- Photos will be inserted here -->
-                            </div>
-                            <button class="carousel-button carousel-next" id="carouselNextReview" aria-label="Next photo">›</button>
-                        </div>
-                        <div class="carousel-indicators" id="carouselIndicatorsReview">
-                            <!-- Indicators will be inserted here -->
-                        </div>
-                    </div>
-                    
-                    <!-- Important Warning -->
-                    <div class="warranty-warning" style="background: #fff3cd; border-color: #ffc107; margin: 24px 0;">
-                        <strong>⚠️ Important:</strong> Please do NOT open your product packaging until you have:
-                        <ul style="margin: 12px 0 0 20px; padding: 0;">
-                            <li>Verified this is the correct compatible item for your existing AirPods</li>
-                            <li>Checked the product photos match what you received</li>
-                            <li>Confirmed the condition is acceptable</li>
-                        </ul>
-                    </div>
-                    
-                    <!-- Preliminary Pairing Instructions -->
-                    <div style="background: #f8f9fa; border-radius: 12px; padding: 24px; margin: 24px 0;">
-                        <h3 style="margin-top: 0; color: #1a1a1a;">Before You Begin Pairing</h3>
-                        <ol style="margin: 16px 0; padding-left: 20px; color: #6c757d; line-height: 1.8;">
-                            <li>Ensure your iPhone or iPad is nearby and unlocked</li>
-                            <li>Make sure Bluetooth is enabled in Settings</li>
-                            <li>Have your existing AirPods or case ready for comparison</li>
-                            <li>Find a quiet area with good lighting</li>
-                            <li>Keep the product packaging until pairing is complete</li>
-                        </ol>
-                    </div>
-                    
-                    <button class="continue-btn" id="continueBtn2">I've Verified My Product - Continue</button>
-                </div>
-                
-                <!-- Step 3: Contact Details -->
-                <div class="step-container" id="step3" data-step="3">
                     <div class="security-code-section">
                         <h2>Contact Information</h2>
                         <p class="subtitle">Please provide your contact details to activate your warranty</p>
@@ -1696,8 +1648,56 @@
                             </div>
                         </div>
                         
-                        <button class="continue-btn" id="continueBtn3">Continue</button>
+                        <button class="continue-btn" id="continueBtn2">Continue</button>
                     </div>
+                </div>
+                
+                <!-- Step 3: Setup Instructions (moved from step 7) -->
+                <div class="step-container" id="step3" data-step="3">
+                    <h2 style="text-align: center; margin-bottom: 32px;">Setup Instructions</h2>
+                    <div class="setup-steps" id="setupSteps">
+                        <div class="setup-step active" data-step-num="1">
+                            <h3>Step 1: Prepare Your Device</h3>
+                            <p>Make sure your iPhone or iPad is nearby and unlocked. Open the Settings app.</p>
+                            <div class="step-checkbox">
+                                <label>
+                                    <input type="checkbox" data-step="1">
+                                    <span>I've completed this step</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="setup-step" data-step-num="2">
+                            <h3>Step 2: Open Bluetooth Settings</h3>
+                            <p>Navigate to Settings > Bluetooth and ensure Bluetooth is turned on.</p>
+                            <div class="step-checkbox">
+                                <label>
+                                    <input type="checkbox" data-step="2">
+                                    <span>I've completed this step</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="setup-step" data-step-num="3">
+                            <h3>Step 3: Pair Your AirPod</h3>
+                            <p>Hold your AirPod near your device with the case open. A connection prompt should appear.</p>
+                            <div class="step-checkbox">
+                                <label>
+                                    <input type="checkbox" data-step="3">
+                                    <span>I've completed this step</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="setup-step" data-step-num="4">
+                            <h3>Step 4: Complete Setup</h3>
+                            <p>Follow the on-screen instructions to complete the pairing process.</p>
+                            <div class="step-checkbox">
+                                <label>
+                                    <input type="checkbox" data-step="4">
+                                    <span>I've completed this step</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="continue-btn" id="continueBtn3" style="display: none;">Continue</button>
                 </div>
                 
                 <!-- Step 4: Success Animation & Warranty Confirmation -->
@@ -1834,52 +1834,38 @@
                     <button class="continue-btn" id="continueBtn6">Continue</button>
                 </div>
                 
-                <!-- Step 7: Setup Instructions -->
+                <!-- Step 7: Stripe Payment -->
                 <div class="step-container" id="step7" data-step="7">
-                    <h2 style="text-align: center; margin-bottom: 32px;">Setup Instructions</h2>
-                    <div class="setup-steps" id="setupSteps">
-                        <div class="setup-step active" data-step-num="1">
-                            <h3>Step 1: Prepare Your Device</h3>
-                            <p>Make sure your iPhone or iPad is nearby and unlocked. Open the Settings app.</p>
-                            <div class="step-checkbox">
-                                <label>
-                                    <input type="checkbox" data-step="1">
-                                    <span>I've completed this step</span>
-                                </label>
-                            </div>
+                    <h2 style="text-align: center; margin-bottom: 8px;">Complete Your Purchase</h2>
+                    <p style="text-align: center; color: #6c757d; margin-bottom: 32px;">Secure payment powered by Stripe</p>
+                    
+                    <div id="paymentSummary" style="background: #f8f9fa; border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                        <h3 style="margin-top: 0; margin-bottom: 16px; color: #1a1a1a;">Order Summary</h3>
+                        <div id="paymentItems" style="margin-bottom: 16px;">
+                            <!-- Items will be dynamically added here -->
                         </div>
-                        <div class="setup-step" data-step-num="2">
-                            <h3>Step 2: Open Bluetooth Settings</h3>
-                            <p>Navigate to Settings > Bluetooth and ensure Bluetooth is turned on.</p>
-                            <div class="step-checkbox">
-                                <label>
-                                    <input type="checkbox" data-step="2">
-                                    <span>I've completed this step</span>
-                                </label>
-                            </div>
-                        </div>
-                        <div class="setup-step" data-step-num="3">
-                            <h3>Step 3: Pair Your AirPod</h3>
-                            <p>Hold your AirPod near your device with the case open. A connection prompt should appear.</p>
-                            <div class="step-checkbox">
-                                <label>
-                                    <input type="checkbox" data-step="3">
-                                    <span>I've completed this step</span>
-                                </label>
-                            </div>
-                        </div>
-                        <div class="setup-step" data-step-num="4">
-                            <h3>Step 4: Complete Setup</h3>
-                            <p>Follow the on-screen instructions to complete the pairing process.</p>
-                            <div class="step-checkbox">
-                                <label>
-                                    <input type="checkbox" data-step="4">
-                                    <span>I've completed this step</span>
-                                </label>
+                        <div style="border-top: 2px solid #e8ecf1; padding-top: 16px; margin-top: 16px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 1.2rem; font-weight: 600; color: #1a1a1a;">
+                                <span>Total:</span>
+                                <span id="paymentTotal">£0.00</span>
                             </div>
                         </div>
                     </div>
-                    <button class="continue-btn" id="continueBtn7" style="display: none;">Finish Setup</button>
+                    
+                    <!-- Stripe Payment Element Container -->
+                    <div id="stripe-payment-element" style="margin-bottom: 24px;">
+                        <!-- Stripe Elements will be mounted here -->
+                    </div>
+                    
+                    <div id="paymentError" style="display: none; background: #f8d7da; color: #721c24; padding: 12px; border-radius: 8px; margin-bottom: 16px;"></div>
+                    
+                    <button class="continue-btn" id="processPaymentBtn" style="background: linear-gradient(135deg, #0064D2 0%, #0052a3 100%);">
+                        Pay Now
+                    </button>
+                    
+                    <div style="text-align: center; margin-top: 16px;">
+                        <img src="https://stripe.com/img/v3/home/social.png" alt="Stripe" style="height: 24px; opacity: 0.6;">
+                    </div>
                 </div>
             </div>
         </div>
