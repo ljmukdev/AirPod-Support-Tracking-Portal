@@ -1696,8 +1696,52 @@ async function setupStripeElements() {
         const stripe = Stripe(stripePublishableKey);
         window.stripeInstance = stripe; // Store globally for payment processing
         
-        // Create Elements instance
+        // Calculate total amount first
+        const totalAmount = calculateTotalAmount();
+        
+        if (totalAmount <= 0) {
+            paymentElementContainer.innerHTML = `
+                <div style="background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px; padding: 20px; text-align: center;">
+                    <p style="color: #856404; margin: 0;">No items selected for purchase.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        console.log('[Payment] Creating payment intent for amount:', totalAmount, 'pence (£' + (totalAmount / 100).toFixed(2) + ')');
+        
+        // Create payment intent on server to get clientSecret
+        const intentResponse = await fetch(`${API_BASE}/api/stripe/create-payment-intent`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                amount: totalAmount,
+                currency: 'gbp',
+                description: `Extended warranty and accessories - ${appState.productData?.part_model_number || 'N/A'}`
+            })
+        });
+        
+        if (!intentResponse.ok) {
+            const errorData = await intentResponse.json();
+            throw new Error(errorData.message || errorData.error || 'Failed to create payment intent');
+        }
+        
+        const intentData = await intentResponse.json();
+        
+        if (!intentData.clientSecret) {
+            throw new Error('No client secret received from server');
+        }
+        
+        console.log('[Payment] Payment intent created, clientSecret received');
+        
+        // Store payment intent ID globally
+        window.currentPaymentIntentId = intentData.paymentIntentId;
+        
+        // Create Elements instance with clientSecret
         const elements = stripe.elements({
+            clientSecret: intentData.clientSecret,
             appearance: {
                 theme: 'stripe',
                 variables: {
@@ -1719,6 +1763,7 @@ async function setupStripeElements() {
         try {
             paymentElement.mount('#stripe-payment-element');
             window.paymentElementInstance = paymentElement; // Store globally
+            window.paymentElements = elements; // Store elements instance
             console.log('[Payment] Stripe Elements initialized successfully');
         } catch (mountError) {
             console.error('[Payment] Error mounting Stripe Elements:', mountError);
@@ -1739,7 +1784,7 @@ async function setupStripeElements() {
             processPaymentBtn.parentNode.replaceChild(newBtn, processPaymentBtn);
             
             newBtn.addEventListener('click', async () => {
-                await processStripePayment(stripe, paymentElement);
+                await processStripePayment(stripe, paymentElement, intentData.clientSecret);
             });
         }
         
@@ -1916,8 +1961,8 @@ async function handleGoCardlessPaymentSuccess(redirectFlowId) {
     }
 }
 
-// Process Stripe payment (legacy - kept for compatibility)
-async function processStripePayment(stripe, paymentElement) {
+// Process Stripe payment
+async function processStripePayment(stripe, paymentElement, clientSecret) {
     const processPaymentBtn = document.getElementById('processPaymentBtn');
     const paymentError = document.getElementById('paymentError');
     
@@ -1932,53 +1977,20 @@ async function processStripePayment(stripe, paymentElement) {
     }
     
     try {
-        // Calculate total amount
-        const totalAmount = calculateTotalAmount();
-        
-        if (totalAmount <= 0) {
-            throw new Error('No items selected for purchase');
+        if (!clientSecret) {
+            throw new Error('Payment intent not initialized. Please refresh the page.');
         }
         
-        console.log('[Payment] Creating payment intent for amount:', totalAmount, 'pence (£' + (totalAmount / 100).toFixed(2) + ')');
+        console.log('[Payment] Confirming payment with existing payment intent...');
         
-        // Create payment intent on server
-        const response = await fetch(`${API_BASE}/api/stripe/create-payment-intent`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                amount: totalAmount,
-                currency: 'gbp',
-                description: `Extended warranty and accessories - ${appState.productData?.part_model_number || 'N/A'}`
-            })
-        });
-        
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || errorData.error || 'Failed to create payment intent');
-        }
-        
-        const data = await response.json();
-        
-        if (data.error) {
-            throw new Error(data.error);
-        }
-        
-        if (!data.clientSecret) {
-            throw new Error('No client secret received from server');
-        }
-        
-        console.log('[Payment] Payment intent created, confirming payment...');
-        
-        // Confirm payment with Stripe
+        // Confirm payment with Stripe using the existing clientSecret
         const { error: confirmError, paymentIntent } = await stripe.confirmPayment({
             elements: {
                 payment: paymentElement
             },
-            clientSecret: data.clientSecret,
+            clientSecret: clientSecret,
             confirmParams: {
-                return_url: `${window.location.origin}/warranty-registration.html?payment=success&intent=${data.paymentIntentId}`
+                return_url: `${window.location.origin}/warranty-registration.html?payment=success&intent=${window.currentPaymentIntentId}`
             },
             redirect: 'if_required' // Only redirect if required (3D Secure, etc.)
         });
