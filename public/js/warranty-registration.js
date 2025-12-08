@@ -1002,16 +1002,28 @@ function displayProductInfoOnStep1(data) {
     const partModelNumber = data.part_model_number || '';
     const partName = data.part_name || '';
 
+    console.log('[Display Product Info] Data received:', {
+        part_model_number: partModelNumber,
+        part_name: partName,
+        full_data: data
+    });
+
     // Update purchased part number (will be updated with API data if available)
     const purchasedPartEl = document.getElementById('purchasedPartNumber');
     if (purchasedPartEl) {
         if (partName && partModelNumber) {
-            purchasedPartEl.textContent = `${partName} (${partModelNumber})`;
+            const displayText = `${partName} (${partModelNumber})`;
+            purchasedPartEl.textContent = displayText;
+            console.log('[Display Product Info] Set purchased part text to:', displayText);
         } else if (partModelNumber) {
             purchasedPartEl.textContent = partModelNumber;
+            console.log('[Display Product Info] Only model number available:', partModelNumber);
         } else {
             purchasedPartEl.textContent = 'your part';
+            console.log('[Display Product Info] No part info available');
         }
+    } else {
+        console.warn('[Display Product Info] purchasedPartNumber element not found');
     }
 
     // Load and display compatible part examples (this will also update the message dynamically)
