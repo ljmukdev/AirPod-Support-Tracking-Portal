@@ -1,8 +1,17 @@
 {
   "version": "1.2.3",
   "build": "2024-12-19",
-  "revision": "002",
+  "revision": "003",
   "changelog": [
+    {
+      "version": "1.2.3",
+      "date": "2024-12-19",
+      "changes": [
+        "Improved eBay return page messaging - added explanation about AirPod part compatibility requirements",
+        "Added exchange option messaging on return page - customers can now request exchange for correct compatible part",
+        "Enhanced compatibility explanation to clarify that only compatible parts will work with purchased AirPod part"
+      ]
+    },
     {
       "version": "1.2.3",
       "date": "2024-12-19",
