@@ -1742,6 +1742,12 @@ async function setupStripeElements() {
         // Store payment intent ID globally
         window.currentPaymentIntentId = intentData.paymentIntentId;
         
+        // Validate clientSecret before creating Elements
+        if (!intentData.clientSecret || typeof intentData.clientSecret !== 'string') {
+            console.error('[Payment] Invalid clientSecret:', intentData.clientSecret);
+            throw new Error('Invalid client secret received from server');
+        }
+        
         // Create Elements instance with clientSecret
         console.log('[Payment] Creating Elements with clientSecret...');
         const elements = stripe.elements({
@@ -1762,7 +1768,14 @@ async function setupStripeElements() {
         
         // Create payment element
         console.log('[Payment] Creating payment element...');
-        const paymentElement = elements.create('payment');
+        let paymentElement;
+        try {
+            paymentElement = elements.create('payment');
+            console.log('[Payment] Payment element created successfully');
+        } catch (elementError) {
+            console.error('[Payment] Error creating payment element:', elementError);
+            throw new Error('Failed to create payment element: ' + (elementError.message || 'Unknown error'));
+        }
         
         // Mount payment element with error handling
         try {
