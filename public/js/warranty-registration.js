@@ -3904,11 +3904,21 @@ function showStep(stepNumber, force = false) {
         }
         
         // Load setup instructions when showing step 3
-        if (stepNumber === 3 && appState.productData) {
-            const partModelNumber = appState.productData.part_model_number;
-            const generation = appState.productData.generation;
-            if (partModelNumber || generation) {
-                loadSetupInstructions(partModelNumber, generation);
+        if (stepNumber === 3) {
+            console.log('[showStep] Step 3 detected - checking for setup instructions');
+            console.log('[showStep] appState.productData:', appState.productData);
+            if (appState.productData) {
+                const partModelNumber = appState.productData.part_model_number;
+                const generation = appState.productData.generation;
+                console.log('[showStep] Part model number:', partModelNumber, 'Generation:', generation);
+                if (partModelNumber || generation) {
+                    console.log('[showStep] Calling loadSetupInstructions');
+                    loadSetupInstructions(partModelNumber, generation);
+                } else {
+                    console.warn('[showStep] No partModelNumber or generation available');
+                }
+            } else {
+                console.warn('[showStep] appState.productData is null/undefined');
             }
         }
         
