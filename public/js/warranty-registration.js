@@ -1289,6 +1289,127 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// Load setup instructions from API
+async function loadSetupInstructions(partModelNumber, generation) {
+    console.log('[Setup Instructions] Loading instructions for:', { partModelNumber, generation });
+    
+    const setupStepsContainer = document.getElementById('setupSteps');
+    if (!setupStepsContainer) {
+        console.error('[Setup Instructions] Setup steps container not found');
+        return;
+    }
+    
+    // Try to fetch by part_model_number first, then by generation
+    let identifier = partModelNumber || generation;
+    if (!identifier) {
+        console.error('[Setup Instructions] No identifier provided (partModelNumber or generation)');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE}/api/setup-instructions/${encodeURIComponent(identifier)}`);
+        
+        if (!response.ok) {
+            if (response.status === 404) {
+                console.warn('[Setup Instructions] No setup instructions found for:', identifier);
+                // Keep default instructions if none found
+                return;
+            }
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        console.log('[Setup Instructions] Received data:', data);
+        
+        if (!data.steps || !Array.isArray(data.steps) || data.steps.length === 0) {
+            console.warn('[Setup Instructions] No steps found in response');
+            return;
+        }
+        
+        // Clear existing content
+        setupStepsContainer.innerHTML = '';
+        
+        // Render each step
+        data.steps.forEach((step, index) => {
+            const stepNum = index + 1;
+            const stepDiv = document.createElement('div');
+            stepDiv.className = 'setup-step';
+            stepDiv.dataset.stepNum = stepNum;
+            if (index === 0) {
+                stepDiv.classList.add('active');
+            }
+            
+            stepDiv.innerHTML = `
+                <h3>${escapeHtml(step.title || `Step ${stepNum}`)}</h3>
+                <p>${escapeHtml(step.description || '')}</p>
+                <div class="step-checkbox">
+                    <label>
+                        <input type="checkbox" data-step="${stepNum}">
+                        <span>I've completed this step</span>
+                    </label>
+                </div>
+            `;
+            
+            setupStepsContainer.appendChild(stepDiv);
+        });
+        
+        // Setup checkbox handlers for step progression
+        setupStepCheckboxes();
+        
+        console.log('[Setup Instructions] Successfully loaded', data.steps.length, 'steps');
+    } catch (error) {
+        console.error('[Setup Instructions] Error loading instructions:', error);
+        // Keep default instructions on error
+    }
+}
+
+// Setup checkbox handlers for setup steps
+function setupStepCheckboxes() {
+    const checkboxes = document.querySelectorAll('#setupSteps input[type="checkbox"]');
+    const continueBtn = document.getElementById('continueBtn7');
+    
+    checkboxes.forEach((checkbox, index) => {
+        checkbox.addEventListener('change', function() {
+            if (this.checked) {
+                // Mark this step as completed
+                const stepDiv = this.closest('.setup-step');
+                if (stepDiv) {
+                    stepDiv.classList.add('completed');
+                }
+                
+                // Show next step
+                const nextStep = checkboxes[index + 1];
+                if (nextStep) {
+                    const nextStepDiv = nextStep.closest('.setup-step');
+                    if (nextStepDiv) {
+                        nextStepDiv.classList.add('active');
+                        nextStepDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                } else {
+                    // All steps completed, show finish button
+                    if (continueBtn) {
+                        continueBtn.style.display = 'block';
+                    }
+                }
+            } else {
+                // Unchecking - remove completed class
+                const stepDiv = this.closest('.setup-step');
+                if (stepDiv) {
+                    stepDiv.classList.remove('completed');
+                }
+                
+                // Hide finish button if not all steps are checked
+                if (continueBtn) {
+                    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+                    if (!allChecked) {
+                        continueBtn.style.display = 'none';
+                    }
+                }
+            }
+        });
+    });
+}
+
 // Get compatible part examples from API
 async function getCompatiblePartExamples(partModelNumber, partType) {
     if (!partModelNumber) {
