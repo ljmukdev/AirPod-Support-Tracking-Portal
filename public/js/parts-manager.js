@@ -340,7 +340,8 @@ if (partForm) {
                 document.getElementById('partId').value = '';
                 document.getElementById('caseImagePreview').innerHTML = '';
                 document.getElementById('airpodImagePreview').innerHTML = '';
-                updateAssociatedPartsTags([]); // Clear tags
+                document.getElementById('associated_parts').value = JSON.stringify([]);
+                populateAssociatedPartsCheckboxes(); // Clear checkboxes
                 cancelEdit();
                 loadParts();
                 loadGenerations();
