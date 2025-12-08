@@ -3853,15 +3853,15 @@ function showStep(stepNumber, force = false) {
         
         // Also prevent if we're on step 1 and have product data but haven't shown it yet
         // BUT allow it if verification is complete OR button says "Continue to Contact Information"
-        if (stepNumber === 3 && appState.currentStep === 1 && appState.productData && !isVerificationComplete) {
-            console.log('BLOCKED: Preventing step 3 - product data loaded but should stay on step 1 (verification not complete)');
+        if (stepNumber === 2 && appState.currentStep === 1 && appState.productData && !isVerificationComplete) {
+            console.log('BLOCKED: Preventing step 2 - product data loaded but should stay on step 1 (verification not complete)');
             console.log('Button text:', buttonText, 'Verification complete:', isVerificationComplete);
             return;
         }
         
         // If verification is complete, allow navigation
-        if (stepNumber === 3 && isVerificationComplete) {
-            console.log('ALLOWED: Navigation to step 3 - verification complete');
+        if (stepNumber === 2 && isVerificationComplete) {
+            console.log('ALLOWED: Navigation to step 2 - verification complete');
         }
     }
     
@@ -3929,8 +3929,8 @@ function showStep(stepNumber, force = false) {
             }
         }
         
-        // Load T&Cs when showing step 3
-        if (stepNumber === 3) {
+        // Load T&Cs when showing step 2 (Contact Information)
+        if (stepNumber === 2) {
             loadTermsAndConditions();
         }
         
