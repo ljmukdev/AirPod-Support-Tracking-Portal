@@ -1013,6 +1013,15 @@ function displayProductInfoOnStep1(data) {
         full_data: data
     });
 
+    // Display eBay order number if available
+    const ebayOrderEl = document.getElementById('ebayOrderNumberDisplay');
+    if (ebayOrderEl && data.ebay_order_number) {
+        ebayOrderEl.textContent = `eBay Order Number: ${data.ebay_order_number}`;
+        ebayOrderEl.style.display = 'block';
+    } else if (ebayOrderEl) {
+        ebayOrderEl.style.display = 'none';
+    }
+
     // Update purchased part number (will be updated with API data if available)
     const purchasedPartEl = document.getElementById('purchasedPartNumber');
     if (purchasedPartEl) {
