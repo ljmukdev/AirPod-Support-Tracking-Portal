@@ -6,38 +6,291 @@
     <meta name="description" content="LJM AirPod Support - Terms and Conditions">
     <title>Terms & Conditions | LJM AirPod Support</title>
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/global-header.css">
     <style>
-        .terms-container {
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 20px;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header - Match homepage */
+        .header {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 1px 0 rgba(0, 0, 0, 0.05);
+            padding: 20px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            transition: box-shadow 0.3s ease;
+        }
+
+        .header.scrolled {
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        @media (min-width: 640px) {
+            .header-content {
+                padding: 0 32px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .header-content {
+                padding: 0 48px;
+            }
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 44px;
+            height: 44px;
+            background: #284064;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: white;
+            font-size: 15px;
+            letter-spacing: -0.5px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border: 2px solid #f5f7fa;
+        }
+
+        .logo-text {
+            color: #1a1a1a;
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+        }
+
+        .logo-text span {
+            color: #6c757d;
+            font-weight: 400;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 36px;
+        }
+
+        .nav-links a {
+            color: #6c757d;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.2s;
+            position: relative;
+        }
+
+        .nav-links a:hover {
+            color: #1a1a1a;
+        }
+
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #284064;
+            transform: scaleX(0);
+            transition: transform 0.2s;
+        }
+
+        .nav-links a:hover::after {
+            transform: scaleX(1);
+        }
+
+        @media (max-width: 640px) {
+            .nav-links {
+                display: none;
+            }
+        }
+
+        /* Container - Match homepage */
+        .container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px 24px 40px 24px;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        @media (min-width: 640px) {
+            .container {
+                padding-left: 32px;
+                padding-right: 32px;
+            }
+        }
+
+        @media (min-width: 768px) {
+            .container {
+                padding-top: 30px;
+                padding-bottom: 60px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .container {
+                padding-left: 48px;
+                padding-right: 48px;
+            }
+        }
+
+        /* Card - Match homepage */
+        .card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            padding: 36px 48px;
+            text-align: center;
+            position: relative;
+        }
+
+        @media (min-width: 768px) {
+            .card-header {
+                padding: 40px 48px;
+            }
+        }
+
+        .card-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.02'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3Ccircle cx='30' cy='10' r='2'/%3E%3Ccircle cx='30' cy='50' r='2'/%3E%3Ccircle cx='10' cy='30' r='2'/%3E%3Ccircle cx='50' cy='30' r='2'/%3E%3Ccircle cx='10' cy='10' r='2'/%3E%3Ccircle cx='50' cy='50' r='2'/%3E%3Ccircle cx='10' cy='50' r='2'/%3E%3Ccircle cx='50' cy='10' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            background-repeat: repeat;
+        }
+
+        .card-header h1 {
+            color: white;
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            position: relative;
+            z-index: 1;
+            letter-spacing: -0.5px;
+        }
+
+        .card-header p {
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 16px;
+            line-height: 1.6;
+            position: relative;
+            z-index: 1;
+            max-width: 480px;
+            margin: 0 auto;
+        }
+
+        .card-body {
+            padding: 36px 48px;
+        }
+
+        @media (min-width: 768px) {
+            .card-body {
+                padding: 40px 48px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .card-header {
+                padding: 32px 24px;
+            }
+            
+            .card-header h1 {
+                font-size: 26px;
+            }
+            
+            .card-body {
+                padding: 32px 24px;
+            }
+        }
+
+        /* Terms content styling */
         .terms-section {
             margin: 30px 0;
-            padding: 25px;
-            background: var(--background-white);
-            border-radius: var(--border-radius);
-            box-shadow: var(--shadow);
         }
-        .terms-section h2 {
-            color: var(--primary-navy);
+
+        .terms-section:first-of-type {
             margin-top: 0;
+        }
+
+        .terms-section h2 {
+            color: #1a1a1a;
+            font-size: 24px;
+            font-weight: 700;
+            margin-top: 0;
+            margin-bottom: 20px;
             padding-bottom: 15px;
-            border-bottom: 2px solid var(--secondary-gray);
+            border-bottom: 2px solid #e8ecf1;
         }
+
         .terms-section h3 {
-            color: var(--accent-teal);
+            color: #284064;
+            font-size: 18px;
+            font-weight: 600;
             margin-top: 25px;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
         }
+
+        .terms-section p {
+            color: #1a1a1a;
+            line-height: 1.8;
+            margin-bottom: 16px;
+        }
+
         .terms-section ul, .terms-section ol {
             margin: 15px 0;
             padding-left: 30px;
         }
+
         .terms-section li {
             margin: 10px 0;
             line-height: 1.8;
+            color: #1a1a1a;
         }
+
         .highlight-box {
             background: #fff3cd;
             border-left: 4px solid #ffc107;
@@ -45,12 +298,30 @@
             margin: 20px 0;
             border-radius: 4px;
         }
+
         .exclusion-box {
             background: #f8d7da;
             border-left: 4px solid #dc3545;
             padding: 15px;
             margin: 20px 0;
             border-radius: 4px;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #284064;
+            color: white;
+            text-decoration: none;
+            border-radius: 12px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .button:hover {
+            background: #1e2f4a;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(40, 64, 100, 0.3);
         }
     </style>
 
@@ -81,22 +352,32 @@
     </script>
 </head>
 <body>
-    <header class="header">
-        <a href="index.html" class="home-link">Home</a>
-        <div class="header-logo">
-            <div class="logo-circle">
-                <span class="logo-text">LJM</span>
+    <!-- Header -->
+    <header class="header" id="mainHeader">
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-icon">LJM</div>
+                <div class="logo-text">Support <span>Center</span></div>
             </div>
+            <nav class="nav-links">
+                <a href="terms-and-conditions.html">Terms</a>
+                <a href="privacy-policy.html">Privacy</a>
+            </nav>
         </div>
-        <h1>LJM</h1>
     </header>
 
-    <main class="container terms-container">
-        <div class="terms-section">
-            <h1>Terms & Conditions</h1>
-            <p><strong>Last Updated:</strong> January 2024</p>
-            <p>These Terms and Conditions ("Terms") govern your use of LJM AirPod Support services and warranty coverage. By using our services, you agree to be bound by these Terms.</p>
-        </div>
+    <!-- Main Content -->
+    <main class="container">
+        <div class="card">
+            <div class="card-header">
+                <h1>Terms & Conditions</h1>
+                <p>Last Updated: January 2024</p>
+            </div>
+            
+            <div class="card-body">
+                <div class="terms-section">
+                    <p>These Terms and Conditions ("Terms") govern your use of LJM AirPod Support services and warranty coverage. By using our services, you agree to be bound by these Terms.</p>
+                </div>
 
         <div class="terms-section">
             <h2>1. Standard 30-Day Warranty</h2>
@@ -307,8 +588,10 @@
             <p>If any provision of these Terms is found to be invalid, the remaining provisions shall remain in full force and effect.</p>
         </div>
 
-        <div style="text-align: center; margin: 40px 0;">
-            <a href="warranty-registration.html" class="button">Back to Warranty Registration</a>
+                <div style="text-align: center; margin: 40px 0;">
+                    <a href="index.html" class="button">Back to Home</a>
+                </div>
+            </div>
         </div>
     </main>
 
