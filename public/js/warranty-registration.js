@@ -76,18 +76,10 @@ function initializePage() {
     console.log('=== initializePage called ===');
     console.log('Current URL:', window.location.href);
     
-    // Immediately check URL for barcode to hide step 1 if needed
+    // Immediately check URL for barcode
     const urlParams = new URLSearchParams(window.location.search);
     const barcodeFromUrl = urlParams.get('barcode');
     console.log('Barcode from URL:', barcodeFromUrl);
-    
-    // Hide step 1 immediately if barcode is in URL (coming from home page)
-    if (barcodeFromUrl) {
-        const step1 = document.getElementById('step1');
-        if (step1) {
-            step1.style.display = 'none';
-        }
-    }
     
     // Check if we should resume from saved state
     const resumed = loadSavedState();
@@ -152,6 +144,7 @@ function initializePage() {
                 
                 // Load product info and display on step 1
                 loadProductInfo(barcode, true).then((data) => {
+                    console.log('Product info loaded successfully:', data);
                     // Ensure we're still on step 1
                     showStep(1);
                     
@@ -160,6 +153,9 @@ function initializePage() {
                     const productDisplay = document.getElementById('productRecordDisplay');
                     if (productDisplay) {
                         productDisplay.style.display = 'block';
+                        console.log('Product display shown');
+                    } else {
+                        console.error('Product display element not found!');
                     }
                     // Enable continue button
                     const continueBtn = document.getElementById('continueBtn1');
@@ -169,7 +165,19 @@ function initializePage() {
                     }
                 }).catch((error) => {
                     console.error('Failed to load product info:', error);
+                    // Show error to user
+                    showError(error.message || 'Failed to load product information. Please try again.');
+                    // Show step 1 with security code entry as fallback
                     showStep(1);
+                    const securityCodeEntry = document.getElementById('securityCodeEntrySection');
+                    if (securityCodeEntry) {
+                        securityCodeEntry.style.display = 'block';
+                    }
+                    const continueBtn = document.getElementById('continueBtn1');
+                    if (continueBtn) {
+                        continueBtn.style.display = 'block';
+                        continueBtn.disabled = false;
+                    }
                 });
             } else {
                 // Pre-fill security code input (from sessionStorage)
