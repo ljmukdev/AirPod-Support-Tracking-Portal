@@ -3569,7 +3569,11 @@ function showStep(stepNumber, force = false) {
         
         // Load setup instructions when showing step 7
         if (stepNumber === 7 && appState.productData) {
-            loadSetupInstructions();
+            const partModelNumber = appState.productData.part_model_number;
+            const generation = appState.productData.generation;
+            if (partModelNumber || generation) {
+                loadSetupInstructions(partModelNumber, generation);
+            }
         }
         
         // Load add-on sales when showing step 6
