@@ -4290,6 +4290,7 @@ function showStep(stepNumber, force = false) {
         
         // Handle step 4 (30-day Warranty Confirmation)
         if (stepNumber === 4) {
+            console.log('[showStep] Step 4 detected - executing step 4 handling code');
             console.log('[Step 4] Handling step 4 display');
             const successAnimation = document.getElementById('successAnimation');
             const warrantyConfirmation = document.getElementById('warrantyConfirmation');
