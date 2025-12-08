@@ -392,27 +392,170 @@
     </footer>
 
     <script>
-        // Load dynamic warranty pricing
-        async function loadWarrantyPricing() {
-            try {
-                const response = await fetch('/api/warranty/pricing');
-                if (response.ok) {
-                    const pricing = await response.json();
-                    document.getElementById('price3months').textContent = `£${pricing['3months'].toFixed(2)}`;
-                    document.getElementById('price6months').textContent = `£${pricing['6months'].toFixed(2)}`;
-                    document.getElementById('price12months').textContent = `£${pricing['12months'].toFixed(2)}`;
+        // Format Terms & Conditions content with proper headings, font sizes, and professional styling
+        function formatTermsContent(content) {
+            if (!content) return '';
+            
+            // Split into lines and format
+            const lines = content.split('\n');
+            const formattedLines = [];
+            let inList = false;
+            let listItems = [];
+            let isOrderedList = false;
+            
+            lines.forEach((line, index) => {
+                const trimmed = line.trim();
+                if (!trimmed) {
+                    // Empty line - close list if open, then add empty line
+                    if (inList) {
+                        const listTag = isOrderedList ? 'ol' : 'ul';
+                        formattedLines.push(`<${listTag} style="margin: 15px 0; padding-left: 30px;">${listItems.join('')}</${listTag}>`);
+                        inList = false;
+                        listItems = [];
+                    }
+                    formattedLines.push('');
+                    return;
                 }
-            } catch (error) {
-                console.error('Error loading warranty pricing:', error);
-                // Keep default prices if API fails
+
+                // Check if line starts with a number followed by a period (section heading like "1. Standard 30-Day Warranty")
+                const sectionMatch = trimmed.match(/^(\d+)\.\s+(.+)$/);
+                if (sectionMatch) {
+                    if (inList) {
+                        const listTag = isOrderedList ? 'ol' : 'ul';
+                        formattedLines.push(`<${listTag} style="margin: 15px 0; padding-left: 30px;">${listItems.join('')}</${listTag}>`);
+                        inList = false;
+                        listItems = [];
+                    }
+                    formattedLines.push(`<h2 style="color: #1a1a1a; font-size: 24px; font-weight: 700; margin-top: 30px; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #e8ecf1;">${sectionMatch[1]}. ${sectionMatch[2]}</h2>`);
+                    return;
+                }
+
+                // Check if line starts with a number.number (subsection heading like "1.1 Coverage")
+                const subsectionMatch = trimmed.match(/^(\d+)\.(\d+)\s+(.+)$/);
+                if (subsectionMatch) {
+                    if (inList) {
+                        const listTag = isOrderedList ? 'ol' : 'ul';
+                        formattedLines.push(`<${listTag} style="margin: 15px 0; padding-left: 30px;">${listItems.join('')}</${listTag}>`);
+                        inList = false;
+                        listItems = [];
+                    }
+                    formattedLines.push(`<h3 style="color: #284064; font-size: 18px; font-weight: 600; margin-top: 25px; margin-bottom: 12px;">${subsectionMatch[1]}.${subsectionMatch[2]} ${subsectionMatch[3]}</h3>`);
+                    return;
+                }
+
+                // Check if line starts with bullet point or dash
+                if (trimmed.match(/^[-•*]\s+/)) {
+                    if (!inList) {
+                        inList = true;
+                        isOrderedList = false;
+                    }
+                    const listItem = trimmed.replace(/^[-•*]\s+/, '');
+                    listItems.push(`<li style="margin: 10px 0; line-height: 1.8; color: #1a1a1a;">${listItem}</li>`);
+                    return;
+                }
+
+                // Check if line starts with a number followed by closing parenthesis (numbered list)
+                if (trimmed.match(/^\d+\)\s+/)) {
+                    if (!inList) {
+                        inList = true;
+                        isOrderedList = true;
+                    }
+                    const listItem = trimmed.replace(/^\d+\)\s+/, '');
+                    listItems.push(`<li style="margin: 10px 0; line-height: 1.8; color: #1a1a1a;">${listItem}</li>`);
+                    return;
+                }
+
+                // Close list if we hit a non-list item
+                if (inList) {
+                    const listTag = isOrderedList ? 'ol' : 'ul';
+                    formattedLines.push(`<${listTag} style="margin: 15px 0; padding-left: 30px;">${listItems.join('')}</${listTag}>`);
+                    inList = false;
+                    listItems = [];
+                }
+
+                // Regular paragraph
+                formattedLines.push(`<p style="color: #1a1a1a; line-height: 1.8; margin-bottom: 16px;">${trimmed}</p>`);
+            });
+
+            // Close any remaining list
+            if (inList) {
+                const listTag = isOrderedList ? 'ol' : 'ul';
+                formattedLines.push(`<${listTag} style="margin: 15px 0; padding-left: 30px;">${listItems.join('')}</${listTag}>`);
+            }
+
+            return formattedLines.join('');
+        }
+
+        // Format date for display
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            try {
+                const date = new Date(dateString);
+                const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                return `${months[date.getMonth()]} ${date.getFullYear()}`;
+            } catch (e) {
+                return '';
             }
         }
-        
-        // Load pricing on page load
+
+        // Load Terms & Conditions from API
+        async function loadTermsAndConditions() {
+            try {
+                const response = await fetch('/api/warranty-terms/current');
+                if (response.ok) {
+                    const data = await response.json();
+                    const termsContentEl = document.getElementById('termsContent');
+                    const termsVersionBadge = document.getElementById('termsVersionBadge');
+                    const termsLastUpdated = document.getElementById('termsLastUpdated');
+                    
+                    if (termsContentEl) {
+                        const content = data.content || 'No terms and conditions available.';
+                        // Format the terms content with proper headings, font sizes, and styling
+                        const formattedContent = formatTermsContent(content);
+                        termsContentEl.innerHTML = formattedContent;
+                    }
+                    
+                    if (termsVersionBadge) {
+                        // Format version as V1.0, V2.0, etc.
+                        const version = data.version || 1;
+                        termsVersionBadge.textContent = `V${version}.0`;
+                    }
+                    
+                    if (termsLastUpdated) {
+                        // Format last updated text with version and date
+                        const version = data.version || 1;
+                        let updateText = `Version ${version}`;
+                        if (data.created_at) {
+                            const formattedDate = formatDate(data.created_at);
+                            if (formattedDate) {
+                                updateText += ` - Last Updated: ${formattedDate}`;
+                            }
+                        }
+                        termsLastUpdated.textContent = updateText;
+                    }
+                    
+                    console.log('[Terms Page] Loaded version', data.version, 'created_at:', data.created_at);
+                } else {
+                    console.error('[Terms Page] Failed to load terms');
+                    const termsContentEl = document.getElementById('termsContent');
+                    if (termsContentEl) {
+                        termsContentEl.innerHTML = '<p style="color: #dc3545; text-align: center;">Unable to load terms and conditions. Please try again later.</p>';
+                    }
+                }
+            } catch (error) {
+                console.error('[Terms Page] Error loading terms:', error);
+                const termsContentEl = document.getElementById('termsContent');
+                if (termsContentEl) {
+                    termsContentEl.innerHTML = '<p style="color: #dc3545; text-align: center;">Unable to load terms and conditions. Please try again later.</p>';
+                }
+            }
+        }
+
+        // Load terms on page load
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', loadWarrantyPricing);
+            document.addEventListener('DOMContentLoaded', loadTermsAndConditions);
         } else {
-            loadWarrantyPricing();
+            loadTermsAndConditions();
         }
     </script>
     <script src="js/version.js"></script>
