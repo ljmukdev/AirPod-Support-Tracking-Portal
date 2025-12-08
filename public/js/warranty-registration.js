@@ -1625,47 +1625,12 @@ function removeItemFromBasket(itemType, itemId) {
     });
 }
 
-// Initialize GoCardless payment
+// Initialize Stripe payment
 function initializeStripePayment() {
-    console.log('[Payment] Initializing GoCardless payment');
+    console.log('[Payment] Initializing Stripe payment');
     
-    // Check if payment system is configured
-    checkPaymentConfig();
-    
-    // Set up payment button handler
-    const processPaymentBtn = document.getElementById('processPaymentBtn');
-    if (processPaymentBtn) {
-        // Remove any existing listeners
-        const newBtn = processPaymentBtn.cloneNode(true);
-        processPaymentBtn.parentNode.replaceChild(newBtn, processPaymentBtn);
-        
-        newBtn.addEventListener('click', async () => {
-            await processGoCardlessPayment();
-        });
-    }
-}
-
-// Check payment configuration
-async function checkPaymentConfig() {
-    try {
-        const response = await fetch(`${API_BASE}/api/payment/config`);
-        const data = await response.json();
-        
-        if (!data.configured) {
-            const paymentError = document.getElementById('paymentError');
-            if (paymentError) {
-                paymentError.style.cssText = 'display: block; background: #fff3cd; color: #856404; padding: 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #ffc107;';
-                paymentError.textContent = data.error || 'Payment system not configured';
-            }
-            
-            const processPaymentBtn = document.getElementById('processPaymentBtn');
-            if (processPaymentBtn) {
-                processPaymentBtn.disabled = true;
-            }
-        }
-    } catch (error) {
-        console.error('[Payment] Error checking configuration:', error);
-    }
+    // Set up Stripe Elements
+    setupStripeElements();
 }
 
 // Setup Stripe Elements
