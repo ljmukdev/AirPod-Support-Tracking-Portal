@@ -495,6 +495,9 @@ async function validateSecurityCode() {
                 securityCodeEntry.style.display = 'none';
             }
             
+            // Show progress indicator immediately after security code is entered
+            updateProgressIndicator();
+            
             // Load product info and display on step 1
             loadProductInfo(securityCode, false).then((data) => {
                 // Ensure we're on step 1
@@ -3595,10 +3598,18 @@ function updateProgressIndicator() {
     const progressSteps = document.getElementById('progressSteps');
     const progressText = document.getElementById('progressText');
     
-    // Show progress indicator if on step 1 with product displayed, or step 2+
+    // Show progress indicator if:
+    // - On step 2+ (always show)
+    // - On step 1 with product displayed
+    // - On step 1 with security code entered (even before product loads)
+    // - Step 1 was skipped
     const productDisplay = document.getElementById('productRecordDisplay');
     const isProductDisplayed = productDisplay && productDisplay.style.display !== 'none';
-    const shouldShowProgress = appState.currentStep > 1 || (appState.currentStep === 1 && isProductDisplayed) || appState.skippedStep1;
+    const securityCodeEntry = document.getElementById('securityCodeEntrySection');
+    const isSecurityCodeEntered = securityCodeEntry && securityCodeEntry.style.display === 'none';
+    const shouldShowProgress = appState.currentStep > 1 || 
+                               (appState.currentStep === 1 && (isProductDisplayed || isSecurityCodeEntered)) || 
+                               appState.skippedStep1;
     
     if (shouldShowProgress) {
         progressIndicator.style.display = 'block';
