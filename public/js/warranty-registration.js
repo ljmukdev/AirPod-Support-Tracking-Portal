@@ -2007,11 +2007,15 @@ async function processStripePayment(stripe, paymentElement, clientSecret) {
         
         console.log('[Payment] Confirming payment with existing payment intent...');
         
-        // Confirm payment with Stripe using the existing clientSecret
+        // Get the Elements instance (stored globally when creating Elements)
+        const elements = window.paymentElements;
+        if (!elements) {
+            throw new Error('Stripe Elements not initialized. Please refresh the page.');
+        }
+        
+        // Confirm payment with Stripe using the Elements instance
         const { error: confirmError, paymentIntent } = await stripe.confirmPayment({
-            elements: {
-                payment: paymentElement
-            },
+            elements: elements,
             clientSecret: clientSecret,
             confirmParams: {
                 return_url: `${window.location.origin}/warranty-registration.html?payment=success&intent=${window.currentPaymentIntentId}`
