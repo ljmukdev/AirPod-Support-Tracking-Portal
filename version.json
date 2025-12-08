@@ -1,8 +1,18 @@
 {
   "version": "1.2.3",
   "build": "2024-12-19",
-  "revision": "005",
+  "revision": "006",
   "changelog": [
+    {
+      "version": "1.2.3",
+      "date": "2024-12-19",
+      "changes": [
+        "Added associated parts field to admin panel - admins can now specify compatible parts for each part",
+        "Associated parts are displayed with images during warranty registration compatibility check",
+        "Updated compatible parts API to use database-stored associated_parts instead of hardcoded mappings",
+        "Fixed A3048 compatibility display - now correctly shows A3047 and A2968 with images"
+      ]
+    },
     {
       "version": "1.2.3",
       "date": "2024-12-19",
