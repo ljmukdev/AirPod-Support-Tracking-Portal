@@ -2265,6 +2265,65 @@ app.post('/api/stripe/create-payment-intent', requireDB, async (req, res) => {
 });
 
 // Register warranty (Public)
+// Reconditioning request endpoint
+app.post('/api/reconditioning-request', requireDB, async (req, res) => {
+    try {
+        const { name, email, phone, address, part_model_number, part_name, generation, security_barcode, ebay_order_number } = req.body;
+        
+        // Validate required fields
+        if (!name || !email || !phone || !address) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Missing required fields: name, email, phone, and address are required' 
+            });
+        }
+        
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Invalid email format' 
+            });
+        }
+        
+        const db = req.db;
+        const reconditioningCollection = db.collection('reconditioning_requests');
+        
+        // Insert reconditioning request
+        const requestData = {
+            name,
+            email,
+            phone,
+            address,
+            part_model_number: part_model_number || null,
+            part_name: part_name || null,
+            generation: generation || null,
+            security_barcode: security_barcode || null,
+            ebay_order_number: ebay_order_number || null,
+            status: 'pending',
+            created_at: new Date(),
+            updated_at: new Date()
+        };
+        
+        const result = await reconditioningCollection.insertOne(requestData);
+        
+        console.log(`[Reconditioning] New request created: ${result.insertedId} for ${email}`);
+        
+        res.json({
+            success: true,
+            request_id: result.insertedId,
+            message: 'Reconditioning request submitted successfully'
+        });
+    } catch (error) {
+        console.error('[Reconditioning] Error processing request:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to process reconditioning request' 
+        });
+    }
+});
+
 app.post('/api/warranty/register', requireDB, async (req, res) => {
     const {
         security_barcode,

@@ -310,6 +310,9 @@ function setupEventListeners() {
     });
     document.getElementById('continueBtn7')?.addEventListener('click', finishSetup);
     
+    // Reconditioning form submission
+    document.getElementById('reconditioningForm')?.addEventListener('submit', handleReconditioningFormSubmit);
+    
     // Warranty selection
     document.querySelectorAll('.warranty-card').forEach(card => {
         card.addEventListener('click', function() {
