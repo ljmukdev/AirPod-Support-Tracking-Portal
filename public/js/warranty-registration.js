@@ -892,6 +892,47 @@ function showError(message) {
     }
 }
 
+// Get compatible part numbers based on part model number and type
+function getCompatiblePartNumbers(partModelNumber, partType) {
+    if (!partModelNumber || !partType) {
+        return [];
+    }
+    
+    // Common compatible part mappings
+    // Case parts need Left and Right AirPods
+    if (partType === 'case') {
+        // For AirPods Pro 2nd Gen case (A2700), compatible parts are Left (A2699) and Right (A2698)
+        if (partModelNumber === 'A2700' || partModelNumber.includes('2700')) {
+            return ['Left AirPod (A2699)', 'Right AirPod (A2698)'];
+        }
+        // Generic case - return generic compatible parts
+        return ['Left AirPod', 'Right AirPod'];
+    }
+    
+    // Left AirPod needs Right AirPod and Case
+    if (partType === 'left') {
+        // For AirPods Pro 2nd Gen Left (A2699), compatible parts are Right (A2698) and Case (A2700)
+        if (partModelNumber === 'A2699' || partModelNumber === 'A3047') {
+            return ['Right AirPod (A2698)', 'Case (A2700)'];
+        }
+        // Generic left - return generic compatible parts
+        return ['Right AirPod', 'Case'];
+    }
+    
+    // Right AirPod needs Left AirPod and Case
+    if (partType === 'right') {
+        // For AirPods Pro 2nd Gen Right (A2698), compatible parts are Left (A2699) and Case (A2700)
+        if (partModelNumber === 'A2698' || partModelNumber === 'A3048') {
+            return ['Left AirPod (A2699)', 'Case (A2700)'];
+        }
+        // Generic right - return generic compatible parts
+        return ['Left AirPod', 'Case'];
+    }
+    
+    // Fallback
+    return [];
+}
+
 // Display product info on step 1
 function displayProductInfoOnStep1(data) {
     appState.productData = data;
