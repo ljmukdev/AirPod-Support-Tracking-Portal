@@ -29,6 +29,19 @@
                         if (document.body) document.body.appendChild(el);
                     }, 100);
                 }
+                
+                // Fetch version from API to ensure it's up to date
+                fetch('/api/version')
+                    .then(function(res) { return res.json(); })
+                    .then(function(data) {
+                        if (data && data.version && data.revision) {
+                            el.textContent = 'v' + data.version + '.' + data.revision;
+                            el.title = 'Version ' + data.version + ' (Revision ' + data.revision + ')';
+                        }
+                    })
+                    .catch(function(err) {
+                        console.log('Version fetch failed, using inline version');
+                    });
             }
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', showVersion);
