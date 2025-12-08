@@ -317,6 +317,7 @@ if (partForm) {
                 document.getElementById('partId').value = '';
                 document.getElementById('caseImagePreview').innerHTML = '';
                 document.getElementById('airpodImagePreview').innerHTML = '';
+                updateAssociatedPartsTags([]); // Clear tags
                 cancelEdit();
                 loadParts();
                 loadGenerations();
@@ -357,8 +358,10 @@ async function editPart(id) {
                 const associatedPartsField = document.getElementById('associated_parts');
                 if (associatedPartsField && part.associated_parts && Array.isArray(part.associated_parts)) {
                     associatedPartsField.value = part.associated_parts.join(', ');
+                    updateAssociatedPartsTags(part.associated_parts);
                 } else if (associatedPartsField) {
                     associatedPartsField.value = '';
+                    updateAssociatedPartsTags([]);
                 }
                 
                 // Show existing images if they exist
