@@ -359,7 +359,13 @@ if (partForm) {
 function updateAssociatedPartsAutocomplete() {
     const datalist = document.getElementById('associatedPartsSuggestions');
     if (!datalist) {
-        console.warn('[Autocomplete] Datalist element not found');
+        console.warn('[Autocomplete] Datalist element not found - retrying in 500ms');
+        setTimeout(() => {
+            const retryDatalist = document.getElementById('associatedPartsSuggestions');
+            if (retryDatalist && allPartsData && allPartsData.length > 0) {
+                updateAssociatedPartsAutocomplete();
+            }
+        }, 500);
         return;
     }
     
@@ -367,14 +373,14 @@ function updateAssociatedPartsAutocomplete() {
     datalist.innerHTML = '';
     
     if (!allPartsData || allPartsData.length === 0) {
-        console.log('[Autocomplete] No parts data available yet');
+        console.log('[Autocomplete] No parts data available yet (have', allPartsData ? allPartsData.length : 0, 'parts)');
         return;
     }
     
     // Get unique part model numbers
     const modelNumbers = [...new Set(allPartsData.map(part => part.part_model_number).filter(Boolean))];
     
-    console.log('[Autocomplete] Populating datalist with', modelNumbers.length, 'model numbers:', modelNumbers);
+    console.log('[Autocomplete] Populating datalist with', modelNumbers.length, 'model numbers:', modelNumbers.slice(0, 10), modelNumbers.length > 10 ? '...' : '');
     
     // Add each model number as an option
     modelNumbers.sort().forEach(modelNumber => {
@@ -383,7 +389,21 @@ function updateAssociatedPartsAutocomplete() {
         datalist.appendChild(option);
     });
     
-    console.log('[Autocomplete] Datalist populated successfully');
+    // Verify it was added
+    const optionCount = datalist.querySelectorAll('option').length;
+    console.log('[Autocomplete] Datalist populated successfully with', optionCount, 'options');
+    
+    // Also verify the input field is linked
+    const input = document.getElementById('associated_parts');
+    if (input) {
+        console.log('[Autocomplete] Input field found, list attribute:', input.getAttribute('list'));
+        if (input.getAttribute('list') !== 'associatedPartsSuggestions') {
+            console.warn('[Autocomplete] Input list attribute mismatch! Setting it now...');
+            input.setAttribute('list', 'associatedPartsSuggestions');
+        }
+    } else {
+        console.warn('[Autocomplete] Input field not found!');
+    }
 }
 
 // Get associated parts array from input field
