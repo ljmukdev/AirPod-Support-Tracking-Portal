@@ -1,8 +1,18 @@
 {
   "version": "1.2.3",
   "build": "2024-12-19",
-  "revision": "015",
+  "revision": "016",
   "changelog": [
+    {
+      "version": "1.2.3",
+      "date": "2024-12-19",
+      "changes": [
+        "Fixed progress bar to show immediately when security code is entered or when coming from home page with barcode",
+        "Fixed duplicate event listeners in markings verification",
+        "Fixed step counter to correctly show Step 1 during verification and authenticity checks",
+        "Fixed progress bar visibility on step 1 when product is displayed"
+      ]
+    },
     {
       "version": "1.2.3",
       "date": "2024-12-19",
