@@ -1,12 +1,14 @@
 {
   "version": "1.2.3",
   "build": "2024-12-19",
-  "revision": "016",
+  "revision": "017",
   "changelog": [
     {
       "version": "1.2.3",
       "date": "2024-12-19",
       "changes": [
+        "Removed verification step counter (Step X of 5) to eliminate confusion - now only shows main progress bar (Step X of 7)",
+        "Fixed progress bar to update correctly when moving from verification steps to Contact Information step",
         "Fixed progress bar to show immediately when security code is entered or when coming from home page with barcode",
         "Fixed duplicate event listeners in markings verification",
         "Fixed step counter to correctly show Step 1 during verification and authenticity checks",
