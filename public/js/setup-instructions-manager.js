@@ -1,5 +1,12 @@
 // Setup Instructions Manager
-const API_BASE = window.API_BASE || '';
+console.log('[Setup Instructions Manager] Script loading...');
+
+// Define API_BASE globally if not already defined
+if (typeof window.API_BASE === 'undefined') {
+    window.API_BASE = '';
+}
+// Reference the global API_BASE
+var API_BASE = window.API_BASE;
 
 let allGenerations = [];
 let allParts = [];
