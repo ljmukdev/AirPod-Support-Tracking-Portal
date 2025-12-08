@@ -2422,6 +2422,50 @@ function initializeVerificationSteps() {
                     if (this.checked && this.value === 'yes') {
                         // Get the actual step number from the radio button's data or ID
                         const actualStepNumber = stepNumber; // This should be 1-5
+                        
+                        // Special handling for step 3 (Serial Number Uniqueness) - show second-level authenticity check
+                        if (actualStepNumber === 3) {
+                            console.log('[Verification] Step 3 - "Yes" selected, showing second-level authenticity check');
+                            
+                            // Hide step 1 container
+                            const step1 = document.getElementById('step1');
+                            if (step1) {
+                                step1.style.display = 'none';
+                            }
+                            
+                            // Hide all other step containers
+                            document.querySelectorAll('.step-container').forEach(step => {
+                                step.classList.remove('active');
+                                step.style.display = 'none';
+                            });
+                            
+                            // Show second-level authenticity step
+                            const secondLevelStep = document.getElementById('secondLevelAuthenticityStep');
+                            if (secondLevelStep) {
+                                secondLevelStep.style.display = 'block';
+                                secondLevelStep.style.animation = 'fadeIn 0.3s ease';
+                                console.log('[Verification] Second-level authenticity step displayed');
+                                
+                                // Load authenticity images
+                                if (appState.productData && appState.productData.part_model_number) {
+                                    loadSecondLevelAuthenticityImages(appState.productData.part_model_number, appState.productData.part_type);
+                                }
+                                
+                                // Scroll to second-level step
+                                setTimeout(() => {
+                                    secondLevelStep.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                }, 100);
+                                
+                                // Setup event listeners for markings verification
+                                setupMarkingsVerificationListeners();
+                            } else {
+                                console.error('[Verification] Second-level authenticity step element not found!');
+                            }
+                            
+                            // Don't auto-advance - stop here
+                            return;
+                        }
+                        
                         verificationState.completedSteps.add(actualStepNumber);
                         console.log(`[Verification] Step ${actualStepNumber} - "Yes" selected, auto-advancing...`);
                         console.log(`[Verification] Completed steps: ${verificationState.completedSteps.size}/${verificationState.totalSteps}`);
