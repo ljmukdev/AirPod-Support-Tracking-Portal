@@ -43,21 +43,45 @@ function setupEventListeners() {
 // Load generations from API
 async function loadGenerations() {
     try {
+        console.log('[Setup Instructions] Loading generations from:', `${API_BASE}/api/admin/generations`);
         const response = await fetch(`${API_BASE}/api/admin/generations`);
-        if (!response.ok) throw new Error('Failed to load generations');
+        console.log('[Setup Instructions] Response status:', response.status);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('[Setup Instructions] API error response:', errorText);
+            throw new Error(`Failed to load generations: ${response.status} ${errorText}`);
+        }
+        
         const data = await response.json();
+        console.log('[Setup Instructions] Generations data received:', data);
         allGenerations = data.generations || [];
         
         const select = document.getElementById('generation');
+        if (!select) {
+            console.error('[Setup Instructions] Generation select element not found!');
+            return;
+        }
+        
         select.innerHTML = '<option value="">Select Generation</option>';
-        allGenerations.forEach(gen => {
-            const option = document.createElement('option');
-            option.value = gen;
-            option.textContent = gen;
-            select.appendChild(option);
-        });
+        if (allGenerations.length === 0) {
+            console.warn('[Setup Instructions] No generations found in response');
+            select.innerHTML += '<option value="" disabled>No generations available</option>';
+        } else {
+            allGenerations.forEach(gen => {
+                const option = document.createElement('option');
+                option.value = gen;
+                option.textContent = gen;
+                select.appendChild(option);
+            });
+            console.log('[Setup Instructions] Populated', allGenerations.length, 'generations');
+        }
     } catch (error) {
         console.error('[Setup Instructions] Error loading generations:', error);
+        const select = document.getElementById('generation');
+        if (select) {
+            select.innerHTML = '<option value="">Error loading generations</option>';
+        }
     }
 }
 
