@@ -19,6 +19,7 @@ const appState = {
     },
     selectedWarranty: '6month',
     selectedAccessories: [],
+    addonSalesData: [], // Store addon sales data for basket calculations
     setupStepsCompleted: [],
     exitIntentShown: false,
     sessionStartTime: Date.now(),
@@ -319,6 +320,7 @@ function setupEventListeners() {
             document.querySelectorAll('.warranty-card').forEach(c => c.classList.remove('selected'));
             this.classList.add('selected');
             appState.selectedWarranty = this.dataset.plan;
+            updateBasketDisplay(); // Update basket when warranty is selected
             saveState();
         });
     });
@@ -327,6 +329,7 @@ function setupEventListeners() {
     document.getElementById('skipWarranty')?.addEventListener('click', (e) => {
         e.preventDefault();
         appState.selectedWarranty = 'none';
+        updateBasketDisplay(); // Update basket when warranty is skipped
         trackEvent('warranty_skipped');
         showStep(6);
     });
@@ -1193,6 +1196,9 @@ async function loadAddonSalesForProduct(generation, partModelNumber) {
 function displayAddonSales(addonSales) {
     console.log('[Add-On Sales] Displaying', addonSales.length, 'add-on sales');
     
+    // Store addon sales data globally for basket calculations
+    appState.addonSalesData = addonSales;
+    
     const grid = document.getElementById('addonSalesGrid');
     const pricingContainer = document.getElementById('addonSalesPricing');
     
@@ -1211,6 +1217,12 @@ function displayAddonSales(addonSales) {
         addonItem.dataset.item = addon.id;
         addonItem.dataset.addonId = addon.id;
         
+        // Check if already selected
+        const isSelected = appState.selectedAccessories.includes(addon.id);
+        if (isSelected) {
+            addonItem.classList.add('selected');
+        }
+        
         let imageHtml = '';
         if (addon.image) {
             const imagePath = addon.image.startsWith('/') ? addon.image : '/' + addon.image;
@@ -1222,20 +1234,36 @@ function displayAddonSales(addonSales) {
             <h4>${escapeHtml(addon.name)}</h4>
             <div class="warranty-price" style="font-size: 1.25rem;">£${parseFloat(addon.price || 0).toFixed(2)}</div>
             ${addon.description ? `<p style="font-size: 0.85rem; color: #6c757d; margin-top: 4px;">${escapeHtml(addon.description)}</p>` : ''}
+            ${isSelected ? '<div style="margin-top: 8px; color: #28a745; font-weight: 600; font-size: 0.9rem;">✓ Added to basket</div>' : ''}
         `;
         
         // Add click handler
         addonItem.addEventListener('click', function() {
+            const wasSelected = this.classList.contains('selected');
             this.classList.toggle('selected');
             const addonId = this.dataset.addonId;
+            
             if (this.classList.contains('selected')) {
                 if (!appState.selectedAccessories.includes(addonId)) {
                     appState.selectedAccessories.push(addonId);
                 }
+                // Update visual feedback
+                if (!this.querySelector('div[style*="color: #28a745"]')) {
+                    const addedText = document.createElement('div');
+                    addedText.style.cssText = 'margin-top: 8px; color: #28a745; font-weight: 600; font-size: 0.9rem;';
+                    addedText.textContent = '✓ Added to basket';
+                    this.appendChild(addedText);
+                }
             } else {
                 appState.selectedAccessories = appState.selectedAccessories.filter(id => id !== addonId);
+                // Remove visual feedback
+                const addedText = this.querySelector('div[style*="color: #28a745"]');
+                if (addedText) {
+                    addedText.remove();
+                }
             }
             updateAddonSalesPricing(addonSales);
+            updateBasketDisplay(); // Update basket display
             saveState();
         });
         
@@ -1410,6 +1438,15 @@ async function loadSetupInstructions(partModelNumber, generation) {
 }
 
 // Load payment summary for step 7
+// Update basket display (can be called from anywhere)
+function updateBasketDisplay() {
+    // This function can be called to update any basket displays throughout the flow
+    // Currently used to update payment summary when items are selected
+    if (document.getElementById('step7') && document.getElementById('step7').style.display !== 'none') {
+        loadPaymentSummary();
+    }
+}
+
 function loadPaymentSummary() {
     console.log('[Payment] Loading payment summary');
     
@@ -1442,27 +1479,38 @@ function loadPaymentSummary() {
         }
     }
     
-    // Add accessories if selected
-    if (appState.selectedAccessories && appState.selectedAccessories.length > 0) {
-        // Note: Accessory prices would need to be fetched from addon sales data
-        // For now, we'll add a placeholder
-        items.push({
-            name: `${appState.selectedAccessories.length} Accessory Item(s)`,
-            price: 0 // Will be calculated from actual addon sales data
+    // Add accessories if selected - use stored addon sales data
+    if (appState.selectedAccessories && appState.selectedAccessories.length > 0 && appState.addonSalesData) {
+        const selectedAddons = appState.addonSalesData.filter(addon => 
+            appState.selectedAccessories.includes(addon.id)
+        );
+        
+        selectedAddons.forEach(addon => {
+            const price = parseFloat(addon.price || 0);
+            items.push({
+                name: escapeHtml(addon.name),
+                price: price
+            });
+            total += price;
         });
     }
     
     // Render items
     paymentItemsContainer.innerHTML = '';
-    items.forEach(item => {
-        const itemDiv = document.createElement('div');
-        itemDiv.style.cssText = 'display: flex; justify-content: space-between; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #e8ecf1;';
-        itemDiv.innerHTML = `
-            <span style="color: #1a1a1a;">${escapeHtml(item.name)}</span>
-            <span style="color: #1a1a1a; font-weight: 500;">£${item.price.toFixed(2)}</span>
-        `;
-        paymentItemsContainer.appendChild(itemDiv);
-    });
+    
+    if (items.length === 0) {
+        paymentItemsContainer.innerHTML = '<p style="color: #6c757d; text-align: center; padding: 20px;">No items selected</p>';
+    } else {
+        items.forEach(item => {
+            const itemDiv = document.createElement('div');
+            itemDiv.style.cssText = 'display: flex; justify-content: space-between; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #e8ecf1;';
+            itemDiv.innerHTML = `
+                <span style="color: #1a1a1a;">${item.name}</span>
+                <span style="color: #1a1a1a; font-weight: 500;">£${item.price.toFixed(2)}</span>
+            `;
+            paymentItemsContainer.appendChild(itemDiv);
+        });
+    }
     
     // Update total
     paymentTotalEl.textContent = `£${total.toFixed(2)}`;
