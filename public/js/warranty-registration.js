@@ -2479,6 +2479,12 @@ function initializeVerificationSteps() {
                             return;
                         }
                         
+                        // Skip step 3 - it's handled above with second-level authenticity check
+                        if (actualStepNumber === 3) {
+                            console.log('[Verification] Step 3 already handled - skipping auto-advance');
+                            return;
+                        }
+                        
                         verificationState.completedSteps.add(actualStepNumber);
                         console.log(`[Verification] Step ${actualStepNumber} - "Yes" selected, auto-advancing...`);
                         console.log(`[Verification] Completed steps: ${verificationState.completedSteps.size}/${verificationState.totalSteps}`);
