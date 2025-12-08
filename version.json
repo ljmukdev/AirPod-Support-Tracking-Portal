@@ -1,8 +1,16 @@
 {
   "version": "1.2.3",
   "build": "2024-12-19",
-  "revision": "003",
+  "revision": "004",
   "changelog": [
+    {
+      "version": "1.2.3",
+      "date": "2024-12-19",
+      "changes": [
+        "Fixed missing loadProductInfo function - product information now loads correctly when accessing warranty registration with barcode parameter",
+        "Fixed version display conflict - removed version.js script from warranty-registration.html to prevent override"
+      ]
+    },
     {
       "version": "1.2.3",
       "date": "2024-12-19",
