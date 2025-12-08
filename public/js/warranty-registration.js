@@ -4173,6 +4173,65 @@ function showStep(stepNumber, force = false) {
             loadTermsAndConditions();
         }
         
+        // Handle step 4 (30-day Warranty Confirmation)
+        if (stepNumber === 4) {
+            const successAnimation = document.getElementById('successAnimation');
+            const warrantyConfirmation = document.getElementById('warrantyConfirmation');
+            
+            // Hide success animation and show warranty confirmation
+            if (successAnimation) {
+                successAnimation.style.display = 'none';
+            }
+            if (warrantyConfirmation) {
+                warrantyConfirmation.style.display = 'block';
+                
+                // Load warranty pricing
+                loadAndDisplayLowestWarrantyPrice();
+                
+                // Display product details if available
+                if (appState.productData) {
+                    const productDetailsDisplay = document.getElementById('productDetailsDisplay');
+                    if (productDetailsDisplay) {
+                        const product = appState.productData;
+                        productDetailsDisplay.innerHTML = `
+                            <div style="background: white; border: 2px solid #e8ecf1; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+                                <h4 style="margin-top: 0; color: #1a1a1a; font-size: 1.1rem; margin-bottom: 12px;">Registered Product</h4>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                                    <div>
+                                        <div style="color: #6c757d; font-size: 0.85rem; margin-bottom: 4px;">Part</div>
+                                        <div style="color: #1a1a1a; font-weight: 600;">${escapeHtml(product.part_name || product.part_model_number || 'N/A')}</div>
+                                    </div>
+                                    <div>
+                                        <div style="color: #6c757d; font-size: 0.85rem; margin-bottom: 4px;">Model Number</div>
+                                        <div style="color: #1a1a1a; font-weight: 600;">${escapeHtml(product.part_model_number || 'N/A')}</div>
+                                    </div>
+                                    ${product.generation ? `
+                                    <div>
+                                        <div style="color: #6c757d; font-size: 0.85rem; margin-bottom: 4px;">Generation</div>
+                                        <div style="color: #1a1a1a; font-weight: 600;">${escapeHtml(product.generation)}</div>
+                                    </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+                
+                // Calculate and display warranty expiry date
+                const warrantyExpiryEl = document.getElementById('warrantyExpiry');
+                if (warrantyExpiryEl) {
+                    const expiryDate = new Date();
+                    expiryDate.setDate(expiryDate.getDate() + 30);
+                    const formattedDate = expiryDate.toLocaleDateString('en-GB', { 
+                        day: 'numeric', 
+                        month: 'long', 
+                        year: 'numeric' 
+                    });
+                    warrantyExpiryEl.textContent = formattedDate;
+                }
+            }
+        }
+        
         // Auto-dismiss keyboard on mobile
         if (document.activeElement && document.activeElement.blur) {
             document.activeElement.blur();
