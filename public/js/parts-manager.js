@@ -499,51 +499,122 @@ function updateAssociatedPartsTags(partsArray) {
     });
 }
 
-// Setup input field listener to update tags as user types
-const associatedPartsInput = document.getElementById('associated_parts');
-if (associatedPartsInput) {
+// Setup input field listener with custom autocomplete
+function setupAssociatedPartsInput() {
+    const associatedPartsInput = document.getElementById('associated_parts');
+    const dropdown = document.getElementById('associatedPartsDropdown');
+    
+    if (!associatedPartsInput) {
+        console.warn('[Autocomplete] Input field not found, retrying...');
+        setTimeout(setupAssociatedPartsInput, 500);
+        return;
+    }
+    
+    console.log('[Autocomplete] Setting up input field listeners, allPartsData:', allPartsData ? allPartsData.length : 0);
+    
     let updateTimeout;
     
-    // Update tags as user types (debounced)
-    associatedPartsInput.addEventListener('input', function() {
+    // Show autocomplete suggestions as user types
+    associatedPartsInput.addEventListener('input', function(e) {
+        const value = this.value;
+        // Get the last part being typed (after the last comma)
+        const parts = value.split(',');
+        const currentPart = parts[parts.length - 1].trim();
+        
+        clearTimeout(autocompleteTimeout);
+        autocompleteTimeout = setTimeout(() => {
+            showAutocompleteSuggestions(currentPart);
+        }, 200);
+        
+        // Update tags
         clearTimeout(updateTimeout);
         updateTimeout = setTimeout(() => {
-            const parts = getAssociatedPartsFromInput();
-            updateAssociatedPartsTags(parts);
+            const allParts = getAssociatedPartsFromInput();
+            updateAssociatedPartsTags(allParts);
         }, 300);
     });
     
-    // Update tags when user selects from autocomplete or presses comma/enter
-    associatedPartsInput.addEventListener('change', function() {
-        const parts = getAssociatedPartsFromInput();
-        updateAssociatedPartsTags(parts);
-    });
-    
-    // Handle Enter key to add current value and clear input
+    // Handle keyboard navigation
     associatedPartsInput.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            const currentValue = this.value.trim();
-            if (currentValue) {
-                const existingParts = getAssociatedPartsFromInput();
-                // Check if already added
-                if (!existingParts.includes(currentValue)) {
-                    const updatedParts = [...existingParts, currentValue];
-                    updateAssociatedPartsInput(updatedParts);
-                    updateAssociatedPartsTags(updatedParts);
-                    this.value = '';
-                } else {
-                    this.value = '';
+        const dropdown = document.getElementById('associatedPartsDropdown');
+        if (!dropdown || dropdown.style.display === 'none') {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const currentValue = this.value.trim();
+                if (currentValue) {
+                    const parts = currentValue.split(',').map(p => p.trim()).filter(p => p.length > 0);
+                    const lastPart = parts[parts.length - 1].toUpperCase();
+                    const match = allPartsData.find(p => 
+                        p.part_model_number && p.part_model_number.toUpperCase() === lastPart
+                    );
+                    if (match && !parts.slice(0, -1).includes(match.part_model_number)) {
+                        parts[parts.length - 1] = match.part_model_number;
+                        this.value = parts.join(', ');
+                        updateAssociatedPartsTags(parts);
+                    }
+                    if (dropdown) dropdown.style.display = 'none';
                 }
             }
+            return;
+        }
+        
+        const items = dropdown.querySelectorAll('div');
+        if (items.length === 0) return;
+        
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+            items[selectedIndex].dispatchEvent(new MouseEvent('mouseenter'));
+            items[selectedIndex].scrollIntoView({ block: 'nearest' });
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            selectedIndex = Math.max(selectedIndex - 1, -1);
+            if (selectedIndex >= 0) {
+                items[selectedIndex].dispatchEvent(new MouseEvent('mouseenter'));
+                items[selectedIndex].scrollIntoView({ block: 'nearest' });
+            } else {
+                items.forEach(item => {
+                    item.style.background = 'white';
+                    item.style.color = '#1a1a1a';
+                });
+            }
+        } else if (e.key === 'Enter' && selectedIndex >= 0) {
+            e.preventDefault();
+            items[selectedIndex].click();
+        } else if (e.key === 'Escape') {
+            dropdown.style.display = 'none';
+            selectedIndex = -1;
         }
     });
     
-    // Also update on blur
-    associatedPartsInput.addEventListener('blur', function() {
-        const parts = getAssociatedPartsFromInput();
-        updateAssociatedPartsTags(parts);
+    // Hide dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!associatedPartsInput.contains(e.target) && dropdown && !dropdown.contains(e.target)) {
+            dropdown.style.display = 'none';
+        }
     });
+    
+    // Update tags on blur
+    associatedPartsInput.addEventListener('blur', function() {
+        setTimeout(() => {
+            const parts = getAssociatedPartsFromInput();
+            updateAssociatedPartsTags(parts);
+        }, 200); // Delay to allow click events on dropdown
+    });
+}
+
+// Initialize when DOM is ready
+console.log('[Autocomplete] Setting up initialization');
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        console.log('[Autocomplete] DOMContentLoaded, setting up input');
+        setTimeout(setupAssociatedPartsInput, 100);
+        setTimeout(setupAssociatedPartsInput, 1000);
+    });
+} else {
+    console.log('[Autocomplete] DOM ready, setting up input immediately');
+    setTimeout(setupAssociatedPartsInput, 100);
+    setTimeout(setupAssociatedPartsInput, 1000);
 }
 
 // Edit part
