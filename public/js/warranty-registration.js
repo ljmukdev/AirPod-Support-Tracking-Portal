@@ -4290,70 +4290,89 @@ function showStep(stepNumber, force = false) {
         
         // Handle step 4 (30-day Warranty Confirmation)
         if (stepNumber === 4) {
-            console.log('[showStep] Step 4 detected - executing step 4 handling code');
-            console.log('[Step 4] Handling step 4 display');
-            const successAnimation = document.getElementById('successAnimation');
-            const warrantyConfirmation = document.getElementById('warrantyConfirmation');
-            
-            console.log('[Step 4] successAnimation element:', successAnimation);
-            console.log('[Step 4] warrantyConfirmation element:', warrantyConfirmation);
-            
-            // Hide success animation and show warranty confirmation
-            if (successAnimation) {
-                console.log('[Step 4] Hiding success animation');
-                successAnimation.style.display = 'none';
-            } else {
-                console.warn('[Step 4] successAnimation element not found!');
-            }
-            if (warrantyConfirmation) {
-                console.log('[Step 4] Showing warranty confirmation');
-                warrantyConfirmation.style.display = 'block';
+            // Use setTimeout to ensure DOM is ready after step container is displayed
+            setTimeout(() => {
+                console.log('[showStep] Step 4 detected - executing step 4 handling code');
+                console.log('[Step 4] Handling step 4 display');
                 
-                // Load warranty pricing
-                loadAndDisplayLowestWarrantyPrice();
+                // Find elements within the current step container to ensure they exist
+                const step4Container = document.getElementById('step4');
+                if (!step4Container) {
+                    console.error('[Step 4] Step 4 container not found!');
+                    return;
+                }
                 
-                // Display product details if available
-                if (appState.productData) {
-                    const productDetailsDisplay = document.getElementById('productDetailsDisplay');
-                    if (productDetailsDisplay) {
-                        const product = appState.productData;
-                        productDetailsDisplay.innerHTML = `
-                            <div style="background: white; border: 2px solid #e8ecf1; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
-                                <h4 style="margin-top: 0; color: #1a1a1a; font-size: 1.1rem; margin-bottom: 12px;">Registered Product</h4>
-                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
-                                    <div>
-                                        <div style="color: #6c757d; font-size: 0.85rem; margin-bottom: 4px;">Part</div>
-                                        <div style="color: #1a1a1a; font-weight: 600;">${escapeHtml(product.part_name || product.part_model_number || 'N/A')}</div>
+                const successAnimation = step4Container.querySelector('#successAnimation') || document.getElementById('successAnimation');
+                const warrantyConfirmation = step4Container.querySelector('#warrantyConfirmation') || document.getElementById('warrantyConfirmation');
+                
+                console.log('[Step 4] successAnimation element:', successAnimation);
+                console.log('[Step 4] warrantyConfirmation element:', warrantyConfirmation);
+                
+                // Hide success animation and show warranty confirmation
+                if (successAnimation) {
+                    console.log('[Step 4] Hiding success animation');
+                    successAnimation.style.display = 'none';
+                } else {
+                    console.warn('[Step 4] successAnimation element not found!');
+                }
+                
+                if (warrantyConfirmation) {
+                    console.log('[Step 4] Showing warranty confirmation');
+                    warrantyConfirmation.style.display = 'block';
+                    
+                    // Load warranty pricing
+                    loadAndDisplayLowestWarrantyPrice();
+                    
+                    // Display product details if available
+                    if (appState.productData) {
+                        const productDetailsDisplay = warrantyConfirmation.querySelector('#productDetailsDisplay') || document.getElementById('productDetailsDisplay');
+                        if (productDetailsDisplay) {
+                            const product = appState.productData;
+                            productDetailsDisplay.innerHTML = `
+                                <div style="background: white; border: 2px solid #e8ecf1; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+                                    <h4 style="margin-top: 0; color: #1a1a1a; font-size: 1.1rem; margin-bottom: 12px;">Registered Product</h4>
+                                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                                        <div>
+                                            <div style="color: #6c757d; font-size: 0.85rem; margin-bottom: 4px;">Part</div>
+                                            <div style="color: #1a1a1a; font-weight: 600;">${escapeHtml(product.part_name || product.part_model_number || 'N/A')}</div>
+                                        </div>
+                                        <div>
+                                            <div style="color: #6c757d; font-size: 0.85rem; margin-bottom: 4px;">Model Number</div>
+                                            <div style="color: #1a1a1a; font-weight: 600;">${escapeHtml(product.part_model_number || 'N/A')}</div>
+                                        </div>
+                                        ${product.generation ? `
+                                        <div>
+                                            <div style="color: #6c757d; font-size: 0.85rem; margin-bottom: 4px;">Generation</div>
+                                            <div style="color: #1a1a1a; font-weight: 600;">${escapeHtml(product.generation)}</div>
+                                        </div>
+                                        ` : ''}
                                     </div>
-                                    <div>
-                                        <div style="color: #6c757d; font-size: 0.85rem; margin-bottom: 4px;">Model Number</div>
-                                        <div style="color: #1a1a1a; font-weight: 600;">${escapeHtml(product.part_model_number || 'N/A')}</div>
-                                    </div>
-                                    ${product.generation ? `
-                                    <div>
-                                        <div style="color: #6c757d; font-size: 0.85rem; margin-bottom: 4px;">Generation</div>
-                                        <div style="color: #1a1a1a; font-weight: 600;">${escapeHtml(product.generation)}</div>
-                                    </div>
-                                    ` : ''}
                                 </div>
-                            </div>
-                        `;
+                            `;
+                        } else {
+                            console.warn('[Step 4] productDetailsDisplay element not found!');
+                        }
                     }
+                    
+                    // Calculate and display warranty expiry date
+                    const warrantyExpiryEl = warrantyConfirmation.querySelector('#warrantyExpiry') || document.getElementById('warrantyExpiry');
+                    if (warrantyExpiryEl) {
+                        const expiryDate = new Date();
+                        expiryDate.setDate(expiryDate.getDate() + 30);
+                        const formattedDate = expiryDate.toLocaleDateString('en-GB', { 
+                            day: 'numeric', 
+                            month: 'long', 
+                            year: 'numeric' 
+                        });
+                        warrantyExpiryEl.textContent = formattedDate;
+                        console.log('[Step 4] Warranty expiry date set to:', formattedDate);
+                    } else {
+                        console.warn('[Step 4] warrantyExpiry element not found!');
+                    }
+                } else {
+                    console.error('[Step 4] warrantyConfirmation element not found! Cannot display step 4 content.');
                 }
-                
-                // Calculate and display warranty expiry date
-                const warrantyExpiryEl = document.getElementById('warrantyExpiry');
-                if (warrantyExpiryEl) {
-                    const expiryDate = new Date();
-                    expiryDate.setDate(expiryDate.getDate() + 30);
-                    const formattedDate = expiryDate.toLocaleDateString('en-GB', { 
-                        day: 'numeric', 
-                        month: 'long', 
-                        year: 'numeric' 
-                    });
-                    warrantyExpiryEl.textContent = formattedDate;
-                }
-            }
+            }, 100); // Small delay to ensure DOM is ready
         }
         
         // Auto-dismiss keyboard on mobile
