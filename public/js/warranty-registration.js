@@ -2716,6 +2716,9 @@ function initializeVerificationSteps() {
                         else if (stepNumber === 3 || stepNumber === '3') {
                             console.log('[Verification] Step 3 - "No" selected, showing authenticity check step');
                             
+                            // Keep appState.currentStep at 1 (we're still on step 1 verification)
+                            // Don't change appState.currentStep - we're still in the verification phase
+                            
                             // Hide step 1 container
                             const step1 = document.getElementById('step1');
                             if (step1) {
@@ -2739,6 +2742,9 @@ function initializeVerificationSteps() {
                                 if (appState.productData && appState.productData.part_model_number) {
                                     loadAuthenticityCheckImages(appState.productData.part_model_number, appState.productData.part_type);
                                 }
+                                
+                                // Update progress indicator to show we're still on step 1
+                                updateProgressIndicator();
                                 
                                 // Scroll to authenticity check step
                                 setTimeout(() => {
