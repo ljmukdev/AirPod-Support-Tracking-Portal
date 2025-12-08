@@ -91,7 +91,23 @@
             box-sizing: border-box;
         }
         
-        /* Responsive header padding to match container */
+        /* Align header content with card - card is 800px centered in 1200px container with 24px padding */
+        /* Card starts at: (1200 - 48 - 800) / 2 + 24 = 200px from container edge */
+        /* Header needs same visual alignment */
+        @media (min-width: 1200px) {
+            .header-content {
+                padding-left: calc((100% - 1200px) / 2 + 200px);
+                padding-right: calc((100% - 1200px) / 2 + 200px);
+            }
+        }
+        
+        /* For screens smaller than 1200px, card takes full width minus container padding */
+        @media (max-width: 1199px) {
+            .header-content {
+                padding: 0 24px;
+            }
+        }
+        
         @media (max-width: 768px) {
             .header-content {
                 padding: 0 20px;
