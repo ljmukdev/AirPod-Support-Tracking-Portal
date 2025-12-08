@@ -350,7 +350,8 @@ if (partForm) {
                 document.getElementById('caseImagePreview').innerHTML = '';
                 document.getElementById('airpodImagePreview').innerHTML = '';
                 document.getElementById('associated_parts').value = JSON.stringify([]);
-                populateAssociatedPartsCheckboxes(); // Clear checkboxes
+                const partGeneration = document.getElementById('generation')?.value || null;
+                populateAssociatedPartsCheckboxes(null, partGeneration); // Clear checkboxes
                 cancelEdit();
                 loadParts();
                 loadGenerations();
@@ -509,10 +510,10 @@ async function editPart(id) {
                 const associatedPartsHidden = document.getElementById('associated_parts');
                 if (associatedPartsHidden && part.associated_parts && Array.isArray(part.associated_parts)) {
                     associatedPartsHidden.value = JSON.stringify(part.associated_parts);
-                    populateAssociatedPartsCheckboxes(part.part_model_number);
+                    populateAssociatedPartsCheckboxes(part.part_model_number, part.generation);
                 } else if (associatedPartsHidden) {
                     associatedPartsHidden.value = JSON.stringify([]);
-                    populateAssociatedPartsCheckboxes(part.part_model_number);
+                    populateAssociatedPartsCheckboxes(part.part_model_number, part.generation);
                 }
                 
                 // Show existing images if they exist
