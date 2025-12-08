@@ -1680,10 +1680,17 @@ app.post('/api/verify-barcode', requireDB, async (req, res) => {
             // Get associated parts details if they exist
             let associatedPartsDetails = [];
             if (product.associated_parts && Array.isArray(product.associated_parts) && product.associated_parts.length > 0) {
+                console.log('[Verify Barcode] Product has associated_parts:', product.associated_parts);
+
                 // Fetch full details for each associated part
                 const associatedPartsDocs = await db.collection('parts').find({
                     part_model_number: { $in: product.associated_parts }
                 }).toArray();
+
+                console.log('[Verify Barcode] Found', associatedPartsDocs.length, 'associated parts documents');
+                associatedPartsDocs.forEach(part => {
+                    console.log('[Verify Barcode] Part:', part.part_model_number, 'example_image:', part.example_image);
+                });
 
                 associatedPartsDetails = associatedPartsDocs.map(part => ({
                     part_model_number: part.part_model_number,
@@ -1691,6 +1698,10 @@ app.post('/api/verify-barcode', requireDB, async (req, res) => {
                     part_type: part.part_type,
                     example_image: part.example_image || null
                 }));
+
+                console.log('[Verify Barcode] Sending associatedPartsDetails:', JSON.stringify(associatedPartsDetails, null, 2));
+            } else {
+                console.log('[Verify Barcode] No associated_parts configured for this product');
             }
 
             res.json({
