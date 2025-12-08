@@ -3186,8 +3186,8 @@ app.get('/api/compatible-parts/:partModelNumber', requireDB, async (req, res) =>
             'A2699': ['A2698', 'A2700'],  // Right AirPod -> Left AirPod, Case
             'A2700': ['A2698', 'A2699'],  // Case -> Left AirPod, Right AirPod
             'A2968': ['A2699', 'A2700'],  // Right AirPod Lightning -> Left AirPod, Case
-            'A3047': ['A3048', 'A2700'],  // Right AirPod USB-C -> Left AirPod USB-C, Case
-            'A3048': ['A3047', 'A2700'],  // Left AirPod USB-C -> Right AirPod USB-C, Case
+            'A3047': ['A3048', 'A2968'],  // Right AirPod USB-C -> Left AirPod USB-C, Case USB-C
+            'A3048': ['A3047', 'A2968'],  // Right AirPod USB-C -> Left AirPod USB-C, Case USB-C
             // AirPods Pro 1st Gen
             'A2084': ['A2083', 'A2190'],  // Left AirPod -> Right AirPod, Case
             'A2083': ['A2084', 'A2190'],  // Right AirPod -> Left AirPod, Case

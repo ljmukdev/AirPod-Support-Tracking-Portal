@@ -967,9 +967,13 @@ function getCompatiblePartNumbers(partModelNumber, partType) {
     
     // Left AirPod needs Right AirPod and Case
     if (partType === 'left') {
+        // For AirPods Pro 2nd Gen Left (A3047), compatible parts are Right (A3048) and Case (A2968)
+        if (partModelNumber === 'A3047') {
+            return ['A3048', 'A2968'];
+        }
         // For AirPods Pro 2nd Gen Left (A2699), compatible parts are Right (A2698) and Case (A2700)
-        if (partModelNumber === 'A2699' || partModelNumber === 'A3047') {
-            return ['Right AirPod (A2698)', 'Case (A2700)'];
+        if (partModelNumber === 'A2699') {
+            return ['A2698', 'A2700'];
         }
         // Generic left - return generic compatible parts
         return ['Right AirPod', 'Case'];
@@ -977,9 +981,13 @@ function getCompatiblePartNumbers(partModelNumber, partType) {
     
     // Right AirPod needs Left AirPod and Case
     if (partType === 'right') {
+        // For AirPods Pro 2nd Gen Right (A3048), compatible parts are Left (A3047) and Case (A2968)
+        if (partModelNumber === 'A3048') {
+            return ['A3047', 'A2968'];
+        }
         // For AirPods Pro 2nd Gen Right (A2698), compatible parts are Left (A2699) and Case (A2700)
-        if (partModelNumber === 'A2698' || partModelNumber === 'A3048') {
-            return ['Left AirPod (A2699)', 'Case (A2700)'];
+        if (partModelNumber === 'A2698') {
+            return ['A2699', 'A2700'];
         }
         // Generic right - return generic compatible parts
         return ['Left AirPod', 'Case'];
@@ -1023,8 +1031,19 @@ function displayProductInfoOnStep1(data) {
                 const formatted = compatibleParts.map(partNum => {
                     if (/^A\d+/.test(partNum)) {
                         // Known part numbers - map to names
-                        if (partNum === 'A2699' || partNum === 'A2698' || partNum === 'A3048' || partNum === 'A3047') {
-                            // These are AirPods - determine left/right based on purchased part type
+                        // A3047 is Left AirPod, A3048 is Right AirPod
+                        if (partNum === 'A3047') {
+                            return `Left AirPod (${partNum})`;
+                        } else if (partNum === 'A3048') {
+                            return `Right AirPod (${partNum})`;
+                        } else if (partNum === 'A2699') {
+                            return `Left AirPod (${partNum})`;
+                        } else if (partNum === 'A2698') {
+                            return `Right AirPod (${partNum})`;
+                        } else if (partNum === 'A2968' || partNum === 'A2700' || partNum.includes('2700') || partNum.includes('2968')) {
+                            return `Case (${partNum})`;
+                        } else {
+                            // For other AirPod part numbers, determine left/right based on purchased part type
                             if (data.part_type === 'right') {
                                 // Purchased right, compatible part must be left
                                 return `Left AirPod (${partNum})`;
@@ -1035,11 +1054,6 @@ function displayProductInfoOnStep1(data) {
                                 // Unknown, use generic
                                 return `AirPod (${partNum})`;
                             }
-                        } else if (partNum === 'A2700' || partNum.includes('2700')) {
-                            return `Case (${partNum})`;
-                        } else {
-                            // Unknown part number - just show the number
-                            return partNum;
                         }
                     } else {
                         // Generic name (fallback like "Left AirPod" or "Charging Case")
@@ -1211,6 +1225,35 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// Get compatible part examples from API
+async function getCompatiblePartExamples(partModelNumber, partType) {
+    if (!partModelNumber) {
+        console.warn('[Compatible Parts] No part model number provided');
+        return { compatibleParts: [] };
+    }
+    
+    try {
+        const params = new URLSearchParams();
+        if (partType) params.append('part_type', partType);
+        
+        const url = `${API_BASE}/api/compatible-parts/${encodeURIComponent(partModelNumber)}${params.toString() ? '?' + params.toString() : ''}`;
+        console.log('[Compatible Parts] Fetching from:', url);
+        
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('[Compatible Parts] API response:', data);
+        
+        return data;
+    } catch (error) {
+        console.error('[Compatible Parts] Error fetching compatible parts:', error);
+        return { compatibleParts: [] };
+    }
+}
+
 // Display compatible part examples
 async function displayCompatiblePartExamples(partModelNumber, partType) {
     console.log('displayCompatiblePartExamples called with:', partModelNumber, partType);
@@ -1227,13 +1270,90 @@ async function displayCompatiblePartExamples(partModelNumber, partType) {
     console.log('Example data loaded:', exampleData);
     
     if (!exampleData || !exampleData.compatibleParts || exampleData.compatibleParts.length === 0) {
-        console.log('No example data found, hiding container');
-        examplesContainer.style.display = 'none';
-        // Fallback to static message
+        console.log('No example data found, using fallback');
+        // Fallback to static message with proper formatting
         const compatiblePartsEl = document.getElementById('compatiblePartNumbers');
         if (compatiblePartsEl) {
             const compatibleParts = getCompatiblePartNumbers(partModelNumber, partType);
-            compatiblePartsEl.textContent = compatibleParts.join(' & ');
+            console.log('[Compatible Parts] Fallback compatible parts:', compatibleParts);
+            
+            // Format the parts with names
+            const formatted = compatibleParts.map(partNum => {
+                if (/^A\d+/.test(partNum)) {
+                    // Known part numbers - map to names
+                    if (partNum === 'A3047') {
+                        return `Left AirPod (${partNum})`;
+                    } else if (partNum === 'A3048') {
+                        return `Right AirPod (${partNum})`;
+                    } else if (partNum === 'A2699') {
+                        return `Left AirPod (${partNum})`;
+                    } else if (partNum === 'A2698') {
+                        return `Right AirPod (${partNum})`;
+                    } else if (partNum === 'A2968' || partNum === 'A2700' || partNum.includes('2700') || partNum.includes('2968')) {
+                        return `Case (${partNum})`;
+                    } else {
+                        // For other AirPod part numbers, determine left/right based on part type
+                        if (partType === 'right') {
+                            return `Left AirPod (${partNum})`;
+                        } else if (partType === 'left') {
+                            return `Right AirPod (${partNum})`;
+                        } else {
+                            return `Case (${partNum})`;
+                        }
+                    }
+                } else {
+                    return partNum;
+                }
+            });
+            compatiblePartsEl.textContent = formatted.join(' & ');
+        }
+        
+        // Still try to show images using fallback
+        const compatibleParts = getCompatiblePartNumbers(partModelNumber, partType);
+        if (compatibleParts.length > 0) {
+            examplesGrid.innerHTML = '';
+            compatibleParts.forEach((partNum, index) => {
+                const partCard = document.createElement('div');
+                partCard.style.cssText = 'background: white; border: 2px solid #e8ecf1; border-radius: 12px; padding: 16px; text-align: center; transition: all 0.3s ease;';
+                
+                // Determine part type for image
+                let partTypeForImage = 'left';
+                let partName = 'Left AirPod';
+                if (partNum === 'A3047' || partNum === 'A2699') {
+                    partTypeForImage = 'left';
+                    partName = 'Left AirPod';
+                } else if (partNum === 'A3048' || partNum === 'A2698') {
+                    partTypeForImage = 'right';
+                    partName = 'Right AirPod';
+                } else if (partNum === 'A2968' || partNum === 'A2700' || partNum.includes('2700') || partNum.includes('2968')) {
+                    partTypeForImage = 'case';
+                    partName = 'Case';
+                } else if (partType === 'right') {
+                    partTypeForImage = 'left';
+                    partName = 'Left AirPod';
+                } else if (partType === 'left') {
+                    partTypeForImage = 'right';
+                    partName = 'Right AirPod';
+                }
+                
+                const fallbackPath = getFallbackExampleImage(partTypeForImage, partNum);
+                const finalImagePath = fallbackPath.includes('?') 
+                    ? fallbackPath + `&v=${IMAGE_VERSION}`
+                    : fallbackPath + `?v=${IMAGE_VERSION}`;
+                
+                partCard.innerHTML = `
+                    <img src="${finalImagePath}" 
+                         alt="${partName}" 
+                         style="width: 100%; max-width: 200px; height: auto; min-height: 150px; border-radius: 8px; margin-bottom: 12px; object-fit: contain; background: #f8f9fa;">
+                    <div style="font-weight: 600; color: #1a1a1a; margin-bottom: 4px; font-size: 0.95rem;">${partName}</div>
+                    <div style="font-size: 0.85rem; color: #6c757d;">${partNum}</div>
+                `;
+                
+                examplesGrid.appendChild(partCard);
+            });
+            examplesContainer.style.display = 'block';
+        } else {
+            examplesContainer.style.display = 'none';
         }
         return;
     }
@@ -1364,7 +1484,8 @@ function getFallbackExampleImage(partType, partModelNumber) {
         'A2700': '/images/examples/airpod-pro-2nd-gen-case.svg',
         'A2968': '/images/examples/airpod-pro-2nd-gen-case.svg',  // USB-C MagSafe case
         'A2968-L': '/images/examples/airpod-pro-2nd-gen-case.svg', // Lightning case
-        'A3047': '/images/examples/airpod-pro-2nd-gen-right.svg',  // Right earbud USB-C
+        'A3047': '/images/examples/airpod-pro-2nd-gen-left.svg',  // Left earbud USB-C
+        'A3048': '/images/examples/airpod-pro-2nd-gen-right.svg',  // Right earbud USB-C
         // AirPods Pro 1st Gen
         'A2084': '/images/examples/airpod-pro-1st-gen-left.svg',
         'A2083': '/images/examples/airpod-pro-1st-gen-right.svg',
