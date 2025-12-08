@@ -2444,10 +2444,7 @@ function initializeVerificationSteps() {
     const continueBtn = document.getElementById('continueBtn1');
     if (continueBtn) continueBtn.disabled = true;
     
-    // Update step counter
-    const currentStepEl = document.getElementById('currentVerificationStep');
-    const totalStepsEl = document.getElementById('totalVerificationSteps');
-    if (currentStepEl) currentStepEl.textContent = verificationState.currentStep;
+    // Verification step counter removed - using main progress bar instead
     if (totalStepsEl) totalStepsEl.textContent = verificationState.totalSteps;
     
     // Show first step
@@ -2598,7 +2595,6 @@ function initializeVerificationSteps() {
                                 verificationState.currentStep++;
                                 console.log(`[Verification] Advancing to step ${verificationState.currentStep}`);
                                 showVerificationStep(verificationState.currentStep);
-                                if (currentStepEl) currentStepEl.textContent = verificationState.currentStep;
                             } else {
                                 // We're on the last step - check if we should proceed
                                 console.log('[Verification] ⚠️ Last step reached - checking completion status');
