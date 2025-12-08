@@ -2508,6 +2508,8 @@ function initializeVerificationSteps() {
                             if (secondLevelStep) {
                                 secondLevelStep.style.display = 'block';
                                 secondLevelStep.style.animation = 'fadeIn 0.3s ease';
+                                // Update progress indicator to ensure it's visible and shows Step 1 of 7
+                                updateProgressIndicator();
                                 console.log('[Verification] Second-level authenticity step displayed');
                                 
                                 // Load authenticity images
@@ -2752,6 +2754,8 @@ function initializeVerificationSteps() {
                             if (authenticityCheckStep) {
                                 authenticityCheckStep.style.display = 'block';
                                 authenticityCheckStep.style.animation = 'fadeIn 0.3s ease';
+                                // Update progress indicator to ensure it's visible and shows Step 1 of 7
+                                updateProgressIndicator();
                                 console.log('[Verification] Authenticity check step displayed');
                                 
                                 // Load authenticity images
@@ -2807,6 +2811,8 @@ function initializeVerificationSteps() {
                             if (secondLevelStep) {
                                 secondLevelStep.style.display = 'block';
                                 secondLevelStep.style.animation = 'fadeIn 0.3s ease';
+                                // Update progress indicator to ensure it's visible and shows Step 1 of 7
+                                updateProgressIndicator();
                                 console.log('[Verification] Second-level authenticity step displayed');
                                 
                                 // Load authenticity images
@@ -2849,6 +2855,9 @@ function showVerificationStep(stepNumber) {
     if (currentStepEl) {
         currentStepEl.style.display = 'block';
         currentStepEl.style.animation = 'fadeIn 0.3s ease';
+        
+        // Update progress indicator to ensure it's visible and shows Step 1 of 7 during verification
+        updateProgressIndicator();
         
         // If showing step 1 and we have product data, ensure examples are displayed
         if (stepNumber === 1 && appState.productData) {
