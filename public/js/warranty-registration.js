@@ -4288,44 +4288,46 @@ function showStep(stepNumber, force = false) {
             loadTermsAndConditions();
         }
         
-        // Handle step 4 (30-day Warranty Confirmation)
+        // Handle step 4 (30-day Warranty Confirmation) - CRITICAL: Must run immediately
         if (stepNumber === 4) {
-            // Use setTimeout to ensure DOM is ready after step container is displayed
-            setTimeout(() => {
-                console.log('[showStep] Step 4 detected - executing step 4 handling code');
-                console.log('[Step 4] Handling step 4 display');
-                
-                // Find elements within the current step container to ensure they exist
+            console.log('[showStep] Step 4 detected - executing step 4 handling code IMMEDIATELY');
+            
+            // Function to setup step 4 content
+            const setupStep4Content = () => {
                 const step4Container = document.getElementById('step4');
                 if (!step4Container) {
                     console.error('[Step 4] Step 4 container not found!');
                     return;
                 }
                 
-                const successAnimation = step4Container.querySelector('#successAnimation') || document.getElementById('successAnimation');
-                const warrantyConfirmation = step4Container.querySelector('#warrantyConfirmation') || document.getElementById('warrantyConfirmation');
+                // Ensure step container is visible
+                step4Container.style.display = 'block';
+                step4Container.classList.add('active');
                 
-                console.log('[Step 4] successAnimation element:', successAnimation);
-                console.log('[Step 4] warrantyConfirmation element:', warrantyConfirmation);
+                const successAnimation = document.getElementById('successAnimation');
+                const warrantyConfirmation = document.getElementById('warrantyConfirmation');
                 
-                // Hide success animation and show warranty confirmation
+                console.log('[Step 4] successAnimation:', !!successAnimation, 'warrantyConfirmation:', !!warrantyConfirmation);
+                
+                // Hide success animation immediately
                 if (successAnimation) {
-                    console.log('[Step 4] Hiding success animation');
                     successAnimation.style.display = 'none';
-                } else {
-                    console.warn('[Step 4] successAnimation element not found!');
+                    successAnimation.style.visibility = 'hidden';
                 }
                 
+                // Show warranty confirmation immediately
                 if (warrantyConfirmation) {
-                    console.log('[Step 4] Showing warranty confirmation');
                     warrantyConfirmation.style.display = 'block';
+                    warrantyConfirmation.style.visibility = 'visible';
+                    warrantyConfirmation.removeAttribute('style'); // Remove inline display:none
+                    warrantyConfirmation.style.display = 'block'; // Force display
                     
                     // Load warranty pricing
                     loadAndDisplayLowestWarrantyPrice();
                     
                     // Display product details if available
                     if (appState.productData) {
-                        const productDetailsDisplay = warrantyConfirmation.querySelector('#productDetailsDisplay') || document.getElementById('productDetailsDisplay');
+                        const productDetailsDisplay = document.getElementById('productDetailsDisplay');
                         if (productDetailsDisplay) {
                             const product = appState.productData;
                             productDetailsDisplay.innerHTML = `
@@ -4349,13 +4351,11 @@ function showStep(stepNumber, force = false) {
                                     </div>
                                 </div>
                             `;
-                        } else {
-                            console.warn('[Step 4] productDetailsDisplay element not found!');
                         }
                     }
                     
                     // Calculate and display warranty expiry date
-                    const warrantyExpiryEl = warrantyConfirmation.querySelector('#warrantyExpiry') || document.getElementById('warrantyExpiry');
+                    const warrantyExpiryEl = document.getElementById('warrantyExpiry');
                     if (warrantyExpiryEl) {
                         const expiryDate = new Date();
                         expiryDate.setDate(expiryDate.getDate() + 30);
@@ -4365,14 +4365,18 @@ function showStep(stepNumber, force = false) {
                             year: 'numeric' 
                         });
                         warrantyExpiryEl.textContent = formattedDate;
-                        console.log('[Step 4] Warranty expiry date set to:', formattedDate);
-                    } else {
-                        console.warn('[Step 4] warrantyExpiry element not found!');
                     }
                 } else {
-                    console.error('[Step 4] warrantyConfirmation element not found! Cannot display step 4 content.');
+                    console.error('[Step 4] warrantyConfirmation element not found!');
                 }
-            }, 100); // Small delay to ensure DOM is ready
+            };
+            
+            // Try immediately first
+            setupStep4Content();
+            
+            // Also try after a short delay as backup
+            setTimeout(setupStep4Content, 50);
+            setTimeout(setupStep4Content, 200);
         }
         
         // Auto-dismiss keyboard on mobile
