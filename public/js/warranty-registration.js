@@ -2074,13 +2074,16 @@ function initializeVerificationSteps() {
             
             // Handle "No" selection
             if (noRadio) {
-                noRadio.addEventListener('change', function() {
+                const handleNoSelection = function() {
                     if (this.checked && this.value === 'no') {
                         console.log(`[Verification] Step ${stepNumber} - "No" selected`);
+                        console.log(`[Verification] stepNumber type: ${typeof stepNumber}, value: ${stepNumber}`);
                         
                         // Special handling for step 1 (Compatibility) - show explanation
-                        if (stepNumber === 1) {
+                        if (stepNumber === 1 || stepNumber === '1') {
+                            console.log('[Verification] Showing compatibility explanation');
                             const explanation = document.getElementById('compatibilityExplanation');
+                            console.log('[Verification] Explanation element found:', !!explanation);
                             if (explanation) {
                                 explanation.style.display = 'block';
                                 explanation.style.animation = 'fadeIn 0.3s ease';
@@ -2102,6 +2105,11 @@ function initializeVerificationSteps() {
                                 setTimeout(() => {
                                     explanation.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                                 }, 100);
+                                
+                                // Prevent default redirect
+                                return;
+                            } else {
+                                console.error('[Verification] Compatibility explanation element not found!');
                             }
                         }
                         // Special handling for step 2 (Authenticity) - show explanation
@@ -2156,15 +2164,19 @@ function initializeVerificationSteps() {
                         }
                     } else if (this.checked && this.value === 'yes') {
                         // Hide explanations when "Yes" is selected
-                        if (stepNumber === 1) {
+                        if (stepNumber === 1 || stepNumber === '1') {
                             const explanation = document.getElementById('compatibilityExplanation');
                             if (explanation) explanation.style.display = 'none';
-                        } else if (stepNumber === 2) {
+                        } else if (stepNumber === 2 || stepNumber === '2') {
                             const explanation = document.getElementById('authenticityExplanation');
                             if (explanation) explanation.style.display = 'none';
                         }
                     }
-                });
+                };
+                
+                // Attach both change and click events
+                noRadio.addEventListener('change', handleNoSelection);
+                noRadio.addEventListener('click', handleNoSelection);
             }
         });
         verificationState.listenersAttached = true;
