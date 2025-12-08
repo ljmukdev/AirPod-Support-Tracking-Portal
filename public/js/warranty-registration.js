@@ -1616,18 +1616,30 @@ function removeItemFromBasket(itemType, itemId) {
 function initializeStripePayment() {
     console.log('[Payment] Initializing Stripe payment');
     
-    // Check if Stripe is loaded
+    // Check if Stripe.js is already loaded
     if (typeof Stripe === 'undefined') {
-        console.error('[Payment] Stripe.js not loaded');
+        console.log('[Payment] Loading Stripe.js...');
         // Load Stripe.js
         const script = document.createElement('script');
         script.src = 'https://js.stripe.com/v3/';
         script.onload = () => {
-            console.log('[Payment] Stripe.js loaded');
+            console.log('[Payment] Stripe.js loaded successfully');
             setupStripeElements();
+        };
+        script.onerror = () => {
+            console.error('[Payment] Failed to load Stripe.js');
+            const paymentElement = document.getElementById('stripe-payment-element');
+            if (paymentElement) {
+                paymentElement.innerHTML = `
+                    <div style="background: #f8d7da; border: 2px solid #dc3545; border-radius: 8px; padding: 20px; text-align: center;">
+                        <p style="color: #721c24; margin: 0;">Failed to load payment system. Please refresh the page.</p>
+                    </div>
+                `;
+            }
         };
         document.head.appendChild(script);
     } else {
+        console.log('[Payment] Stripe.js already loaded');
         setupStripeElements();
     }
 }
