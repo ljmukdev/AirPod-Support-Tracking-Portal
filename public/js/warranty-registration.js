@@ -310,8 +310,7 @@ function setupEventListeners() {
     });
     document.getElementById('continueBtn7')?.addEventListener('click', finishSetup);
     
-    // Reconditioning form submission
-    document.getElementById('reconditioningForm')?.addEventListener('submit', handleReconditioningFormSubmit);
+    // Reconditioning form submission - attach listener when form exists (will be set up when form is shown)
     
     // Warranty selection
     document.querySelectorAll('.warranty-card').forEach(card => {
@@ -1847,8 +1846,124 @@ function showReconditioningForm() {
             if (emailField && appState.contactDetails.email) emailField.value = appState.contactDetails.email;
             if (phoneField && appState.contactDetails.phone) phoneField.value = appState.contactDetails.phone;
         }
+        
+        // Attach form submission handler
+        const reconditioningForm = document.getElementById('reconditioningForm');
+        if (reconditioningForm && !reconditioningForm.dataset.listenerAttached) {
+            reconditioningForm.addEventListener('submit', handleReconditioningFormSubmit);
+            reconditioningForm.dataset.listenerAttached = 'true';
+        }
     } else {
         console.error('[Reconditioning] Reconditioning form step element not found');
+    }
+}
+
+// Handle reconditioning form submission
+async function handleReconditioningFormSubmit(e) {
+    e.preventDefault();
+    
+    const name = document.getElementById('reconditionName').value.trim();
+    const email = document.getElementById('reconditionEmail').value.trim();
+    const phone = document.getElementById('reconditionPhone').value.trim();
+    const address = document.getElementById('reconditionAddress').value.trim();
+    const feedbackAgree = document.getElementById('reconditionFeedbackAgree').checked;
+    
+    // Validate
+    if (!name || !email || !phone || !address) {
+        alert('Please fill in all required fields');
+        return;
+    }
+    
+    if (!feedbackAgree) {
+        alert('Please confirm that you will provide feedback in return for this free service');
+        return;
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        alert('Please enter a valid email address');
+        return;
+    }
+    
+    const submitBtn = document.getElementById('submitReconditioningForm');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Submitting...';
+    }
+    
+    try {
+        // Submit reconditioning request
+        const response = await fetch(`${API_BASE}/api/reconditioning-request`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                name,
+                email,
+                phone,
+                address,
+                part_model_number: appState.productData?.part_model_number,
+                part_name: appState.productData?.part_name,
+                generation: appState.productData?.generation,
+                security_barcode: appState.securityCode || sessionStorage.getItem('securityBarcode'),
+                ebay_order_number: appState.productData?.ebay_order_number
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            // Show success message
+            trackEvent('reconditioning_request_submitted', {
+                part_model_number: appState.productData?.part_model_number
+            });
+            
+            // Show success page
+            showReconditioningSuccess();
+        } else {
+            throw new Error(data.error || 'Failed to submit request');
+        }
+    } catch (error) {
+        console.error('[Reconditioning] Error submitting form:', error);
+        alert('Failed to submit request. Please try again or contact support directly.');
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Submit Request';
+        }
+    }
+}
+
+// Show reconditioning success page
+function showReconditioningSuccess() {
+    const reconditioningFormStep = document.getElementById('reconditioningFormStep');
+    if (reconditioningFormStep) {
+        reconditioningFormStep.innerHTML = `
+            <div style="text-align: center; padding: 40px 20px;">
+                <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #28a745 0%, #20c997 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; box-shadow: 0 4px 20px rgba(40, 167, 69, 0.3);">
+                    <span style="font-size: 40px; color: white;">✓</span>
+                </div>
+                <h2 style="color: #1a1a1a; margin-bottom: 16px; font-size: 1.75rem;">Request Submitted Successfully!</h2>
+                <p style="color: #6c757d; margin-bottom: 24px; line-height: 1.6; max-width: 600px; margin-left: auto; margin-right: auto;">
+                    Thank you for choosing our free reconditioning service. We'll send you a prepaid return label via email within 24 hours.
+                </p>
+                <div style="background: #f8f9fa; border-radius: 12px; padding: 24px; margin: 24px auto; max-width: 600px; text-align: left;">
+                    <h4 style="margin-top: 0; margin-bottom: 12px; color: #1a1a1a;">What Happens Next?</h4>
+                    <ol style="color: #6c757d; margin: 0; padding-left: 20px; line-height: 1.8;">
+                        <li>Check your email for the prepaid return label (within 24 hours)</li>
+                        <li>Package your replacement part with your existing AirPods</li>
+                        <li>Attach the label and send it back to us</li>
+                        <li>We'll recondition, pair, and synchronise everything</li>
+                        <li>We'll return your fully working AirPods set</li>
+                        <li>You leave us positive feedback - that's it!</li>
+                    </ol>
+                </div>
+                <div style="margin-top: 32px;">
+                    <a href="index.html" class="button" style="display: inline-block; text-decoration: none;">Return to Home</a>
+                </div>
+            </div>
+        `;
     }
 }
 
