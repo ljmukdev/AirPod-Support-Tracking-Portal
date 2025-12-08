@@ -2330,16 +2330,29 @@ app.post('/api/gocardless/create-redirect-flow', requireDB, async (req, res) => 
     try {
         const baseUrl = req.protocol + '://' + req.get('host');
         // Note: GoCardless will append redirect_flow_id to the success URL automatically
-        const redirectFlow = await gocardless.redirectFlows.create({
+        // GoCardless API uses snake_case
+        const redirectFlowParams = {
             description: description || 'Extended warranty purchase',
-            sessionToken: req.sessionID, // Use session ID as token
-            successRedirectUrl: successUrl || `${baseUrl}/warranty-registration.html?payment=success`,
-            prefilledCustomer: {
-                email: customerEmail,
-                givenName: customerName?.split(' ')[0] || '',
-                familyName: customerName?.split(' ').slice(1).join(' ') || ''
+            session_token: req.sessionID, // Use session ID as token
+            success_redirect_url: successUrl || `${baseUrl}/warranty-registration.html?payment=success`
+        };
+        
+        // Add prefilled customer if provided
+        if (customerEmail || customerName) {
+            redirectFlowParams.prefilled_customer = {};
+            if (customerEmail) {
+                redirectFlowParams.prefilled_customer.email = customerEmail;
             }
-        });
+            if (customerName) {
+                const nameParts = customerName.split(' ');
+                redirectFlowParams.prefilled_customer.given_name = nameParts[0] || '';
+                if (nameParts.length > 1) {
+                    redirectFlowParams.prefilled_customer.family_name = nameParts.slice(1).join(' ');
+                }
+            }
+        }
+        
+        const redirectFlow = await gocardless.redirectFlows.create(redirectFlowParams);
         
         console.log(`💳 GoCardless redirect flow created: ${redirectFlow.id} - £${(amount / 100).toFixed(2)}`);
         
