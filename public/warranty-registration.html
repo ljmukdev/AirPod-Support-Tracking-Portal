@@ -21,7 +21,7 @@
                 el.id = 'version-display';
                 el.className = 'version-display';
                 el.style.cssText = 'position:fixed;top:10px;right:10px;font-size:0.7rem;color:rgba(0,0,0,0.7);font-family:"Courier New",monospace;z-index:99999;padding:4px 8px;background:rgba(255,255,255,0.9);border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.2);pointer-events:none;';
-                el.textContent = 'v1.2.3.012';
+                el.textContent = 'v1.2.3.014';
                 el.title = 'Version 1.2.3 (Revision 012)';
                 if (document.body) {
                     document.body.appendChild(el);
@@ -1476,6 +1476,109 @@
                         </div>
                     </div>
                 </div>
+                
+                <!-- Authenticity Check Step (shown when user selects "No" on serial number uniqueness) -->
+                <div id="authenticityCheckStep" style="display: none;">
+                    <div class="card-body">
+                        <div style="background: white; border: 2px solid #e8ecf1; border-radius: 12px; padding: 24px;">
+                            <h4 style="margin-top: 0; color: #1a1a1a; font-size: 1.1rem; margin-bottom: 16px;">Authenticity Check</h4>
+                            
+                            <div style="background: #e7f3ff; border: 2px solid #0064D2; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                                <p style="color: #1a1a1a; margin: 0; line-height: 1.6;">
+                                    <strong>Important:</strong> If your AirPod parts have identical serial numbers or missing serial numbers, they may be counterfeit. 
+                                    Please check the authenticity markings on your existing parts using the images below.
+                                </p>
+                            </div>
+                            
+                            <div style="margin-bottom: 24px;">
+                                <h5 style="color: #1a1a1a; margin-bottom: 12px; font-size: 1rem;">Check Your Parts for These Markings:</h5>
+                                
+                                <!-- Authenticity Images Grid -->
+                                <div id="authenticityCheckImagesGrid" style="display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 16px;">
+                                    <div id="authenticityCheckCaseContainer" style="background: white; padding: 16px; border-radius: 8px; border: 2px solid #e8ecf1; text-align: center; display: none;">
+                                        <img id="authenticityCheckCaseImage" src="" alt="Markings inside case lid" style="width: 100%; max-width: 400px; height: auto; display: block; margin: 0 auto 8px; border-radius: 8px; cursor: pointer;">
+                                        <div style="font-size: 0.85rem; color: #6c757d; font-weight: 600;">Case: Open lid and look inside</div>
+                                    </div>
+                                    <div id="authenticityCheckAirpodContainer" style="background: white; padding: 16px; border-radius: 8px; border: 2px solid #e8ecf1; text-align: center; display: none;">
+                                        <img id="authenticityCheckAirpodImage" src="" alt="Markings on AirPod stem" style="width: 100%; max-width: 300px; height: auto; display: block; margin: 0 auto 8px; border-radius: 8px; cursor: pointer;">
+                                        <div style="font-size: 0.85rem; color: #6c757d; font-weight: 600;">AirPod: Check the stem</div>
+                                    </div>
+                                </div>
+                                
+                                <p style="color: #6c757d; margin-bottom: 16px; line-height: 1.6;">
+                                    Look for regulatory markings such as <strong>CE</strong>, <strong>R-NZ</strong>, or other certification marks that indicate authentic Apple products.
+                                </p>
+                            </div>
+                            
+                            <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #e8ecf1;">
+                                <button type="button" onclick="window.location.href='ebay-return.html'" style="padding: 10px 20px; background: #0064D2; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                                    Continue to Return Process
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Second-Level Authenticity Check Step (shown when user selects "Yes" on serial number uniqueness) -->
+                <div id="secondLevelAuthenticityStep" style="display: none;">
+                    <div class="card-body">
+                        <div style="background: white; border: 2px solid #e8ecf1; border-radius: 12px; padding: 24px;">
+                            <h4 style="margin-top: 0; color: #1a1a1a; font-size: 1.1rem; margin-bottom: 16px;">Additional Authenticity Verification</h4>
+                            
+                            <p style="color: #6c757d; margin-bottom: 20px; line-height: 1.6;">
+                                Great! Your parts have unique serial numbers. As an additional layer of protection, please verify that your existing parts have the recognized authenticity markings shown below.
+                            </p>
+                            
+                            <!-- Authenticity Images Grid -->
+                            <div id="secondLevelAuthenticityImagesGrid" style="display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 24px;">
+                                <div id="secondLevelCaseContainer" style="background: white; padding: 16px; border-radius: 8px; border: 2px solid #e8ecf1; text-align: center; display: none;">
+                                    <img id="secondLevelCaseImage" src="" alt="Markings inside case lid" style="width: 100%; max-width: 400px; height: auto; display: block; margin: 0 auto 8px; border-radius: 8px; cursor: pointer;">
+                                    <div style="font-size: 0.85rem; color: #6c757d; font-weight: 600; margin-bottom: 8px;">Case: Open lid and look inside</div>
+                                    <div style="font-size: 0.8rem; color: #6c757d;">Look for CE, R-NZ, or other regulatory markings</div>
+                                </div>
+                                <div id="secondLevelAirpodContainer" style="background: white; padding: 16px; border-radius: 8px; border: 2px solid #e8ecf1; text-align: center; display: none;">
+                                    <img id="secondLevelAirpodImage" src="" alt="Markings on AirPod stem" style="width: 100%; max-width: 300px; height: auto; display: block; margin: 0 auto 8px; border-radius: 8px; cursor: pointer;">
+                                    <div style="font-size: 0.85rem; color: #6c757d; font-weight: 600; margin-bottom: 8px;">AirPod: Check the stem</div>
+                                    <div style="font-size: 0.8rem; color: #6c757d;">Look for CE, R-NZ, or other regulatory markings</div>
+                                </div>
+                            </div>
+                            
+                            <div style="margin-bottom: 24px;">
+                                <h5 style="color: #1a1a1a; margin-bottom: 12px; font-size: 1rem;">Do your existing parts have these recognized markings?</h5>
+                                <p style="color: #6c757d; margin-bottom: 16px; line-height: 1.6; font-size: 0.9rem;">
+                                    Authentic Apple AirPods will have regulatory markings such as <strong>CE</strong> (European Conformity), <strong>R-NZ</strong> (New Zealand Radio Compliance), or other certification marks. 
+                                    These markings indicate that the product meets international safety and quality standards.
+                                </p>
+                                
+                                <div style="display: flex; flex-direction: column; gap: 12px;">
+                                    <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 12px; background: #f8f9fa; border-radius: 8px;">
+                                        <input type="radio" name="verifyMarkings" id="verifyMarkingsYes" value="yes" style="width: 20px; height: 20px; cursor: pointer;">
+                                        <span style="color: #1a1a1a; font-weight: 500;">Yes, my parts have the recognized markings (CE, R-NZ, etc.)</span>
+                                    </label>
+                                    <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 12px; background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px;">
+                                        <input type="radio" name="verifyMarkings" id="verifyMarkingsNo" value="no" style="width: 20px; height: 20px; cursor: pointer;">
+                                        <span style="color: #1a1a1a; font-weight: 500;">No, my parts do not have these markings</span>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <!-- Explanation shown when "No" is selected -->
+                            <div id="markingsExplanation" style="display: none; margin-top: 20px; padding: 20px; background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px;">
+                                <h5 style="color: #856404; margin-top: 0; margin-bottom: 12px; font-size: 1rem; font-weight: 600;">Missing Authenticity Markings</h5>
+                                <p style="color: #856404; margin-bottom: 12px; line-height: 1.6;">
+                                    If your parts are missing regulatory markings like CE or R-NZ, this may indicate that they are not genuine Apple products. 
+                                    Authentic Apple AirPods will always have these markings to comply with international safety standards.
+                                </p>
+                                <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #ffc107;">
+                                    <button type="button" onclick="window.location.href='ebay-return.html'" style="padding: 10px 20px; background: #dc3545; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                                        Continue to Return Process
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
                 <script>
                     // Immediately hide step 1 if barcode is in URL (prevents flash of duplicate entry)
                     (function() {

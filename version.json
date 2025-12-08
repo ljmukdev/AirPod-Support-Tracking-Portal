@@ -1,8 +1,17 @@
 {
   "version": "1.2.3",
   "build": "2024-12-19",
-  "revision": "013",
+  "revision": "014",
   "changelog": [
+    {
+      "version": "1.2.3",
+      "date": "2024-12-19",
+      "changes": [
+        "Added second-level authenticity check page - when user selects 'Yes' on serial number uniqueness, shows CE/R-NZ markings verification",
+        "Added authenticity check page - when user selects 'No' on serial number uniqueness, shows authenticity graphics with explanation",
+        "Both authenticity pages display relevant authenticity images from database for the purchased part"
+      ]
+    },
     {
       "version": "1.2.3",
       "date": "2024-12-19",

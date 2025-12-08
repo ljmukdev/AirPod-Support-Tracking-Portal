@@ -2147,6 +2147,214 @@ async function updateAuthenticityImages(partModelNumber, partType) {
     }
 }
 
+// Load authenticity images for the authenticity check step (shown when "No" on serial number uniqueness)
+async function loadAuthenticityCheckImages(partModelNumber, partType) {
+    console.log('[Authenticity Check] Loading images for:', partModelNumber, partType);
+    
+    try {
+        const response = await fetch(`${API_BASE}/api/authenticity-images/${partModelNumber}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        let images;
+        if (data.data && data.data.images) {
+            images = data.data.images;
+        } else if (data.authenticity_case_image || data.authenticity_airpod_image) {
+            images = {
+                caseImage: data.authenticity_case_image || null,
+                airpodImage: data.authenticity_airpod_image || null
+            };
+        } else {
+            images = { caseImage: null, airpodImage: null };
+        }
+        
+        const caseImgEl = document.getElementById('authenticityCheckCaseImage');
+        const airpodImgEl = document.getElementById('authenticityCheckAirpodImage');
+        const caseContainer = document.getElementById('authenticityCheckCaseContainer');
+        const airpodContainer = document.getElementById('authenticityCheckAirpodContainer');
+        const gridContainer = document.getElementById('authenticityCheckImagesGrid');
+        
+        const normalizedPartType = partType ? partType.toLowerCase().trim() : '';
+        
+        // Handle case image
+        if (images.caseImage && normalizedPartType !== 'case') {
+            const caseSrc = images.caseImage.startsWith('/') ? images.caseImage : '/' + images.caseImage;
+            if (caseImgEl) {
+                caseImgEl.src = caseSrc;
+                caseImgEl.style.display = 'block';
+            }
+            if (caseContainer) {
+                caseContainer.style.display = 'block';
+            }
+        } else {
+            if (caseContainer) caseContainer.style.display = 'none';
+            if (caseImgEl) caseImgEl.style.display = 'none';
+        }
+        
+        // Handle AirPod image
+        if (images.airpodImage) {
+            const airpodSrc = images.airpodImage.startsWith('/') ? images.airpodImage : '/' + images.airpodImage;
+            if (airpodImgEl) {
+                airpodImgEl.src = airpodSrc;
+                airpodImgEl.style.display = 'block';
+            }
+            if (airpodContainer) {
+                airpodContainer.style.display = 'block';
+            }
+        } else {
+            if (airpodContainer) airpodContainer.style.display = 'none';
+            if (airpodImgEl) airpodImgEl.style.display = 'none';
+        }
+        
+        // Show grid if at least one image is visible
+        if (gridContainer) {
+            const hasCase = caseContainer && caseContainer.style.display !== 'none';
+            const hasAirpod = airpodContainer && airpodContainer.style.display !== 'none';
+            if (hasCase || hasAirpod) {
+                gridContainer.style.display = 'grid';
+                if (hasCase && hasAirpod) {
+                    gridContainer.style.gridTemplateColumns = '1fr 1fr';
+                } else {
+                    gridContainer.style.gridTemplateColumns = '1fr';
+                }
+            } else {
+                gridContainer.style.display = 'none';
+            }
+        }
+    } catch (err) {
+        console.error('[Authenticity Check] Error loading images:', err);
+    }
+}
+
+// Load authenticity images for the second-level authenticity step (shown when "Yes" on serial number uniqueness)
+async function loadSecondLevelAuthenticityImages(partModelNumber, partType) {
+    console.log('[Second Level Authenticity] Loading images for:', partModelNumber, partType);
+    
+    try {
+        const response = await fetch(`${API_BASE}/api/authenticity-images/${partModelNumber}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        let images;
+        if (data.data && data.data.images) {
+            images = data.data.images;
+        } else if (data.authenticity_case_image || data.authenticity_airpod_image) {
+            images = {
+                caseImage: data.authenticity_case_image || null,
+                airpodImage: data.authenticity_airpod_image || null
+            };
+        } else {
+            images = { caseImage: null, airpodImage: null };
+        }
+        
+        const caseImgEl = document.getElementById('secondLevelCaseImage');
+        const airpodImgEl = document.getElementById('secondLevelAirpodImage');
+        const caseContainer = document.getElementById('secondLevelCaseContainer');
+        const airpodContainer = document.getElementById('secondLevelAirpodContainer');
+        const gridContainer = document.getElementById('secondLevelAuthenticityImagesGrid');
+        
+        const normalizedPartType = partType ? partType.toLowerCase().trim() : '';
+        
+        // Handle case image
+        if (images.caseImage && normalizedPartType !== 'case') {
+            const caseSrc = images.caseImage.startsWith('/') ? images.caseImage : '/' + images.caseImage;
+            if (caseImgEl) {
+                caseImgEl.src = caseSrc;
+                caseImgEl.style.display = 'block';
+            }
+            if (caseContainer) {
+                caseContainer.style.display = 'block';
+            }
+        } else {
+            if (caseContainer) caseContainer.style.display = 'none';
+            if (caseImgEl) caseImgEl.style.display = 'none';
+        }
+        
+        // Handle AirPod image
+        if (images.airpodImage) {
+            const airpodSrc = images.airpodImage.startsWith('/') ? images.airpodImage : '/' + images.airpodImage;
+            if (airpodImgEl) {
+                airpodImgEl.src = airpodSrc;
+                airpodImgEl.style.display = 'block';
+            }
+            if (airpodContainer) {
+                airpodContainer.style.display = 'block';
+            }
+        } else {
+            if (airpodContainer) airpodContainer.style.display = 'none';
+            if (airpodImgEl) airpodImgEl.style.display = 'none';
+        }
+        
+        // Show grid if at least one image is visible
+        if (gridContainer) {
+            const hasCase = caseContainer && caseContainer.style.display !== 'none';
+            const hasAirpod = airpodContainer && airpodContainer.style.display !== 'none';
+            if (hasCase || hasAirpod) {
+                gridContainer.style.display = 'grid';
+                if (hasCase && hasAirpod) {
+                    gridContainer.style.gridTemplateColumns = '1fr 1fr';
+                } else {
+                    gridContainer.style.gridTemplateColumns = '1fr';
+                }
+            } else {
+                gridContainer.style.display = 'none';
+            }
+        }
+    } catch (err) {
+        console.error('[Second Level Authenticity] Error loading images:', err);
+    }
+}
+
+// Setup event listeners for markings verification radio buttons
+function setupMarkingsVerificationListeners() {
+    const yesRadio = document.getElementById('verifyMarkingsYes');
+    const noRadio = document.getElementById('verifyMarkingsNo');
+    const explanation = document.getElementById('markingsExplanation');
+    
+    if (!yesRadio || !noRadio) {
+        console.warn('[Markings Verification] Radio buttons not found');
+        return;
+    }
+    
+    // Handle "No" selection
+    const handleNoSelection = () => {
+        if (noRadio.checked && noRadio.value === 'no') {
+            if (explanation) {
+                explanation.style.display = 'block';
+                explanation.style.animation = 'fadeIn 0.3s ease';
+                setTimeout(() => {
+                    explanation.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }, 100);
+            }
+        }
+    };
+    
+    // Handle "Yes" selection
+    const handleYesSelection = () => {
+        if (yesRadio.checked && yesRadio.value === 'yes') {
+            if (explanation) {
+                explanation.style.display = 'none';
+            }
+            // Continue to next step (step 4)
+            setTimeout(() => {
+                showStep(4);
+            }, 300);
+        }
+    };
+    
+    // Attach event listeners
+    noRadio.addEventListener('change', handleNoSelection);
+    noRadio.addEventListener('click', handleNoSelection);
+    yesRadio.addEventListener('change', handleYesSelection);
+    yesRadio.addEventListener('click', handleYesSelection);
+    
+    console.log('[Markings Verification] Event listeners attached');
+}
+
 // Verification step state
 let verificationState = {
     currentStep: 1,
@@ -2406,8 +2614,47 @@ function initializeVerificationSteps() {
                                 // Fallback: redirect if element not found
                                 window.location.href = 'ebay-return.html';
                             }
+                        }
+                        // Special handling for step 3 (Serial Number Uniqueness) - show authenticity check step
+                        else if (stepNumber === 3 || stepNumber === '3') {
+                            console.log('[Verification] Step 3 - "No" selected, showing authenticity check step');
+                            
+                            // Hide step 1 container
+                            const step1 = document.getElementById('step1');
+                            if (step1) {
+                                step1.style.display = 'none';
+                            }
+                            
+                            // Hide all other step containers
+                            document.querySelectorAll('.step-container').forEach(step => {
+                                step.classList.remove('active');
+                                step.style.display = 'none';
+                            });
+                            
+                            // Show authenticity check step
+                            const authenticityCheckStep = document.getElementById('authenticityCheckStep');
+                            if (authenticityCheckStep) {
+                                authenticityCheckStep.style.display = 'block';
+                                authenticityCheckStep.style.animation = 'fadeIn 0.3s ease';
+                                console.log('[Verification] Authenticity check step displayed');
+                                
+                                // Load authenticity images
+                                if (appState.productData && appState.productData.part_model_number) {
+                                    loadAuthenticityCheckImages(appState.productData.part_model_number, appState.productData.part_type);
+                                }
+                                
+                                // Scroll to authenticity check step
+                                setTimeout(() => {
+                                    authenticityCheckStep.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                }, 100);
+                            } else {
+                                console.error('[Verification] Authenticity check step element not found!');
+                                // Fallback: redirect if element not found
+                                window.location.href = 'ebay-return.html';
+                            }
+                            return; // Always return for step 3 "No"
                         } else {
-                            // For steps 3 and 4, redirect to eBay return
+                            // For steps 4, redirect to eBay return
                             console.log(`[Verification] Step ${stepNumber} - "No" selected, redirecting to eBay return`);
                             window.location.href = 'ebay-return.html';
                         }
@@ -2419,6 +2666,45 @@ function initializeVerificationSteps() {
                         } else if (stepNumber === 2 || stepNumber === '2') {
                             const explanation = document.getElementById('authenticityExplanation');
                             if (explanation) explanation.style.display = 'none';
+                        }
+                        // Special handling for step 3 (Serial Number Uniqueness) - show second-level authenticity check
+                        else if (stepNumber === 3 || stepNumber === '3') {
+                            console.log('[Verification] Step 3 - "Yes" selected, showing second-level authenticity check');
+                            
+                            // Hide step 1 container
+                            const step1 = document.getElementById('step1');
+                            if (step1) {
+                                step1.style.display = 'none';
+                            }
+                            
+                            // Hide all other step containers
+                            document.querySelectorAll('.step-container').forEach(step => {
+                                step.classList.remove('active');
+                                step.style.display = 'none';
+                            });
+                            
+                            // Show second-level authenticity step
+                            const secondLevelStep = document.getElementById('secondLevelAuthenticityStep');
+                            if (secondLevelStep) {
+                                secondLevelStep.style.display = 'block';
+                                secondLevelStep.style.animation = 'fadeIn 0.3s ease';
+                                console.log('[Verification] Second-level authenticity step displayed');
+                                
+                                // Load authenticity images
+                                if (appState.productData && appState.productData.part_model_number) {
+                                    loadSecondLevelAuthenticityImages(appState.productData.part_model_number, appState.productData.part_type);
+                                }
+                                
+                                // Scroll to second-level step
+                                setTimeout(() => {
+                                    secondLevelStep.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                }, 100);
+                            } else {
+                                console.error('[Verification] Second-level authenticity step element not found!');
+                            }
+                            
+                            // Setup event listeners for markings verification
+                            setupMarkingsVerificationListeners();
                         }
                     }
                 };
