@@ -3602,13 +3602,20 @@ function updateProgressIndicator() {
     // - On step 2+ (always show)
     // - On step 1 with product displayed
     // - On step 1 with security code entered (even before product loads)
+    // - On step 1 when coming from home page with barcode (security code entry hidden)
     // - Step 1 was skipped
     const productDisplay = document.getElementById('productRecordDisplay');
     const isProductDisplayed = productDisplay && productDisplay.style.display !== 'none';
     const securityCodeEntry = document.getElementById('securityCodeEntrySection');
     const isSecurityCodeEntered = securityCodeEntry && securityCodeEntry.style.display === 'none';
+    // Check if barcode is in URL (coming from home page)
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasBarcodeInUrl = urlParams.has('barcode');
+    // Check if we have a security code stored
+    const hasSecurityCode = appState.securityCode || sessionStorage.getItem('securityBarcode');
+    
     const shouldShowProgress = appState.currentStep > 1 || 
-                               (appState.currentStep === 1 && (isProductDisplayed || isSecurityCodeEntered)) || 
+                               (appState.currentStep === 1 && (isProductDisplayed || isSecurityCodeEntered || hasBarcodeInUrl || hasSecurityCode)) || 
                                appState.skippedStep1;
     
     if (shouldShowProgress) {
