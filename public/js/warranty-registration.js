@@ -4290,25 +4290,15 @@ function showStep(stepNumber, force = false) {
         
         // Handle step 4 (30-day Warranty Confirmation) - CRITICAL: Must run immediately
         if (stepNumber === 4) {
-<<<<<<< HEAD
             console.log('[showStep] Step 4 detected - executing step 4 handling code IMMEDIATELY');
             
-            // Function to setup step 4 content
+            // Function to setup step 4 content - runs immediately and as backup
             const setupStep4Content = () => {
-=======
-            // Use setTimeout to ensure DOM is ready after step container is displayed
-            setTimeout(() => {
-                console.log('[showStep] Step 4 detected - executing step 4 handling code');
-                console.log('[Step 4] Handling step 4 display');
-
-                // Find elements within the current step container to ensure they exist
->>>>>>> 30dcb90c7983128feb8556f9dd8229368e7f0b70
                 const step4Container = document.getElementById('step4');
                 if (!step4Container) {
                     console.error('[Step 4] Step 4 container not found!');
                     return;
                 }
-<<<<<<< HEAD
                 
                 // Ensure step container is visible
                 step4Container.style.display = 'block';
@@ -4320,39 +4310,20 @@ function showStep(stepNumber, force = false) {
                 console.log('[Step 4] successAnimation:', !!successAnimation, 'warrantyConfirmation:', !!warrantyConfirmation);
                 
                 // Hide success animation immediately
-=======
-
-                const successAnimation = step4Container.querySelector('#successAnimation') || document.getElementById('successAnimation');
-                const warrantyConfirmation = step4Container.querySelector('#warrantyConfirmation') || document.getElementById('warrantyConfirmation');
-
-                console.log('[Step 4] successAnimation element:', successAnimation);
-                console.log('[Step 4] warrantyConfirmation element:', warrantyConfirmation);
-
-                // Hide success animation and show warranty confirmation
->>>>>>> 30dcb90c7983128feb8556f9dd8229368e7f0b70
                 if (successAnimation) {
                     successAnimation.style.display = 'none';
                     successAnimation.style.visibility = 'hidden';
                 }
-<<<<<<< HEAD
                 
-                // Show warranty confirmation immediately
-=======
-
->>>>>>> 30dcb90c7983128feb8556f9dd8229368e7f0b70
+                // Show warranty confirmation immediately - FORCE IT
                 if (warrantyConfirmation) {
-                    warrantyConfirmation.style.display = 'block';
-<<<<<<< HEAD
-                    warrantyConfirmation.style.visibility = 'visible';
-                    warrantyConfirmation.removeAttribute('style'); // Remove inline display:none
-                    warrantyConfirmation.style.display = 'block'; // Force display
+                    // Remove inline style that hides it and force display
+                    warrantyConfirmation.removeAttribute('style');
+                    warrantyConfirmation.style.cssText = 'display: block !important; visibility: visible !important;';
                     
-=======
-
->>>>>>> 30dcb90c7983128feb8556f9dd8229368e7f0b70
                     // Load warranty pricing
                     loadAndDisplayLowestWarrantyPrice();
-
+                    
                     // Display product details if available
                     if (appState.productData) {
                         const productDetailsDisplay = document.getElementById('productDetailsDisplay');
@@ -4381,7 +4352,7 @@ function showStep(stepNumber, force = false) {
                             `;
                         }
                     }
-
+                    
                     // Calculate and display warranty expiry date
                     const warrantyExpiryEl = document.getElementById('warrantyExpiry');
                     if (warrantyExpiryEl) {
@@ -4402,7 +4373,7 @@ function showStep(stepNumber, force = false) {
             // Try immediately first
             setupStep4Content();
             
-            // Also try after a short delay as backup
+            // Also try after short delays as backup
             setTimeout(setupStep4Content, 50);
             setTimeout(setupStep4Content, 200);
         }
