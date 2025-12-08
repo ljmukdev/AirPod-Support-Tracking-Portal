@@ -73,16 +73,21 @@ async function loadParts() {
         console.log('[Parts Manager] Response status:', response.status, response.statusText);
         const data = await response.json();
         console.log('[Parts Manager] Response data:', data);
+        console.log('[Parts Manager] response.ok:', response.ok, 'data.parts exists:', !!data.parts, 'data.parts length:', data.parts ? data.parts.length : 0);
         
         if (response.ok && data.parts) {
+            console.log('[Parts Manager] Condition passed, storing parts...');
             // Store all parts for associated parts selection
             allPartsData = data.parts;
-            console.log('[Parts Manager] Stored', allPartsData.length, 'parts');
+            console.log('[Parts Manager] Stored', allPartsData.length, 'parts in allPartsData');
             
             // Always populate checkboxes after loading parts
             const partModelNumber = document.getElementById('part_model_number')?.value || null;
             console.log('[Parts Manager] Populating checkboxes, current part:', partModelNumber);
             populateAssociatedPartsCheckboxes(partModelNumber);
+        } else {
+            console.warn('[Parts Manager] Condition failed - response.ok:', response.ok, 'data.parts:', !!data.parts);
+        }
             
             if (data.parts.length === 0) {
                 partsList.innerHTML = '<p style="text-align: center; padding: 40px; color: #666;">No parts found. Add your first part above.</p>';
