@@ -71,10 +71,6 @@
         }
         
         /* Header styles now in global-header.css */
-        /* Override to hide nav links on warranty registration page */
-        .nav-links {
-            display: none;
-        }
         
         /* Progress Indicator */
         .progress-indicator {
@@ -996,6 +992,10 @@
                 <div class="logo-icon">LJM</div>
                 <div class="logo-text">Support <span>Center</span></div>
             </div>
+            <nav class="nav-links">
+                <a href="terms-and-conditions.html">Terms</a>
+                <a href="privacy-policy.html">Privacy</a>
+            </nav>
         </div>
     </header>
     
@@ -1009,6 +1009,11 @@
 
     <main class="container">
         <div class="card">
+            <div class="card-header">
+                <h1>Warranty Registration</h1>
+                <p>Register your AirPod replacement part and activate your warranty coverage</p>
+            </div>
+            
             <div class="card-body">
                 <!-- Step 1: Security Code Entry / Product Verification -->
                 <div class="step-container" id="step1" data-step="1">
