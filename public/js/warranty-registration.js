@@ -1724,17 +1724,23 @@ async function setupStripeElements() {
         });
         
         if (!intentResponse.ok) {
-            const errorData = await intentResponse.json();
-            throw new Error(errorData.message || errorData.error || 'Failed to create payment intent');
+            const errorData = await intentResponse.json().catch(() => ({ error: 'Unknown error' }));
+            console.error('[Payment] Payment intent creation failed:', errorData);
+            throw new Error(errorData.message || errorData.error || `Failed to create payment intent (HTTP ${intentResponse.status})`);
         }
         
         const intentData = await intentResponse.json();
         
         console.log('[Payment] Payment intent response:', intentData);
         
-        if (!intentData.clientSecret) {
-            console.error('[Payment] No clientSecret in response:', intentData);
-            throw new Error('No client secret received from server');
+        if (!intentData || !intentData.clientSecret) {
+            console.error('[Payment] Invalid response - no clientSecret:', intentData);
+            throw new Error('No client secret received from server. Response: ' + JSON.stringify(intentData));
+        }
+        
+        if (typeof intentData.clientSecret !== 'string' || intentData.clientSecret.length < 20) {
+            console.error('[Payment] Invalid clientSecret format:', intentData.clientSecret);
+            throw new Error('Invalid client secret format received from server');
         }
         
         console.log('[Payment] Payment intent created, clientSecret received:', intentData.clientSecret.substring(0, 20) + '...');
