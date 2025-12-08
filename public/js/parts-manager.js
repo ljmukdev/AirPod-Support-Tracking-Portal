@@ -252,6 +252,11 @@ if (partForm) {
         const partType = document.getElementById('part_type').value;
         const notes = document.getElementById('notes').value.trim();
         const displayOrder = parseInt(document.getElementById('display_order').value) || 0;
+        const associatedPartsInput = document.getElementById('associated_parts').value.trim();
+        // Parse comma-separated model numbers into array
+        const associatedParts = associatedPartsInput 
+            ? associatedPartsInput.split(',').map(p => p.trim()).filter(p => p.length > 0)
+            : [];
         
         if (!generation || !partName || !partModelNumber || !partType) {
             showError('All required fields must be filled');
@@ -275,6 +280,7 @@ if (partForm) {
             formData.append('part_type', partType);
             formData.append('notes', notes || '');
             formData.append('display_order', displayOrder);
+            formData.append('associated_parts', JSON.stringify(associatedParts));
             
             // Add image files if selected
             const exampleImageFile = document.getElementById('example_image').files[0];
@@ -346,6 +352,14 @@ async function editPart(id) {
                 document.getElementById('part_type').value = part.part_type;
                 document.getElementById('notes').value = part.notes || '';
                 document.getElementById('display_order').value = part.display_order || 0;
+                
+                // Populate associated parts
+                const associatedPartsField = document.getElementById('associated_parts');
+                if (associatedPartsField && part.associated_parts && Array.isArray(part.associated_parts)) {
+                    associatedPartsField.value = part.associated_parts.join(', ');
+                } else if (associatedPartsField) {
+                    associatedPartsField.value = '';
+                }
                 
                 // Show existing images if they exist
                 const examplePreview = document.getElementById('exampleImagePreview');

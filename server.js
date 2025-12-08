@@ -2620,6 +2620,23 @@ app.post('/api/admin/part', requireAuth, requireDB, upload.fields([
         const showCaseImage = show_case_image === 'true' || show_case_image === true;
         const showAirpodImage = show_airpod_image === 'true' || show_airpod_image === true;
         
+        // Parse associated_parts (comes as JSON string from FormData)
+        let associatedPartsArray = [];
+        if (associated_parts) {
+            try {
+                associatedPartsArray = typeof associated_parts === 'string' 
+                    ? JSON.parse(associated_parts) 
+                    : associated_parts;
+                // Ensure it's an array
+                if (!Array.isArray(associatedPartsArray)) {
+                    associatedPartsArray = [];
+                }
+            } catch (err) {
+                console.warn('Error parsing associated_parts:', err);
+                associatedPartsArray = [];
+            }
+        }
+        
         const part = {
             generation: generation.trim(),
             part_name: part_name.trim(),
@@ -2632,6 +2649,7 @@ app.post('/api/admin/part', requireAuth, requireDB, upload.fields([
             authenticity_airpod_image: authenticityAirpodImage,
             show_case_image: showCaseImage,
             show_airpod_image: showAirpodImage,
+            associated_parts: associatedPartsArray.length > 0 ? associatedPartsArray : null,
             date_added: new Date()
         };
         
@@ -2655,7 +2673,7 @@ app.put('/api/admin/part/:id', requireAuth, requireDB, upload.fields([
     { name: 'authenticity_airpod_image', maxCount: 1 }
 ]), async (req, res) => {
     const id = req.params.id;
-    const { generation, part_name, part_model_number, part_type, notes, display_order, show_case_image, show_airpod_image } = req.body;
+    const { generation, part_name, part_model_number, part_type, notes, display_order, show_case_image, show_airpod_image, associated_parts } = req.body;
     
     if (!generation || !part_name || !part_model_number || !part_type) {
         return res.status(400).json({ error: 'Generation, part name, part model number, and part type are required' });
@@ -2762,6 +2780,25 @@ app.put('/api/admin/part/:id', requireAuth, requireDB, upload.fields([
         // Parse checkbox values (FormData sends them as strings)
         const showCaseImage = show_case_image === 'true' || show_case_image === true;
         const showAirpodImage = show_airpod_image === 'true' || show_airpod_image === true;
+        
+        // Parse associated_parts (comes as JSON string from FormData)
+        let associatedPartsArray = [];
+        if (associated_parts !== undefined) {
+            try {
+                associatedPartsArray = typeof associated_parts === 'string' 
+                    ? JSON.parse(associated_parts) 
+                    : associated_parts;
+                // Ensure it's an array
+                if (!Array.isArray(associatedPartsArray)) {
+                    associatedPartsArray = [];
+                }
+            } catch (err) {
+                console.warn('Error parsing associated_parts:', err);
+                associatedPartsArray = [];
+            }
+        }
+        // Update associated_parts (set to null if empty array, otherwise set to array)
+        updateData.associated_parts = associatedPartsArray.length > 0 ? associatedPartsArray : null;
         
         // Only update image fields if they were provided
         if (exampleImage !== undefined) {
@@ -3205,12 +3242,21 @@ app.get('/api/compatible-parts/:partModelNumber', requireDB, async (req, res) =>
         // Determine compatible parts based on part type and specific mappings
         let compatibleParts = [];
         
-        // First, try to use specific compatibility mapping
-        const compatiblePartNumbers = compatibilityMap[partModelNumber];
+        // First, check if the purchased part has associated_parts defined in the database
+        let compatiblePartNumbers = null;
+        if (purchasedPart && purchasedPart.associated_parts && Array.isArray(purchasedPart.associated_parts) && purchasedPart.associated_parts.length > 0) {
+            compatiblePartNumbers = purchasedPart.associated_parts;
+            console.log(`[Compatible Parts API] Using associated_parts from database for ${partModelNumber}: ${compatiblePartNumbers.join(', ')}`);
+        } else {
+            // Fall back to hardcoded compatibility mapping
+            compatiblePartNumbers = compatibilityMap[partModelNumber];
+            if (compatiblePartNumbers && compatiblePartNumbers.length > 0) {
+                console.log(`[Compatible Parts API] Using hardcoded compatibility mapping for ${partModelNumber}: ${compatiblePartNumbers.join(', ')}`);
+            }
+        }
         
         if (compatiblePartNumbers && compatiblePartNumbers.length > 0) {
-            // Use specific compatibility mapping
-            console.log(`[Compatible Parts API] Using specific compatibility mapping for ${partModelNumber}: ${compatiblePartNumbers.join(', ')}`);
+            // Use compatibility mapping (from database or hardcoded)
             compatibleParts = sameGenerationParts
                 .filter(p => compatiblePartNumbers.includes(p.part_model_number))
                 .map(p => ({
