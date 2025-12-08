@@ -2316,7 +2316,14 @@ async function loadSecondLevelAuthenticityImages(partModelNumber, partType) {
 }
 
 // Setup event listeners for markings verification radio buttons
+let markingsVerificationListenersAttached = false;
 function setupMarkingsVerificationListeners() {
+    // Prevent duplicate listeners
+    if (markingsVerificationListenersAttached) {
+        console.log('[Markings Verification] Listeners already attached, skipping');
+        return;
+    }
+    
     const yesRadio = document.getElementById('verifyMarkingsYes');
     const noRadio = document.getElementById('verifyMarkingsNo');
     const explanation = document.getElementById('markingsExplanation');
@@ -2325,6 +2332,16 @@ function setupMarkingsVerificationListeners() {
         console.warn('[Markings Verification] Radio buttons not found');
         return;
     }
+    
+    // Remove any existing listeners first (if any)
+    const newYesRadio = yesRadio.cloneNode(true);
+    const newNoRadio = noRadio.cloneNode(true);
+    yesRadio.parentNode.replaceChild(newYesRadio, yesRadio);
+    noRadio.parentNode.replaceChild(newNoRadio, noRadio);
+    
+    // Get references to the new elements
+    const yesRadioNew = document.getElementById('verifyMarkingsYes');
+    const noRadioNew = document.getElementById('verifyMarkingsNo');
     
     // Handle "No" selection
     const handleNoSelection = () => {
@@ -2387,11 +2404,12 @@ function setupMarkingsVerificationListeners() {
     };
     
     // Attach event listeners
-    noRadio.addEventListener('change', handleNoSelection);
-    noRadio.addEventListener('click', handleNoSelection);
-    yesRadio.addEventListener('change', handleYesSelection);
-    yesRadio.addEventListener('click', handleYesSelection);
+    noRadioNew.addEventListener('change', handleNoSelection);
+    noRadioNew.addEventListener('click', handleNoSelection);
+    yesRadioNew.addEventListener('change', handleYesSelection);
+    yesRadioNew.addEventListener('click', handleYesSelection);
     
+    markingsVerificationListenersAttached = true;
     console.log('[Markings Verification] Event listeners attached');
 }
 
