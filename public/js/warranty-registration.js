@@ -395,6 +395,47 @@ function handleSecurityCodeInput(e) {
     }
 }
 
+// Load product information from API
+async function loadProductInfo(securityCode, skipValidation = false) {
+    try {
+        const response = await fetch(`${API_BASE}/api/verify-barcode`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ security_barcode: securityCode })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            // Store product data
+            appState.productData = {
+                part_type: data.part_type,
+                serial_number: data.serial_number,
+                generation: data.generation,
+                part_model_number: data.part_model_number,
+                photos: data.photos || [],
+                ebay_order_number: data.ebay_order_number || null,
+                date_added: data.date_added,
+                notes: data.notes || null
+            };
+            
+            if (!skipValidation) {
+                appState.securityCode = securityCode;
+                appState.failedAttempts = 0;
+                sessionStorage.setItem('securityBarcode', securityCode);
+                saveState();
+            }
+            
+            return Promise.resolve(appState.productData);
+        } else {
+            return Promise.reject(new Error(data.error || 'Failed to load product information'));
+        }
+    } catch (error) {
+        console.error('Error loading product info:', error);
+        return Promise.reject(error);
+    }
+}
+
 // Validate security code
 async function validateSecurityCode() {
     const securityInput = document.getElementById('securityCodeInput');
