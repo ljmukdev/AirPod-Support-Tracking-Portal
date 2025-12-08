@@ -2078,8 +2078,47 @@ function initializeVerificationSteps() {
                     if (this.checked && this.value === 'no') {
                         console.log(`[Verification] Step ${stepNumber} - "No" selected`);
                         
+                        // Special handling for step 1 (Compatibility) - show explanation
+                        if (stepNumber === 1) {
+                            const explanation = document.getElementById('compatibilityExplanation');
+                            if (explanation) {
+                                explanation.style.display = 'block';
+                                explanation.style.animation = 'fadeIn 0.3s ease';
+                                
+                                // Update explanation with current part numbers
+                                const purchasedPartEl = document.getElementById('purchasedPartNumberExplanation');
+                                const compatiblePartsEl = document.getElementById('compatiblePartNumbersExplanation');
+                                const purchasedPart = document.getElementById('purchasedPartNumber');
+                                const compatibleParts = document.getElementById('compatiblePartNumbers');
+                                
+                                if (purchasedPartEl && purchasedPart) {
+                                    purchasedPartEl.textContent = purchasedPart.textContent || 'your part';
+                                }
+                                if (compatiblePartsEl && compatibleParts) {
+                                    compatiblePartsEl.textContent = compatibleParts.textContent || 'compatible parts';
+                                }
+                                
+                                // Scroll to explanation
+                                setTimeout(() => {
+                                    explanation.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                                }, 100);
+                            }
+                        }
+                        // Special handling for step 2 (Authenticity) - show explanation
+                        else if (stepNumber === 2) {
+                            const explanation = document.getElementById('authenticityExplanation');
+                            if (explanation) {
+                                explanation.style.display = 'block';
+                                explanation.style.animation = 'fadeIn 0.3s ease';
+                                
+                                // Scroll to explanation
+                                setTimeout(() => {
+                                    explanation.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                                }, 100);
+                            }
+                        }
                         // Special handling for step 5 (Ready to proceed) - show return process step
-                        if (stepNumber === 5) {
+                        else if (stepNumber === 5) {
                             console.log('[Return Process] Showing return process step');
                             
                             // Hide step 1 container
@@ -2111,9 +2150,18 @@ function initializeVerificationSteps() {
                                 window.location.href = 'ebay-return.html';
                             }
                         } else {
-                            // For other steps, redirect to eBay return
+                            // For steps 3 and 4, redirect to eBay return
                             console.log(`[Verification] Step ${stepNumber} - "No" selected, redirecting to eBay return`);
                             window.location.href = 'ebay-return.html';
+                        }
+                    } else if (this.checked && this.value === 'yes') {
+                        // Hide explanations when "Yes" is selected
+                        if (stepNumber === 1) {
+                            const explanation = document.getElementById('compatibilityExplanation');
+                            if (explanation) explanation.style.display = 'none';
+                        } else if (stepNumber === 2) {
+                            const explanation = document.getElementById('authenticityExplanation');
+                            if (explanation) explanation.style.display = 'none';
                         }
                     }
                 });
