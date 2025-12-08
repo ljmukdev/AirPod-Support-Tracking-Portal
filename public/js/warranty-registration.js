@@ -2106,14 +2106,17 @@ function initializeVerificationSteps() {
                                     explanation.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                                 }, 100);
                                 
-                                // Prevent default redirect
+                                // Prevent default redirect - return early
                                 return;
                             } else {
                                 console.error('[Verification] Compatibility explanation element not found!');
+                                // Fallback: redirect if element not found
+                                window.location.href = 'ebay-return.html';
                             }
+                            return; // Always return for step 1
                         }
                         // Special handling for step 2 (Authenticity) - show explanation
-                        else if (stepNumber === 2) {
+                        else if (stepNumber === 2 || stepNumber === '2') {
                             const explanation = document.getElementById('authenticityExplanation');
                             if (explanation) {
                                 explanation.style.display = 'block';
@@ -2123,10 +2126,18 @@ function initializeVerificationSteps() {
                                 setTimeout(() => {
                                     explanation.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                                 }, 100);
+                                
+                                // Prevent default redirect - return early
+                                return;
+                            } else {
+                                console.error('[Verification] Authenticity explanation element not found!');
+                                // Fallback: redirect if element not found
+                                window.location.href = 'ebay-return.html';
                             }
+                            return; // Always return for step 2
                         }
                         // Special handling for step 5 (Ready to proceed) - show return process step
-                        else if (stepNumber === 5) {
+                        else if (stepNumber === 5 || stepNumber === '5') {
                             console.log('[Return Process] Showing return process step');
                             
                             // Hide step 1 container
