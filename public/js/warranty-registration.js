@@ -1730,16 +1730,20 @@ async function setupStripeElements() {
         
         const intentData = await intentResponse.json();
         
+        console.log('[Payment] Payment intent response:', intentData);
+        
         if (!intentData.clientSecret) {
+            console.error('[Payment] No clientSecret in response:', intentData);
             throw new Error('No client secret received from server');
         }
         
-        console.log('[Payment] Payment intent created, clientSecret received');
+        console.log('[Payment] Payment intent created, clientSecret received:', intentData.clientSecret.substring(0, 20) + '...');
         
         // Store payment intent ID globally
         window.currentPaymentIntentId = intentData.paymentIntentId;
         
         // Create Elements instance with clientSecret
+        console.log('[Payment] Creating Elements with clientSecret...');
         const elements = stripe.elements({
             clientSecret: intentData.clientSecret,
             appearance: {
@@ -1757,6 +1761,7 @@ async function setupStripeElements() {
         });
         
         // Create payment element
+        console.log('[Payment] Creating payment element...');
         const paymentElement = elements.create('payment');
         
         // Mount payment element with error handling
