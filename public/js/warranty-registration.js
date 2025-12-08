@@ -1633,33 +1633,80 @@ function initializeStripePayment() {
 }
 
 // Setup Stripe Elements
-function setupStripeElements() {
-    // TODO: Get Stripe publishable key from server/config
-    // For now, this is a placeholder - you'll need to add your Stripe publishable key
-    const stripePublishableKey = ''; // Add your Stripe publishable key here
+async function setupStripeElements() {
+    console.log('[Payment] Setting up Stripe Elements');
     
-    if (!stripePublishableKey) {
-        console.warn('[Payment] Stripe publishable key not configured');
-        const paymentElement = document.getElementById('stripe-payment-element');
-        if (paymentElement) {
-            paymentElement.innerHTML = '<p style="color: #856404; padding: 20px; text-align: center;">Payment processing will be configured shortly.</p>';
-        }
+    const paymentElementContainer = document.getElementById('stripe-payment-element');
+    if (!paymentElementContainer) {
+        console.error('[Payment] Payment element container not found');
         return;
     }
     
-    const stripe = Stripe(stripePublishableKey);
-    const elements = stripe.elements();
-    
-    // Create payment element
-    const paymentElement = elements.create('payment');
-    paymentElement.mount('#stripe-payment-element');
-    
-    // Handle payment button click
-    const processPaymentBtn = document.getElementById('processPaymentBtn');
-    if (processPaymentBtn) {
-        processPaymentBtn.addEventListener('click', async () => {
-            await processStripePayment(stripe, paymentElement);
+    // Fetch Stripe publishable key from server
+    try {
+        const configResponse = await fetch(`${API_BASE}/api/stripe/config`);
+        const configData = await configResponse.json();
+        
+        if (!configData.publishableKey) {
+            console.warn('[Payment] Stripe not configured:', configData.error || 'No publishable key');
+            paymentElementContainer.innerHTML = `
+                <div style="background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px; padding: 20px; text-align: center;">
+                    <p style="color: #856404; margin: 0 0 12px 0; font-weight: 500;">Payment processing not configured</p>
+                    <p style="color: #856404; margin: 0; font-size: 0.9rem;">Please add STRIPE_PUBLISHABLE_KEY to your environment variables.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        const stripePublishableKey = configData.publishableKey;
+        console.log('[Payment] Stripe publishable key loaded');
+        
+        // Initialize Stripe
+        const stripe = Stripe(stripePublishableKey);
+        window.stripeInstance = stripe; // Store globally for payment processing
+        
+        // Create Elements instance
+        const elements = stripe.elements({
+            appearance: {
+                theme: 'stripe',
+                variables: {
+                    colorPrimary: '#0064D2',
+                    colorBackground: '#ffffff',
+                    colorText: '#1a1a1a',
+                    colorDanger: '#df1b41',
+                    fontFamily: 'system-ui, sans-serif',
+                    spacingUnit: '4px',
+                    borderRadius: '8px',
+                }
+            }
         });
+        
+        // Create payment element
+        const paymentElement = elements.create('payment');
+        paymentElement.mount('#stripe-payment-element');
+        window.paymentElementInstance = paymentElement; // Store globally
+        
+        console.log('[Payment] Stripe Elements initialized successfully');
+        
+        // Handle payment button click
+        const processPaymentBtn = document.getElementById('processPaymentBtn');
+        if (processPaymentBtn) {
+            // Remove any existing listeners
+            const newBtn = processPaymentBtn.cloneNode(true);
+            processPaymentBtn.parentNode.replaceChild(newBtn, processPaymentBtn);
+            
+            newBtn.addEventListener('click', async () => {
+                await processStripePayment(stripe, paymentElement);
+            });
+        }
+        
+    } catch (error) {
+        console.error('[Payment] Error setting up Stripe:', error);
+        paymentElementContainer.innerHTML = `
+            <div style="background: #f8d7da; border: 2px solid #dc3545; border-radius: 8px; padding: 20px; text-align: center;">
+                <p style="color: #721c24; margin: 0;">Error loading payment system. Please try again later.</p>
+            </div>
+        `;
     }
 }
 
@@ -1675,54 +1722,98 @@ async function processStripePayment(stripe, paymentElement) {
     
     if (paymentError) {
         paymentError.style.display = 'none';
+        paymentError.textContent = '';
     }
     
     try {
+        // Calculate total amount
+        const totalAmount = calculateTotalAmount();
+        
+        if (totalAmount <= 0) {
+            throw new Error('No items selected for purchase');
+        }
+        
+        console.log('[Payment] Creating payment intent for amount:', totalAmount, 'pence (£' + (totalAmount / 100).toFixed(2) + ')');
+        
         // Create payment intent on server
-        const response = await fetch(`${API_BASE}/api/create-payment-intent`, {
+        const response = await fetch(`${API_BASE}/api/stripe/create-payment-intent`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                amount: calculateTotalAmount(),
+                amount: totalAmount,
                 currency: 'gbp',
-                warranty: appState.selectedWarranty,
-                accessories: appState.selectedAccessories
+                description: `Extended warranty and accessories - ${appState.productData?.part_model_number || 'N/A'}`
             })
         });
         
-        const { clientSecret, error: serverError } = await response.json();
-        
-        if (serverError) {
-            throw new Error(serverError);
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || errorData.error || 'Failed to create payment intent');
         }
         
+        const data = await response.json();
+        
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        
+        if (!data.clientSecret) {
+            throw new Error('No client secret received from server');
+        }
+        
+        console.log('[Payment] Payment intent created, confirming payment...');
+        
         // Confirm payment with Stripe
-        const { error: confirmError } = await stripe.confirmPayment({
-            elements: { payment: paymentElement },
+        const { error: confirmError, paymentIntent } = await stripe.confirmPayment({
+            elements: {
+                payment: paymentElement
+            },
+            clientSecret: data.clientSecret,
             confirmParams: {
-                return_url: `${window.location.origin}/warranty-registration.html?payment=success`
-            }
+                return_url: `${window.location.origin}/warranty-registration.html?payment=success&intent=${data.paymentIntentId}`
+            },
+            redirect: 'if_required' // Only redirect if required (3D Secure, etc.)
         });
         
         if (confirmError) {
-            throw confirmError;
+            // Handle card errors
+            let errorMessage = 'Payment failed. ';
+            if (confirmError.type === 'card_error' || confirmError.type === 'validation_error') {
+                errorMessage += confirmError.message;
+            } else {
+                errorMessage += 'Please try again.';
+            }
+            throw new Error(errorMessage);
         }
         
         // Payment successful
-        console.log('[Payment] Payment successful');
+        console.log('[Payment] Payment successful:', paymentIntent);
         trackEvent('payment_completed', {
-            amount: calculateTotalAmount(),
+            amount: totalAmount,
             warranty: appState.selectedWarranty,
-            accessories: appState.selectedAccessories.length
+            accessories: appState.selectedAccessories.length,
+            paymentIntentId: data.paymentIntentId
         });
+        
+        // Show success message
+        if (paymentError) {
+            paymentError.style.cssText = 'display: block; background: #d4edda; color: #155724; padding: 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #c3e6cb;';
+            paymentError.textContent = '✓ Payment successful! Redirecting...';
+        }
+        
+        // Redirect to success page or continue with registration
+        setTimeout(() => {
+            // Complete the registration process
+            finishSetup();
+        }, 1500);
         
     } catch (error) {
         console.error('[Payment] Payment error:', error);
         if (paymentError) {
+            paymentError.style.cssText = 'display: block; background: #f8d7da; color: #721c24; padding: 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #f5c6cb;';
             paymentError.textContent = error.message || 'Payment failed. Please try again.';
-            paymentError.style.display = 'block';
         }
         if (processPaymentBtn) {
             processPaymentBtn.disabled = false;
@@ -1745,8 +1836,17 @@ function calculateTotalAmount() {
         }
     }
     
-    // Add accessory prices (would need to fetch from addon sales data)
-    // TODO: Calculate from actual addon sales prices
+    // Add accessory prices from stored addon sales data
+    if (appState.selectedAccessories && appState.selectedAccessories.length > 0 && appState.addonSalesData) {
+        const selectedAddons = appState.addonSalesData.filter(addon => 
+            appState.selectedAccessories.includes(addon.id)
+        );
+        
+        selectedAddons.forEach(addon => {
+            const price = parseFloat(addon.price || 0);
+            total += price * 100; // Convert to pence
+        });
+    }
     
     return Math.round(total);
 }
