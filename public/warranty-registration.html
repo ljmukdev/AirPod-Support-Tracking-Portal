@@ -70,7 +70,119 @@
             display: none !important;
         }
         
-        /* Header styles now in global-header.css */
+        /* Header - Match homepage exactly */
+        .header {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 1px 0 rgba(0, 0, 0, 0.05);
+            padding: 20px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            transition: box-shadow 0.3s ease;
+        }
+        
+        .header.scrolled {
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        }
+        
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        @media (min-width: 640px) {
+            .header-content {
+                padding: 0 32px;
+            }
+        }
+        
+        @media (min-width: 1024px) {
+            .header-content {
+                padding: 0 48px;
+            }
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .logo-icon {
+            width: 44px;
+            height: 44px;
+            background: #284064;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: white;
+            font-size: 15px;
+            letter-spacing: -0.5px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border: 2px solid #f5f7fa;
+        }
+        
+        .logo-text {
+            color: #1a1a1a;
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+        }
+        
+        .logo-text span {
+            color: #6c757d;
+            font-weight: 400;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 36px;
+        }
+        
+        .nav-links a {
+            color: #6c757d;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.2s;
+            position: relative;
+        }
+        
+        .nav-links a:hover {
+            color: #1a1a1a;
+        }
+        
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #284064;
+            transform: scaleX(0);
+            transition: transform 0.2s;
+        }
+        
+        .nav-links a:hover::after {
+            transform: scaleX(1);
+        }
+        
+        @media (max-width: 640px) {
+            .nav-links {
+                display: none;
+            }
+        }
         
         /* Progress Indicator */
         .progress-indicator {
