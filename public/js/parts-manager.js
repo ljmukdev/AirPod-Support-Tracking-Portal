@@ -369,12 +369,12 @@ if (partForm) {
 }
 
 // Populate associated parts checkboxes
-function populateAssociatedPartsCheckboxes(currentPartModelNumber = null) {
-    console.log('[Associated Parts] populateAssociatedPartsCheckboxes called, currentPart:', currentPartModelNumber, 'allPartsData length:', allPartsData ? allPartsData.length : 0);
+function populateAssociatedPartsCheckboxes(currentPartModelNumber = null, currentGeneration = null) {
+    console.log('[Associated Parts] populateAssociatedPartsCheckboxes called, currentPart:', currentPartModelNumber, 'currentGeneration:', currentGeneration, 'allPartsData length:', allPartsData ? allPartsData.length : 0);
     const container = document.getElementById('associatedPartsCheckboxes');
     if (!container) {
         console.warn('[Associated Parts] Container not found, retrying in 500ms...');
-        setTimeout(() => populateAssociatedPartsCheckboxes(currentPartModelNumber), 500);
+        setTimeout(() => populateAssociatedPartsCheckboxes(currentPartModelNumber, currentGeneration), 500);
         return;
     }
     
@@ -394,16 +394,36 @@ function populateAssociatedPartsCheckboxes(currentPartModelNumber = null) {
         ? JSON.parse(hiddenInput.value || '[]')
         : [];
     
-    // Group parts by generation
+    // Filter parts: only show parts from the same generation (if generation is specified)
+    // and exclude the current part
+    const filteredParts = allPartsData.filter(part => {
+        // Exclude the current part
+        if (part.part_model_number === currentPartModelNumber) {
+            return false;
+        }
+        // If generation is specified, only show parts from the same generation
+        if (currentGeneration && part.generation !== currentGeneration) {
+            return false;
+        }
+        return true;
+    });
+    
+    if (filteredParts.length === 0) {
+        if (currentGeneration) {
+            container.innerHTML = '<p style="color: #666; font-size: 0.9rem; margin: 0;">No other parts available for this generation.</p>';
+        } else {
+            container.innerHTML = '<p style="color: #666; font-size: 0.9rem; margin: 0;">No other parts available.</p>';
+        }
+        return;
+    }
+    
+    // Group filtered parts by generation (in case generation filter wasn't applied)
     const partsByGeneration = {};
-    allPartsData.forEach(part => {
+    filteredParts.forEach(part => {
         if (!partsByGeneration[part.generation]) {
             partsByGeneration[part.generation] = [];
         }
-        // Don't show the current part in the list
-        if (part.part_model_number !== currentPartModelNumber) {
-            partsByGeneration[part.generation].push(part);
-        }
+        partsByGeneration[part.generation].push(part);
     });
     
     let html = '';
@@ -433,7 +453,7 @@ function populateAssociatedPartsCheckboxes(currentPartModelNumber = null) {
         html += `</div>`;
     });
     
-    container.innerHTML = html || '<p style="color: #666; font-size: 0.9rem; margin: 0;">No other parts available.</p>';
+    container.innerHTML = html;
     
     // Add event listeners to update hidden input
     container.querySelectorAll('.associated-part-checkbox').forEach(checkbox => {
