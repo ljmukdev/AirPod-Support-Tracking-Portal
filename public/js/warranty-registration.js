@@ -2024,6 +2024,14 @@ function initializeVerificationSteps() {
                         
                         // Special handling for step 5 (Ready to proceed) - show return process step
                         if (stepNumber === 5) {
+                            console.log('[Return Process] Showing return process step');
+                            
+                            // Ensure product record display is visible
+                            const productDisplay = document.getElementById('productRecordDisplay');
+                            if (productDisplay) {
+                                productDisplay.style.display = 'block';
+                            }
+                            
                             // Hide verification steps
                             const verificationSteps = document.getElementById('verificationSteps');
                             if (verificationSteps) {
@@ -2035,6 +2043,9 @@ function initializeVerificationSteps() {
                             if (returnProcessStep) {
                                 returnProcessStep.style.display = 'block';
                                 returnProcessStep.style.animation = 'fadeIn 0.3s ease';
+                                console.log('[Return Process] Return step displayed');
+                            } else {
+                                console.error('[Return Process] Return step element not found!');
                             }
                             
                             // Hide continue button
@@ -2042,6 +2053,13 @@ function initializeVerificationSteps() {
                             if (continueBtn) {
                                 continueBtn.style.display = 'none';
                             }
+                            
+                            // Scroll to return step
+                            setTimeout(() => {
+                                if (returnProcessStep) {
+                                    returnProcessStep.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                                }
+                            }, 100);
                         } else {
                             // For other steps, redirect to eBay return
                             console.log(`[Verification] Step ${stepNumber} - "No" selected, redirecting to eBay return`);
