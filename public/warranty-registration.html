@@ -91,6 +91,18 @@
             box-sizing: border-box;
         }
         
+        /* Constrain header content to match card width (800px) for alignment */
+        .header-content::before {
+            content: '';
+            flex: 1;
+            max-width: calc(800px - 24px);
+        }
+        
+        .header-content::after {
+            content: '';
+            flex: 1;
+        }
+        
         /* Responsive header padding to match container padding exactly */
         @media (max-width: 1199px) {
             .header-content {
