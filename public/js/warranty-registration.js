@@ -105,6 +105,8 @@ function initializePage() {
                     if (productDisplay) {
                         productDisplay.style.display = 'block';
                     }
+                    // Update progress indicator now that product is displayed
+                    updateProgressIndicator();
                     const continueBtn = document.getElementById('continueBtn1');
                     if (continueBtn) {
                         // Hide button - workflow will auto-progress when verification is complete
@@ -157,6 +159,8 @@ function initializePage() {
                     } else {
                         console.error('Product display element not found!');
                     }
+                    // Update progress indicator now that product is displayed
+                    updateProgressIndicator();
                     // Enable continue button
                     const continueBtn = document.getElementById('continueBtn1');
                     if (continueBtn) {
@@ -506,6 +510,8 @@ async function validateSecurityCode() {
                         productDisplay.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                     }, 100);
                 }
+                // Update progress indicator now that product is displayed
+                updateProgressIndicator();
                 // Hide continue button during verification - workflow will auto-progress when verification is complete
                 // Button will remain hidden until verification completes, then auto-progresses to Contact Information
                 continueBtn.style.display = 'none';
