@@ -3827,7 +3827,7 @@ function showStep(stepNumber, force = false) {
         const isVerificationComplete = allVerificationStepsComplete || buttonText === 'Continue to Contact Information';
         
         // Debug logging
-        if (stepNumber === 3 && appState.currentStep === 1) {
+        if (stepNumber === 2 && appState.currentStep === 1) {
             console.log('[showStep] Checking verification status:', {
                 buttonText,
                 allVerificationStepsComplete,
