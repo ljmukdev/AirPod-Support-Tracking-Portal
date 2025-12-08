@@ -59,7 +59,9 @@ async function loadParts() {
             const data = await response.json();
             if (response.ok && data.parts) {
                 allPartsData = data.parts;
-                populateAssociatedPartsCheckboxes();
+                const partModelNumber = document.getElementById('part_model_number')?.value || null;
+                const partGeneration = document.getElementById('generation')?.value || null;
+                populateAssociatedPartsCheckboxes(partModelNumber, partGeneration);
             }
         } catch (err) {
             console.error('[Parts Manager] Error loading parts:', err);
@@ -83,8 +85,9 @@ async function loadParts() {
             
             // Always populate checkboxes after loading parts
             const partModelNumber = document.getElementById('part_model_number')?.value || null;
-            console.log('[Parts Manager] Populating checkboxes, current part:', partModelNumber);
-            populateAssociatedPartsCheckboxes(partModelNumber);
+            const partGeneration = document.getElementById('generation')?.value || null;
+            console.log('[Parts Manager] Populating checkboxes, current part:', partModelNumber, 'generation:', partGeneration);
+            populateAssociatedPartsCheckboxes(partModelNumber, partGeneration);
             
             if (data.parts.length === 0) {
                 partsList.innerHTML = '<p style="text-align: center; padding: 40px; color: #666;">No parts found. Add your first part above.</p>';
@@ -464,8 +467,9 @@ function getAssociatedPartsFromInput() {
 // Initialize associated parts checkboxes when parts are loaded
 function initializeAssociatedPartsCheckboxes() {
     if (allPartsData && allPartsData.length > 0) {
-        const partModelNumber = document.getElementById('part_model_number').value;
-        populateAssociatedPartsCheckboxes(partModelNumber || null);
+        const partModelNumber = document.getElementById('part_model_number')?.value || null;
+        const partGeneration = document.getElementById('generation')?.value || null;
+        populateAssociatedPartsCheckboxes(partModelNumber, partGeneration);
     } else {
         // Wait for parts to load
         setTimeout(initializeAssociatedPartsCheckboxes, 500);
