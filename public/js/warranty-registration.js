@@ -80,7 +80,18 @@ function initializePage() {
     // Immediately check URL for barcode
     const urlParams = new URLSearchParams(window.location.search);
     const barcodeFromUrl = urlParams.get('barcode');
+    const paymentSuccess = urlParams.get('payment') === 'success';
+    const redirectFlowId = urlParams.get('redirect_flow_id') || sessionStorage.getItem('gocardless_redirect_flow_id');
+    
     console.log('Barcode from URL:', barcodeFromUrl);
+    console.log('Payment success:', paymentSuccess);
+    console.log('Redirect flow ID:', redirectFlowId);
+    
+    // Handle GoCardless payment success redirect
+    if (paymentSuccess && redirectFlowId) {
+        handleGoCardlessPaymentSuccess(redirectFlowId);
+        return; // Don't continue with normal initialization
+    }
     
     // Check if we should resume from saved state
     const resumed = loadSavedState();
@@ -1612,35 +1623,46 @@ function removeItemFromBasket(itemType, itemId) {
     });
 }
 
-// Initialize Stripe payment
+// Initialize GoCardless payment
 function initializeStripePayment() {
-    console.log('[Payment] Initializing Stripe payment');
+    console.log('[Payment] Initializing GoCardless payment');
     
-    // Check if Stripe.js is already loaded
-    if (typeof Stripe === 'undefined') {
-        console.log('[Payment] Loading Stripe.js...');
-        // Load Stripe.js
-        const script = document.createElement('script');
-        script.src = 'https://js.stripe.com/v3/';
-        script.onload = () => {
-            console.log('[Payment] Stripe.js loaded successfully');
-            setupStripeElements();
-        };
-        script.onerror = () => {
-            console.error('[Payment] Failed to load Stripe.js');
-            const paymentElement = document.getElementById('stripe-payment-element');
-            if (paymentElement) {
-                paymentElement.innerHTML = `
-                    <div style="background: #f8d7da; border: 2px solid #dc3545; border-radius: 8px; padding: 20px; text-align: center;">
-                        <p style="color: #721c24; margin: 0;">Failed to load payment system. Please refresh the page.</p>
-                    </div>
-                `;
+    // Check if payment system is configured
+    checkPaymentConfig();
+    
+    // Set up payment button handler
+    const processPaymentBtn = document.getElementById('processPaymentBtn');
+    if (processPaymentBtn) {
+        // Remove any existing listeners
+        const newBtn = processPaymentBtn.cloneNode(true);
+        processPaymentBtn.parentNode.replaceChild(newBtn, processPaymentBtn);
+        
+        newBtn.addEventListener('click', async () => {
+            await processGoCardlessPayment();
+        });
+    }
+}
+
+// Check payment configuration
+async function checkPaymentConfig() {
+    try {
+        const response = await fetch(`${API_BASE}/api/payment/config`);
+        const data = await response.json();
+        
+        if (!data.configured) {
+            const paymentError = document.getElementById('paymentError');
+            if (paymentError) {
+                paymentError.style.cssText = 'display: block; background: #fff3cd; color: #856404; padding: 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #ffc107;';
+                paymentError.textContent = data.error || 'Payment system not configured';
             }
-        };
-        document.head.appendChild(script);
-    } else {
-        console.log('[Payment] Stripe.js already loaded');
-        setupStripeElements();
+            
+            const processPaymentBtn = document.getElementById('processPaymentBtn');
+            if (processPaymentBtn) {
+                processPaymentBtn.disabled = true;
+            }
+        }
+    } catch (error) {
+        console.error('[Payment] Error checking configuration:', error);
     }
 }
 
@@ -1722,7 +1744,166 @@ async function setupStripeElements() {
     }
 }
 
-// Process Stripe payment
+// Process GoCardless payment
+async function processGoCardlessPayment() {
+    const processPaymentBtn = document.getElementById('processPaymentBtn');
+    const paymentError = document.getElementById('paymentError');
+    
+    if (processPaymentBtn) {
+        processPaymentBtn.disabled = true;
+        processPaymentBtn.textContent = 'Setting up payment...';
+    }
+    
+    if (paymentError) {
+        paymentError.style.display = 'none';
+        paymentError.textContent = '';
+    }
+    
+    try {
+        // Calculate total amount
+        const totalAmount = calculateTotalAmount();
+        
+        if (totalAmount <= 0) {
+            throw new Error('No items selected for purchase');
+        }
+        
+        console.log('[Payment] Creating GoCardless redirect flow for amount:', totalAmount, 'pence (£' + (totalAmount / 100).toFixed(2) + ')');
+        
+        // Get customer details from appState
+        const customerEmail = appState.contactDetails?.email || '';
+        const customerName = appState.contactDetails?.name || '';
+        
+        // Create redirect flow
+        const response = await fetch(`${API_BASE}/api/gocardless/create-redirect-flow`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                amount: totalAmount,
+                description: `Extended warranty and accessories - ${appState.productData?.part_model_number || 'N/A'}`,
+                successUrl: `${window.location.origin}${window.location.pathname}?payment=success`,
+                customerEmail: customerEmail,
+                customerName: customerName
+            })
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || errorData.error || 'Failed to create payment');
+        }
+        
+        const data = await response.json();
+        
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        
+        if (!data.redirectUrl) {
+            throw new Error('No redirect URL received from server');
+        }
+        
+        console.log('[Payment] Redirecting to GoCardless:', data.redirectUrl);
+        
+        // Track event
+        trackEvent('payment_initiated', {
+            amount: totalAmount,
+            warranty: appState.selectedWarranty,
+            accessories: appState.selectedAccessories.length,
+            redirectFlowId: data.redirectFlowId
+        });
+        
+        // Store redirect flow ID for completion
+        sessionStorage.setItem('gocardless_redirect_flow_id', data.redirectFlowId);
+        sessionStorage.setItem('gocardless_amount', totalAmount.toString());
+        
+        // Redirect to GoCardless
+        window.location.href = data.redirectUrl;
+        
+    } catch (error) {
+        console.error('[Payment] Payment error:', error);
+        if (paymentError) {
+            paymentError.style.cssText = 'display: block; background: #f8d7da; color: #721c24; padding: 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #f5c6cb;';
+            paymentError.textContent = error.message || 'Payment setup failed. Please try again.';
+        }
+        if (processPaymentBtn) {
+            processPaymentBtn.disabled = false;
+            processPaymentBtn.textContent = 'Set Up Direct Debit & Pay';
+        }
+    }
+}
+
+// Handle GoCardless payment success redirect
+async function handleGoCardlessPaymentSuccess(redirectFlowId) {
+    console.log('[Payment] Handling GoCardless payment success, redirect flow:', redirectFlowId);
+    
+    const paymentError = document.getElementById('paymentError');
+    const amount = parseInt(sessionStorage.getItem('gocardless_amount') || '0');
+    
+    try {
+        // Complete the redirect flow and create payment
+        const response = await fetch(`${API_BASE}/api/gocardless/complete-redirect-flow`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                redirectFlowId: redirectFlowId,
+                amount: amount,
+                description: `Extended warranty and accessories - ${appState.productData?.part_model_number || 'N/A'}`
+            })
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || errorData.error || 'Failed to complete payment');
+        }
+        
+        const data = await response.json();
+        
+        console.log('[Payment] Payment completed successfully:', data);
+        
+        // Track success event
+        trackEvent('payment_completed', {
+            amount: amount,
+            warranty: appState.selectedWarranty,
+            accessories: appState.selectedAccessories.length,
+            paymentId: data.paymentId,
+            mandateId: data.mandateId
+        });
+        
+        // Clear stored data
+        sessionStorage.removeItem('gocardless_redirect_flow_id');
+        sessionStorage.removeItem('gocardless_amount');
+        
+        // Remove payment success from URL
+        const newUrl = window.location.pathname + (window.location.search.replace(/[?&]payment=success(&redirect_flow_id=[^&]*)?/g, '').replace(/^&/, '?') || '');
+        window.history.replaceState({}, '', newUrl);
+        
+        // Show success message and complete registration
+        if (paymentError) {
+            paymentError.style.cssText = 'display: block; background: #d4edda; color: #155724; padding: 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #c3e6cb;';
+            paymentError.textContent = '✓ Payment successful! Completing registration...';
+        }
+        
+        // Complete the registration process
+        setTimeout(() => {
+            finishSetup();
+        }, 1500);
+        
+    } catch (error) {
+        console.error('[Payment] Error completing payment:', error);
+        if (paymentError) {
+            paymentError.style.cssText = 'display: block; background: #f8d7da; color: #721c24; padding: 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #f5c6cb;';
+            paymentError.textContent = error.message || 'Payment completion failed. Please contact support.';
+        }
+        
+        // Show step 7 so user can see the error
+        showStep(7);
+    }
+}
+
+// Process Stripe payment (legacy - kept for compatibility)
 async function processStripePayment(stripe, paymentElement) {
     const processPaymentBtn = document.getElementById('processPaymentBtn');
     const paymentError = document.getElementById('paymentError');

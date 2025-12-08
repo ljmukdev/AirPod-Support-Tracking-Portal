@@ -26,6 +26,27 @@ if (process.env.STRIPE_SECRET_KEY) {
     console.warn('⚠️  Stripe secret key not set - payment features will be disabled');
 }
 
+// Initialize GoCardless
+let gocardless = null;
+if (process.env.GOCARDLESS_ACCESS_TOKEN) {
+    const gocardlessLib = require('gocardless-nodejs');
+    const constants = require('gocardless-nodejs/constants');
+    
+    // Determine environment
+    const environment = process.env.GOCARDLESS_ENVIRONMENT === 'sandbox' 
+        ? constants.Environments.Sandbox 
+        : constants.Environments.Live;
+    
+    gocardless = gocardlessLib(
+        process.env.GOCARDLESS_ACCESS_TOKEN,
+        environment,
+        { raiseOnIdempotencyConflict: false }
+    );
+    console.log('✅ GoCardless initialized');
+} else {
+    console.warn('⚠️  GoCardless access token not set - payment features will be disabled');
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -2199,7 +2220,32 @@ app.get('/api/version', (req, res) => {
     }
 });
 
-// Stripe API endpoints
+// Payment API endpoints (GoCardless)
+
+// Get GoCardless configuration (Public)
+app.get('/api/payment/config', (req, res) => {
+    try {
+        const accessToken = process.env.GOCARDLESS_ACCESS_TOKEN;
+        if (!accessToken) {
+            return res.status(200).json({ 
+                configured: false,
+                error: 'GoCardless not configured. Please add GOCARDLESS_ACCESS_TOKEN to Railway environment variables.'
+            });
+        }
+        res.status(200).json({ 
+            configured: true,
+            environment: process.env.GOCARDLESS_ENVIRONMENT || 'live'
+        });
+    } catch (error) {
+        console.error('Error in /api/payment/config:', error);
+        res.status(200).json({ 
+            configured: false,
+            error: 'Error loading payment configuration: ' + error.message
+        });
+    }
+});
+
+// Stripe API endpoints (kept for backward compatibility)
 
 // Get Stripe publishable key (Public)
 app.get('/api/stripe/config', (req, res) => {
@@ -2261,6 +2307,173 @@ app.post('/api/stripe/create-payment-intent', requireDB, async (req, res) => {
             error: 'Failed to create payment intent',
             message: error.message 
         });
+    }
+});
+
+// GoCardless API endpoints
+
+// Create redirect flow for Direct Debit mandate setup (Public)
+app.post('/api/gocardless/create-redirect-flow', requireDB, async (req, res) => {
+    const { amount, description, successUrl, customerEmail, customerName } = req.body;
+    
+    if (!amount || amount <= 0) {
+        return res.status(400).json({ error: 'Invalid amount' });
+    }
+    
+    if (!gocardless || !process.env.GOCARDLESS_ACCESS_TOKEN) {
+        return res.status(503).json({ 
+            error: 'Payment system not configured',
+            message: 'Please add GOCARDLESS_ACCESS_TOKEN to Railway environment variables.'
+        });
+    }
+    
+    try {
+        const baseUrl = req.protocol + '://' + req.get('host');
+        const redirectFlow = await gocardless.redirectFlows.create({
+            description: description || 'Extended warranty purchase',
+            sessionToken: req.sessionID, // Use session ID as token
+            successRedirectUrl: successUrl || `${baseUrl}/warranty-registration.html?payment=success`,
+            prefilledCustomer: {
+                email: customerEmail,
+                givenName: customerName?.split(' ')[0] || '',
+                familyName: customerName?.split(' ').slice(1).join(' ') || ''
+            }
+        });
+        
+        console.log(`💳 GoCardless redirect flow created: ${redirectFlow.id} - £${(amount / 100).toFixed(2)}`);
+        
+        res.json({
+            redirectFlowId: redirectFlow.id,
+            redirectUrl: redirectFlow.redirect_url
+        });
+    } catch (error) {
+        console.error('GoCardless redirect flow creation error:', error);
+        res.status(500).json({ 
+            error: 'Failed to create redirect flow',
+            message: error.message || 'Unknown error'
+        });
+    }
+});
+
+// Complete redirect flow and create payment (Public)
+app.post('/api/gocardless/complete-redirect-flow', requireDB, async (req, res) => {
+    const { redirectFlowId, amount, description } = req.body;
+    
+    if (!redirectFlowId) {
+        return res.status(400).json({ error: 'Redirect flow ID is required' });
+    }
+    
+    if (!amount || amount <= 0) {
+        return res.status(400).json({ error: 'Invalid amount' });
+    }
+    
+    if (!gocardless || !process.env.GOCARDLESS_ACCESS_TOKEN) {
+        return res.status(503).json({ 
+            error: 'Payment system not configured',
+            message: 'Please add GOCARDLESS_ACCESS_TOKEN to Railway environment variables.'
+        });
+    }
+    
+    try {
+        // Complete the redirect flow to get the mandate
+        const completedFlow = await gocardless.redirectFlows.complete(redirectFlowId, {
+            sessionToken: req.sessionID
+        });
+        
+        console.log(`✅ Redirect flow completed: ${redirectFlowId}, Mandate: ${completedFlow.links.mandate}`);
+        
+        // Create a payment using the mandate
+        const payment = await gocardless.payments.create({
+            amount: Math.round(amount), // Amount in pence
+            currency: 'GBP',
+            links: {
+                mandate: completedFlow.links.mandate
+            },
+            description: description || 'Extended warranty purchase'
+        });
+        
+        console.log(`💳 Payment created: ${payment.id} - £${(amount / 100).toFixed(2)}`);
+        
+        // Store payment info in database
+        if (req.db) {
+            await req.db.collection('payments').insertOne({
+                paymentId: payment.id,
+                mandateId: completedFlow.links.mandate,
+                amount: amount,
+                currency: 'GBP',
+                status: payment.status,
+                createdAt: new Date(),
+                redirectFlowId: redirectFlowId
+            });
+        }
+        
+        res.json({
+            paymentId: payment.id,
+            mandateId: completedFlow.links.mandate,
+            status: payment.status,
+            amount: amount
+        });
+    } catch (error) {
+        console.error('GoCardless payment creation error:', error);
+        res.status(500).json({ 
+            error: 'Failed to create payment',
+            message: error.message || 'Unknown error'
+        });
+    }
+});
+
+// GoCardless webhook endpoint (Public - but should verify webhook secret)
+app.post('/api/gocardless/webhook', requireDB, async (req, res) => {
+    const signature = req.headers['webhook-signature'];
+    const webhookSecret = process.env.GOCARDLESS_WEBHOOK_SECRET;
+    
+    // Verify webhook signature if secret is configured
+    if (webhookSecret && signature) {
+        // TODO: Implement webhook signature verification
+        // For now, we'll trust the webhook if secret is set
+    }
+    
+    const events = req.body.events || [];
+    
+    console.log(`📥 GoCardless webhook received: ${events.length} event(s)`);
+    
+    try {
+        for (const event of events) {
+            console.log(`  Event: ${event.resource_type} - ${event.action} - ${event.links[event.resource_type]}`);
+            
+            // Handle payment events
+            if (event.resource_type === 'payments') {
+                const paymentId = event.links.payment;
+                
+                // Update payment status in database
+                if (req.db) {
+                    await req.db.collection('payments').updateOne(
+                        { paymentId: paymentId },
+                        {
+                            $set: {
+                                status: event.action,
+                                updatedAt: new Date(),
+                                lastEvent: event
+                            }
+                        },
+                        { upsert: true }
+                    );
+                }
+                
+                console.log(`  Payment ${paymentId} status: ${event.action}`);
+            }
+            
+            // Handle mandate events
+            if (event.resource_type === 'mandates') {
+                const mandateId = event.links.mandate;
+                console.log(`  Mandate ${mandateId} event: ${event.action}`);
+            }
+        }
+        
+        res.status(200).json({ received: true });
+    } catch (error) {
+        console.error('Error processing GoCardless webhook:', error);
+        res.status(500).json({ error: 'Webhook processing failed' });
     }
 });
 

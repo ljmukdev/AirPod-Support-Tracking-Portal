@@ -21,8 +21,8 @@
                 el.id = 'version-display';
                 el.className = 'version-display';
                 el.style.cssText = 'position:fixed;top:10px;right:10px;font-size:0.7rem;color:rgba(0,0,0,0.7);font-family:"Courier New",monospace;z-index:99999;padding:4px 8px;background:rgba(255,255,255,0.9);border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.2);pointer-events:none;';
-                el.textContent = 'v1.2.3.025';
-                el.title = 'Version 1.2.3 (Revision 025)';
+                el.textContent = 'v1.2.3.026';
+                el.title = 'Version 1.2.3 (Revision 026)';
                 if (document.body) {
                     document.body.appendChild(el);
                 } else {
@@ -2008,7 +2008,7 @@
                     </div>
                     
                     <h2 style="text-align: center; margin-bottom: 8px;">Complete Your Purchase</h2>
-                    <p style="text-align: center; color: #6c757d; margin-bottom: 32px;">Secure payment powered by Stripe</p>
+                    <p style="text-align: center; color: #6c757d; margin-bottom: 32px;">Secure Direct Debit payment powered by GoCardless</p>
                     
                     <div id="paymentSummary" style="background: #f8f9fa; border-radius: 12px; padding: 24px; margin-bottom: 24px;">
                         <h3 style="margin-top: 0; margin-bottom: 16px; color: #1a1a1a;">Order Summary</h3>
@@ -2023,19 +2023,28 @@
                         </div>
                     </div>
                     
-                    <!-- Stripe Payment Element Container -->
-                    <div id="stripe-payment-element" style="margin-bottom: 24px;">
-                        <!-- Stripe Elements will be mounted here -->
+                    <!-- GoCardless Payment Info -->
+                    <div style="background: #e7f3ff; border: 2px solid #0064D2; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+                        <div style="display: flex; align-items: start; gap: 12px;">
+                            <div style="font-size: 24px;">🔒</div>
+                            <div style="flex: 1;">
+                                <h4 style="margin: 0 0 8px 0; color: #0064D2; font-size: 1.1rem;">Secure Direct Debit</h4>
+                                <p style="margin: 0; color: #1a1a1a; font-size: 0.95rem; line-height: 1.6;">
+                                    You'll be redirected to GoCardless to securely set up your Direct Debit mandate. Your payment will be processed securely and you'll be redirected back to complete your registration.
+                                </p>
+                            </div>
+                        </div>
                     </div>
                     
                     <div id="paymentError" style="display: none; background: #f8d7da; color: #721c24; padding: 12px; border-radius: 8px; margin-bottom: 16px;"></div>
                     
                     <button class="continue-btn" id="processPaymentBtn" style="background: linear-gradient(135deg, #0064D2 0%, #0052a3 100%);">
-                        Pay Now
+                        Set Up Direct Debit & Pay
                     </button>
                     
                     <div style="text-align: center; margin-top: 16px;">
-                        <img src="https://stripe.com/img/v3/home/social.png" alt="Stripe" style="height: 24px; opacity: 0.6;">
+                        <p style="color: #6c757d; font-size: 0.85rem; margin-bottom: 8px;">Powered by</p>
+                        <img src="https://gocardless.com/static/images/gocardless-logo.svg" alt="GoCardless" style="height: 24px; opacity: 0.7;" onerror="this.style.display='none'">
                     </div>
                 </div>
             </div>
@@ -2065,6 +2074,6 @@
         </div>
     </div>
 
-    <script src="js/warranty-registration.js?v=1.2.3.025"></script>
+    <script src="js/warranty-registration.js?v=1.2.3.026"></script>
 </body>
 </html>
