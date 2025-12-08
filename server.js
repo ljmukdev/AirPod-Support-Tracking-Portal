@@ -959,6 +959,17 @@ async function initializeDatabase() {
             }
         }
         
+        // Create indexes for setup_instructions collection
+        try {
+            await db.collection('setup_instructions').createIndex({ generation: 1, part_model_number: 1 }, { unique: true });
+            await db.collection('setup_instructions').createIndex({ generation: 1 });
+        } catch (err) {
+            // Indexes may already exist, ignore error
+            if (!err.message.includes('already exists') && !err.message.includes('E11000')) {
+                console.error('Warning: Could not create setup_instructions indexes:', err.message);
+            }
+        }
+        
         console.log('Database indexes created');
         
         // Check if parts collection is empty and populate
