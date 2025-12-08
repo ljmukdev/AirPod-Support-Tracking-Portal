@@ -1592,14 +1592,27 @@ function calculateTotalAmount() {
 
 // Setup checkbox handlers for setup steps
 function setupStepCheckboxes() {
-    const checkboxes = document.querySelectorAll('#setupSteps input[type="checkbox"]');
+    const checkboxes = document.querySelectorAll('#setupSteps input[type="checkbox"][data-completed="true"]');
+    const helpCheckboxes = document.querySelectorAll('#setupSteps input[type="checkbox"][data-help="true"]');
     const continueBtn = document.getElementById('continueBtn3');
     
+    // Handle completion checkboxes
     checkboxes.forEach((checkbox, index) => {
         checkbox.addEventListener('change', function() {
             if (this.checked) {
-                // Mark this step as completed
+                // Uncheck help checkbox if completion is checked
                 const stepDiv = this.closest('.setup-step');
+                const helpCheckbox = stepDiv?.querySelector('input[data-help="true"]');
+                if (helpCheckbox && helpCheckbox.checked) {
+                    helpCheckbox.checked = false;
+                    // Remove any help message
+                    const helpMessage = stepDiv.querySelector('.help-message');
+                    if (helpMessage) {
+                        helpMessage.remove();
+                    }
+                }
+                
+                // Mark this step as completed
                 if (stepDiv) {
                     stepDiv.classList.add('completed');
                 }
@@ -1635,6 +1648,84 @@ function setupStepCheckboxes() {
             }
         });
     });
+    
+    // Handle help checkboxes
+    helpCheckboxes.forEach((helpCheckbox) => {
+        helpCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                // Uncheck completion checkbox if help is checked
+                const stepDiv = this.closest('.setup-step');
+                const completedCheckbox = stepDiv?.querySelector('input[data-completed="true"]');
+                if (completedCheckbox && completedCheckbox.checked) {
+                    completedCheckbox.checked = false;
+                    // Remove completed class
+                    if (stepDiv) {
+                        stepDiv.classList.remove('completed');
+                    }
+                    // Hide continue button if it was shown
+                    if (continueBtn) {
+                        continueBtn.style.display = 'none';
+                    }
+                }
+                
+                // Track help request
+                const stepNum = this.dataset.step;
+                console.log('[Setup Instructions] Help requested for step:', stepNum);
+                trackEvent('setup_help_requested', { step: stepNum });
+                
+                // Show help message or redirect to support
+                showSetupHelp(stepNum, stepDiv);
+            } else {
+                // Unchecking help - remove help message
+                const stepDiv = this.closest('.setup-step');
+                const helpMessage = stepDiv?.querySelector('.help-message');
+                if (helpMessage) {
+                    helpMessage.remove();
+                }
+            }
+        });
+    });
+}
+
+// Show help for setup step
+function showSetupHelp(stepNum, stepDiv) {
+    // Remove any existing help message
+    const existingHelp = stepDiv.querySelector('.help-message');
+    if (existingHelp) {
+        existingHelp.remove();
+    }
+    
+    // Create help message
+    const helpMessage = document.createElement('div');
+    helpMessage.className = 'help-message';
+    helpMessage.style.cssText = 'margin-top: 16px; padding: 16px; background: #e7f3ff; border: 2px solid #0064D2; border-radius: 8px;';
+    helpMessage.innerHTML = `
+        <h4 style="color: #0064D2; margin-top: 0; margin-bottom: 8px; font-size: 1rem;">Need Help?</h4>
+        <p style="color: #1a1a1a; margin-bottom: 12px; line-height: 1.6;">
+            We're here to help! Please contact our support team for assistance with this step.
+        </p>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <a href="mailto:airpodsupport@ljmuk.co.uk?subject=Help with Setup Step ${stepNum}" 
+               style="padding: 10px 20px; background: #0064D2; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">
+                Email Support
+            </a>
+            <button onclick="this.closest('.help-message').remove(); this.closest('.setup-step').querySelector('input[data-help=\"true\"]').checked = false;" 
+                    style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                Close
+            </button>
+        </div>
+    `;
+    
+    // Insert after the step checkboxes
+    const stepCheckboxes = stepDiv.querySelector('.step-checkbox');
+    if (stepCheckboxes && stepCheckboxes.parentNode) {
+        stepCheckboxes.parentNode.insertBefore(helpMessage, stepCheckboxes.nextSibling);
+    } else {
+        stepDiv.appendChild(helpMessage);
+    }
+    
+    // Scroll to help message
+    helpMessage.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 // Get compatible part examples from API
