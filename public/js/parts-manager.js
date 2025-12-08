@@ -53,7 +53,7 @@ function hideSpinner() {
 async function loadParts() {
     const partsList = document.getElementById('partsList');
     if (!partsList) {
-        // Still try to load parts data for autocomplete even if partsList doesn't exist
+        // Still try to load parts data for associated parts even if partsList doesn't exist
         try {
             const response = await fetch(`${API_BASE}/api/admin/parts`);
             const data = await response.json();
@@ -62,7 +62,7 @@ async function loadParts() {
                 populateAssociatedPartsCheckboxes();
             }
         } catch (err) {
-            console.error('[Parts Manager] Error loading parts for autocomplete:', err);
+            console.error('[Parts Manager] Error loading parts:', err);
         }
         return;
     }
@@ -75,10 +75,19 @@ async function loadParts() {
         console.log('[Parts Manager] Response data:', data);
         
         if (response.ok && data.parts) {
-            // Store all parts for autocomplete
+            // Store all parts for associated parts selection
             allPartsData = data.parts;
-            console.log('[Parts Manager] Stored', allPartsData.length, 'parts for autocomplete');
-            updateAssociatedPartsAutocomplete();
+            console.log('[Parts Manager] Stored', allPartsData.length, 'parts');
+            
+            // Populate checkboxes if we're editing a part
+            const partId = document.getElementById('partId').value;
+            const partModelNumber = document.getElementById('part_model_number').value;
+            if (partId && partModelNumber) {
+                populateAssociatedPartsCheckboxes(partModelNumber);
+            } else {
+                // Just populate empty checkboxes for new part
+                populateAssociatedPartsCheckboxes();
+            }
             
             if (data.parts.length === 0) {
                 partsList.innerHTML = '<p style="text-align: center; padding: 40px; color: #666;">No parts found. Add your first part above.</p>';
