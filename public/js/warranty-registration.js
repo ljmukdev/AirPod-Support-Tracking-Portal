@@ -2026,17 +2026,17 @@ function initializeVerificationSteps() {
                         if (stepNumber === 5) {
                             console.log('[Return Process] Showing return process step');
                             
-                            // Ensure product record display is visible
-                            const productDisplay = document.getElementById('productRecordDisplay');
-                            if (productDisplay) {
-                                productDisplay.style.display = 'block';
+                            // Hide step 1 container
+                            const step1 = document.getElementById('step1');
+                            if (step1) {
+                                step1.style.display = 'none';
                             }
                             
-                            // Hide verification steps
-                            const verificationSteps = document.getElementById('verificationSteps');
-                            if (verificationSteps) {
-                                verificationSteps.style.display = 'none';
-                            }
+                            // Hide all other step containers
+                            document.querySelectorAll('.step-container').forEach(step => {
+                                step.classList.remove('active');
+                                step.style.display = 'none';
+                            });
                             
                             // Show return process step
                             const returnProcessStep = document.getElementById('returnProcessStep');
@@ -2044,22 +2044,16 @@ function initializeVerificationSteps() {
                                 returnProcessStep.style.display = 'block';
                                 returnProcessStep.style.animation = 'fadeIn 0.3s ease';
                                 console.log('[Return Process] Return step displayed');
+                                
+                                // Scroll to return step
+                                setTimeout(() => {
+                                    returnProcessStep.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                }, 100);
                             } else {
                                 console.error('[Return Process] Return step element not found!');
+                                // Fallback: redirect if element not found
+                                window.location.href = 'ebay-return.html';
                             }
-                            
-                            // Hide continue button
-                            const continueBtn = document.getElementById('continueBtn1');
-                            if (continueBtn) {
-                                continueBtn.style.display = 'none';
-                            }
-                            
-                            // Scroll to return step
-                            setTimeout(() => {
-                                if (returnProcessStep) {
-                                    returnProcessStep.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                                }
-                            }, 100);
                         } else {
                             // For other steps, redirect to eBay return
                             console.log(`[Verification] Step ${stepNumber} - "No" selected, redirecting to eBay return`);
