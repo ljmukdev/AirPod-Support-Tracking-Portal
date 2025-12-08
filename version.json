@@ -1,8 +1,15 @@
 {
   "version": "1.2.3",
   "build": "2024-12-19",
-  "revision": "009",
+  "revision": "010",
   "changelog": [
+    {
+      "version": "1.2.3",
+      "date": "2024-12-19",
+      "changes": [
+        "Updated extended warranty card layout - three benefit icons now display on same line"
+      ]
+    },
     {
       "version": "1.2.3",
       "date": "2024-12-19",
