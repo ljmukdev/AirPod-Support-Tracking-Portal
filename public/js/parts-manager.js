@@ -420,6 +420,7 @@ function cancelEdit() {
     document.getElementById('exampleImagePreview').innerHTML = '';
     document.getElementById('caseImagePreview').innerHTML = '';
     document.getElementById('airpodImagePreview').innerHTML = '';
+    updateAssociatedPartsTags([]); // Clear tags
     formTitle.textContent = 'Add New Part';
     submitButtonText.textContent = 'Add Part';
     cancelButton.style.display = 'none';
