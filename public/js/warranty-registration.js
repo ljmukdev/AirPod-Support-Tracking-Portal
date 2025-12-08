@@ -1471,6 +1471,8 @@ function loadPaymentSummary() {
             if (price > 0) {
                 const months = appState.selectedWarranty === '6month' ? '6' : appState.selectedWarranty === '12month' ? '12' : '3';
                 items.push({
+                    type: 'warranty',
+                    id: appState.selectedWarranty,
                     name: `${months}-Month Extended Warranty`,
                     price: price
                 });
@@ -1488,6 +1490,8 @@ function loadPaymentSummary() {
         selectedAddons.forEach(addon => {
             const price = parseFloat(addon.price || 0);
             items.push({
+                type: 'addon',
+                id: addon.id,
                 name: escapeHtml(addon.name),
                 price: price
             });
@@ -1495,7 +1499,7 @@ function loadPaymentSummary() {
         });
     }
     
-    // Render items
+    // Render items with remove buttons
     paymentItemsContainer.innerHTML = '';
     
     if (items.length === 0) {
@@ -1503,12 +1507,31 @@ function loadPaymentSummary() {
     } else {
         items.forEach(item => {
             const itemDiv = document.createElement('div');
-            itemDiv.style.cssText = 'display: flex; justify-content: space-between; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #e8ecf1;';
+            itemDiv.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #e8ecf1;';
+            itemDiv.dataset.itemType = item.type;
+            itemDiv.dataset.itemId = item.id;
             itemDiv.innerHTML = `
-                <span style="color: #1a1a1a;">${item.name}</span>
-                <span style="color: #1a1a1a; font-weight: 500;">£${item.price.toFixed(2)}</span>
+                <div style="flex: 1;">
+                    <span style="color: #1a1a1a;">${item.name}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span style="color: #1a1a1a; font-weight: 500;">£${item.price.toFixed(2)}</span>
+                    <button class="remove-item-btn" data-item-type="${item.type}" data-item-id="${item.id}" style="background: #dc3545; color: white; border: none; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 0.85rem; transition: background 0.2s ease;" title="Remove item">
+                        ✕
+                    </button>
+                </div>
             `;
             paymentItemsContainer.appendChild(itemDiv);
+        });
+        
+        // Attach remove button handlers
+        paymentItemsContainer.querySelectorAll('.remove-item-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const itemType = this.dataset.itemType;
+                const itemId = this.dataset.itemId;
+                removeItemFromBasket(itemType, itemId);
+            });
         });
     }
     
@@ -1516,6 +1539,67 @@ function loadPaymentSummary() {
     paymentTotalEl.textContent = `£${total.toFixed(2)}`;
     
     console.log('[Payment] Payment summary loaded:', { items, total });
+}
+
+// Remove item from basket
+function removeItemFromBasket(itemType, itemId) {
+    console.log('[Basket] Removing item:', itemType, itemId);
+    
+    if (itemType === 'warranty') {
+        // Remove warranty
+        appState.selectedWarranty = 'none';
+        // Update warranty card selection
+        document.querySelectorAll('.warranty-card').forEach(card => {
+            card.classList.remove('selected');
+        });
+        // Update addon sales display if visible
+        if (appState.addonSalesData && appState.addonSalesData.length > 0) {
+            const addonItems = document.querySelectorAll('.accessory-item');
+            addonItems.forEach(item => {
+                const addonId = item.dataset.addonId;
+                if (appState.selectedAccessories.includes(addonId)) {
+                    item.classList.add('selected');
+                    if (!item.querySelector('div[style*="color: #28a745"]')) {
+                        const addedText = document.createElement('div');
+                        addedText.style.cssText = 'margin-top: 8px; color: #28a745; font-weight: 600; font-size: 0.9rem;';
+                        addedText.textContent = '✓ Added to basket';
+                        item.appendChild(addedText);
+                    }
+                } else {
+                    item.classList.remove('selected');
+                    const addedText = item.querySelector('div[style*="color: #28a745"]');
+                    if (addedText) {
+                        addedText.remove();
+                    }
+                }
+            });
+        }
+    } else if (itemType === 'addon') {
+        // Remove addon
+        appState.selectedAccessories = appState.selectedAccessories.filter(id => id !== itemId);
+        // Update addon sales display if visible
+        const addonItem = document.querySelector(`.accessory-item[data-addon-id="${itemId}"]`);
+        if (addonItem) {
+            addonItem.classList.remove('selected');
+            const addedText = addonItem.querySelector('div[style*="color: #28a745"]');
+            if (addedText) {
+                addedText.remove();
+            }
+            // Update pricing display
+            if (appState.addonSalesData) {
+                updateAddonSalesPricing(appState.addonSalesData);
+            }
+        }
+    }
+    
+    // Update basket display
+    updateBasketDisplay();
+    saveState();
+    
+    console.log('[Basket] Item removed. Updated state:', {
+        warranty: appState.selectedWarranty,
+        accessories: appState.selectedAccessories
+    });
 }
 
 // Initialize Stripe payment
