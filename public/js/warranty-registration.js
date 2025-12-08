@@ -1000,11 +1000,18 @@ function getCompatiblePartNumbers(partModelNumber, partType) {
 function displayProductInfoOnStep1(data) {
     appState.productData = data;
     const partModelNumber = data.part_model_number || '';
+    const partName = data.part_name || '';
 
     // Update purchased part number (will be updated with API data if available)
     const purchasedPartEl = document.getElementById('purchasedPartNumber');
     if (purchasedPartEl) {
-        purchasedPartEl.textContent = partModelNumber || 'your part';
+        if (partName && partModelNumber) {
+            purchasedPartEl.textContent = `${partName} (${partModelNumber})`;
+        } else if (partModelNumber) {
+            purchasedPartEl.textContent = partModelNumber;
+        } else {
+            purchasedPartEl.textContent = 'your part';
+        }
     }
 
     // Load and display compatible part examples (this will also update the message dynamically)
