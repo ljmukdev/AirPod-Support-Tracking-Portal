@@ -2008,22 +2008,27 @@ async function processStripePayment(stripe, paymentElement, clientSecret) {
         
         // Payment successful
         console.log('[Payment] Payment successful:', paymentIntent);
+        
+        // Store payment intent ID in appState
+        appState.paymentIntentId = window.currentPaymentIntentId;
+        saveState();
+        
+        const totalAmount = calculateTotalAmount();
         trackEvent('payment_completed', {
             amount: totalAmount,
             warranty: appState.selectedWarranty,
             accessories: appState.selectedAccessories.length,
-            paymentIntentId: data.paymentIntentId
+            paymentIntentId: window.currentPaymentIntentId
         });
         
         // Show success message
         if (paymentError) {
             paymentError.style.cssText = 'display: block; background: #d4edda; color: #155724; padding: 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #c3e6cb;';
-            paymentError.textContent = '✓ Payment successful! Redirecting...';
+            paymentError.textContent = '✓ Payment successful! Completing registration...';
         }
         
-        // Redirect to success page or continue with registration
+        // Complete the registration process
         setTimeout(() => {
-            // Complete the registration process
             finishSetup();
         }, 1500);
         
