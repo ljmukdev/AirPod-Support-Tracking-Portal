@@ -2081,9 +2081,10 @@ function initializeVerificationSteps() {
                         
                         // Special handling for step 1 (Compatibility) - show explanation
                         if (stepNumber === 1 || stepNumber === '1') {
-                            console.log('[Verification] Showing compatibility explanation');
+                            console.log('[Verification] Step 1 - "No" selected, showing compatibility explanation');
                             const explanation = document.getElementById('compatibilityExplanation');
                             console.log('[Verification] Explanation element found:', !!explanation);
+                            
                             if (explanation) {
                                 explanation.style.display = 'block';
                                 explanation.style.animation = 'fadeIn 0.3s ease';
@@ -2105,15 +2106,13 @@ function initializeVerificationSteps() {
                                 setTimeout(() => {
                                     explanation.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                                 }, 100);
-                                
-                                // Prevent default redirect - return early
-                                return;
                             } else {
                                 console.error('[Verification] Compatibility explanation element not found!');
-                                // Fallback: redirect if element not found
-                                window.location.href = 'ebay-return.html';
+                                alert('Explanation element not found. Please refresh the page.');
                             }
-                            return; // Always return for step 1
+                            
+                            // Always return for step 1 - prevent any redirect
+                            return;
                         }
                         // Special handling for step 2 (Authenticity) - show explanation
                         else if (stepNumber === 2 || stepNumber === '2') {
