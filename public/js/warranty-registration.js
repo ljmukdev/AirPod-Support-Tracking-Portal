@@ -570,9 +570,8 @@ function handleContactDetailsSubmit() {
     
     // Register warranty with contact details
     registerWarranty().then(() => {
-            // Show success animation and warranty confirmation
+            // Show warranty confirmation
             showStep(4);
-            showSuccessAnimation();
             // Load warranty pricing and update price display
             loadAndDisplayLowestWarrantyPrice();
             setTimeout(() => {
