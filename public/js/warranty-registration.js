@@ -2336,12 +2336,46 @@ function setupMarkingsVerificationListeners() {
     // Handle "Yes" selection
     const handleYesSelection = () => {
         if (yesRadio.checked && yesRadio.value === 'yes') {
+            console.log('[Markings Verification] "Yes" selected - proceeding to next step');
             if (explanation) {
                 explanation.style.display = 'none';
             }
-            // Continue to next step (step 4)
+            
+            // Mark all verification steps as complete (steps 1-5)
+            for (let i = 1; i <= 5; i++) {
+                verificationState.completedSteps.add(i);
+            }
+            console.log('[Markings Verification] All verification steps marked as complete');
+            
+            // Hide the second-level authenticity step
+            const secondLevelStep = document.getElementById('secondLevelAuthenticityStep');
+            if (secondLevelStep) {
+                secondLevelStep.style.display = 'none';
+            }
+            
+            // Hide step 1 container if still visible
+            const step1 = document.getElementById('step1');
+            if (step1) {
+                step1.style.display = 'none';
+            }
+            
+            // Hide verification steps container
+            const verificationStepsContainer = document.getElementById('verificationSteps');
+            if (verificationStepsContainer) {
+                verificationStepsContainer.style.display = 'none';
+            }
+            
+            // Hide the continue button
+            const continueBtn = document.getElementById('continueBtn1');
+            if (continueBtn) {
+                continueBtn.style.display = 'none';
+                continueBtn.disabled = true;
+            }
+            
+            // Continue to Contact Information step (step 3 in main flow, but step 4 in the overall flow)
             setTimeout(() => {
-                showStep(4);
+                console.log('[Markings Verification] Navigating to Contact Information step');
+                showStep(3, true); // Force navigation to step 3 (Contact Information)
             }, 300);
         }
     };
