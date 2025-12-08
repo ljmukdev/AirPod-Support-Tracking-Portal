@@ -4290,15 +4290,25 @@ function showStep(stepNumber, force = false) {
         
         // Handle step 4 (30-day Warranty Confirmation) - CRITICAL: Must run immediately
         if (stepNumber === 4) {
+<<<<<<< HEAD
             console.log('[showStep] Step 4 detected - executing step 4 handling code IMMEDIATELY');
             
             // Function to setup step 4 content
             const setupStep4Content = () => {
+=======
+            // Use setTimeout to ensure DOM is ready after step container is displayed
+            setTimeout(() => {
+                console.log('[showStep] Step 4 detected - executing step 4 handling code');
+                console.log('[Step 4] Handling step 4 display');
+
+                // Find elements within the current step container to ensure they exist
+>>>>>>> 30dcb90c7983128feb8556f9dd8229368e7f0b70
                 const step4Container = document.getElementById('step4');
                 if (!step4Container) {
                     console.error('[Step 4] Step 4 container not found!');
                     return;
                 }
+<<<<<<< HEAD
                 
                 // Ensure step container is visible
                 step4Container.style.display = 'block';
@@ -4310,21 +4320,39 @@ function showStep(stepNumber, force = false) {
                 console.log('[Step 4] successAnimation:', !!successAnimation, 'warrantyConfirmation:', !!warrantyConfirmation);
                 
                 // Hide success animation immediately
+=======
+
+                const successAnimation = step4Container.querySelector('#successAnimation') || document.getElementById('successAnimation');
+                const warrantyConfirmation = step4Container.querySelector('#warrantyConfirmation') || document.getElementById('warrantyConfirmation');
+
+                console.log('[Step 4] successAnimation element:', successAnimation);
+                console.log('[Step 4] warrantyConfirmation element:', warrantyConfirmation);
+
+                // Hide success animation and show warranty confirmation
+>>>>>>> 30dcb90c7983128feb8556f9dd8229368e7f0b70
                 if (successAnimation) {
                     successAnimation.style.display = 'none';
                     successAnimation.style.visibility = 'hidden';
                 }
+<<<<<<< HEAD
                 
                 // Show warranty confirmation immediately
+=======
+
+>>>>>>> 30dcb90c7983128feb8556f9dd8229368e7f0b70
                 if (warrantyConfirmation) {
                     warrantyConfirmation.style.display = 'block';
+<<<<<<< HEAD
                     warrantyConfirmation.style.visibility = 'visible';
                     warrantyConfirmation.removeAttribute('style'); // Remove inline display:none
                     warrantyConfirmation.style.display = 'block'; // Force display
                     
+=======
+
+>>>>>>> 30dcb90c7983128feb8556f9dd8229368e7f0b70
                     // Load warranty pricing
                     loadAndDisplayLowestWarrantyPrice();
-                    
+
                     // Display product details if available
                     if (appState.productData) {
                         const productDetailsDisplay = document.getElementById('productDetailsDisplay');
@@ -4353,16 +4381,16 @@ function showStep(stepNumber, force = false) {
                             `;
                         }
                     }
-                    
+
                     // Calculate and display warranty expiry date
                     const warrantyExpiryEl = document.getElementById('warrantyExpiry');
                     if (warrantyExpiryEl) {
                         const expiryDate = new Date();
                         expiryDate.setDate(expiryDate.getDate() + 30);
-                        const formattedDate = expiryDate.toLocaleDateString('en-GB', { 
-                            day: 'numeric', 
-                            month: 'long', 
-                            year: 'numeric' 
+                        const formattedDate = expiryDate.toLocaleDateString('en-GB', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric'
                         });
                         warrantyExpiryEl.textContent = formattedDate;
                     }
