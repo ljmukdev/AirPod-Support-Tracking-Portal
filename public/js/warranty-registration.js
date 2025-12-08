@@ -2394,14 +2394,8 @@ function setupMarkingsVerificationListeners() {
             // Continue to Contact Information step (step 3 in main flow)
             setTimeout(() => {
                 console.log('[Markings Verification] Navigating to Contact Information step');
-                // Ensure appState.currentStep is set to 3 before calling showStep
-                appState.currentStep = 3;
+                // showStep will set appState.currentStep = 3 and call updateProgressIndicator() internally
                 showStep(3, true); // Force navigation to step 3 (Contact Information)
-                // Update progress indicator after a small delay to ensure DOM has updated
-                setTimeout(() => {
-                    updateProgressIndicator();
-                    console.log('[Markings Verification] Progress indicator updated to step 3');
-                }, 100);
             }, 300);
         }
     };
@@ -3652,6 +3646,12 @@ function updateProgressIndicator() {
         const displayStep = appState.skippedStep1 ? appState.currentStep - 1 : appState.currentStep;
         const displayTotal = appState.skippedStep1 ? appState.totalSteps - 1 : appState.totalSteps;
         progressText.textContent = `Step ${displayStep} of ${displayTotal}`;
+        console.log('[Progress Indicator] Updated:', {
+            currentStep: appState.currentStep,
+            displayStep: displayStep,
+            displayTotal: displayTotal,
+            skippedStep1: appState.skippedStep1
+        });
     } else {
         progressIndicator.style.display = 'none';
     }
