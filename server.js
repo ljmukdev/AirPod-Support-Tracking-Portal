@@ -1677,8 +1677,24 @@ app.post('/api/verify-barcode', requireDB, async (req, res) => {
         if (!product) {
             res.status(404).json({ error: 'Invalid security code. Please check and try again.' });
         } else {
-            res.json({ 
-                success: true, 
+            // Get associated parts details if they exist
+            let associatedPartsDetails = [];
+            if (product.associated_parts && Array.isArray(product.associated_parts) && product.associated_parts.length > 0) {
+                // Fetch full details for each associated part
+                const associatedPartsDocs = await db.collection('parts').find({
+                    part_model_number: { $in: product.associated_parts }
+                }).toArray();
+
+                associatedPartsDetails = associatedPartsDocs.map(part => ({
+                    part_model_number: part.part_model_number,
+                    part_name: part.part_name,
+                    part_type: part.part_type,
+                    example_image: part.example_image || null
+                }));
+            }
+
+            res.json({
+                success: true,
                 part_type: product.part_type,
                 serial_number: product.serial_number,
                 generation: product.generation,
@@ -1686,7 +1702,8 @@ app.post('/api/verify-barcode', requireDB, async (req, res) => {
                 photos: product.photos || [],
                 ebay_order_number: product.ebay_order_number || null,
                 date_added: product.date_added,
-                notes: product.notes || null
+                notes: product.notes || null,
+                associated_parts: associatedPartsDetails
             });
         }
     } catch (err) {
