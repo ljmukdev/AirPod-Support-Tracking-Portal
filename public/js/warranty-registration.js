@@ -1392,7 +1392,9 @@ async function loadSetupInstructions(partModelNumber, generation) {
         console.log('[Setup Instructions] Help checkboxes found:', helpCheckboxes.length, '(should be', sortedInstructions.length, ')');
     } catch (error) {
         console.error('[Setup Instructions] Error loading instructions:', error);
-        // Keep default instructions on error
+        // Keep default instructions on error, but ensure event listeners are attached
+        console.log('[Setup Instructions] Setting up event listeners for default instructions');
+        setupStepCheckboxes();
     }
 }
 
