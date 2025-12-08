@@ -85,9 +85,6 @@ async function loadParts() {
             const partModelNumber = document.getElementById('part_model_number')?.value || null;
             console.log('[Parts Manager] Populating checkboxes, current part:', partModelNumber);
             populateAssociatedPartsCheckboxes(partModelNumber);
-        } else {
-            console.warn('[Parts Manager] Condition failed - response.ok:', response.ok, 'data.parts:', !!data.parts);
-        }
             
             if (data.parts.length === 0) {
                 partsList.innerHTML = '<p style="text-align: center; padding: 40px; color: #666;">No parts found. Add your first part above.</p>';
