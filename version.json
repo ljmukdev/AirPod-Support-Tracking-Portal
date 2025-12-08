@@ -1,13 +1,14 @@
 {
   "version": "1.2.3",
   "build": "2024-12-19",
-  "revision": "019",
+  "revision": "020",
   "changelog": [
     {
       "version": "1.2.3",
       "date": "2024-12-19",
       "changes": [
-        "Added loadSetupInstructions function to fetch and display setup instructions from admin portal on step 7",
+        "Reordered warranty registration steps: Contact Info (step 2), Setup Instructions (step 3), added Stripe payment (step 7)",
+        "Added loadSetupInstructions function to fetch and display setup instructions from admin portal on step 3",
         "Fixed progress bar to update when showing verification steps and authenticity checks - now shows Step 1 of 7 throughout verification",
         "Removed verification step counter (Step X of 5) to eliminate confusion - now only shows main progress bar (Step X of 7)",
         "Fixed progress bar to update correctly when moving from verification steps to Contact Information step",
