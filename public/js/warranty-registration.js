@@ -4290,13 +4290,20 @@ function showStep(stepNumber, force = false) {
         
         // Handle step 4 (30-day Warranty Confirmation)
         if (stepNumber === 4) {
-            console.log('[showStep] Step 4 detected - executing step 4 handling code');
-
-            // Use setTimeout to ensure DOM is fully rendered before manipulating child elements
+            // Use setTimeout to ensure DOM is ready after step container is displayed
             setTimeout(() => {
-                console.log('[Step 4] Handling step 4 display (after timeout)');
-                const successAnimation = document.getElementById('successAnimation');
-                const warrantyConfirmation = document.getElementById('warrantyConfirmation');
+                console.log('[showStep] Step 4 detected - executing step 4 handling code');
+                console.log('[Step 4] Handling step 4 display');
+
+                // Find elements within the current step container to ensure they exist
+                const step4Container = document.getElementById('step4');
+                if (!step4Container) {
+                    console.error('[Step 4] Step 4 container not found!');
+                    return;
+                }
+
+                const successAnimation = step4Container.querySelector('#successAnimation') || document.getElementById('successAnimation');
+                const warrantyConfirmation = step4Container.querySelector('#warrantyConfirmation') || document.getElementById('warrantyConfirmation');
 
                 console.log('[Step 4] successAnimation element:', successAnimation);
                 console.log('[Step 4] warrantyConfirmation element:', warrantyConfirmation);
@@ -4318,7 +4325,7 @@ function showStep(stepNumber, force = false) {
 
                     // Display product details if available
                     if (appState.productData) {
-                        const productDetailsDisplay = document.getElementById('productDetailsDisplay');
+                        const productDetailsDisplay = warrantyConfirmation.querySelector('#productDetailsDisplay') || document.getElementById('productDetailsDisplay');
                         if (productDetailsDisplay) {
                             const product = appState.productData;
                             productDetailsDisplay.innerHTML = `
@@ -4342,11 +4349,13 @@ function showStep(stepNumber, force = false) {
                                     </div>
                                 </div>
                             `;
+                        } else {
+                            console.warn('[Step 4] productDetailsDisplay element not found!');
                         }
                     }
 
                     // Calculate and display warranty expiry date
-                    const warrantyExpiryEl = document.getElementById('warrantyExpiry');
+                    const warrantyExpiryEl = warrantyConfirmation.querySelector('#warrantyExpiry') || document.getElementById('warrantyExpiry');
                     if (warrantyExpiryEl) {
                         const expiryDate = new Date();
                         expiryDate.setDate(expiryDate.getDate() + 30);
@@ -4356,11 +4365,14 @@ function showStep(stepNumber, force = false) {
                             year: 'numeric'
                         });
                         warrantyExpiryEl.textContent = formattedDate;
+                        console.log('[Step 4] Warranty expiry date set to:', formattedDate);
+                    } else {
+                        console.warn('[Step 4] warrantyExpiry element not found!');
                     }
                 } else {
-                    console.warn('[Step 4] warrantyConfirmation element not found!');
+                    console.error('[Step 4] warrantyConfirmation element not found! Cannot display step 4 content.');
                 }
-            }, 50); // Small delay to ensure DOM is ready
+            }, 100); // Small delay to ensure DOM is ready
         }
         
         // Auto-dismiss keyboard on mobile
