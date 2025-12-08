@@ -1834,6 +1834,147 @@
                     <button class="continue-btn" id="continueBtn6">Continue</button>
                 </div>
                 
+                <!-- Help Options Step (shown when user clicks "I need help" on any setup step) -->
+                <div class="step-container" id="helpOptionsStep" data-step="help" style="display: none;">
+                    <h2 style="text-align: center; margin-bottom: 8px;">We're Here to Help</h2>
+                    <p style="text-align: center; color: #6c757d; margin-bottom: 32px;">Choose how you'd like to proceed</p>
+                    
+                    <div style="display: grid; gap: 20px; margin-bottom: 32px;">
+                        <!-- Option 1: Restart Pairing Process -->
+                        <div class="help-option-card" id="helpOptionRestart" style="background: white; border: 2px solid #e8ecf1; border-radius: 12px; padding: 24px; cursor: pointer; transition: all 0.3s ease;">
+                            <div style="display: flex; align-items: start; gap: 16px;">
+                                <div style="font-size: 32px; flex-shrink: 0;">🔄</div>
+                                <div style="flex: 1;">
+                                    <h3 style="margin-top: 0; margin-bottom: 8px; color: #1a1a1a; font-size: 1.2rem;">Restart Pairing Process</h3>
+                                    <p style="color: #6c757d; margin-bottom: 0; line-height: 1.6;">
+                                        Start the pairing process again from the beginning. This will reset all setup steps and guide you through each one again.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Option 2: Free Reconditioning Service -->
+                        <div class="help-option-card" id="helpOptionRecondition" style="background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%); border: 2px solid #ffc107; border-radius: 12px; padding: 24px; cursor: pointer; transition: all 0.3s ease; position: relative;">
+                            <div style="position: absolute; top: 12px; right: 12px; background: #28a745; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">FREE SERVICE</div>
+                            <div style="display: flex; align-items: start; gap: 16px;">
+                                <div style="font-size: 32px; flex-shrink: 0;">✨</div>
+                                <div style="flex: 1;">
+                                    <h3 style="margin-top: 0; margin-bottom: 8px; color: #856404; font-size: 1.2rem;">Free Reconditioning & Pairing Service</h3>
+                                    <p style="color: #856404; margin-bottom: 12px; line-height: 1.6;">
+                                        Send us your replacement part along with the rest of your AirPod set, and we'll:
+                                    </p>
+                                    <ul style="color: #856404; margin: 0 0 12px 20px; padding: 0; line-height: 1.8;">
+                                        <li>Recondition and clean your AirPods</li>
+                                        <li>Pair and synchronise everything together</li>
+                                        <li>Return it back to you fully working</li>
+                                    </ul>
+                                    <p style="color: #856404; margin-bottom: 0; line-height: 1.6; font-weight: 500;">
+                                        <strong>All completely free!</strong> We just ask for your positive feedback in return.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Option 3: Return Item -->
+                        <div class="help-option-card" id="helpOptionReturn" style="background: white; border: 2px solid #e8ecf1; border-radius: 12px; padding: 24px; cursor: pointer; transition: all 0.3s ease;">
+                            <div style="display: flex; align-items: start; gap: 16px;">
+                                <div style="font-size: 32px; flex-shrink: 0;">📦</div>
+                                <div style="flex: 1;">
+                                    <h3 style="margin-top: 0; margin-bottom: 8px; color: #1a1a1a; font-size: 1.2rem;">Return This Item</h3>
+                                    <p style="color: #6c757d; margin-bottom: 0; line-height: 1.6;">
+                                        If you'd prefer to return this item, we'll guide you through the return process.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Reconditioning Service Form Step (shown when user selects Option 2) -->
+                <div class="step-container" id="reconditioningFormStep" data-step="reconditioning" style="display: none;">
+                    <h2 style="text-align: center; margin-bottom: 8px;">Free Reconditioning Service</h2>
+                    <p style="text-align: center; color: #6c757d; margin-bottom: 32px;">Please provide your details so we can arrange collection</p>
+                    
+                    <div style="background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%); border: 2px solid #ffc107; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+                        <h4 style="color: #856404; margin-top: 0; margin-bottom: 12px; font-size: 1.1rem;">What Happens Next?</h4>
+                        <ol style="color: #856404; margin: 0; padding-left: 20px; line-height: 1.8;">
+                            <li>We'll send you a prepaid return label</li>
+                            <li>Package your replacement part with your existing AirPods</li>
+                            <li>We'll recondition, pair, and synchronise everything</li>
+                            <li>We'll return your fully working AirPods set</li>
+                            <li>You leave us positive feedback - that's it!</li>
+                        </ol>
+                    </div>
+                    
+                    <form id="reconditioningForm" style="max-width: 600px; margin: 0 auto;">
+                        <div style="margin-bottom: 20px;">
+                            <label for="reconditionName" style="display: block; margin-bottom: 8px; color: #1a1a1a; font-weight: 500;">Full Name *</label>
+                            <input 
+                                type="text" 
+                                id="reconditionName" 
+                                class="security-input" 
+                                placeholder="John Doe" 
+                                required
+                                style="text-align: left; padding-left: 16px; letter-spacing: normal; text-transform: none;"
+                            >
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <label for="reconditionEmail" style="display: block; margin-bottom: 8px; color: #1a1a1a; font-weight: 500;">Email Address *</label>
+                            <input 
+                                type="email" 
+                                id="reconditionEmail" 
+                                class="security-input" 
+                                placeholder="john@example.com" 
+                                required
+                                style="text-align: left; padding-left: 16px; letter-spacing: normal; text-transform: none;"
+                            >
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <label for="reconditionPhone" style="display: block; margin-bottom: 8px; color: #1a1a1a; font-weight: 500;">Phone Number *</label>
+                            <input 
+                                type="tel" 
+                                id="reconditionPhone" 
+                                class="security-input" 
+                                placeholder="+44 7700 900123" 
+                                required
+                                style="text-align: left; padding-left: 16px; letter-spacing: normal; text-transform: none;"
+                            >
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <label for="reconditionAddress" style="display: block; margin-bottom: 8px; color: #1a1a1a; font-weight: 500;">Full Address *</label>
+                            <textarea 
+                                id="reconditionAddress" 
+                                class="security-input" 
+                                placeholder="Your full address including postcode" 
+                                required
+                                rows="4"
+                                style="text-align: left; padding-left: 16px; padding-top: 12px; letter-spacing: normal; text-transform: none; resize: vertical; min-height: 100px;"
+                            ></textarea>
+                        </div>
+                        
+                        <div style="margin-bottom: 24px; padding: 16px; background: #f8f9fa; border-radius: 8px;">
+                            <label style="display: flex; align-items: start; gap: 12px; cursor: pointer;">
+                                <input 
+                                    type="checkbox" 
+                                    id="reconditionFeedbackAgree" 
+                                    required
+                                    style="margin-top: 4px; width: 20px; height: 20px; cursor: pointer; flex-shrink: 0;"
+                                >
+                                <span style="color: #1a1a1a; font-size: 0.95rem; line-height: 1.5;">
+                                    I understand that in return for this free service, I will provide positive feedback about my experience *
+                                </span>
+                            </label>
+                        </div>
+                        
+                        <button type="submit" class="continue-btn" id="submitReconditioningForm" style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);">
+                            Submit Request
+                        </button>
+                    </form>
+                </div>
+                
                 <!-- Step 7: Stripe Payment -->
                 <div class="step-container" id="step7" data-step="7">
                     <h2 style="text-align: center; margin-bottom: 8px;">Complete Your Purchase</h2>

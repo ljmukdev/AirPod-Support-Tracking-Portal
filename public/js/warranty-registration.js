@@ -1676,59 +1676,163 @@ function setupStepCheckboxes() {
                 console.log('[Setup Instructions] Help requested for step:', stepNum);
                 trackEvent('setup_help_requested', { step: stepNum });
                 
-                // Show help message or redirect to support
-                showSetupHelp(stepNum, stepDiv);
+                // Navigate to help options page
+                showHelpOptionsPage();
             } else {
-                // Unchecking help - remove help message
-                const stepDiv = this.closest('.setup-step');
-                const helpMessage = stepDiv?.querySelector('.help-message');
-                if (helpMessage) {
-                    helpMessage.remove();
-                }
+                // Unchecking help - nothing to do (we navigate away when checked)
             }
         });
     });
 }
 
-// Show help for setup step
-function showSetupHelp(stepNum, stepDiv) {
-    // Remove any existing help message
-    const existingHelp = stepDiv.querySelector('.help-message');
-    if (existingHelp) {
-        existingHelp.remove();
-    }
+// Show help options page
+function showHelpOptionsPage() {
+    console.log('[Help Options] Showing help options page');
     
-    // Create help message
-    const helpMessage = document.createElement('div');
-    helpMessage.className = 'help-message';
-    helpMessage.style.cssText = 'margin-top: 16px; padding: 16px; background: #e7f3ff; border: 2px solid #0064D2; border-radius: 8px;';
-    helpMessage.innerHTML = `
-        <h4 style="color: #0064D2; margin-top: 0; margin-bottom: 8px; font-size: 1rem;">Need Help?</h4>
-        <p style="color: #1a1a1a; margin-bottom: 12px; line-height: 1.6;">
-            We're here to help! Please contact our support team for assistance with this step.
-        </p>
-        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-            <a href="mailto:airpodsupport@ljmuk.co.uk?subject=Help with Setup Step ${stepNum}" 
-               style="padding: 10px 20px; background: #0064D2; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">
-                Email Support
-            </a>
-            <button onclick="this.closest('.help-message').remove(); this.closest('.setup-step').querySelector('input[data-help=\"true\"]').checked = false;" 
-                    style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
-                Close
-            </button>
-        </div>
-    `;
+    // Hide all step containers
+    document.querySelectorAll('.step-container').forEach(step => {
+        step.style.display = 'none';
+        step.classList.remove('active');
+    });
     
-    // Insert after the step checkboxes
-    const stepCheckboxes = stepDiv.querySelector('.step-checkbox');
-    if (stepCheckboxes && stepCheckboxes.parentNode) {
-        stepCheckboxes.parentNode.insertBefore(helpMessage, stepCheckboxes.nextSibling);
+    // Show help options step
+    const helpOptionsStep = document.getElementById('helpOptionsStep');
+    if (helpOptionsStep) {
+        helpOptionsStep.style.display = 'block';
+        helpOptionsStep.classList.add('active');
+        
+        // Scroll to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        
+        // Setup option click handlers
+        setupHelpOptionHandlers();
     } else {
-        stepDiv.appendChild(helpMessage);
+        console.error('[Help Options] Help options step element not found');
+    }
+}
+
+// Setup help option click handlers
+function setupHelpOptionHandlers() {
+    // Option 1: Restart Pairing Process
+    const restartOption = document.getElementById('helpOptionRestart');
+    if (restartOption && !restartOption.dataset.listenersAttached) {
+        restartOption.addEventListener('click', () => {
+            console.log('[Help Options] Restart pairing process selected');
+            trackEvent('help_option_selected', { option: 'restart' });
+            
+            // Reset all setup step checkboxes
+            document.querySelectorAll('#setupSteps input[type="checkbox"]').forEach(cb => {
+                cb.checked = false;
+            });
+            
+            // Remove completed classes from all steps
+            document.querySelectorAll('#setupSteps .setup-step').forEach(step => {
+                step.classList.remove('completed', 'active');
+            });
+            
+            // Show first step as active
+            const firstStep = document.querySelector('#setupSteps .setup-step');
+            if (firstStep) {
+                firstStep.classList.add('active');
+            }
+            
+            // Hide help options and show setup instructions (step 3)
+            document.getElementById('helpOptionsStep').style.display = 'none';
+            showStep(3);
+        });
+        restartOption.dataset.listenersAttached = 'true';
+        
+        // Add hover effect
+        restartOption.addEventListener('mouseenter', () => {
+            restartOption.style.borderColor = '#0064D2';
+            restartOption.style.boxShadow = '0 4px 12px rgba(0, 100, 210, 0.15)';
+        });
+        restartOption.addEventListener('mouseleave', () => {
+            restartOption.style.borderColor = '#e8ecf1';
+            restartOption.style.boxShadow = 'none';
+        });
     }
     
-    // Scroll to help message
-    helpMessage.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    // Option 2: Free Reconditioning Service
+    const reconditionOption = document.getElementById('helpOptionRecondition');
+    if (reconditionOption && !reconditionOption.dataset.listenersAttached) {
+        reconditionOption.addEventListener('click', () => {
+            console.log('[Help Options] Free reconditioning service selected');
+            trackEvent('help_option_selected', { option: 'reconditioning' });
+            
+            // Hide help options and show reconditioning form
+            document.getElementById('helpOptionsStep').style.display = 'none';
+            showReconditioningForm();
+        });
+        reconditionOption.dataset.listenersAttached = 'true';
+        
+        // Add hover effect
+        reconditionOption.addEventListener('mouseenter', () => {
+            reconditionOption.style.transform = 'translateY(-2px)';
+            reconditionOption.style.boxShadow = '0 6px 20px rgba(255, 193, 7, 0.3)';
+        });
+        reconditionOption.addEventListener('mouseleave', () => {
+            reconditionOption.style.transform = 'translateY(0)';
+            reconditionOption.style.boxShadow = 'none';
+        });
+    }
+    
+    // Option 3: Return Item
+    const returnOption = document.getElementById('helpOptionReturn');
+    if (returnOption && !returnOption.dataset.listenersAttached) {
+        returnOption.addEventListener('click', () => {
+            console.log('[Help Options] Return item selected');
+            trackEvent('help_option_selected', { option: 'return' });
+            
+            // Redirect to return page
+            window.location.href = 'ebay-return.html';
+        });
+        returnOption.dataset.listenersAttached = 'true';
+        
+        // Add hover effect
+        returnOption.addEventListener('mouseenter', () => {
+            returnOption.style.borderColor = '#dc3545';
+            returnOption.style.boxShadow = '0 4px 12px rgba(220, 53, 69, 0.15)';
+        });
+        returnOption.addEventListener('mouseleave', () => {
+            returnOption.style.borderColor = '#e8ecf1';
+            returnOption.style.boxShadow = 'none';
+        });
+    }
+}
+
+// Show reconditioning form
+function showReconditioningForm() {
+    console.log('[Reconditioning] Showing reconditioning form');
+    
+    // Hide all step containers
+    document.querySelectorAll('.step-container').forEach(step => {
+        step.style.display = 'none';
+        step.classList.remove('active');
+    });
+    
+    // Show reconditioning form step
+    const reconditioningFormStep = document.getElementById('reconditioningFormStep');
+    if (reconditioningFormStep) {
+        reconditioningFormStep.style.display = 'block';
+        reconditioningFormStep.classList.add('active');
+        
+        // Scroll to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        
+        // Pre-fill form with contact details if available
+        if (appState.contactDetails) {
+            const nameField = document.getElementById('reconditionName');
+            const emailField = document.getElementById('reconditionEmail');
+            const phoneField = document.getElementById('reconditionPhone');
+            
+            if (nameField && appState.contactDetails.name) nameField.value = appState.contactDetails.name;
+            if (emailField && appState.contactDetails.email) emailField.value = appState.contactDetails.email;
+            if (phoneField && appState.contactDetails.phone) phoneField.value = appState.contactDetails.phone;
+        }
+    } else {
+        console.error('[Reconditioning] Reconditioning form step element not found');
+    }
 }
 
 // Get compatible part examples from API
