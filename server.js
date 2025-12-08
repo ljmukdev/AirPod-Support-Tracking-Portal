@@ -1723,6 +1723,38 @@ app.post('/api/verify-barcode', requireDB, async (req, res) => {
     }
 });
 
+// Diagnostic endpoint to check parts data (Admin only)
+app.get('/api/admin/diagnostic/parts/:modelNumbers', requireAuth, requireDB, async (req, res) => {
+    try {
+        const modelNumbers = req.params.modelNumbers.split(',');
+        console.log('[Diagnostic] Checking parts:', modelNumbers);
+
+        const parts = await db.collection('parts').find({
+            part_model_number: { $in: modelNumbers }
+        }).toArray();
+
+        const diagnosticInfo = parts.map(part => ({
+            part_model_number: part.part_model_number,
+            part_name: part.part_name,
+            part_type: part.part_type,
+            example_image: part.example_image,
+            example_image_exists: !!part.example_image,
+            example_image_type: typeof part.example_image,
+            example_image_value: part.example_image || 'NULL/EMPTY',
+            all_fields: Object.keys(part)
+        }));
+
+        res.json({
+            success: true,
+            parts: diagnosticInfo,
+            count: parts.length
+        });
+    } catch (err) {
+        console.error('[Diagnostic] Error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Log confirmation (Public)
 app.post('/api/confirm-understanding', requireDB, async (req, res) => {
     const { security_barcode } = req.body;
