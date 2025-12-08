@@ -1356,6 +1356,7 @@ async function loadSetupInstructions(partModelNumber, generation) {
             // Use 'instruction' field, not 'description'
             // Add "Need help" option for step 6 (last step)
             const isLastStep = index === sortedInstructions.length - 1;
+            console.log(`[Setup Instructions] Step ${stepNum} (index ${index}): isLastStep = ${isLastStep}, total steps = ${sortedInstructions.length}`);
             const helpCheckboxHtml = isLastStep ? `
                 <div class="step-checkbox" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e8ecf1;">
                     <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 12px; background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px;">
@@ -1364,6 +1365,9 @@ async function loadSetupInstructions(partModelNumber, generation) {
                     </label>
                 </div>
             ` : '';
+            if (isLastStep) {
+                console.log(`[Setup Instructions] Adding help checkbox for step ${stepNum}`);
+            }
             
             stepDiv.innerHTML = `
                 <h3>${escapeHtml(step.title || `Step ${stepNum}`)}</h3>
