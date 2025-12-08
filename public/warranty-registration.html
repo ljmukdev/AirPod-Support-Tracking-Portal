@@ -1247,6 +1247,59 @@
                             </div>
                         </div>
                         
+                        <!-- Return Process Step (shown when user selects "I want to return this item") -->
+                        <div id="returnProcessStep" style="display: none; margin-top: 24px;">
+                            <div style="background: white; border: 2px solid #e8ecf1; border-radius: 12px; padding: 24px;">
+                                <h4 style="margin-top: 0; color: #1a1a1a; font-size: 1.1rem; margin-bottom: 16px;">Return Process</h4>
+                                
+                                <div style="background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                                    <strong style="color: #856404;">⚠️ Important:</strong>
+                                    <p style="color: #856404; margin: 8px 0 0 0; line-height: 1.6;">
+                                        Please do NOT open the packaging if you plan to return the item. 
+                                        Items that have been opened will only receive a 50% refund.
+                                    </p>
+                                </div>
+                                
+                                <div style="margin-bottom: 24px;">
+                                    <h5 style="color: #1a1a1a; margin-bottom: 12px; font-size: 1rem;">How to Return:</h5>
+                                    <ol style="color: #6c757d; line-height: 1.8; padding-left: 20px; margin: 0;">
+                                        <li>Go to your eBay Purchase History</li>
+                                        <li>Find the order for this AirPod replacement part</li>
+                                        <li>Click on the order and select "Return this item" or "Request a return"</li>
+                                        <li>When prompted for the return reason, select <strong>"Ordered the wrong item"</strong></li>
+                                        <li>Follow eBay's instructions to print the return label and send the item back</li>
+                                        <li>Make sure to include all original packaging</li>
+                                    </ol>
+                                </div>
+                                
+                                <div style="margin-bottom: 24px;">
+                                    <h5 style="color: #1a1a1a; margin-bottom: 12px; font-size: 1rem;">Feedback Form</h5>
+                                    <p style="color: #6c757d; margin-bottom: 12px; font-size: 0.9rem;">
+                                        Please help us improve by telling us why you're returning this item:
+                                    </p>
+                                    <div style="margin-bottom: 16px;">
+                                        <label style="display: block; margin-bottom: 8px; color: #1a1a1a; font-weight: 500;">Reason for Return *</label>
+                                        <select id="returnReason" style="width: 100%; padding: 12px; border: 2px solid #e8ecf1; border-radius: 8px; font-size: 0.95rem; background: white;" required>
+                                            <option value="">Please select a reason</option>
+                                            <option value="parts_not_compatible">My existing parts are not compatible</option>
+                                            <option value="parts_counterfeit">My existing parts appear to be counterfeit</option>
+                                            <option value="wrong_part_received">I received the wrong part</option>
+                                            <option value="changed_mind">I changed my mind</option>
+                                            <option value="found_better_deal">Found a better deal elsewhere</option>
+                                            <option value="other">Other reason</option>
+                                        </select>
+                                    </div>
+                                    <div style="margin-bottom: 16px;">
+                                        <label style="display: block; margin-bottom: 8px; color: #1a1a1a; font-weight: 500;">Additional Comments (Optional)</label>
+                                        <textarea id="returnComments" rows="4" style="width: 100%; padding: 12px; border: 2px solid #e8ecf1; border-radius: 8px; font-size: 0.95rem; font-family: inherit; resize: vertical;" placeholder="Please provide any additional details about your return..."></textarea>
+                                    </div>
+                                    <button type="button" id="submitReturnFeedback" class="continue-btn" style="background: #dc3545; margin-top: 8px;">
+                                        Submit Feedback & Continue to Return Instructions
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <button class="continue-btn" id="continueBtn1" disabled>Continue</button>
                     </div>
                 </div>

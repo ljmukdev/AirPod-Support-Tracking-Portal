@@ -2016,13 +2016,37 @@ function initializeVerificationSteps() {
                 yesRadio.addEventListener('click', handleYesSelection);
             }
             
-            // Handle "No" selection - redirect to eBay return
+            // Handle "No" selection
             if (noRadio) {
                 noRadio.addEventListener('change', function() {
                     if (this.checked && this.value === 'no') {
-                        console.log(`[Verification] Step ${stepNumber} - "No" selected, redirecting to eBay return`);
-                        // Redirect to eBay return instructions page
-                        window.location.href = 'ebay-return.html';
+                        console.log(`[Verification] Step ${stepNumber} - "No" selected`);
+                        
+                        // Special handling for step 5 (Ready to proceed) - show return process step
+                        if (stepNumber === 5) {
+                            // Hide verification steps
+                            const verificationSteps = document.getElementById('verificationSteps');
+                            if (verificationSteps) {
+                                verificationSteps.style.display = 'none';
+                            }
+                            
+                            // Show return process step
+                            const returnProcessStep = document.getElementById('returnProcessStep');
+                            if (returnProcessStep) {
+                                returnProcessStep.style.display = 'block';
+                                returnProcessStep.style.animation = 'fadeIn 0.3s ease';
+                            }
+                            
+                            // Hide continue button
+                            const continueBtn = document.getElementById('continueBtn1');
+                            if (continueBtn) {
+                                continueBtn.style.display = 'none';
+                            }
+                        } else {
+                            // For other steps, redirect to eBay return
+                            console.log(`[Verification] Step ${stepNumber} - "No" selected, redirecting to eBay return`);
+                            window.location.href = 'ebay-return.html';
+                        }
                     }
                 });
             }
