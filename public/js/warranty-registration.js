@@ -1382,14 +1382,26 @@ async function loadSetupInstructions(partModelNumber, generation) {
             setupStepsContainer.appendChild(stepDiv);
         });
         
+        console.log('[Setup Instructions] Successfully loaded', sortedInstructions.length, 'steps');
+        
+        // Verify help checkboxes were added BEFORE setting up handlers
+        const helpCheckboxesBefore = document.querySelectorAll('#setupSteps input[data-help="true"]');
+        console.log('[Setup Instructions] Help checkboxes found BEFORE setupStepCheckboxes:', helpCheckboxesBefore.length, '(should be', sortedInstructions.length, ')');
+        
+        // Debug: Log the HTML structure of first step
+        if (setupStepsContainer.children.length > 0) {
+            const firstStep = setupStepsContainer.children[0];
+            console.log('[Setup Instructions] First step HTML:', firstStep.innerHTML.substring(0, 500));
+            const helpCheckboxInFirst = firstStep.querySelector('input[data-help="true"]');
+            console.log('[Setup Instructions] Help checkbox in first step:', helpCheckboxInFirst ? 'FOUND' : 'NOT FOUND');
+        }
+        
         // Setup checkbox handlers for step progression
         setupStepCheckboxes();
         
-        console.log('[Setup Instructions] Successfully loaded', sortedInstructions.length, 'steps');
-        
-        // Verify help checkboxes were added
-        const helpCheckboxes = document.querySelectorAll('#setupSteps input[data-help="true"]');
-        console.log('[Setup Instructions] Help checkboxes found:', helpCheckboxes.length, '(should be', sortedInstructions.length, ')');
+        // Verify help checkboxes after setup
+        const helpCheckboxesAfter = document.querySelectorAll('#setupSteps input[data-help="true"]');
+        console.log('[Setup Instructions] Help checkboxes found AFTER setupStepCheckboxes:', helpCheckboxesAfter.length, '(should be', sortedInstructions.length, ')');
     } catch (error) {
         console.error('[Setup Instructions] Error loading instructions:', error);
         // Keep default instructions on error, but ensure event listeners are attached
