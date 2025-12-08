@@ -1298,7 +1298,14 @@ async function displayCompatiblePartExamples(partModelNumber, partType) {
 
         // Display each compatible part example
         associatedParts.forEach((part, index) => {
-            console.log(`Part ${index + 1}:`, part.part_name, 'Model:', part.part_model_number, 'Type:', part.part_type, 'Image:', part.example_image);
+            console.log(`[Compatible Parts] Part ${index + 1}:`, {
+                name: part.part_name,
+                model: part.part_model_number,
+                type: part.part_type,
+                example_image: part.example_image,
+                example_image_type: typeof part.example_image
+            });
+
             const partCard = document.createElement('div');
             partCard.style.cssText = 'background: white; border: 2px solid #e8ecf1; border-radius: 12px; padding: 16px; text-align: center; transition: all 0.3s ease;';
             partCard.style.cursor = 'pointer';
@@ -1306,8 +1313,16 @@ async function displayCompatiblePartExamples(partModelNumber, partType) {
             const partTypeLabel = part.part_type === 'left' ? 'Left AirPod' :
                                 part.part_type === 'right' ? 'Right AirPod' : 'Case';
 
-            // Use example image if available, otherwise use fallback
-            let imagePath = part.example_image || getFallbackExampleImage(part.part_type, part.part_model_number);
+            // Use example image if available (check for null, empty, or "null" string)
+            let imagePath;
+            if (part.example_image && part.example_image !== 'null' && part.example_image !== 'undefined' && part.example_image.trim() !== '') {
+                imagePath = part.example_image;
+                console.log(`[Compatible Parts] Using uploaded image for ${part.part_model_number}:`, imagePath);
+            } else {
+                imagePath = getFallbackExampleImage(part.part_type, part.part_model_number);
+                console.log(`[Compatible Parts] Using fallback image for ${part.part_model_number}:`, imagePath);
+            }
+
             const finalImagePath = imagePath.includes('?')
                 ? imagePath + `&v=${IMAGE_VERSION}`
                 : imagePath + `?v=${IMAGE_VERSION}`;
@@ -1315,6 +1330,7 @@ async function displayCompatiblePartExamples(partModelNumber, partType) {
             partCard.innerHTML = `
                 <img src="${finalImagePath}"
                      alt="${partTypeLabel}"
+                     onerror="console.error('[Compatible Parts] Failed to load image:', this.src); this.src='${getFallbackExampleImage(part.part_type, part.part_model_number)}';"
                      style="width: 100%; max-width: 200px; height: auto; min-height: 150px; border-radius: 8px; margin-bottom: 12px; object-fit: contain; background: #f8f9fa;">
                 <div style="font-weight: 600; color: #1a1a1a; margin-bottom: 4px; font-size: 0.95rem;">${partTypeLabel}</div>
                 <div style="font-size: 0.85rem; color: #6c757d;">${part.part_model_number}</div>
