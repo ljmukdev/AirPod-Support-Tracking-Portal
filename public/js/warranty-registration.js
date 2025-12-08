@@ -2333,16 +2333,6 @@ function setupMarkingsVerificationListeners() {
         return;
     }
     
-    // Remove any existing listeners first (if any)
-    const newYesRadio = yesRadio.cloneNode(true);
-    const newNoRadio = noRadio.cloneNode(true);
-    yesRadio.parentNode.replaceChild(newYesRadio, yesRadio);
-    noRadio.parentNode.replaceChild(newNoRadio, noRadio);
-    
-    // Get references to the new elements
-    const yesRadioNew = document.getElementById('verifyMarkingsYes');
-    const noRadioNew = document.getElementById('verifyMarkingsNo');
-    
     // Handle "No" selection
     const handleNoSelection = () => {
         if (noRadio.checked && noRadio.value === 'no') {
@@ -2403,11 +2393,11 @@ function setupMarkingsVerificationListeners() {
         }
     };
     
-    // Attach event listeners
-    noRadioNew.addEventListener('change', handleNoSelection);
-    noRadioNew.addEventListener('click', handleNoSelection);
-    yesRadioNew.addEventListener('change', handleYesSelection);
-    yesRadioNew.addEventListener('click', handleYesSelection);
+    // Attach event listeners (only once)
+    noRadio.addEventListener('change', handleNoSelection);
+    noRadio.addEventListener('click', handleNoSelection);
+    yesRadio.addEventListener('change', handleYesSelection);
+    yesRadio.addEventListener('click', handleYesSelection);
     
     markingsVerificationListenersAttached = true;
     console.log('[Markings Verification] Event listeners attached');
