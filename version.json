@@ -1,8 +1,18 @@
 {
   "version": "1.2.3",
   "build": "2024-12-19",
-  "revision": "004",
+  "revision": "005",
   "changelog": [
+    {
+      "version": "1.2.3",
+      "date": "2024-12-19",
+      "changes": [
+        "Added return process step with feedback form when user selects 'I want to return this item'",
+        "Added 50% refund warning for opened items in return process",
+        "Updated ebay-return.html to be cohesive with return flow",
+        "Fixed return process step display - moved outside step1 container for proper visibility"
+      ]
+    },
     {
       "version": "1.2.3",
       "date": "2024-12-19",
