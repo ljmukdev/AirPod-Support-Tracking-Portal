@@ -1321,17 +1321,22 @@ async function loadSetupInstructions(partModelNumber, generation) {
         const data = await response.json();
         console.log('[Setup Instructions] Received data:', data);
         
-        if (!data.steps || !Array.isArray(data.steps) || data.steps.length === 0) {
-            console.warn('[Setup Instructions] No steps found in response');
+        // The API returns 'instructions' array, not 'steps'
+        if (!data.instructions || !Array.isArray(data.instructions) || data.instructions.length === 0) {
+            console.warn('[Setup Instructions] No instructions found in response');
             return;
         }
         
         // Clear existing content
         setupStepsContainer.innerHTML = '';
         
-        // Render each step
-        data.steps.forEach((step, index) => {
-            const stepNum = index + 1;
+        // Render each step - sort by step_number if available
+        const sortedInstructions = [...data.instructions].sort((a, b) => {
+            return (a.step_number || 0) - (b.step_number || 0);
+        });
+        
+        sortedInstructions.forEach((step, index) => {
+            const stepNum = step.step_number || (index + 1);
             const stepDiv = document.createElement('div');
             stepDiv.className = 'setup-step';
             stepDiv.dataset.stepNum = stepNum;
@@ -1339,9 +1344,10 @@ async function loadSetupInstructions(partModelNumber, generation) {
                 stepDiv.classList.add('active');
             }
             
+            // Use 'instruction' field, not 'description'
             stepDiv.innerHTML = `
                 <h3>${escapeHtml(step.title || `Step ${stepNum}`)}</h3>
-                <p>${escapeHtml(step.description || '')}</p>
+                <p>${escapeHtml(step.instruction || '')}</p>
                 <div class="step-checkbox">
                     <label>
                         <input type="checkbox" data-step="${stepNum}">
@@ -1356,7 +1362,7 @@ async function loadSetupInstructions(partModelNumber, generation) {
         // Setup checkbox handlers for step progression
         setupStepCheckboxes();
         
-        console.log('[Setup Instructions] Successfully loaded', data.steps.length, 'steps');
+        console.log('[Setup Instructions] Successfully loaded', sortedInstructions.length, 'steps');
     } catch (error) {
         console.error('[Setup Instructions] Error loading instructions:', error);
         // Keep default instructions on error
