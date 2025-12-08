@@ -1354,15 +1354,27 @@ async function loadSetupInstructions(partModelNumber, generation) {
             }
             
             // Use 'instruction' field, not 'description'
+            // Add "Need help" option for step 6 (last step)
+            const isLastStep = index === sortedInstructions.length - 1;
+            const helpCheckboxHtml = isLastStep ? `
+                <div class="step-checkbox" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e8ecf1;">
+                    <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 12px; background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px;">
+                        <input type="checkbox" data-step="${stepNum}" data-help="true" style="width: 20px; height: 20px; cursor: pointer;">
+                        <span style="color: #856404; font-weight: 500;">I'm struggling with this step / This is not working / I need help</span>
+                    </label>
+                </div>
+            ` : '';
+            
             stepDiv.innerHTML = `
                 <h3>${escapeHtml(step.title || `Step ${stepNum}`)}</h3>
                 <p>${escapeHtml(step.instruction || '')}</p>
                 <div class="step-checkbox">
                     <label>
-                        <input type="checkbox" data-step="${stepNum}">
+                        <input type="checkbox" data-step="${stepNum}" data-completed="true">
                         <span>I've completed this step</span>
                     </label>
                 </div>
+                ${helpCheckboxHtml}
             `;
             
             setupStepsContainer.appendChild(stepDiv);
