@@ -344,13 +344,23 @@ if (partForm) {
 // Update autocomplete datalist with all part model numbers
 function updateAssociatedPartsAutocomplete() {
     const datalist = document.getElementById('associatedPartsSuggestions');
-    if (!datalist) return;
+    if (!datalist) {
+        console.warn('[Autocomplete] Datalist element not found');
+        return;
+    }
     
     // Clear existing options
     datalist.innerHTML = '';
     
+    if (!allPartsData || allPartsData.length === 0) {
+        console.log('[Autocomplete] No parts data available yet');
+        return;
+    }
+    
     // Get unique part model numbers
     const modelNumbers = [...new Set(allPartsData.map(part => part.part_model_number).filter(Boolean))];
+    
+    console.log('[Autocomplete] Populating datalist with', modelNumbers.length, 'model numbers:', modelNumbers);
     
     // Add each model number as an option
     modelNumbers.sort().forEach(modelNumber => {
@@ -358,6 +368,8 @@ function updateAssociatedPartsAutocomplete() {
         option.value = modelNumber;
         datalist.appendChild(option);
     });
+    
+    console.log('[Autocomplete] Datalist populated successfully');
 }
 
 // Get associated parts array from input field
@@ -614,10 +626,34 @@ function escapeHtml(text) {
 
 // Initialize
 if (document.getElementById('partsList')) {
-    loadParts();
+    loadParts().then(() => {
+        // Ensure autocomplete is populated after parts load
+        updateAssociatedPartsAutocomplete();
+    });
     loadGenerations();
     
     // Refresh parts every 30 seconds
-    setInterval(loadParts, 30000);
+    setInterval(() => {
+        loadParts().then(() => {
+            updateAssociatedPartsAutocomplete();
+        });
+    }, 30000);
+}
+
+// Also populate autocomplete when page loads (in case parts are already loaded)
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(() => {
+            if (allPartsData.length > 0) {
+                updateAssociatedPartsAutocomplete();
+            }
+        }, 1000);
+    });
+} else {
+    setTimeout(() => {
+        if (allPartsData.length > 0) {
+            updateAssociatedPartsAutocomplete();
+        }
+    }, 1000);
 }
 
