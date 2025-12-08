@@ -79,15 +79,10 @@ async function loadParts() {
             allPartsData = data.parts;
             console.log('[Parts Manager] Stored', allPartsData.length, 'parts');
             
-            // Populate checkboxes if we're editing a part
-            const partId = document.getElementById('partId').value;
-            const partModelNumber = document.getElementById('part_model_number').value;
-            if (partId && partModelNumber) {
-                populateAssociatedPartsCheckboxes(partModelNumber);
-            } else {
-                // Just populate empty checkboxes for new part
-                populateAssociatedPartsCheckboxes();
-            }
+            // Always populate checkboxes after loading parts
+            const partModelNumber = document.getElementById('part_model_number')?.value || null;
+            console.log('[Parts Manager] Populating checkboxes, current part:', partModelNumber);
+            populateAssociatedPartsCheckboxes(partModelNumber);
             
             if (data.parts.length === 0) {
                 partsList.innerHTML = '<p style="text-align: center; padding: 40px; color: #666;">No parts found. Add your first part above.</p>';
@@ -369,16 +364,22 @@ if (partForm) {
 
 // Populate associated parts checkboxes
 function populateAssociatedPartsCheckboxes(currentPartModelNumber = null) {
+    console.log('[Associated Parts] populateAssociatedPartsCheckboxes called, currentPart:', currentPartModelNumber, 'allPartsData length:', allPartsData ? allPartsData.length : 0);
     const container = document.getElementById('associatedPartsCheckboxes');
     if (!container) {
-        console.warn('[Associated Parts] Container not found');
+        console.warn('[Associated Parts] Container not found, retrying in 500ms...');
+        setTimeout(() => populateAssociatedPartsCheckboxes(currentPartModelNumber), 500);
         return;
     }
     
+    console.log('[Associated Parts] Container found, checking parts data...');
     if (!allPartsData || allPartsData.length === 0) {
+        console.log('[Associated Parts] No parts data yet, showing loading message');
         container.innerHTML = '<p style="color: #666; font-size: 0.9rem; margin: 0;">No parts available. Parts will appear here once loaded.</p>';
         return;
     }
+    
+    console.log('[Associated Parts] Parts data available, generating checkboxes...');
     
     // Get current selected parts
     const hiddenInput = document.getElementById('associated_parts');
