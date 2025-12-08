@@ -7,6 +7,9 @@ if (typeof window.API_BASE === 'undefined') {
 // Reference the global API_BASE
 var API_BASE = window.API_BASE;
 
+// Store all parts for autocomplete
+let allPartsData = [];
+
 // Utility functions
 function showError(message, elementId = 'errorMessage') {
     const errorDiv = document.getElementById(elementId);
@@ -57,6 +60,10 @@ async function loadParts() {
         console.log('[Parts Manager] Response data:', data);
         
         if (response.ok && data.parts) {
+            // Store all parts for autocomplete
+            allPartsData = data.parts;
+            updateAssociatedPartsAutocomplete();
+            
             if (data.parts.length === 0) {
                 partsList.innerHTML = '<p style="text-align: center; padding: 40px; color: #666;">No parts found. Add your first part above.</p>';
                 return;

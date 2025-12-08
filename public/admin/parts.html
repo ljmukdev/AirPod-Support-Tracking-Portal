@@ -214,13 +214,18 @@
                     
                     <div class="form-group">
                         <label for="associated_parts">Associated Parts (comma-separated model numbers)</label>
-                        <input 
-                            type="text" 
-                            id="associated_parts" 
-                            name="associated_parts" 
-                            placeholder="e.g., A3047, A2968"
-                        >
-                        <small style="color: #666; font-size: 0.85rem;">Enter the model numbers of compatible parts (e.g., if this is A3048, enter A3047 and A2968). These will be shown with images during warranty registration.</small>
+                        <div style="position: relative;">
+                            <input 
+                                type="text" 
+                                id="associated_parts" 
+                                name="associated_parts" 
+                                placeholder="e.g., A3047, A2968"
+                                autocomplete="off"
+                                list="associatedPartsSuggestions"
+                            >
+                            <datalist id="associatedPartsSuggestions"></datalist>
+                        </div>
+                        <small style="color: #666; font-size: 0.85rem;">Start typing a model number to see suggestions, or enter comma-separated model numbers. These will be shown with images during warranty registration.</small>
                         <div id="associatedPartsTags" style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; min-height: 32px;"></div>
                     </div>
                     
