@@ -1,4 +1,5 @@
 // Parts Manager JavaScript
+console.log('[Parts Manager] Script loading...');
 
 // Define API_BASE globally if not already defined
 if (typeof window.API_BASE === 'undefined') {
@@ -9,6 +10,7 @@ var API_BASE = window.API_BASE;
 
 // Store all parts for autocomplete
 let allPartsData = [];
+console.log('[Parts Manager] Script loaded, API_BASE:', API_BASE);
 
 // Utility functions
 function showError(message, elementId = 'errorMessage') {
@@ -694,7 +696,17 @@ function tryPopulateAutocomplete() {
     }
 }
 
+// Hook into loadParts to populate autocomplete when parts are loaded
+const originalLoadParts = loadParts;
+loadParts = async function() {
+    const result = await originalLoadParts();
+    console.log('[Autocomplete Init] Parts loaded, triggering autocomplete update');
+    setTimeout(tryPopulateAutocomplete, 100);
+    return result;
+};
+
 // Try multiple times to ensure it runs
+console.log('[Autocomplete Init] Setting up initialization timers');
 if (document.readyState === 'complete' || document.readyState === 'interactive') {
     console.log('[Autocomplete Init] DOM ready, trying immediately');
     setTimeout(tryPopulateAutocomplete, 100);
@@ -715,4 +727,10 @@ window.addEventListener('load', () => {
     console.log('[Autocomplete Init] Window load event fired');
     setTimeout(tryPopulateAutocomplete, 500);
 });
+
+// Final fallback - try after 3 seconds
+setTimeout(() => {
+    console.log('[Autocomplete Init] Final fallback attempt');
+    tryPopulateAutocomplete();
+}, 3000);
 
