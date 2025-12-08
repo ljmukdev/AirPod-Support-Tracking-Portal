@@ -50,7 +50,20 @@ function hideSpinner() {
 // Load all parts
 async function loadParts() {
     const partsList = document.getElementById('partsList');
-    if (!partsList) return;
+    if (!partsList) {
+        // Still try to load parts data for autocomplete even if partsList doesn't exist
+        try {
+            const response = await fetch(`${API_BASE}/api/admin/parts`);
+            const data = await response.json();
+            if (response.ok && data.parts) {
+                allPartsData = data.parts;
+                updateAssociatedPartsAutocomplete();
+            }
+        } catch (err) {
+            console.error('[Parts Manager] Error loading parts for autocomplete:', err);
+        }
+        return;
+    }
     
     try {
         console.log('[Parts Manager] Fetching parts from:', `${API_BASE}/api/admin/parts`);
@@ -62,6 +75,7 @@ async function loadParts() {
         if (response.ok && data.parts) {
             // Store all parts for autocomplete
             allPartsData = data.parts;
+            console.log('[Parts Manager] Stored', allPartsData.length, 'parts for autocomplete');
             updateAssociatedPartsAutocomplete();
             
             if (data.parts.length === 0) {
