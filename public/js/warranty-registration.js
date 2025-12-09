@@ -1811,7 +1811,7 @@ async function setupStripeElements() {
             processPaymentBtn.parentNode.replaceChild(newBtn, processPaymentBtn);
             
             newBtn.addEventListener('click', async () => {
-                await processStripePayment(stripe, paymentElement, intentData.clientSecret);
+                await processStripePayment(stripe, paymentElement, intentData.clientSecret, elements);
             });
         }
         
@@ -1989,7 +1989,7 @@ async function handleGoCardlessPaymentSuccess(redirectFlowId) {
 }
 
 // Process Stripe payment
-async function processStripePayment(stripe, paymentElement, clientSecret) {
+async function processStripePayment(stripe, paymentElement, clientSecret, elements) {
     const processPaymentBtn = document.getElementById('processPaymentBtn');
     const paymentError = document.getElementById('paymentError');
     
@@ -2010,29 +2010,27 @@ async function processStripePayment(stripe, paymentElement, clientSecret) {
         
         console.log('[Payment] Confirming payment with existing payment intent...');
         
-        // Get the Elements instance (stored globally when creating Elements)
-        const elements = window.paymentElements;
-        console.log('[Payment] Retrieved elements from window.paymentElements:', elements);
-        console.log('[Payment] Elements type:', typeof elements);
-        console.log('[Payment] Elements constructor:', elements?.constructor?.name);
-        
+        // Verify Elements instance was passed
         if (!elements) {
-            throw new Error('Stripe Elements not initialized. Please refresh the page.');
+            // Fallback to global storage if not passed
+            elements = window.paymentElements;
+            if (!elements) {
+                throw new Error('Stripe Elements not initialized. Please refresh the page.');
+            }
         }
         
         // Verify it's actually an Elements instance
-        if (typeof elements !== 'object' || !elements.create) {
+        if (typeof elements !== 'object' || typeof elements.create !== 'function') {
             console.error('[Payment] Invalid Elements instance:', elements);
             throw new Error('Invalid Stripe Elements instance. Please refresh the page.');
         }
         
+        console.log('[Payment] Using Elements instance:', elements);
+        console.log('[Payment] Elements has create method:', typeof elements.create === 'function');
+        console.log('[Payment] Stripe instance:', stripe);
+        
         // Confirm payment with Stripe using the Elements instance
         // Use the Stripe instance that was passed in (same one that created the Elements)
-        console.log('[Payment] Calling stripe.confirmPayment with elements:', elements);
-        console.log('[Payment] Stripe instance:', stripe);
-        console.log('[Payment] Elements instance check - has create method:', typeof elements.create === 'function');
-        console.log('[Payment] Elements instance check - has update method:', typeof elements.update === 'function');
-        
         const { error: confirmError, paymentIntent } = await stripe.confirmPayment({
             elements: elements,
             clientSecret: clientSecret,
