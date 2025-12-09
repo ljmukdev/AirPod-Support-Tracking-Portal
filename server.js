@@ -2219,12 +2219,6 @@ app.post('/api/admin/warranty-terms', requireAuth, requireDB, async (req, res) =
 // Version API endpoint (Public)
 // Version endpoint - returns current app version
 app.get('/api/version', (req, res) => {
-    const packageJson = require('./package.json');
-    res.json({
-        version: packageJson.version,
-        revision: packageJson.version.split('.').pop() || '0'
-    });
-});
     try {
         const path = require('path');
         const versionPath = path.join(__dirname, 'version.json');
@@ -2242,7 +2236,7 @@ app.get('/api/version', (req, res) => {
             res.json({
                 version: packageJson.version || '1.2.0',
                 build: new Date().toISOString().split('T')[0],
-                revision: '001'
+                revision: packageJson.version.split('.').pop() || '001'
             });
         }
     } catch (err) {
