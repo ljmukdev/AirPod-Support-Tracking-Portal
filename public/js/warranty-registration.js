@@ -2040,9 +2040,9 @@ async function processStripePayment(stripe, paymentElement, clientSecret, elemen
         
         // Confirm payment with Stripe using the Elements instance
         // Use the Stripe instance that was passed in (same one that created the Elements)
+        // Note: Do NOT pass clientSecret here - it was already used to create the Elements instance
         const { error: confirmError, paymentIntent } = await stripe.confirmPayment({
             elements: elements,
-            clientSecret: clientSecret,
             confirmParams: {
                 return_url: `${window.location.origin}/warranty-registration.html?payment=success&intent=${window.currentPaymentIntentId}`
             },
