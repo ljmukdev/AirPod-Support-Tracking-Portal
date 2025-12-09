@@ -1789,6 +1789,9 @@ async function setupStripeElements() {
             window.paymentElementInstance = paymentElement; // Store globally
             window.paymentElements = elements; // Store elements instance
             console.log('[Payment] Stripe Elements initialized successfully');
+            console.log('[Payment] Stored elements instance:', elements);
+            console.log('[Payment] Elements type:', typeof elements);
+            console.log('[Payment] Elements has create method:', typeof elements.create === 'function');
         } catch (mountError) {
             console.error('[Payment] Error mounting Stripe Elements:', mountError);
             paymentElementContainer.innerHTML = `
@@ -2009,11 +2012,22 @@ async function processStripePayment(stripe, paymentElement, clientSecret) {
         
         // Get the Elements instance (stored globally when creating Elements)
         const elements = window.paymentElements;
+        console.log('[Payment] Retrieved elements from window.paymentElements:', elements);
+        console.log('[Payment] Elements type:', typeof elements);
+        console.log('[Payment] Elements constructor:', elements?.constructor?.name);
+        
         if (!elements) {
             throw new Error('Stripe Elements not initialized. Please refresh the page.');
         }
         
+        // Verify it's actually an Elements instance
+        if (typeof elements !== 'object' || !elements.create) {
+            console.error('[Payment] Invalid Elements instance:', elements);
+            throw new Error('Invalid Stripe Elements instance. Please refresh the page.');
+        }
+        
         // Confirm payment with Stripe using the Elements instance
+        console.log('[Payment] Calling stripe.confirmPayment with elements:', elements);
         const { error: confirmError, paymentIntent } = await stripe.confirmPayment({
             elements: elements,
             clientSecret: clientSecret,
