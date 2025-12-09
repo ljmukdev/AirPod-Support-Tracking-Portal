@@ -51,7 +51,7 @@ h3 {
 .container {
     max-width: 600px;
     margin: 0 auto;
-    padding: 16px;
+    padding: 12px 8px;
 }
 
 @media (min-width: 768px) {
@@ -384,7 +384,7 @@ h3 {
 .card {
     background-color: var(--background-white);
     border-radius: var(--border-radius);
-    padding: 16px;
+    padding: 12px;
     margin-bottom: 16px;
     box-shadow: var(--shadow);
     transition: transform 0.3s ease, box-shadow 0.3s ease;
@@ -760,16 +760,21 @@ h3 {
         font-size: 1rem;
     }
 
+    .container {
+        padding: 8px 6px;
+    }
+
     .card {
-        padding: 14px;
+        padding: 10px;
+        border-radius: 8px;
     }
 
     .warning-box {
-        padding: 14px;
+        padding: 12px;
     }
 
     .confirmation-checkbox {
-        padding: 14px;
+        padding: 12px;
     }
 
     .data-table th,
