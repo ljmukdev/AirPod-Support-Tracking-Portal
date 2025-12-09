@@ -72,6 +72,17 @@ if (process.env.GOCARDLESS_ACCESS_TOKEN) {
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const NODE_ENV = process.env.NODE_ENV || 'development';
+
+// Environment detection
+console.log(`🌍 Environment: ${NODE_ENV}`);
+if (NODE_ENV === 'staging') {
+    console.log('⚠️  STAGING ENVIRONMENT - Testing mode');
+} else if (NODE_ENV === 'production') {
+    console.log('✅ PRODUCTION ENVIRONMENT');
+} else {
+    console.log('🔧 DEVELOPMENT ENVIRONMENT');
+}
 
 // Trust proxy (needed for Railway/Heroku)
 app.set('trust proxy', 1);
@@ -91,6 +102,14 @@ app.use('/api', (req, res, next) => {
 // Middleware
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+
+// Inject environment info into responses (for staging banner)
+app.use((req, res, next) => {
+    res.locals.NODE_ENV = NODE_ENV;
+    res.locals.isStaging = NODE_ENV === 'staging';
+    res.locals.isProduction = NODE_ENV === 'production';
+    next();
+});
 
 // Handle favicon requests gracefully (suppress 404 errors)
 app.get('/favicon.ico', (req, res) => {

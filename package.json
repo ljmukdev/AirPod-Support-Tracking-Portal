@@ -5,7 +5,9 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "deploy:staging": "powershell -ExecutionPolicy Bypass -File ./scripts/deploy-staging.ps1",
+    "deploy:production": "powershell -ExecutionPolicy Bypass -File ./scripts/deploy-production.ps1"
   },
   "keywords": [
     "airpod",

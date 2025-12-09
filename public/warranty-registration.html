@@ -52,6 +52,29 @@
             setTimeout(showVersion, 1000);
         })();
     </script>
+    <script>
+        // Staging environment banner
+        (function() {
+            fetch('/api/version')
+                .then(res => res.json())
+                .then(data => {
+                    // Check if we're in staging (you can set this via environment variable or API)
+                    const isStaging = window.location.hostname.includes('staging') || 
+                                     window.location.hostname.includes('test') ||
+                                     document.cookie.includes('staging=true');
+                    
+                    if (isStaging) {
+                        const banner = document.createElement('div');
+                        banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#ff9800;color:white;text-align:center;padding:8px;font-weight:600;z-index:100000;box-shadow:0 2px 4px rgba(0,0,0,0.2);';
+                        banner.textContent = '⚠️ STAGING ENVIRONMENT - TESTING ONLY';
+                        document.body.insertBefore(banner, document.body.firstChild);
+                        // Add padding to body to account for banner
+                        document.body.style.paddingTop = '40px';
+                    }
+                })
+                .catch(() => {});
+        })();
+    </script>
     <style>
         /* Body and Layout */
         body {
