@@ -765,21 +765,21 @@ h3 {
     }
 
     .card {
-        padding: 6px 4px;
+        padding: 4px 2px;
         border-radius: 8px;
     }
 
     .warning-box {
-        padding: 8px 4px;
+        padding: 8px 2px;
     }
 
     .confirmation-checkbox {
-        padding: 8px 4px;
+        padding: 8px 2px;
     }
 
     .data-table th,
     .data-table td {
-        padding: 6px;
+        padding: 6px 4px;
         font-size: 0.75rem;
     }
 }
