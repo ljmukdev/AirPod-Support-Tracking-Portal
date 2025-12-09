@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="LJM AirPod Support - Register your warranty and get setup assistance">
     <title>Warranty Registration | LJM AirPod Support</title>
     <link rel="stylesheet" href="css/styles.css">
@@ -797,38 +797,118 @@
             .warranty-options {
                 grid-template-columns: 1fr;
             }
-            
+
             .accessory-grid {
                 grid-template-columns: 1fr;
             }
-            
+
             .continue-btn {
                 padding: 16px;
                 font-size: 15px;
                 min-height: 48px; /* Larger touch target */
             }
-            
+
             .trust-badges {
                 flex-direction: column;
                 gap: 12px;
             }
-            
+
             .btn {
                 min-height: 44px; /* Larger touch target */
                 padding: 14px 24px;
             }
-            
+
             .warranty-card {
-                padding: 20px;
+                padding: 12px 10px;
             }
-            
+
             .accessory-item {
-                padding: 20px;
-                min-height: 120px;
+                padding: 12px 10px;
+                min-height: 110px;
             }
-            
+
             .security-input {
                 font-size: 16px; /* Prevent zoom on iOS */
+            }
+
+            .step-container {
+                padding: 12px 8px;
+            }
+
+            .card-body {
+                padding: 12px 8px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .warranty-card {
+                padding: 4px 0px;
+            }
+
+            .accessory-item {
+                padding: 4px 0px;
+                min-height: 100px;
+            }
+
+            .step-container {
+                padding: 4px 0px;
+            }
+
+            .card-body {
+                padding: 4px 0px;
+            }
+
+            .product-details {
+                gap: 12px;
+                margin-bottom: 16px;
+            }
+
+            /* Add padding to security-code-section to prevent form overflow */
+            .security-code-section {
+                padding: 0 8px !important;
+            }
+
+            /* Ensure consistent input alignment on mobile */
+            .security-input {
+                padding: 14px !important;
+                padding-left: 14px !important;
+                padding-right: 14px !important;
+                font-size: 16px !important;
+                box-sizing: border-box !important;
+            }
+
+            /* Override any inline padding styles for form inputs */
+            #contactName,
+            #contactEmail,
+            #contactPhone,
+            #reconditionEmail,
+            #reconditionPhone,
+            #reconditionAddress {
+                padding: 14px !important;
+            }
+
+            /* Increase padding inside verification white box for breathing room */
+            .verification-step > div {
+                padding: 20px 16px !important;
+            }
+
+            /* Add padding around example images grid */
+            #compatiblePartsExamplesGrid {
+                grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important;
+                gap: 14px !important;
+                justify-items: center;
+                margin: 0 auto;
+                padding: 0 12px;
+            }
+
+            /* Add margin to the examples container */
+            #compatiblePartsExamples {
+                margin: 18px 0 !important;
+            }
+
+            /* Center carousel container */
+            .carousel-container {
+                justify-content: center;
             }
         }
         
@@ -1104,20 +1184,20 @@
         
         @media (max-width: 768px) {
             .carousel-photo {
-                width: 120px;
-                height: 120px;
+                width: 140px;
+                height: 140px;
             }
-            
+
             .carousel-button {
-                width: 32px;
-                height: 32px;
-                font-size: 20px;
+                width: 36px;
+                height: 36px;
+                font-size: 22px;
             }
-            
+
             .modal-content {
                 padding: 20px;
             }
-            
+
             .modal-close {
                 top: 10px;
                 right: 10px;
@@ -1125,25 +1205,46 @@
                 height: 40px;
                 z-index: 10003;
             }
-            
+
             .modal-close::before,
             .modal-close::after {
                 width: 18px;
                 height: 2px;
             }
-            
+
             .modal-nav {
                 width: 40px;
                 height: 40px;
                 font-size: 24px;
             }
-            
+
             .modal-prev {
                 left: 10px;
             }
-            
+
             .modal-next {
                 right: 10px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .photo-carousel {
+                gap: 8px;
+            }
+
+            .carousel-photo {
+                width: 110px;
+                height: 110px;
+            }
+
+            .carousel-button {
+                width: 32px;
+                height: 32px;
+                font-size: 18px;
+            }
+
+            .carousel-container {
+                gap: 8px;
             }
         }
     </style>
@@ -2076,6 +2177,6 @@
 
     <!-- Stripe.js -->
     <script src="https://js.stripe.com/v3/"></script>
-    <script src="js/warranty-registration.js?v=1.2.3.030"></script>
+    <script src="js/warranty-registration.js?v=1.2.3.031"></script>
 </body>
 </html>

@@ -5303,6 +5303,76 @@ function showLastChancePopup() {
     });
 }
 
+// Show warranty confirmation without payment
+function showWarrantyConfirmation() {
+    // Calculate expiration date (30 days from now)
+    const today = new Date();
+    const expirationDate = new Date(today);
+    expirationDate.setDate(today.getDate() + 30);
+
+    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+    const formattedDate = expirationDate.toLocaleDateString('en-GB', options);
+
+    // Hide all steps
+    document.querySelectorAll('.step-container').forEach(step => {
+        step.classList.remove('active');
+        step.style.display = 'none';
+    });
+
+    // Create and show confirmation message
+    const step7 = document.getElementById('step7');
+    if (step7) {
+        step7.innerHTML = `
+            <div style="text-align: center; padding: 40px 20px;">
+                <div style="font-size: 64px; margin-bottom: 24px;">✅</div>
+                <h2 style="color: #28a745; margin-bottom: 16px;">Your 30-Day Warranty is Activated!</h2>
+                <p style="color: #6c757d; font-size: 1.1rem; margin-bottom: 32px; line-height: 1.6;">
+                    Your warranty has been successfully registered and is now active.
+                </p>
+
+                <div style="background: #f8f9fa; border: 2px solid #28a745; border-radius: 12px; padding: 24px; margin: 32px auto; max-width: 500px;">
+                    <h3 style="margin-top: 0; margin-bottom: 12px; color: #1a1a1a;">Warranty Details</h3>
+                    <div style="text-align: left; color: #1a1a1a; line-height: 1.8;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <strong>Coverage:</strong>
+                            <span>30-Day Standard Warranty</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <strong>Activated:</strong>
+                            <span>${new Date().toLocaleDateString('en-GB', options)}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <strong>Expires:</strong>
+                            <span style="color: #dc3545; font-weight: 600;">${formattedDate}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="background: #e7f3ff; border-left: 4px solid #0064D2; padding: 16px; margin: 24px auto; max-width: 500px; text-align: left; border-radius: 4px;">
+                    <p style="margin: 0; color: #1a1a1a; line-height: 1.6;">
+                        <strong>📧 Confirmation Email:</strong> A detailed confirmation has been sent to your email address with your warranty information.
+                    </p>
+                </div>
+
+                <p style="color: #6c757d; margin-top: 32px; font-size: 0.95rem;">
+                    Thank you for choosing LJM AirPod Support!
+                </p>
+            </div>
+        `;
+        step7.classList.add('active');
+        step7.style.display = 'block';
+        appState.currentStep = 7;
+    }
+
+    // Track completion
+    trackEvent('warranty_activated_no_purchase', {
+        timeSpent: Math.round((Date.now() - appState.sessionStartTime) / 1000)
+    });
+
+    // Clear saved state
+    localStorage.removeItem('warrantyRegistrationState');
+}
+
 // Finish setup
 // Helper function to calculate warranty price in pounds
 function calculateWarrantyPrice() {
