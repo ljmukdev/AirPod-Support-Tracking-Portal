@@ -26,6 +26,30 @@ if (process.env.STRIPE_SECRET_KEY) {
     console.warn('⚠️  Stripe secret key not set - payment features will be disabled');
 }
 
+// Initialize Nodemailer for email sending (optional)
+let nodemailer = null;
+let emailTransporter = null;
+if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    try {
+        nodemailer = require('nodemailer');
+        emailTransporter = nodemailer.createTransport({
+            host: process.env.SMTP_HOST,
+            port: parseInt(process.env.SMTP_PORT || '587'),
+            secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
+            auth: {
+                user: process.env.SMTP_USER,
+                pass: process.env.SMTP_PASS
+            }
+        });
+        console.log('✅ Email service initialized');
+    } catch (err) {
+        console.warn('⚠️  Failed to initialize email service:', err.message);
+    }
+} else {
+    console.warn('⚠️  Email configuration not set - email receipts will not be sent');
+    console.warn('   Set SMTP_HOST, SMTP_USER, SMTP_PASS (and optionally SMTP_PORT, SMTP_SECURE) to enable emails');
+}
+
 // Initialize GoCardless (DISABLED - Using Stripe for card payments)
 // GoCardless is primarily for Direct Debits, Stripe handles one-off card payments
 /*
@@ -2191,7 +2215,14 @@ app.post('/api/admin/warranty-terms', requireAuth, requireDB, async (req, res) =
 });
 
 // Version API endpoint (Public)
+// Version endpoint - returns current app version
 app.get('/api/version', (req, res) => {
+    const packageJson = require('./package.json');
+    res.json({
+        version: packageJson.version,
+        revision: packageJson.version.split('.').pop() || '0'
+    });
+});
     try {
         const path = require('path');
         const versionPath = path.join(__dirname, 'version.json');
@@ -2562,6 +2593,341 @@ app.post('/api/reconditioning-request', requireDB, async (req, res) => {
     }
 });
 
+// Helper function to send warranty confirmation email
+async function sendWarrantyConfirmationEmail(warranty, product) {
+    if (!emailTransporter || !nodemailer) {
+        console.log('Email service not configured - skipping email send');
+        return;
+    }
+    
+    try {
+        const warrantyPlanMap = {
+            'none': 'Standard 30-day warranty',
+            '3month': '3 Month Extended Warranty',
+            '6month': '6 Month Extended Warranty',
+            '12month': '12 Month Extended Warranty'
+        };
+        
+        const warrantyPlanName = warrantyPlanMap[warranty.extended_warranty] || 'Standard 30-day warranty';
+        
+        // Format dates
+        const regDate = new Date(warranty.registration_date).toLocaleDateString('en-GB', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+        
+        const standardEndDate = new Date(warranty.standard_warranty_end).toLocaleDateString('en-GB', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+        
+        let extendedEndDateText = '';
+        if (warranty.extended_warranty && warranty.extended_warranty !== 'none' && warranty.extended_warranty_end) {
+            extendedEndDateText = `\nExtended Warranty End Date: ${new Date(warranty.extended_warranty_end).toLocaleDateString('en-GB', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            })}`;
+        }
+        
+        const productName = product?.part_name || 'AirPod Replacement Part';
+        const totalPrice = warranty.warranty_price || 0;
+        
+        const emailHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #007bff; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #f8f9fa; padding: 30px; border-radius: 0 0 8px 8px; }
+        .success-icon { font-size: 48px; text-align: center; color: #28a745; margin: 20px 0; }
+        .receipt-box { background: white; border: 2px solid #dee2e6; border-radius: 8px; padding: 20px; margin: 20px 0; }
+        .receipt-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e9ecef; }
+        .receipt-item:last-child { border-bottom: none; }
+        .receipt-total { margin-top: 20px; padding-top: 20px; border-top: 2px solid #dee2e6; font-size: 18px; font-weight: bold; }
+        .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Warranty Registration Confirmed</h1>
+        </div>
+        <div class="content">
+            <div class="success-icon">✓</div>
+            <h2 style="text-align: center; color: #28a745;">Thank You!</h2>
+            <p>Dear ${warranty.customer_name},</p>
+            <p>Your warranty registration has been successfully completed. Please find your receipt and warranty details below.</p>
+            
+            <div class="receipt-box">
+                <h3 style="margin-top: 0;">Receipt</h3>
+                <div class="receipt-item">
+                    <span><strong>Warranty ID:</strong></span>
+                    <span>${warranty.warranty_id}</span>
+                </div>
+                <div class="receipt-item">
+                    <span><strong>Registration Date:</strong></span>
+                    <span>${regDate}</span>
+                </div>
+                <div class="receipt-item">
+                    <span><strong>Product:</strong></span>
+                    <span>${productName}</span>
+                </div>
+                <div class="receipt-item">
+                    <span><strong>Warranty Plan:</strong></span>
+                    <span>${warrantyPlanName}</span>
+                </div>
+                <div class="receipt-item">
+                    <span><strong>Standard Warranty End:</strong></span>
+                    <span>${standardEndDate}</span>
+                </div>
+                ${extendedEndDateText ? `<div class="receipt-item"><span><strong>Extended Warranty End:</strong></span><span>${extendedEndDateText.replace('Extended Warranty End Date: ', '')}</span></div>` : ''}
+                <div class="receipt-total">
+                    <span>Total Paid:</span>
+                    <span>£${totalPrice.toFixed(2)}</span>
+                </div>
+            </div>
+            
+            <h3>Important Information</h3>
+            <ul>
+                <li><strong>Keep your Warranty ID safe:</strong> ${warranty.warranty_id}</li>
+                <li>Your standard 30-day warranty is active from ${regDate}</li>
+                ${warranty.extended_warranty && warranty.extended_warranty !== 'none' ? `<li>Your extended warranty is active until ${extendedEndDateText.replace('Extended Warranty End Date: ', '')}</li>` : ''}
+                <li>If you need to make a claim, please contact support with your Warranty ID</li>
+            </ul>
+            
+            <p>Thank you for choosing LJM AirPod Support!</p>
+        </div>
+        <div class="footer">
+            <p>&copy; 2024 LJM. All rights reserved.</p>
+            <p>This is an automated email. Please do not reply.</p>
+        </div>
+    </div>
+</body>
+</html>
+        `;
+        
+        const emailText = `
+Warranty Registration Confirmed
+
+Dear ${warranty.customer_name},
+
+Your warranty registration has been successfully completed.
+
+Receipt:
+---------
+Warranty ID: ${warranty.warranty_id}
+Registration Date: ${regDate}
+Product: ${productName}
+Warranty Plan: ${warrantyPlanName}
+Standard Warranty End: ${standardEndDate}${extendedEndDateText ? '\nExtended Warranty End: ' + extendedEndDateText.replace('Extended Warranty End Date: ', '') : ''}
+Total Paid: £${totalPrice.toFixed(2)}
+
+Important Information:
+- Keep your Warranty ID safe: ${warranty.warranty_id}
+- Your standard 30-day warranty is active from ${regDate}
+${warranty.extended_warranty && warranty.extended_warranty !== 'none' ? `- Your extended warranty is active until ${extendedEndDateText.replace('Extended Warranty End Date: ', '')}\n` : ''}
+- If you need to make a claim, please contact support with your Warranty ID
+
+Thank you for choosing LJM AirPod Support!
+
+---
+© 2024 LJM. All rights reserved.
+This is an automated email. Please do not reply.
+        `;
+        
+        const mailOptions = {
+            from: process.env.SMTP_FROM || process.env.SMTP_USER,
+            to: warranty.customer_email,
+            subject: `Warranty Registration Confirmed - ${warranty.warranty_id}`,
+            text: emailText,
+            html: emailHtml
+        };
+        
+        const info = await emailTransporter.sendMail(mailOptions);
+        console.log(`✅ Confirmation email sent to ${warranty.customer_email}:`, info.messageId);
+    } catch (error) {
+        console.error('Error sending confirmation email:', error);
+        throw error; // Re-throw so caller can handle it
+    }
+}
+
+// Track registration session events
+app.post('/api/track/registration-event', requireDB, async (req, res) => {
+    try {
+        const {
+            session_id,
+            event_type,
+            step_number,
+            security_barcode,
+            event_data,
+            timestamp
+        } = req.body;
+        
+        if (!session_id || !event_type) {
+            return res.status(400).json({ error: 'session_id and event_type are required' });
+        }
+        
+        const event = {
+            session_id,
+            event_type, // 'session_start', 'step_viewed', 'step_completed', 'drop_off', 'completed'
+            step_number: step_number || null,
+            security_barcode: security_barcode || null,
+            event_data: event_data || {},
+            timestamp: timestamp ? new Date(timestamp) : new Date(),
+            ip_address: req.ip || req.connection.remoteAddress,
+            user_agent: req.get('user-agent') || null
+        };
+        
+        // Insert event into tracking collection
+        await db.collection('registration_tracking').insertOne(event);
+        
+        // Handle session_start specially - create new session
+        if (event_type === 'session_start') {
+            await db.collection('registration_sessions').insertOne({
+                session_id,
+                security_barcode: security_barcode || null,
+                started_at: new Date(),
+                created_at: new Date(),
+                status: 'active',
+                last_event: event_type,
+                last_step: step_number || null,
+                last_updated: new Date(),
+                events: [event]
+            });
+        } else {
+            // Update or create session summary for other events
+            const sessionUpdate = {
+                $set: {
+                    last_event: event_type,
+                    last_step: step_number || null,
+                    last_updated: new Date(),
+                    updated_at: new Date()
+                },
+                $setOnInsert: {
+                    session_id,
+                    security_barcode: security_barcode || null,
+                    started_at: new Date(),
+                    created_at: new Date(),
+                    status: 'active',
+                    events: []
+                }
+            };
+            
+            // Add event to events array
+            await db.collection('registration_sessions').updateOne(
+                { session_id },
+                {
+                    ...sessionUpdate,
+                    $push: {
+                        events: {
+                            $each: [event],
+                            $slice: -100 // Keep last 100 events
+                        }
+                    }
+                },
+                { upsert: true }
+            );
+        }
+        
+        // If drop_off or completed, update session status
+        if (event_type === 'drop_off' || event_type === 'completed') {
+            await db.collection('registration_sessions').updateOne(
+                { session_id },
+                {
+                    $set: {
+                        status: event_type === 'completed' ? 'completed' : 'abandoned',
+                        completed_at: event_type === 'completed' ? new Date() : null,
+                        abandoned_at: event_type === 'drop_off' ? new Date() : null
+                    }
+                }
+            );
+        }
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error tracking registration event:', error);
+        res.status(500).json({ error: 'Failed to track event' });
+    }
+});
+
+// Get registration analytics for admin
+app.get('/api/admin/registration-analytics', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { startDate, endDate, groupBy = 'day' } = req.query;
+        
+        const matchStage = {};
+        if (startDate || endDate) {
+            matchStage.started_at = {};
+            if (startDate) matchStage.started_at.$gte = new Date(startDate);
+            if (endDate) matchStage.started_at.$lte = new Date(endDate);
+        }
+        
+        // Get session summaries
+        const sessions = await db.collection('registration_sessions')
+            .find(matchStage)
+            .sort({ started_at: -1 })
+            .limit(1000)
+            .toArray();
+        
+        // Calculate statistics
+        const stats = {
+            total_sessions: sessions.length,
+            completed: sessions.filter(s => s.status === 'completed').length,
+            abandoned: sessions.filter(s => s.status === 'abandoned').length,
+            active: sessions.filter(s => s.status === 'active').length,
+            completion_rate: sessions.length > 0 
+                ? (sessions.filter(s => s.status === 'completed').length / sessions.length * 100).toFixed(2)
+                : 0,
+            drop_off_by_step: {},
+            average_time_to_complete: null,
+            sessions_by_date: {}
+        };
+        
+        // Calculate drop-off by step
+        sessions.forEach(session => {
+            if (session.status === 'abandoned' && session.last_step) {
+                stats.drop_off_by_step[session.last_step] = 
+                    (stats.drop_off_by_step[session.last_step] || 0) + 1;
+            }
+            
+            // Group by date
+            if (session.started_at) {
+                const dateKey = session.started_at.toISOString().split('T')[0];
+                if (!stats.sessions_by_date[dateKey]) {
+                    stats.sessions_by_date[dateKey] = { total: 0, completed: 0, abandoned: 0 };
+                }
+                stats.sessions_by_date[dateKey].total++;
+                if (session.status === 'completed') stats.sessions_by_date[dateKey].completed++;
+                if (session.status === 'abandoned') stats.sessions_by_date[dateKey].abandoned++;
+            }
+        });
+        
+        // Calculate average time to complete
+        const completedSessions = sessions.filter(s => s.status === 'completed' && s.completed_at && s.started_at);
+        if (completedSessions.length > 0) {
+            const totalTime = completedSessions.reduce((sum, s) => {
+                return sum + (s.completed_at.getTime() - s.started_at.getTime());
+            }, 0);
+            stats.average_time_to_complete = Math.round(totalTime / completedSessions.length / 1000); // in seconds
+        }
+        
+        res.json({
+            success: true,
+            stats,
+            sessions: sessions.slice(0, 100) // Return first 100 sessions for detail view
+        });
+    } catch (error) {
+        console.error('Error fetching registration analytics:', error);
+        res.status(500).json({ error: 'Failed to fetch analytics' });
+    }
+});
+
 app.post('/api/warranty/register', requireDB, async (req, res) => {
     const {
         security_barcode,
@@ -2734,6 +3100,17 @@ app.post('/api/warranty/register', requireDB, async (req, res) => {
         console.log(`   Customer: ${customer_name} (${customer_email})`);
         console.log(`   Extended warranty: ${extended_warranty || 'none'} (£${warranty_price || 0})`);
         
+        // Send confirmation email (non-blocking - don't fail registration if email fails)
+        // Get product name for email
+        let productName = 'AirPod Replacement Part';
+        if (product && product.part_name) {
+            productName = product.part_name;
+        }
+        sendWarrantyConfirmationEmail(warranty, { part_name: productName }).catch(err => {
+            console.error('Failed to send confirmation email:', err);
+            // Don't throw - email failure shouldn't break registration
+        });
+        
         res.json({
             success: true,
             message: 'Warranty registered successfully',
@@ -2752,6 +3129,50 @@ app.post('/api/warranty/register', requireDB, async (req, res) => {
             console.error('Database error:', err);
             res.status(500).json({ error: 'Database error: ' + err.message });
         }
+    }
+});
+
+// Get warranty details by warranty_id (public endpoint for completion page)
+app.get('/api/warranty/:warrantyId', requireDB, async (req, res) => {
+    const warrantyId = req.params.warrantyId;
+    
+    try {
+        const warranty = await db.collection('warranties').findOne({ warranty_id: warrantyId });
+        
+        if (!warranty) {
+            return res.status(404).json({ error: 'Warranty not found' });
+        }
+        
+        // Get product info
+        let productName = 'AirPod Replacement Part';
+        if (warranty.product_id) {
+            try {
+                const product = await db.collection('products').findOne({ _id: new ObjectId(warranty.product_id) });
+                if (product && product.part_name) {
+                    productName = product.part_name;
+                }
+            } catch (err) {
+                console.error('Error fetching product:', err);
+            }
+        }
+        
+        // Format response
+        res.json({
+            warranty_id: warranty.warranty_id,
+            customer_email: warranty.customer_email,
+            customer_name: warranty.customer_name,
+            product_name: productName,
+            extended_warranty: warranty.extended_warranty || 'none',
+            warranty_price: warranty.warranty_price || 0,
+            registration_date: warranty.registration_date,
+            standard_warranty_end: warranty.standard_warranty_end,
+            extended_warranty_end: warranty.extended_warranty_end,
+            payment_status: warranty.payment_status,
+            status: warranty.status
+        });
+    } catch (err) {
+        console.error('Error fetching warranty:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
     }
 });
 

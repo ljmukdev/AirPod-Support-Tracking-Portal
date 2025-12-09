@@ -1,6 +1,6 @@
 {
   "name": "ljm-airpod-support",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "LJM AirPod Support & Tracking Portal",
   "main": "server.js",
   "scripts": {
@@ -22,6 +22,7 @@
     "gocardless-nodejs": "^6.0.0",
     "mongodb": "^6.3.0",
     "multer": "^1.4.5-lts.1",
+    "nodemailer": "^6.9.8",
     "stripe": "^14.21.0"
   }
 }

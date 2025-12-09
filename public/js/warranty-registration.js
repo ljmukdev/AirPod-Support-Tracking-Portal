@@ -63,14 +63,138 @@ function saveState() {
     localStorage.setItem('warrantyRegistrationState', JSON.stringify(appState));
 }
 
-// Track analytics
-function trackEvent(eventName, data = {}) {
+// Generate or retrieve session ID
+function getSessionId() {
+    if (!window.registrationSessionId) {
+        window.registrationSessionId = 'reg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        sessionStorage.setItem('registrationSessionId', window.registrationSessionId);
+    }
+    return window.registrationSessionId;
+}
+
+// Load session ID from sessionStorage if available
+if (typeof sessionStorage !== 'undefined') {
+    const savedSessionId = sessionStorage.getItem('registrationSessionId');
+    if (savedSessionId) {
+        window.registrationSessionId = savedSessionId;
+    }
+}
+
+// Track analytics - sends to both backend and Google Analytics (if available)
+async function trackEvent(eventName, data = {}) {
     console.log('Analytics:', eventName, data);
-    // Add your analytics tracking here (Google Analytics, etc.)
+    
+    // Send to Google Analytics if available
     if (window.gtag) {
         window.gtag('event', eventName, data);
     }
+    
+    // Send to backend for detailed tracking
+    try {
+        const sessionId = getSessionId();
+        const stepNumber = appState?.currentStep || data?.step || null;
+        const securityBarcode = appState?.securityCode || data?.security_barcode || null;
+        
+        // Map event names to event types
+        const eventTypeMap = {
+            'session_start': 'session_start',
+            'security_code_validated': 'step_completed',
+            'warranty_confirmed': 'step_completed',
+            'warranty_selected': 'step_completed',
+            'accessories_selected': 'step_completed',
+            'setup_completed': 'completed',
+            'step_viewed': 'step_viewed',
+            'payment_completed': 'step_completed'
+        };
+        
+        const eventType = eventTypeMap[eventName] || 'step_viewed';
+        
+        await fetch(`${API_BASE}/api/track/registration-event`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                session_id: sessionId,
+                event_type: eventType,
+                step_number: stepNumber,
+                security_barcode: securityBarcode,
+                event_data: {
+                    event_name: eventName,
+                    ...data
+                },
+                timestamp: new Date().toISOString()
+            })
+        }).catch(err => {
+            // Silently fail - don't break user experience if tracking fails
+            console.warn('Failed to send tracking event:', err);
+        });
+    } catch (error) {
+        // Silently fail - don't break user experience if tracking fails
+        console.warn('Tracking error:', error);
+    }
 }
+
+// Track drop-off when user leaves the page
+function trackDropOff() {
+    const sessionId = getSessionId();
+    const stepNumber = appState?.currentStep || null;
+    const securityBarcode = appState?.securityCode || null;
+    
+    // Use sendBeacon for reliable tracking even when page is unloading
+    const data = JSON.stringify({
+        session_id: sessionId,
+        event_type: 'drop_off',
+        step_number: stepNumber,
+        security_barcode: securityBarcode,
+        event_data: {
+            reason: 'page_unload',
+            time_on_page: Date.now() - (appState?.sessionStartTime || Date.now())
+        },
+        timestamp: new Date().toISOString()
+    });
+    
+    if (navigator.sendBeacon) {
+        navigator.sendBeacon(`${API_BASE}/api/track/registration-event`, data);
+    } else {
+        // Fallback for older browsers
+        fetch(`${API_BASE}/api/track/registration-event`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: data,
+            keepalive: true
+        }).catch(() => {});
+    }
+}
+
+// Track when page becomes hidden (user switches tabs, minimizes, etc.)
+document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+        // User left the page - track as potential drop-off
+        const sessionId = getSessionId();
+        const stepNumber = appState?.currentStep || null;
+        
+        fetch(`${API_BASE}/api/track/registration-event`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                session_id: sessionId,
+                event_type: 'step_viewed',
+                step_number: stepNumber,
+                event_data: {
+                    event_name: 'page_hidden',
+                    visibility_state: 'hidden'
+                },
+                timestamp: new Date().toISOString()
+            })
+        }).catch(() => {});
+    }
+});
+
+// Track drop-off on page unload
+window.addEventListener('beforeunload', function() {
+    trackDropOff();
+});
 
 // Initialize page
 function initializePage() {
@@ -83,17 +207,52 @@ function initializePage() {
     const paymentSuccess = urlParams.get('payment') === 'success';
     // GoCardless returns redirect_flow_id in the URL after redirect
     const redirectFlowId = urlParams.get('redirect_flow_id') || sessionStorage.getItem('gocardless_redirect_flow_id');
+    // Stripe returns intent ID in the URL after redirect
+    const paymentIntentId = urlParams.get('intent');
     
     console.log('Barcode from URL:', barcodeFromUrl);
     console.log('Payment success:', paymentSuccess);
     console.log('Redirect flow ID:', redirectFlowId);
+    console.log('Payment intent ID:', paymentIntentId);
+    
+    // Handle Stripe payment success redirect - MUST load saved state first!
+    if (paymentSuccess && paymentIntentId) {
+        console.log('[Payment] Detected Stripe payment success redirect, handling...');
+        // CRITICAL: Load saved state BEFORE processing payment success
+        // This ensures appState has all the data (securityCode, contactDetails, etc.)
+        const resumed = loadSavedState();
+        if (!resumed) {
+            console.error('[Payment] No saved state found - cannot complete registration');
+            showError('Session expired. Please start the registration process again.');
+            return;
+        }
+        // Store payment intent ID in appState
+        appState.paymentIntentId = paymentIntentId;
+        window.currentPaymentIntentId = paymentIntentId;
+        saveState();
+        // Complete the registration
+        console.log('[Payment] Payment successful, completing registration...');
+        finishSetup();
+        return; // Don't continue with normal initialization
+    }
     
     // Handle GoCardless payment success redirect
     if (paymentSuccess && redirectFlowId) {
-        console.log('[Payment] Detected payment success redirect, handling...');
+        console.log('[Payment] Detected GoCardless payment success redirect, handling...');
         handleGoCardlessPaymentSuccess(redirectFlowId);
         return; // Don't continue with normal initialization
     }
+    
+    // Track session start
+    const sessionId = getSessionId();
+    const barcode = barcodeFromUrl || sessionStorage.getItem('securityBarcode');
+    
+    // Track session start
+    trackEvent('session_start', {
+        security_barcode: barcode || null,
+        step: 1,
+        from_url: !!barcodeFromUrl
+    });
     
     // Check if we should resume from saved state
     const resumed = loadSavedState();
@@ -320,7 +479,13 @@ function setupEventListeners() {
     });
     document.getElementById('continueBtn6')?.addEventListener('click', () => {
         trackEvent('accessories_selected', { items: appState.selectedAccessories });
-        showStep(7); // Go to Stripe payment
+        // Check if there are any items to purchase
+        if (hasItemsToPurchase()) {
+            showStep(7); // Go to Stripe payment
+        } else {
+            // No items to purchase, complete registration directly
+            finishSetup();
+        }
     });
     document.getElementById('continueBtn7')?.addEventListener('click', finishSetup);
     
@@ -377,7 +542,13 @@ function setupEventListeners() {
     document.getElementById('skipAccessories')?.addEventListener('click', (e) => {
         e.preventDefault();
         trackEvent('accessories_skipped');
-        showStep(7);
+        // Check if there are any items to purchase
+        if (hasItemsToPurchase()) {
+            showStep(7); // Go to payment page
+        } else {
+            // No items to purchase, complete registration directly
+            finishSetup();
+        }
     });
     
     // Setup step checkboxes
@@ -4788,6 +4959,13 @@ function showStep(stepNumber, force = false) {
         
         // Load payment summary when showing step 7 (Stripe payment)
         if (stepNumber === 7) {
+            // Check if there are items to purchase
+            if (!hasItemsToPurchase()) {
+                // No items to purchase, skip payment and complete registration directly
+                console.log('[showStep] No items to purchase, completing registration directly');
+                finishSetup();
+                return;
+            }
             loadPaymentSummary();
             initializeStripePayment();
         }
@@ -5126,19 +5304,136 @@ function showLastChancePopup() {
 }
 
 // Finish setup
-function finishSetup() {
-    trackEvent('setup_completed', {
-        warranty: appState.selectedWarranty,
-        accessories: appState.selectedAccessories,
-        timeSpent: Math.round((Date.now() - appState.sessionStartTime) / 1000)
-    });
+// Helper function to calculate warranty price in pounds
+function calculateWarrantyPrice() {
+    if (!appState.selectedWarranty || appState.selectedWarranty === 'none') {
+        return 0;
+    }
+    const warrantyCard = document.querySelector(`.warranty-card[data-plan="${appState.selectedWarranty}"]`);
+    if (warrantyCard) {
+        const priceText = warrantyCard.querySelector('.warranty-price')?.textContent || '£0.00';
+        const price = parseFloat(priceText.replace(/[£,]/g, '')) || 0;
+        return price;
+    }
+    return 0;
+}
+
+// Helper function to calculate accessory prices in pounds
+function calculateAccessoryPrices() {
+    let total = 0;
+    if (appState.selectedAccessories && appState.selectedAccessories.length > 0 && appState.addonSalesData) {
+        const selectedAddons = appState.addonSalesData.filter(addon => 
+            appState.selectedAccessories.includes(addon.id)
+        );
+        selectedAddons.forEach(addon => {
+            const price = parseFloat(addon.price || 0);
+            total += price;
+        });
+    }
+    return total;
+}
+
+// Helper function to check if there are any items to purchase
+function hasItemsToPurchase() {
+    const warrantyPrice = calculateWarrantyPrice();
+    const accessoryPrice = calculateAccessoryPrices();
+    return warrantyPrice > 0 || accessoryPrice > 0;
+}
+
+async function finishSetup() {
+    // Show loading state (only if payment page elements exist)
+    const paymentError = document.getElementById('paymentError');
+    const processPaymentBtn = document.getElementById('processPaymentBtn');
     
-    // Clear saved state
-    localStorage.removeItem('warrantyRegistrationState');
+    // Show a loading message if we're on the payment page
+    if (paymentError) {
+        paymentError.style.cssText = 'display: block; background: #d4edda; color: #155724; padding: 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #c3e6cb;';
+        paymentError.textContent = 'Completing registration...';
+    }
+    if (processPaymentBtn) {
+        processPaymentBtn.disabled = true;
+        processPaymentBtn.textContent = 'Processing...';
+    }
     
-    // Redirect to confirmation or next page
-    alert('Setup completed! Thank you for registering your warranty.');
-    // window.location.href = 'confirmation.html';
+    try {
+        // Validate required data
+        if (!appState.securityCode) {
+            throw new Error('Security code is missing. Please start over.');
+        }
+        if (!appState.contactDetails || !appState.contactDetails.name || !appState.contactDetails.email) {
+            throw new Error('Contact information is missing. Please start over.');
+        }
+        
+        // Calculate prices
+        const warrantyPrice = calculateWarrantyPrice();
+        const accessoryPrice = calculateAccessoryPrices();
+        const totalPrice = warrantyPrice + accessoryPrice;
+        
+        // Prepare warranty registration data
+        const warrantyData = {
+            security_barcode: appState.securityCode,
+            customer_name: appState.contactDetails.name,
+            customer_email: appState.contactDetails.email,
+            customer_phone: appState.contactDetails.phone || null,
+            extended_warranty: appState.selectedWarranty && appState.selectedWarranty !== 'none' ? appState.selectedWarranty : 'none',
+            warranty_price: totalPrice, // Total price including accessories
+            payment_intent_id: appState.paymentIntentId || window.currentPaymentIntentId || null,
+            marketing_consent: appState.contactDetails.marketingConsent || false,
+            terms_version: appState.termsVersion || 1,
+            terms_accepted: true
+        };
+        
+        console.log('[Registration] Submitting warranty registration:', warrantyData);
+        
+        // Register warranty
+        const response = await fetch(`${API_BASE}/api/warranty/register`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(warrantyData)
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to register warranty');
+        }
+        
+        console.log('[Registration] Warranty registered successfully:', data);
+        
+        // Track completion - this will be sent to backend as 'completed' event type
+        trackEvent('setup_completed', {
+            warranty: appState.selectedWarranty,
+            accessories: appState.selectedAccessories,
+            timeSpent: Math.round((Date.now() - appState.sessionStartTime) / 1000),
+            warranty_id: data.warranty_id,
+            step: appState.currentStep
+        });
+        
+        // Clear saved state
+        localStorage.removeItem('warrantyRegistrationState');
+        
+        // Redirect to completion page with warranty ID
+        const completionUrl = `warranty-complete.html?warranty_id=${encodeURIComponent(data.warranty_id)}&email=${encodeURIComponent(appState.contactDetails.email)}`;
+        window.location.href = completionUrl;
+        
+    } catch (error) {
+        console.error('[Registration] Error completing setup:', error);
+        
+        if (paymentError) {
+            paymentError.style.cssText = 'display: block; background: #f8d7da; color: #721c24; padding: 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #f5c6cb;';
+            paymentError.textContent = error.message || 'Failed to complete registration. Please try again or contact support.';
+        }
+        
+        if (processPaymentBtn) {
+            processPaymentBtn.disabled = false;
+            processPaymentBtn.textContent = 'Try Again';
+        }
+        
+        // Show error to user
+        showError(error.message || 'Failed to complete registration. Please try again.');
+    }
 }
 
 // Prevent clicking outside active section
