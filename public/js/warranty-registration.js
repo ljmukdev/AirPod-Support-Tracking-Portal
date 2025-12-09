@@ -2027,16 +2027,13 @@ async function processStripePayment(stripe, paymentElement, clientSecret) {
         }
         
         // Confirm payment with Stripe using the Elements instance
-        // Ensure we're using the Stripe instance that created the Elements
-        if (!window.stripeInstance) {
-            throw new Error('Stripe instance not found. Please refresh the page.');
-        }
-        
+        // Use the Stripe instance that was passed in (same one that created the Elements)
         console.log('[Payment] Calling stripe.confirmPayment with elements:', elements);
+        console.log('[Payment] Stripe instance:', stripe);
         console.log('[Payment] Elements instance check - has create method:', typeof elements.create === 'function');
         console.log('[Payment] Elements instance check - has update method:', typeof elements.update === 'function');
         
-        const { error: confirmError, paymentIntent } = await window.stripeInstance.confirmPayment({
+        const { error: confirmError, paymentIntent } = await stripe.confirmPayment({
             elements: elements,
             clientSecret: clientSecret,
             confirmParams: {
