@@ -932,6 +932,7 @@ async function tryConnect() {
     throw new Error('All authentication methods failed');
 }
 
+// Start MongoDB connection in background - don't block server startup
 tryConnect()
     .catch(err => {
         console.error('❌ MongoDB connection error:', err.message);
@@ -954,7 +955,22 @@ tryConnect()
         console.error('   - No quotes around the value');
         console.error('   - Check if password has special characters that need handling');
         
-        process.exit(1);
+        // Don't exit - let server start and retry connection
+        console.error('\n⚠️  Server will continue to run but database features will be unavailable.');
+        console.error('   Retrying MongoDB connection in background...');
+        
+        // Retry connection every 30 seconds
+        const retryInterval = setInterval(() => {
+            console.log('🔄 Retrying MongoDB connection...');
+            tryConnect()
+                .then(() => {
+                    console.log('✅ MongoDB connection successful after retry!');
+                    clearInterval(retryInterval);
+                })
+                .catch(retryErr => {
+                    console.error('❌ Retry failed:', retryErr.message);
+                });
+        }, 30000);
     });
 
 // Initialize database collections and indexes
