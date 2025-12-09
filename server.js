@@ -2,15 +2,11 @@ const express = require('express');
 const { MongoClient, ObjectId } = require('mongodb');
 const bodyParser = require('body-parser');
 const session = require('express-session');
-// Import connect-mongo - try different import styles for compatibility
+// Import connect-mongo - v5.x uses direct export, not default
 let MongoStore;
 try {
-    // Try v6 style (default export)
-    MongoStore = require('connect-mongo').default;
-    if (!MongoStore) {
-        // Try direct import
-        MongoStore = require('connect-mongo');
-    }
+    // v5.x style - direct import (no .default)
+    MongoStore = require('connect-mongo');
 } catch (e) {
     console.error('Error importing connect-mongo:', e);
     MongoStore = null;
@@ -721,18 +717,8 @@ app.use(session({
     saveUninitialized: false,
     store: mongoSessionUrl ? (() => {
         try {
-            // connect-mongo v6 uses MongoStore.create() static method
-            // If that doesn't exist, try constructor
-            if (MongoStore && typeof MongoStore.create === 'function') {
-                return MongoStore.create({
-                    mongoUrl: mongoSessionUrl,
-                    touchAfter: 24 * 3600,
-                    crypto: {
-                        secret: process.env.SESSION_SECRET || 'LJM_SECURE_SESSION_KEY_2024'
-                    }
-                });
-            } else if (MongoStore && typeof MongoStore === 'function') {
-                // Constructor API (older versions)
+            // connect-mongo v5.x uses constructor API
+            if (MongoStore && typeof MongoStore === 'function') {
                 return new MongoStore({
                     mongoUrl: mongoSessionUrl,
                     touchAfter: 24 * 3600,
