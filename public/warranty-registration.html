@@ -863,17 +863,23 @@
                 margin-bottom: 16px;
             }
 
-            /* Reduce padding on verification steps for mobile */
+            /* Increase padding inside verification white box for breathing room */
             .verification-step > div {
-                padding: 8px 2px !important;
+                padding: 16px 12px !important;
             }
 
-            /* Ensure compatibility examples grid is centered */
+            /* Add padding around example images grid */
             #compatiblePartsExamplesGrid {
                 grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important;
-                gap: 8px !important;
+                gap: 12px !important;
                 justify-items: center;
                 margin: 0 auto;
+                padding: 0 8px;
+            }
+
+            /* Add margin to the examples container */
+            #compatiblePartsExamples {
+                margin: 16px 0 !important;
             }
 
             /* Center carousel container */
