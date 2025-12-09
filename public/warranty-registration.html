@@ -868,10 +868,23 @@
                 padding: 0 8px !important;
             }
 
-            /* Reduce input padding on mobile */
+            /* Ensure consistent input alignment on mobile */
             .security-input {
-                padding: 14px 12px !important;
+                padding: 14px !important;
+                padding-left: 14px !important;
+                padding-right: 14px !important;
                 font-size: 16px !important;
+                box-sizing: border-box !important;
+            }
+
+            /* Override any inline padding styles for form inputs */
+            #contactName,
+            #contactEmail,
+            #contactPhone,
+            #reconditionEmail,
+            #reconditionPhone,
+            #reconditionAddress {
+                padding: 14px !important;
             }
 
             /* Increase padding inside verification white box for breathing room */
