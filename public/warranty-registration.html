@@ -842,25 +842,43 @@
 
         @media (max-width: 480px) {
             .warranty-card {
-                padding: 10px 8px;
+                padding: 8px 4px;
             }
 
             .accessory-item {
-                padding: 10px 8px;
+                padding: 8px 4px;
                 min-height: 100px;
             }
 
             .step-container {
-                padding: 10px 6px;
+                padding: 8px 4px;
             }
 
             .card-body {
-                padding: 10px 6px;
+                padding: 8px 4px;
             }
 
             .product-details {
                 gap: 12px;
                 margin-bottom: 16px;
+            }
+
+            /* Reduce padding on verification steps for mobile */
+            .verification-step > div {
+                padding: 12px 6px !important;
+            }
+
+            /* Ensure compatibility examples grid is centered */
+            #compatiblePartsExamplesGrid {
+                grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important;
+                gap: 8px !important;
+                justify-items: center;
+                margin: 0 auto;
+            }
+
+            /* Center carousel container */
+            .carousel-container {
+                justify-content: center;
             }
         }
         
