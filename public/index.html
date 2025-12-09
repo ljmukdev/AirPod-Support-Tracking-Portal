@@ -173,7 +173,7 @@
 
         .card-header {
             background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-            padding: 36px 48px;
+            padding: 24px 20px;
             text-align: center;
             position: relative;
         }
@@ -197,7 +197,7 @@
 
         .card-header h1 {
             color: white;
-            font-size: 32px;
+            font-size: 22px;
             font-weight: 700;
             margin-bottom: 12px;
             position: relative;
@@ -205,18 +205,31 @@
             letter-spacing: -0.5px;
         }
 
+        @media (min-width: 768px) {
+            .card-header h1 {
+                font-size: 32px;
+            }
+        }
+
         .card-header p {
             color: rgba(255, 255, 255, 0.85);
-            font-size: 16px;
-            line-height: 1.6;
+            font-size: 15px;
+            line-height: 1.5;
             position: relative;
             z-index: 1;
             max-width: 480px;
             margin: 0 auto;
         }
 
+        @media (min-width: 768px) {
+            .card-header p {
+                font-size: 16px;
+                line-height: 1.6;
+            }
+        }
+
         .card-body {
-            padding: 36px 48px;
+            padding: 24px 20px;
         }
 
         @media (min-width: 768px) {
@@ -271,7 +284,7 @@
         .feature-item {
             display: flex;
             align-items: flex-start;
-            padding: 16px 20px;
+            padding: 14px 16px;
             background: white;
             border: 1px solid #e8ecf1;
             border-radius: 16px;
@@ -298,16 +311,24 @@
         }
 
         .feature-icon {
-            width: 44px;
-            height: 44px;
+            width: 40px;
+            height: 40px;
             background: #f8f9fa;
             border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-right: 20px;
+            margin-right: 14px;
             flex-shrink: 0;
             transition: all 0.3s;
+        }
+
+        @media (min-width: 768px) {
+            .feature-icon {
+                width: 44px;
+                height: 44px;
+                margin-right: 20px;
+            }
         }
 
         .feature-item:hover .feature-icon {
@@ -333,8 +354,14 @@
             color: #1a1a1a;
             font-weight: 600;
             margin-bottom: 6px;
-            font-size: 16px;
+            font-size: 15px;
             letter-spacing: -0.2px;
+        }
+
+        @media (min-width: 768px) {
+            .feature-title {
+                font-size: 16px;
+            }
         }
 
         .feature-description .word {
@@ -349,12 +376,13 @@
 
         .feature-description {
             color: #6c757d;
-            font-size: 14px;
+            font-size: 13px;
             line-height: 1.5;
         }
 
         @media (min-width: 768px) {
             .feature-description {
+                font-size: 14px;
                 line-height: 1.6;
             }
         }
@@ -362,8 +390,8 @@
         .security-section {
             background: #f8f9fa;
             border-radius: 16px;
-            padding: 28px;
-            margin-bottom: 28px;
+            padding: 20px 16px;
+            margin-bottom: 24px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
         }
 
@@ -375,11 +403,18 @@
         }
 
         .security-section h3 {
-            font-size: 18px;
+            font-size: 17px;
             color: #1a1a1a;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
             font-weight: 600;
             letter-spacing: -0.2px;
+        }
+
+        @media (min-width: 768px) {
+            .security-section h3 {
+                font-size: 18px;
+                margin-bottom: 20px;
+            }
         }
 
         .input-wrapper {
@@ -389,17 +424,25 @@
 
         .security-input {
             width: 100%;
-            padding: 18px 20px;
+            padding: 14px 16px;
             border: 2px solid #e8ecf1;
             border-radius: 12px;
-            font-size: 16px;
+            font-size: 15px;
             text-align: center;
-            letter-spacing: 3px;
+            letter-spacing: 2px;
             font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
             transition: all 0.3s;
             background: white;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
             text-transform: uppercase;
+        }
+
+        @media (min-width: 768px) {
+            .security-input {
+                padding: 18px 20px;
+                font-size: 16px;
+                letter-spacing: 3px;
+            }
         }
 
         .security-input:focus {
@@ -427,17 +470,24 @@
 
         .continue-btn {
             width: 100%;
-            padding: 18px;
+            padding: 16px;
             background: #284064;
             border: none;
             border-radius: 12px;
             color: white;
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             letter-spacing: -0.2px;
             box-shadow: 0 4px 14px rgba(40, 64, 100, 0.3);
+        }
+
+        @media (min-width: 768px) {
+            .continue-btn {
+                padding: 18px;
+                font-size: 16px;
+            }
         }
 
         .continue-btn:hover {
@@ -527,34 +577,47 @@
         /* Responsive Design */
         @media (max-width: 640px) {
             .nav-links {
-                display: none;
+                gap: 20px;
             }
 
-            .card-header {
-                padding: 32px 24px;
-            }
-
-            .card-header h1 {
-                font-size: 26px;
-            }
-
-            .card-body {
-                padding: 32px 24px;
-            }
-
-            .security-section {
-                padding: 24px;
+            .nav-links a {
+                font-size: 13px;
             }
 
             .trust-indicators {
                 flex-direction: column;
-                gap: 16px;
+                gap: 12px;
+                align-items: flex-start;
+            }
+
+            .trust-item {
+                font-size: 12px;
             }
 
             .help-section {
                 flex-direction: column;
                 gap: 16px;
                 text-align: center;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .logo-text span {
+                display: none;
+            }
+
+            .badge {
+                font-size: 10px;
+                padding: 3px 8px;
+            }
+
+            .features-header h2 {
+                font-size: 18px;
+            }
+
+            .trust-indicators {
+                padding-top: 12px;
+                margin-top: 12px;
             }
         }
 
