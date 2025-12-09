@@ -761,20 +761,20 @@ h3 {
     }
 
     .container {
-        padding: 8px 2px;
+        padding: 8px 0px;
     }
 
     .card {
-        padding: 8px 6px;
+        padding: 6px 4px;
         border-radius: 8px;
     }
 
     .warning-box {
-        padding: 10px 8px;
+        padding: 8px 4px;
     }
 
     .confirmation-checkbox {
-        padding: 10px 8px;
+        padding: 8px 4px;
     }
 
     .data-table th,
