@@ -797,38 +797,65 @@
             .warranty-options {
                 grid-template-columns: 1fr;
             }
-            
+
             .accessory-grid {
                 grid-template-columns: 1fr;
             }
-            
+
             .continue-btn {
                 padding: 16px;
                 font-size: 15px;
                 min-height: 48px; /* Larger touch target */
             }
-            
+
             .trust-badges {
                 flex-direction: column;
                 gap: 12px;
             }
-            
+
             .btn {
                 min-height: 44px; /* Larger touch target */
                 padding: 14px 24px;
             }
-            
+
             .warranty-card {
-                padding: 20px;
+                padding: 16px;
             }
-            
+
             .accessory-item {
-                padding: 20px;
-                min-height: 120px;
+                padding: 16px;
+                min-height: 110px;
             }
-            
+
             .security-input {
                 font-size: 16px; /* Prevent zoom on iOS */
+            }
+
+            .step-container {
+                padding: 16px 12px;
+            }
+
+            .card-body {
+                padding: 16px 12px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .warranty-card {
+                padding: 12px;
+            }
+
+            .accessory-item {
+                padding: 12px;
+                min-height: 100px;
+            }
+
+            .step-container {
+                padding: 12px 8px;
+            }
+
+            .card-body {
+                padding: 12px 8px;
             }
         }
         
@@ -1104,20 +1131,20 @@
         
         @media (max-width: 768px) {
             .carousel-photo {
-                width: 120px;
-                height: 120px;
+                width: 140px;
+                height: 140px;
             }
-            
+
             .carousel-button {
-                width: 32px;
-                height: 32px;
-                font-size: 20px;
+                width: 36px;
+                height: 36px;
+                font-size: 22px;
             }
-            
+
             .modal-content {
                 padding: 20px;
             }
-            
+
             .modal-close {
                 top: 10px;
                 right: 10px;
@@ -1125,25 +1152,46 @@
                 height: 40px;
                 z-index: 10003;
             }
-            
+
             .modal-close::before,
             .modal-close::after {
                 width: 18px;
                 height: 2px;
             }
-            
+
             .modal-nav {
                 width: 40px;
                 height: 40px;
                 font-size: 24px;
             }
-            
+
             .modal-prev {
                 left: 10px;
             }
-            
+
             .modal-next {
                 right: 10px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .photo-carousel {
+                gap: 8px;
+            }
+
+            .carousel-photo {
+                width: 110px;
+                height: 110px;
+            }
+
+            .carousel-button {
+                width: 32px;
+                height: 32px;
+                font-size: 18px;
+            }
+
+            .carousel-container {
+                gap: 8px;
             }
         }
     </style>

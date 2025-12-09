@@ -135,7 +135,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px 24px 40px 24px;
+            padding: 16px 8px 32px 8px;
             max-width: 1200px;
             margin: 0 auto;
             width: 100%;
@@ -144,15 +144,13 @@
 
         @media (min-width: 640px) {
             .container {
-                padding-left: 32px;
-                padding-right: 32px;
+                padding: 20px 24px 40px 24px;
             }
         }
 
         @media (min-width: 768px) {
             .container {
-                padding-top: 30px;
-                padding-bottom: 60px;
+                padding: 30px 32px 60px 32px;
             }
         }
 
@@ -163,12 +161,24 @@
             }
         }
 
+        @media (max-width: 480px) {
+            .container {
+                padding: 12px 6px 24px 6px;
+            }
+        }
+
         .card {
             background: white;
-            border-radius: 20px;
+            border-radius: 16px;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
             width: 100%;
             overflow: hidden;
+        }
+
+        @media (max-width: 480px) {
+            .card {
+                border-radius: 12px;
+            }
         }
 
         .card-header {
