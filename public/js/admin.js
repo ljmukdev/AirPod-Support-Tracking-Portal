@@ -588,15 +588,17 @@ async function loadProducts() {
             
             // Attach event listeners to status dropdowns
             tableBody.querySelectorAll('.status-select').forEach(select => {
-                // Store original value
-                const originalValue = select.value;
-                
                 select.addEventListener('change', async function(e) {
                     const productId = this.getAttribute('data-product-id');
                     const newStatus = this.value;
-                    const oldStatus = originalValue;
+                    const oldStatus = this.getAttribute('data-original-status') || this.value;
                     
                     if (!productId) return;
+                    
+                    // Store original value for revert
+                    if (!this.getAttribute('data-original-status')) {
+                        this.setAttribute('data-original-status', oldStatus);
+                    }
                     
                     // If marking as returned, prompt for reason
                     let returnReason = null;
