@@ -599,6 +599,11 @@ async function openTrackingModal(productId) {
     document.getElementById('trackingSuccess').style.display = 'none';
     currentInfo.style.display = 'none';
     
+    // Focus the input field for easy pasting after modal is shown
+    setTimeout(() => {
+        trackingNumberInput.focus();
+    }, 150);
+    
     try {
         // Load product details
         const response = await fetch(`${API_BASE}/api/admin/product/${encodeURIComponent(String(productId))}`);
