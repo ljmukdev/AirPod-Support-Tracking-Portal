@@ -1539,12 +1539,41 @@ app.get('/api/admin/products', requireAuth, requireDB, async (req, res) => {
         
         const total = await db.collection('products').countDocuments();
         
-        // Convert MongoDB ObjectId to string for JSON response
-        const productsWithStringIds = products.map(product => ({
-            ...product,
-            id: product._id.toString(),
-            _id: undefined
-        }));
+        // Get warranties for all products
+        const productBarcodes = products.map(p => p.security_barcode);
+        const warranties = await db.collection('warranties')
+            .find({ security_barcode: { $in: productBarcodes } })
+            .toArray();
+        
+        // Create a map of security_barcode -> warranty for quick lookup
+        const warrantyMap = {};
+        warranties.forEach(warranty => {
+            warrantyMap[warranty.security_barcode] = warranty;
+        });
+        
+        // Convert MongoDB ObjectId to string for JSON response and add warranty info
+        const productsWithStringIds = products.map(product => {
+            const warranty = warrantyMap[product.security_barcode];
+            const productData = {
+                ...product,
+                id: product._id.toString(),
+                _id: undefined
+            };
+            
+            // Add warranty information
+            if (warranty) {
+                productData.warranty = {
+                    warranty_id: warranty.warranty_id,
+                    status: warranty.status || 'active',
+                    payment_status: warranty.payment_status || 'free',
+                    standard_warranty_end: warranty.standard_warranty_end,
+                    extended_warranty_end: warranty.extended_warranty_end,
+                    extended_warranty: warranty.extended_warranty || 'none'
+                };
+            }
+            
+            return productData;
+        });
         
         res.json({ products: productsWithStringIds, total });
     } catch (err) {

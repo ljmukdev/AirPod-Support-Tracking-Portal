@@ -405,16 +405,64 @@ async function loadProducts() {
         
         if (response.ok && data.products) {
             if (data.products.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="11" style="text-align: center; padding: 20px;">No products found</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="12" style="text-align: center; padding: 20px;">No products found</td></tr>';
                 return;
             }
             
             tableBody.innerHTML = data.products.map(product => {
             const date = new Date(product.date_added);
             const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            const confirmationStatus = product.confirmation_checked 
-                ? '<span class="status-badge confirmed">Confirmed</span>' 
-                : '<span class="status-badge pending">Pending</span>';
+            
+            // Determine warranty status
+            let warrantyStatus = '<span class="status-badge pending">No Warranty</span>';
+            let daysRemaining = '<span style="color: #999;">-</span>';
+            
+            if (product.warranty) {
+                const warranty = product.warranty;
+                const now = new Date();
+                
+                // Determine which warranty end date to use (extended if available, otherwise standard)
+                const warrantyEndDate = warranty.extended_warranty_end && warranty.extended_warranty !== 'none' 
+                    ? new Date(warranty.extended_warranty_end)
+                    : warranty.standard_warranty_end 
+                        ? new Date(warranty.standard_warranty_end)
+                        : null;
+                
+                // Calculate days remaining
+                if (warrantyEndDate) {
+                    const diffTime = warrantyEndDate - now;
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    
+                    if (diffDays < 0) {
+                        daysRemaining = '<span style="color: #dc3545; font-weight: 600;">Expired</span>';
+                        warrantyStatus = '<span class="status-badge expired">Warranty Expired</span>';
+                    } else if (diffDays === 0) {
+                        daysRemaining = '<span style="color: #ff9800; font-weight: 600;">0 days</span>';
+                        warrantyStatus = warranty.payment_status === 'paid' 
+                            ? '<span class="status-badge paid">Paid Warranty</span>'
+                            : '<span class="status-badge confirmed">Free Warranty</span>';
+                    } else {
+                        daysRemaining = diffDays <= 7 
+                            ? `<span style="color: #ff9800; font-weight: 600;">${diffDays} day${diffDays !== 1 ? 's' : ''}</span>`
+                            : `<span style="color: var(--accent-teal);">${diffDays} day${diffDays !== 1 ? 's' : ''}</span>`;
+                        
+                        // Set warranty status based on payment status
+                        if (warranty.payment_status === 'paid') {
+                            warrantyStatus = '<span class="status-badge paid">Paid Warranty</span>';
+                        } else {
+                            warrantyStatus = '<span class="status-badge confirmed">Free Warranty</span>';
+                        }
+                    }
+                } else {
+                    // Warranty exists but no end date (shouldn't happen, but handle it)
+                    warrantyStatus = warranty.payment_status === 'paid' 
+                        ? '<span class="status-badge paid">Paid Warranty</span>'
+                        : '<span class="status-badge confirmed">Free Warranty</span>';
+                }
+            } else {
+                // No warranty registered
+                warrantyStatus = '<span class="status-badge pending">No Warranty</span>';
+            }
             
             const partTypeMap = {
                 'left': 'Left AirPod',
@@ -459,7 +507,8 @@ async function loadProducts() {
                     <td>${photosDisplay}</td>
                     <td>${formattedDate}</td>
                     <td>${trackingDisplay}</td>
-                    <td>${confirmationStatus}</td>
+                    <td>${warrantyStatus}</td>
+                    <td>${daysRemaining}</td>
                     <td>
                         <button class="track-button" data-action="track" data-product-id="${escapeHtml(String(product.id))}" style="margin-right: 5px;">
                             Track
