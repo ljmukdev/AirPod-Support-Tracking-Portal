@@ -3629,26 +3629,51 @@ app.get('/api/admin/search-product', requireAuth, requireDB, async (req, res) =>
             return res.status(400).json({ error: 'Please provide serial_number, ebay_order_number, or security_barcode' });
         }
         
-        // Build search query
-        const query = {};
-        if (serial_number) {
-            query.serial_number = serial_number.trim();
+        // Build search query - if multiple criteria provided, use AND logic (all must match)
+        // If only security_barcode, use the special $or query for hyphen handling
+        let query = {};
+        
+        if (security_barcode && !serial_number && !ebay_order_number) {
+            // Only security_barcode provided - use the special query for hyphen handling
+            const barcodeQuery = createSecurityBarcodeQuery(security_barcode.trim());
+            if (barcodeQuery) {
+                query = barcodeQuery;
+            } else {
+                return res.status(400).json({ error: 'Invalid security barcode format' });
+            }
+        } else {
+            // Multiple criteria or single non-barcode criteria - build standard query
+            if (serial_number) {
+                query.serial_number = serial_number.trim();
+            }
+            if (ebay_order_number) {
+                query.ebay_order_number = ebay_order_number.trim();
+            }
+            if (security_barcode) {
+                // When combined with other fields, we need to handle the $or properly
+                // Use the normalized version for exact match, or include $or in a $and
+                const normalized = normalizeSecurityBarcode(security_barcode.trim());
+                const original = security_barcode.trim().toUpperCase();
+                // Try exact matches first, then regex if needed
+                query.$or = [
+                    { security_barcode: original },
+                    { security_barcode: normalized },
+                    { security_barcode: { $regex: '^' + normalized.split('').join('[-]?') + '$', $options: 'i' } }
+                ];
+            }
         }
-        if (ebay_order_number) {
-            query.ebay_order_number = ebay_order_number.trim();
-        }
-        if (security_barcode) {
-            // Use the same barcode query function to handle hyphen variations
-            const barcodeQuery = createSecurityBarcodeQuery(security_barcode);
-            Object.assign(query, barcodeQuery);
-        }
+        
+        console.log('🔍 Search query:', JSON.stringify(query));
         
         // Search for product
         const product = await db.collection('products').findOne(query);
         
         if (!product) {
+            console.log('❌ Product not found with query:', JSON.stringify(query));
             return res.status(404).json({ error: 'Product not found' });
         }
+        
+        console.log('✅ Product found:', product.security_barcode);
         
         // Get associated warranty if exists
         const productBarcode = product.security_barcode;

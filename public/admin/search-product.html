@@ -209,8 +209,8 @@
                 el.id = 'version-display';
                 el.style.cssText = 'position:fixed;top:10px;right:10px;font-size:0.7rem;color:rgba(0,0,0,0.7);font-family:"Courier New",monospace;z-index:99999;padding:4px 8px;background:rgba(255,255,255,0.9);border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.2);pointer-events:none;';
                 document.body.appendChild(el);
-                var API_BASE = window.API_BASE || '';
-                fetch(API_BASE + '/api/version')
+                var apiBase = window.API_BASE || '';
+                fetch(apiBase + '/api/version')
                     .then(function(res) { return res.json(); })
                     .then(function(data) {
                         el.textContent = 'v' + data.version + '.' + data.revision;
@@ -294,8 +294,7 @@
 
     <script src="../js/admin.js"></script>
     <script>
-        const API_BASE = window.API_BASE || '';
-        
+        // API_BASE is already defined in admin.js
         // Check authentication
         checkAuth();
         
