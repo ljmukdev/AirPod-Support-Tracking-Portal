@@ -819,19 +819,33 @@ function setupTrackingModalListeners() {
         });
     }
     
-    // Auto-uppercase tracking number input
+    // Auto-uppercase tracking number input - set up when modal opens
     const trackingNumberInput = document.getElementById('trackingNumber');
     if (trackingNumberInput) {
-        // Handle paste events - clean and format pasted text
-        trackingNumberInput.addEventListener('paste', function(e) {
+        // Remove any existing paste listeners to avoid duplicates
+        const newPasteHandler = function(e) {
             e.preventDefault();
+            e.stopPropagation();
             const paste = (e.clipboardData || window.clipboardData).getData('text');
-            // Clean up pasted text (remove extra whitespace, newlines)
-            const cleaned = paste.trim().replace(/\s+/g, ' ');
-            this.value = cleaned;
-            // Trigger input event for any other handlers
-            this.dispatchEvent(new Event('input', { bubbles: true }));
-        });
+            if (paste) {
+                // Clean up pasted text (remove extra whitespace, newlines)
+                const cleaned = paste.trim().replace(/\s+/g, ' ').toUpperCase();
+                const start = this.selectionStart;
+                const end = this.selectionEnd;
+                const currentValue = this.value;
+                this.value = currentValue.substring(0, start) + cleaned + currentValue.substring(end);
+                // Set cursor position after pasted text
+                const newPosition = start + cleaned.length;
+                this.setSelectionRange(newPosition, newPosition);
+                // Trigger input event for uppercase conversion
+                this.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        };
+        
+        // Remove old listener if exists and add new one
+        trackingNumberInput.removeEventListener('paste', trackingNumberInput._pasteHandler);
+        trackingNumberInput._pasteHandler = newPasteHandler;
+        trackingNumberInput.addEventListener('paste', newPasteHandler, { capture: true });
         
         trackingNumberInput.addEventListener('input', function(e) {
             const start = e.target.selectionStart;
