@@ -817,6 +817,17 @@ function setupTrackingModalListeners() {
     // Auto-uppercase tracking number input
     const trackingNumberInput = document.getElementById('trackingNumber');
     if (trackingNumberInput) {
+        // Handle paste events - clean and format pasted text
+        trackingNumberInput.addEventListener('paste', function(e) {
+            e.preventDefault();
+            const paste = (e.clipboardData || window.clipboardData).getData('text');
+            // Clean up pasted text (remove extra whitespace, newlines)
+            const cleaned = paste.trim().replace(/\s+/g, ' ');
+            this.value = cleaned;
+            // Trigger input event for any other handlers
+            this.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        
         trackingNumberInput.addEventListener('input', function(e) {
             const start = e.target.selectionStart;
             const end = e.target.selectionEnd;
