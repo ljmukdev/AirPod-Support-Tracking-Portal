@@ -588,9 +588,13 @@ async function loadProducts() {
             
             // Attach event listeners to status dropdowns
             tableBody.querySelectorAll('.status-select').forEach(select => {
+                // Store original value
+                const originalValue = select.value;
+                
                 select.addEventListener('change', async function(e) {
                     const productId = this.getAttribute('data-product-id');
                     const newStatus = this.value;
+                    const oldStatus = originalValue;
                     
                     if (!productId) return;
                     
@@ -600,13 +604,12 @@ async function loadProducts() {
                         returnReason = prompt('Enter return reason (optional):');
                         if (returnReason === null) {
                             // User cancelled, revert dropdown
-                            this.value = product.status || 'active';
+                            this.value = oldStatus;
                             return;
                         }
                     }
                     
                     // Show loading state
-                    const originalValue = this.value;
                     this.disabled = true;
                     this.style.opacity = '0.6';
                     
@@ -629,12 +632,12 @@ async function loadProducts() {
                             loadProducts();
                         } else {
                             // Revert on error
-                            this.value = originalValue;
+                            this.value = oldStatus;
                             alert(data.error || 'Failed to update status');
                         }
                     } catch (error) {
                         console.error('Status update error:', error);
-                        this.value = originalValue;
+                        this.value = oldStatus;
                         alert('Network error. Please try again.');
                     } finally {
                         this.disabled = false;
