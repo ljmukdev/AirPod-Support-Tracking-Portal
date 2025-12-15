@@ -28,3 +28,4 @@ Write-Host "✅ Deployment initiated!" -ForegroundColor Green
 Write-Host "📊 Check Railway dashboard for deployment status" -ForegroundColor Yellow
 Write-Host "🌐 Staging URL: https://your-staging-url.railway.app" -ForegroundColor Yellow
 
+

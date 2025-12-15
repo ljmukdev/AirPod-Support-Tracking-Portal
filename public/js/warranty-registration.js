@@ -135,6 +135,18 @@ async function trackEvent(eventName, data = {}) {
     }
 }
 
+// Track user interaction (button clicks, form submissions, etc.) using cookie-based tracking
+function trackUserInteraction(interactionType, interactionData = {}) {
+    // Only track if cookie consent is given
+    if (window.CookieManager && window.CookieManager.hasConsent() && window.trackInteraction) {
+        window.trackInteraction(interactionType, {
+            ...interactionData,
+            step: appState?.currentStep || null,
+            timestamp: new Date().toISOString()
+        });
+    }
+}
+
 // Track drop-off when user leaves the page
 function trackDropOff() {
     const sessionId = getSessionId();
@@ -433,6 +445,13 @@ function setupEventListeners() {
     
     // Continue buttons
     document.getElementById('continueBtn1')?.addEventListener('click', function() {
+        // Track button click
+        trackUserInteraction('button_click', {
+            button_id: 'continueBtn1',
+            button_text: 'Continue',
+            step: 1
+        });
+        
         const continueBtn = document.getElementById('continueBtn1');
         
         // Check if all verification steps are completed - if so, auto-progression should have already happened
@@ -457,12 +476,31 @@ function setupEventListeners() {
             validateSecurityCode();
         }
     });
-    document.getElementById('continueBtn2')?.addEventListener('click', handleContactDetailsSubmit);
+    document.getElementById('continueBtn2')?.addEventListener('click', () => {
+        trackUserInteraction('button_click', {
+            button_id: 'continueBtn2',
+            button_text: 'Continue',
+            step: 2,
+            action: 'submit_contact_form'
+        });
+        handleContactDetailsSubmit();
+    });
     document.getElementById('continueBtn3')?.addEventListener('click', () => {
+        trackUserInteraction('button_click', {
+            button_id: 'continueBtn3',
+            button_text: 'Continue',
+            step: 3
+        });
         // Setup instructions complete, go to warranty confirmation
         showStep(4);
     });
     document.getElementById('continueBtn4')?.addEventListener('click', () => {
+        trackUserInteraction('button_click', {
+            button_id: 'continueBtn4',
+            button_text: 'Continue',
+            step: 4,
+            action: 'confirm_warranty'
+        });
         // Warranty confirmed, go to extended warranty upsell
         trackEvent('warranty_confirmed');
         showStep(5);
@@ -4917,6 +4955,20 @@ function showStep(stepNumber, force = false) {
         
         // Track step view
         trackEvent('step_viewed', { step: stepNumber });
+        
+        // Track page view with cookie-based tracking
+        if (window.CookieManager && window.CookieManager.hasConsent()) {
+            window.trackPageView();
+        }
+        
+        // Track step navigation interaction
+        if (window.trackInteraction) {
+            window.trackInteraction('step_navigation', {
+                from_step: appState.currentStep,
+                to_step: stepNumber,
+                step_name: `Step ${stepNumber}`
+            });
+        }
         
         // Enable/disable navigation locking
         // Lock navigation from step 2 onwards (or step 1 if not skipped)

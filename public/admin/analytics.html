@@ -148,6 +148,84 @@
             border-radius: 4px;
             margin-bottom: 20px;
         }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #dee2e6;
+            background: white;
+            padding: 0 20px;
+            border-radius: 8px 8px 0 0;
+        }
+        .tab {
+            padding: 15px 20px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+        }
+        .tab:hover {
+            color: #0064D2;
+            background: #f8f9fa;
+        }
+        .tab.active {
+            color: #0064D2;
+            border-bottom-color: #0064D2;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .chart-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .chart-container h2 {
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+        .bar-chart {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .bar-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .bar-label {
+            min-width: 150px;
+            font-weight: 500;
+        }
+        .bar-wrapper {
+            flex: 1;
+            height: 30px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+        .bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0064D2, #0052b3);
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            color: white;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -158,13 +236,23 @@
                 <span class="logo-text">LJM</span>
             </div>
         </div>
-        <h1>Registration Analytics</h1>
+        <h1>Analytics Dashboard</h1>
     </header>
 
     <main class="container">
         <div class="analytics-container">
             <div id="errorMessage" class="error" style="display: none;"></div>
             
+            <!-- Navigation Tabs -->
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('registration')">📋 Registration Analytics</button>
+                <button class="tab" onclick="switchTab('site')">🌐 Site Analytics</button>
+                <button class="tab" onclick="switchTab('users')">👥 User Journey</button>
+                <button class="tab" onclick="switchTab('cookies')">🍪 Cookie Consent</button>
+            </div>
+            
+            <!-- Registration Analytics Tab -->
+            <div id="registrationTab" class="tab-content active">
             <div class="filters">
                 <label>
                     Start Date:
@@ -232,6 +320,169 @@
                         <tbody id="sessionsTableBody">
                         </tbody>
                     </table>
+                </div>
+            </div>
+            </div>
+            
+            <!-- Site Analytics Tab -->
+            <div id="siteTab" class="tab-content">
+                <div class="filters">
+                    <label>
+                        Start Date:
+                        <input type="date" id="siteStartDate">
+                    </label>
+                    <label>
+                        End Date:
+                        <input type="date" id="siteEndDate">
+                    </label>
+                    <button onclick="loadSiteAnalytics()">Apply Filters</button>
+                    <button onclick="resetSiteFilters()" style="background: #6c757d; margin-left: 10px;">Reset</button>
+                </div>
+                
+                <div id="siteLoadingState" class="loading">
+                    <p>Loading site analytics...</p>
+                </div>
+                
+                <div id="siteAnalyticsContent" style="display: none;">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <h3>Total Page Views</h3>
+                            <p class="stat-value" id="totalPageViews">0</p>
+                            <p class="stat-label">All pages</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Unique Visitors</h3>
+                            <p class="stat-value" id="uniqueVisitors">0</p>
+                            <p class="stat-label">Unique tracking IDs</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Active Sessions</h3>
+                            <p class="stat-value" id="activeSessions">0</p>
+                            <p class="stat-label">Current sessions</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Total Interactions</h3>
+                            <p class="stat-value" id="totalInteractions">0</p>
+                            <p class="stat-label">Clicks & submissions</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Avg. Session Duration</h3>
+                            <p class="stat-value" id="avgSessionDuration">0s</p>
+                            <p class="stat-label">Time on site</p>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <h2>Most Visited Pages</h2>
+                        <div id="topPagesChart" class="bar-chart"></div>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <h2>Interaction Types</h2>
+                        <div id="interactionsChart" class="bar-chart"></div>
+                    </div>
+                    
+                    <div class="sessions-table">
+                        <h2 style="padding: 20px; margin: 0; border-bottom: 2px solid #dee2e6;">Recent User Sessions</h2>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Tracking ID</th>
+                                    <th>Session ID</th>
+                                    <th>Started</th>
+                                    <th>Last Page</th>
+                                    <th>Page Views</th>
+                                    <th>Interactions</th>
+                                    <th>Duration</th>
+                                </tr>
+                            </thead>
+                            <tbody id="siteSessionsTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- User Journey Tab -->
+            <div id="usersTab" class="tab-content">
+                <div class="filters">
+                    <label>
+                        Tracking ID:
+                        <input type="text" id="userTrackingId" placeholder="Enter tracking ID">
+                    </label>
+                    <button onclick="loadUserJourney()">View Journey</button>
+                    <button onclick="resetUserFilters()" style="background: #6c757d; margin-left: 10px;">Reset</button>
+                </div>
+                
+                <div id="userLoadingState" class="loading">
+                    <p>Select a tracking ID to view user journey</p>
+                </div>
+                
+                <div id="userJourneyContent" style="display: none;">
+                    <div class="chart-container">
+                        <h2>User Journey Timeline</h2>
+                        <div id="journeyTimeline"></div>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <h2>Page Flow</h2>
+                        <div id="pageFlow"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Cookie Consent Tab -->
+            <div id="cookiesTab" class="tab-content">
+                <div class="filters">
+                    <label>
+                        Start Date:
+                        <input type="date" id="cookieStartDate">
+                    </label>
+                    <label>
+                        End Date:
+                        <input type="date" id="cookieEndDate">
+                    </label>
+                    <button onclick="loadCookieAnalytics()">Apply Filters</button>
+                    <button onclick="resetCookieFilters()" style="background: #6c757d; margin-left: 10px;">Reset</button>
+                </div>
+                
+                <div id="cookieLoadingState" class="loading">
+                    <p>Loading cookie consent analytics...</p>
+                </div>
+                
+                <div id="cookieAnalyticsContent" style="display: none;">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <h3>Total Consents</h3>
+                            <p class="stat-value" id="totalConsents">0</p>
+                            <p class="stat-label">All consent choices</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Accept All</h3>
+                            <p class="stat-value" id="acceptAllCount">0</p>
+                            <p class="stat-label">Full consent</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Essential Only</h3>
+                            <p class="stat-value" id="essentialOnlyCount">0</p>
+                            <p class="stat-label">Minimal consent</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Consent Rate</h3>
+                            <p class="stat-value" id="consentRate">0%</p>
+                            <p class="stat-label">Acceptance percentage</p>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <h2>Consent Distribution</h2>
+                        <div id="consentChart" class="bar-chart"></div>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <h2>Consent Over Time</h2>
+                        <div id="consentOverTime"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -302,6 +553,11 @@
                 if (endDate) params.append('endDate', endDate);
 
                 const response = await fetch(`${API_BASE}/api/admin/registration-analytics?${params}`);
+                
+                if (response.status === 503) {
+                    throw new Error('Database not available. Please check MongoDB connection. The server may still be connecting to the database.');
+                }
+                
                 const data = await response.json();
 
                 if (!response.ok) {
@@ -382,15 +638,283 @@
             loadAnalytics();
         }
 
+        // Tab switching
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName + 'Tab').classList.add('active');
+            event.target.classList.add('active');
+            
+            // Load data for the tab
+            if (tabName === 'site') {
+                loadSiteAnalytics();
+            } else if (tabName === 'cookies') {
+                loadCookieAnalytics();
+            } else if (tabName === 'registration') {
+                loadAnalytics();
+            }
+        }
+
+        // Site Analytics Functions
+        async function loadSiteAnalytics() {
+            document.getElementById('siteLoadingState').style.display = 'block';
+            document.getElementById('siteAnalyticsContent').style.display = 'none';
+
+            try {
+                const startDate = document.getElementById('siteStartDate').value;
+                const endDate = document.getElementById('siteEndDate').value;
+
+                const params = new URLSearchParams();
+                if (startDate) params.append('startDate', startDate);
+                if (endDate) params.append('endDate', endDate);
+
+                const response = await fetch(`${API_BASE}/api/admin/site-analytics?${params}`);
+                
+                if (response.status === 503) {
+                    throw new Error('Database not available. Please check MongoDB connection. The server may still be connecting to the database.');
+                }
+                
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to load site analytics');
+                }
+
+                // Update stats
+                document.getElementById('totalPageViews').textContent = data.stats.total_page_views || 0;
+                document.getElementById('uniqueVisitors').textContent = data.stats.unique_visitors || 0;
+                document.getElementById('activeSessions').textContent = data.stats.active_sessions || 0;
+                document.getElementById('totalInteractions').textContent = data.stats.total_interactions || 0;
+                document.getElementById('avgSessionDuration').textContent = formatDuration(data.stats.avg_session_duration || 0);
+
+                // Top Pages Chart
+                const topPagesChart = document.getElementById('topPagesChart');
+                topPagesChart.innerHTML = '';
+                if (data.top_pages && data.top_pages.length > 0) {
+                    const maxViews = Math.max(...data.top_pages.map(p => p.count));
+                    data.top_pages.forEach(page => {
+                        const item = document.createElement('div');
+                        item.className = 'bar-item';
+                        const percentage = maxViews > 0 ? (page.count / maxViews * 100) : 0;
+                        item.innerHTML = `
+                            <span class="bar-label">${page.page}</span>
+                            <div class="bar-wrapper">
+                                <div class="bar-fill" style="width: ${percentage}%">${page.count}</div>
+                            </div>
+                        `;
+                        topPagesChart.appendChild(item);
+                    });
+                }
+
+                // Interactions Chart
+                const interactionsChart = document.getElementById('interactionsChart');
+                interactionsChart.innerHTML = '';
+                if (data.interactions_by_type && Object.keys(data.interactions_by_type).length > 0) {
+                    const interactions = Object.entries(data.interactions_by_type);
+                    const maxInteractions = Math.max(...interactions.map(([_, count]) => count));
+                    interactions.forEach(([type, count]) => {
+                        const item = document.createElement('div');
+                        item.className = 'bar-item';
+                        const percentage = maxInteractions > 0 ? (count / maxInteractions * 100) : 0;
+                        item.innerHTML = `
+                            <span class="bar-label">${type.replace(/_/g, ' ')}</span>
+                            <div class="bar-wrapper">
+                                <div class="bar-fill" style="width: ${percentage}%">${count}</div>
+                            </div>
+                        `;
+                        interactionsChart.appendChild(item);
+                    });
+                }
+
+                // Sessions Table
+                const tableBody = document.getElementById('siteSessionsTableBody');
+                tableBody.innerHTML = '';
+                if (data.sessions && data.sessions.length > 0) {
+                    data.sessions.forEach(session => {
+                        const row = document.createElement('tr');
+                        const duration = session.last_updated && session.started_at
+                            ? Math.round((new Date(session.last_updated) - new Date(session.started_at)) / 1000)
+                            : null;
+                        row.innerHTML = `
+                            <td style="font-family: monospace; font-size: 0.85rem;">${session.tracking_id ? session.tracking_id.substring(0, 20) + '...' : 'N/A'}</td>
+                            <td style="font-family: monospace; font-size: 0.85rem;">${session.session_id ? session.session_id.substring(0, 20) + '...' : 'N/A'}</td>
+                            <td>${formatDate(session.started_at)}</td>
+                            <td>${session.last_page || 'N/A'}</td>
+                            <td>${session.page_views ? session.page_views.length : 0}</td>
+                            <td>${session.interactions ? session.interactions.length : 0}</td>
+                            <td>${formatDuration(duration)}</td>
+                        `;
+                        tableBody.appendChild(row);
+                    });
+                } else {
+                    tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #666;">No sessions found</td></tr>';
+                }
+
+                document.getElementById('siteLoadingState').style.display = 'none';
+                document.getElementById('siteAnalyticsContent').style.display = 'block';
+            } catch (error) {
+                console.error('Error loading site analytics:', error);
+                showError(error.message || 'Failed to load site analytics');
+                document.getElementById('siteLoadingState').style.display = 'none';
+            }
+        }
+
+        function resetSiteFilters() {
+            document.getElementById('siteStartDate').value = '';
+            document.getElementById('siteEndDate').value = '';
+            loadSiteAnalytics();
+        }
+
+        // Cookie Analytics Functions
+        async function loadCookieAnalytics() {
+            document.getElementById('cookieLoadingState').style.display = 'block';
+            document.getElementById('cookieAnalyticsContent').style.display = 'none';
+
+            try {
+                const startDate = document.getElementById('cookieStartDate').value;
+                const endDate = document.getElementById('cookieEndDate').value;
+
+                const params = new URLSearchParams();
+                if (startDate) params.append('startDate', startDate);
+                if (endDate) params.append('endDate', endDate);
+
+                const response = await fetch(`${API_BASE}/api/admin/cookie-analytics?${params}`);
+                
+                if (response.status === 503) {
+                    throw new Error('Database not available. Please check MongoDB connection. The server may still be connecting to the database.');
+                }
+                
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to load cookie analytics');
+                }
+
+                // Update stats
+                document.getElementById('totalConsents').textContent = data.stats.total_consents || 0;
+                document.getElementById('acceptAllCount').textContent = data.stats.accept_all || 0;
+                document.getElementById('essentialOnlyCount').textContent = data.stats.essential_only || 0;
+                const consentRate = data.stats.total_consents > 0 
+                    ? ((data.stats.accept_all / data.stats.total_consents) * 100).toFixed(1)
+                    : 0;
+                document.getElementById('consentRate').textContent = consentRate + '%';
+
+                // Consent Distribution Chart
+                const consentChart = document.getElementById('consentChart');
+                consentChart.innerHTML = '';
+                if (data.consent_distribution) {
+                    const maxCount = Math.max(...Object.values(data.consent_distribution));
+                    Object.entries(data.consent_distribution).forEach(([type, count]) => {
+                        const item = document.createElement('div');
+                        item.className = 'bar-item';
+                        const percentage = maxCount > 0 ? (count / maxCount * 100) : 0;
+                        const label = type === 'all_cookies' ? 'Accept All' 
+                                   : type === 'essential_only' ? 'Essential Only'
+                                   : type === 'custom' ? 'Custom'
+                                   : type;
+                        item.innerHTML = `
+                            <span class="bar-label">${label}</span>
+                            <div class="bar-wrapper">
+                                <div class="bar-fill" style="width: ${percentage}%">${count}</div>
+                            </div>
+                        `;
+                        consentChart.appendChild(item);
+                    });
+                }
+
+                document.getElementById('cookieLoadingState').style.display = 'none';
+                document.getElementById('cookieAnalyticsContent').style.display = 'block';
+            } catch (error) {
+                console.error('Error loading cookie analytics:', error);
+                showError(error.message || 'Failed to load cookie analytics');
+                document.getElementById('cookieLoadingState').style.display = 'none';
+            }
+        }
+
+        function resetCookieFilters() {
+            document.getElementById('cookieStartDate').value = '';
+            document.getElementById('cookieEndDate').value = '';
+            loadCookieAnalytics();
+        }
+
+        // User Journey Functions
+        async function loadUserJourney() {
+            const trackingId = document.getElementById('userTrackingId').value.trim();
+            if (!trackingId) {
+                showError('Please enter a tracking ID');
+                return;
+            }
+
+            document.getElementById('userLoadingState').style.display = 'block';
+            document.getElementById('userJourneyContent').style.display = 'none';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/user-journey?tracking_id=${encodeURIComponent(trackingId)}`);
+                
+                if (response.status === 503) {
+                    throw new Error('Database not available. Please check MongoDB connection. The server may still be connecting to the database.');
+                }
+                
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to load user journey');
+                }
+
+                // Display journey timeline
+                const timeline = document.getElementById('journeyTimeline');
+                timeline.innerHTML = '';
+                if (data.journey && data.journey.length > 0) {
+                    data.journey.forEach((event, index) => {
+                        const item = document.createElement('div');
+                        item.className = 'dropoff-item';
+                        item.innerHTML = `
+                            <span class="step-name">${formatDate(event.timestamp)}</span>
+                            <span>${event.page || event.interaction_type || 'Event'}</span>
+                        `;
+                        timeline.appendChild(item);
+                    });
+                } else {
+                    timeline.innerHTML = '<p style="color: #666; padding: 20px;">No journey data found for this tracking ID</p>';
+                }
+
+                document.getElementById('userLoadingState').style.display = 'none';
+                document.getElementById('userJourneyContent').style.display = 'block';
+            } catch (error) {
+                console.error('Error loading user journey:', error);
+                showError(error.message || 'Failed to load user journey');
+                document.getElementById('userLoadingState').style.display = 'none';
+            }
+        }
+
+        function resetUserFilters() {
+            document.getElementById('userTrackingId').value = '';
+            document.getElementById('userJourneyContent').style.display = 'none';
+        }
+
         // Load analytics on page load
         document.addEventListener('DOMContentLoaded', function() {
-            // Set default date range (last 30 days)
+            // Set default date range (last 30 days) for all date inputs
             const endDate = new Date();
             const startDate = new Date();
             startDate.setDate(startDate.getDate() - 30);
             
-            document.getElementById('endDate').value = endDate.toISOString().split('T')[0];
-            document.getElementById('startDate').value = startDate.toISOString().split('T')[0];
+            const dateStr = endDate.toISOString().split('T')[0];
+            const startStr = startDate.toISOString().split('T')[0];
+            
+            document.getElementById('endDate').value = dateStr;
+            document.getElementById('startDate').value = startStr;
+            document.getElementById('siteEndDate').value = dateStr;
+            document.getElementById('siteStartDate').value = startStr;
+            document.getElementById('cookieEndDate').value = dateStr;
+            document.getElementById('cookieStartDate').value = startStr;
             
             loadAnalytics();
         });

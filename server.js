@@ -1038,6 +1038,32 @@ async function initializeDatabase() {
                 console.error('Warning: Could not create setup_instructions indexes:', err.message);
             }
         }
+
+        // Create indexes for cookie-based tracking collections
+        try {
+            // Page views collection
+            await db.collection('page_views').createIndex({ tracking_id: 1, timestamp: -1 });
+            await db.collection('page_views').createIndex({ session_id: 1, timestamp: -1 });
+            await db.collection('page_views').createIndex({ page: 1 });
+            
+            // User sessions collection
+            await db.collection('user_sessions').createIndex({ session_id: 1 }, { unique: true });
+            await db.collection('user_sessions').createIndex({ tracking_id: 1 });
+            await db.collection('user_sessions').createIndex({ started_at: -1 });
+            
+            // User interactions collection
+            await db.collection('user_interactions').createIndex({ tracking_id: 1, timestamp: -1 });
+            await db.collection('user_interactions').createIndex({ session_id: 1, timestamp: -1 });
+            await db.collection('user_interactions').createIndex({ interaction_type: 1 });
+            
+            // Cookie consents collection
+            await db.collection('cookie_consents').createIndex({ timestamp: -1 });
+            await db.collection('cookie_consents').createIndex({ consent_type: 1 });
+        } catch (err) {
+            if (!err.message.includes('already exists') && !err.message.includes('E11000')) {
+                console.error('Warning: Could not create cookie tracking indexes:', err.message);
+            }
+        }
         
         console.log('Database indexes created');
         
@@ -2772,6 +2798,161 @@ This is an automated email. Please do not reply.
     }
 }
 
+// Track page views (cookie-based tracking)
+app.post('/api/track/page-view', requireDB, async (req, res) => {
+    try {
+        const {
+            tracking_id,
+            session_id,
+            page,
+            referrer,
+            timestamp,
+            user_agent,
+            screen_width,
+            screen_height
+        } = req.body;
+
+        if (!tracking_id || !session_id || !page) {
+            return res.status(400).json({ error: 'tracking_id, session_id, and page are required' });
+        }
+
+        const pageView = {
+            tracking_id,
+            session_id,
+            page,
+            referrer: referrer || 'direct',
+            timestamp: timestamp ? new Date(timestamp) : new Date(),
+            user_agent: user_agent || req.get('user-agent') || null,
+            screen_width: screen_width || null,
+            screen_height: screen_height || null,
+            ip_address: req.ip || req.connection.remoteAddress
+        };
+
+        // Insert page view
+        await db.collection('page_views').insertOne(pageView);
+
+        // Update or create user session
+        await db.collection('user_sessions').updateOne(
+            { session_id },
+            {
+                $set: {
+                    tracking_id,
+                    last_page: page,
+                    last_updated: new Date(),
+                    updated_at: new Date()
+                },
+                $setOnInsert: {
+                    session_id,
+                    tracking_id,
+                    started_at: new Date(),
+                    created_at: new Date(),
+                    page_views: []
+                },
+                $push: {
+                    page_views: {
+                        $each: [{
+                            page,
+                            timestamp: new Date(),
+                            referrer: referrer || 'direct'
+                        }],
+                        $slice: -100 // Keep last 100 page views
+                    }
+                }
+            },
+            { upsert: true }
+        );
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error tracking page view:', error);
+        res.status(500).json({ error: 'Failed to track page view' });
+    }
+});
+
+// Track user interactions (clicks, form submissions, etc.)
+app.post('/api/track/interaction', requireDB, async (req, res) => {
+    try {
+        const {
+            tracking_id,
+            session_id,
+            interaction_type,
+            interaction_data,
+            timestamp,
+            page
+        } = req.body;
+
+        if (!tracking_id || !session_id || !interaction_type) {
+            return res.status(400).json({ error: 'tracking_id, session_id, and interaction_type are required' });
+        }
+
+        const interaction = {
+            tracking_id,
+            session_id,
+            interaction_type, // 'click', 'form_submit', 'button_click', 'link_click', etc.
+            interaction_data: interaction_data || {},
+            page: page || req.path,
+            timestamp: timestamp ? new Date(timestamp) : new Date(),
+            ip_address: req.ip || req.connection.remoteAddress
+        };
+
+        // Insert interaction
+        await db.collection('user_interactions').insertOne(interaction);
+
+        // Update session with interaction
+        await db.collection('user_sessions').updateOne(
+            { session_id },
+            {
+                $set: {
+                    last_interaction: interaction_type,
+                    last_interaction_time: new Date(),
+                    last_updated: new Date()
+                },
+                $push: {
+                    interactions: {
+                        $each: [{
+                            type: interaction_type,
+                            data: interaction_data || {},
+                            timestamp: new Date()
+                        }],
+                        $slice: -200 // Keep last 200 interactions
+                    }
+                }
+            },
+            { upsert: true }
+        );
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error tracking interaction:', error);
+        res.status(500).json({ error: 'Failed to track interaction' });
+    }
+});
+
+// Track cookie consent
+app.post('/api/track/cookie-consent', requireDB, async (req, res) => {
+    try {
+        const { consent_type, timestamp } = req.body;
+
+        if (!consent_type) {
+            return res.status(400).json({ error: 'consent_type is required' });
+        }
+
+        const consent = {
+            consent_type,
+            timestamp: timestamp ? new Date(timestamp) : new Date(),
+            ip_address: req.ip || req.connection.remoteAddress,
+            user_agent: req.get('user-agent') || null
+        };
+
+        await db.collection('cookie_consents').insertOne(consent);
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error tracking cookie consent:', error);
+        res.status(500).json({ error: 'Failed to track consent' });
+    }
+});
+
 // Track registration session events
 app.post('/api/track/registration-event', requireDB, async (req, res) => {
     try {
@@ -2940,6 +3121,197 @@ app.get('/api/admin/registration-analytics', requireAuth, requireDB, async (req,
     } catch (error) {
         console.error('Error fetching registration analytics:', error);
         res.status(500).json({ error: 'Failed to fetch analytics' });
+    }
+});
+
+// Get site analytics (cookie-based tracking)
+app.get('/api/admin/site-analytics', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { startDate, endDate } = req.query;
+        
+        const matchStage = {};
+        if (startDate || endDate) {
+            matchStage.timestamp = {};
+            if (startDate) matchStage.timestamp.$gte = new Date(startDate);
+            if (endDate) {
+                const end = new Date(endDate);
+                end.setHours(23, 59, 59, 999);
+                matchStage.timestamp.$lte = end;
+            }
+        }
+        
+        // Get page views
+        const pageViews = await db.collection('page_views')
+            .find(matchStage)
+            .toArray();
+        
+        // Get unique visitors
+        const uniqueVisitors = await db.collection('page_views')
+            .distinct('tracking_id', matchStage);
+        
+        // Get active sessions (sessions updated in last 30 minutes)
+        const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+        const activeSessions = await db.collection('user_sessions')
+            .countDocuments({ last_updated: { $gte: thirtyMinutesAgo } });
+        
+        // Get interactions
+        const interactions = await db.collection('user_interactions')
+            .find(matchStage)
+            .toArray();
+        
+        // Get sessions
+        const sessions = await db.collection('user_sessions')
+            .find(matchStage.started_at ? { started_at: matchStage.timestamp } : {})
+            .sort({ started_at: -1 })
+            .limit(100)
+            .toArray();
+        
+        // Calculate top pages
+        const pageCounts = {};
+        pageViews.forEach(pv => {
+            pageCounts[pv.page] = (pageCounts[pv.page] || 0) + 1;
+        });
+        const topPages = Object.entries(pageCounts)
+            .map(([page, count]) => ({ page, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 10);
+        
+        // Calculate interactions by type
+        const interactionCounts = {};
+        interactions.forEach(interaction => {
+            const type = interaction.interaction_type || 'unknown';
+            interactionCounts[type] = (interactionCounts[type] || 0) + 1;
+        });
+        
+        // Calculate average session duration
+        let totalDuration = 0;
+        let sessionCount = 0;
+        sessions.forEach(session => {
+            if (session.started_at && session.last_updated) {
+                const duration = (new Date(session.last_updated) - new Date(session.started_at)) / 1000;
+                if (duration > 0) {
+                    totalDuration += duration;
+                    sessionCount++;
+                }
+            }
+        });
+        const avgSessionDuration = sessionCount > 0 ? Math.round(totalDuration / sessionCount) : 0;
+        
+        const stats = {
+            total_page_views: pageViews.length,
+            unique_visitors: uniqueVisitors.length,
+            active_sessions: activeSessions,
+            total_interactions: interactions.length,
+            avg_session_duration: avgSessionDuration
+        };
+        
+        res.json({
+            stats,
+            top_pages: topPages,
+            interactions_by_type: interactionCounts,
+            sessions: sessions.map(s => ({
+                ...s,
+                started_at: s.started_at,
+                last_updated: s.last_updated
+            }))
+        });
+    } catch (error) {
+        console.error('Error getting site analytics:', error);
+        res.status(500).json({ error: 'Failed to get site analytics' });
+    }
+});
+
+// Get cookie consent analytics
+app.get('/api/admin/cookie-analytics', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { startDate, endDate } = req.query;
+        
+        const matchStage = {};
+        if (startDate || endDate) {
+            matchStage.timestamp = {};
+            if (startDate) matchStage.timestamp.$gte = new Date(startDate);
+            if (endDate) {
+                const end = new Date(endDate);
+                end.setHours(23, 59, 59, 999);
+                matchStage.timestamp.$lte = end;
+            }
+        }
+        
+        const consents = await db.collection('cookie_consents')
+            .find(matchStage)
+            .toArray();
+        
+        // Calculate consent distribution
+        const consentDistribution = {};
+        consents.forEach(consent => {
+            const type = consent.consent_type || 'unknown';
+            consentDistribution[type] = (consentDistribution[type] || 0) + 1;
+        });
+        
+        const stats = {
+            total_consents: consents.length,
+            accept_all: consentDistribution['all_cookies'] || 0,
+            essential_only: consentDistribution['essential_only'] || 0,
+            custom: consentDistribution['custom'] || 0
+        };
+        
+        res.json({
+            stats,
+            consent_distribution: consentDistribution
+        });
+    } catch (error) {
+        console.error('Error getting cookie analytics:', error);
+        res.status(500).json({ error: 'Failed to get cookie analytics' });
+    }
+});
+
+// Get user journey for a specific tracking ID
+app.get('/api/admin/user-journey', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { tracking_id } = req.query;
+        
+        if (!tracking_id) {
+            return res.status(400).json({ error: 'tracking_id is required' });
+        }
+        
+        // Get all page views for this tracking ID
+        const pageViews = await db.collection('page_views')
+            .find({ tracking_id })
+            .sort({ timestamp: 1 })
+            .toArray();
+        
+        // Get all interactions for this tracking ID
+        const interactions = await db.collection('user_interactions')
+            .find({ tracking_id })
+            .sort({ timestamp: 1 })
+            .toArray();
+        
+        // Combine and sort by timestamp
+        const journey = [
+            ...pageViews.map(pv => ({
+                type: 'page_view',
+                page: pv.page,
+                timestamp: pv.timestamp,
+                referrer: pv.referrer
+            })),
+            ...interactions.map(inter => ({
+                type: 'interaction',
+                interaction_type: inter.interaction_type,
+                interaction_data: inter.interaction_data,
+                page: inter.page,
+                timestamp: inter.timestamp
+            }))
+        ].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+        
+        res.json({
+            tracking_id,
+            journey,
+            total_page_views: pageViews.length,
+            total_interactions: interactions.length
+        });
+    } catch (error) {
+        console.error('Error getting user journey:', error);
+        res.status(500).json({ error: 'Failed to get user journey' });
     }
 });
 
@@ -3242,6 +3614,98 @@ app.delete('/api/admin/warranty/:id', requireAuth, requireDB, async (req, res) =
             console.log(`✅ Warranty deleted: ${id}`);
             res.json({ success: true, message: 'Warranty deleted successfully' });
         }
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Search for product by serial number, eBay order number, or security barcode (Admin only)
+app.get('/api/admin/search-product', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { serial_number, ebay_order_number, security_barcode } = req.query;
+        
+        if (!serial_number && !ebay_order_number && !security_barcode) {
+            return res.status(400).json({ error: 'Please provide serial_number, ebay_order_number, or security_barcode' });
+        }
+        
+        // Build search query
+        const query = {};
+        if (serial_number) {
+            query.serial_number = serial_number.trim();
+        }
+        if (ebay_order_number) {
+            query.ebay_order_number = ebay_order_number.trim();
+        }
+        if (security_barcode) {
+            // Use the same barcode query function to handle hyphen variations
+            const barcodeQuery = createSecurityBarcodeQuery(security_barcode);
+            Object.assign(query, barcodeQuery);
+        }
+        
+        // Search for product
+        const product = await db.collection('products').findOne(query);
+        
+        if (!product) {
+            return res.status(404).json({ error: 'Product not found' });
+        }
+        
+        // Get associated warranty if exists
+        const productBarcode = product.security_barcode;
+        const warrantyQuery = createSecurityBarcodeQuery(productBarcode);
+        const warranty = await db.collection('warranties').findOne(warrantyQuery);
+        
+        // Format product data
+        const productData = {
+            id: product._id.toString(),
+            serial_number: product.serial_number,
+            security_barcode: product.security_barcode,
+            ebay_order_number: product.ebay_order_number || null,
+            part_type: product.part_type,
+            generation: product.generation || null,
+            part_model_number: product.part_model_number || null,
+            notes: product.notes || null,
+            photos: product.photos || [],
+            tracking_number: product.tracking_number || null,
+            tracking_date: product.tracking_date || null,
+            date_added: product.date_added,
+            confirmation_checked: product.confirmation_checked || false,
+            confirmation_date: product.confirmation_date || null
+        };
+        
+        // Format warranty data if exists
+        let warrantyData = null;
+        if (warranty) {
+            warrantyData = {
+                id: warranty._id.toString(),
+                warranty_id: warranty.warranty_id,
+                customer_name: warranty.customer_name,
+                customer_email: warranty.customer_email,
+                customer_phone: warranty.customer_phone || null,
+                billing_address: warranty.billing_address || null,
+                extended_warranty: warranty.extended_warranty || 'none',
+                extended_warranty_end: warranty.extended_warranty_end || null,
+                warranty_price: warranty.warranty_price || 0,
+                payment_intent_id: warranty.payment_intent_id || null,
+                payment_status: warranty.payment_status || 'free',
+                marketing_consent: warranty.marketing_consent || false,
+                terms_version: warranty.terms_version || 1,
+                terms_accepted: warranty.terms_accepted || false,
+                terms_accepted_date: warranty.terms_accepted_date || null,
+                registration_date: warranty.registration_date,
+                standard_warranty_start: warranty.standard_warranty_start,
+                standard_warranty_end: warranty.standard_warranty_end,
+                status: warranty.status || 'active',
+                claims_count: warranty.claims_count || 0,
+                last_claim_date: warranty.last_claim_date || null
+            };
+        }
+        
+        res.json({
+            success: true,
+            product: productData,
+            warranty: warrantyData
+        });
     } catch (err) {
         console.error('Database error:', err);
         res.status(500).json({ error: 'Database error: ' + err.message });

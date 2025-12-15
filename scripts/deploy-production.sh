@@ -43,3 +43,4 @@ echo "✅ Production deployment initiated!"
 echo "📊 Check Railway dashboard for deployment status"
 echo "🌐 Production URL: https://airpodsupport.ljmuk.co.uk"
 
+
