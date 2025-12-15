@@ -405,7 +405,7 @@ async function loadProducts() {
         
         if (response.ok && data.products) {
             if (data.products.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="12" style="text-align: center; padding: 20px;">No products found</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="13" style="text-align: center; padding: 20px;">No products found</td></tr>';
                 return;
             }
             
@@ -483,6 +483,50 @@ async function loadProducts() {
                 photosDisplay = '<span style="color: #28a745; font-size: 1.2rem; font-weight: bold;">✓</span>';
             }
             
+            // Format product status
+            const productStatus = product.status || 'active';
+            let statusDisplay = '';
+            let statusClass = '';
+            let statusText = '';
+            
+            switch(productStatus) {
+                case 'returned':
+                    statusClass = 'status-returned';
+                    statusText = 'Returned';
+                    if (product.return_reason) {
+                        statusText += ` (${escapeHtml(product.return_reason)})`;
+                    }
+                    break;
+                case 'delivered_no_warranty':
+                    statusClass = 'status-delivered-no-warranty';
+                    statusText = 'Delivered (No Warranty)';
+                    break;
+                case 'pending':
+                    statusClass = 'status-pending';
+                    statusText = 'Pending';
+                    break;
+                case 'active':
+                default:
+                    statusClass = 'status-active';
+                    statusText = 'Active';
+                    break;
+            }
+            
+            // Check if delivered but no warranty (alternative check)
+            if (productStatus === 'active' && product.tracking_number && !product.warranty) {
+                statusClass = 'status-delivered-no-warranty';
+                statusText = 'Delivered (No Warranty)';
+            }
+            
+            statusDisplay = `
+                <select class="status-select" data-product-id="${escapeHtml(String(product.id))}" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #ddd; font-size: 0.9rem; cursor: pointer; min-width: 150px;">
+                    <option value="active" ${productStatus === 'active' ? 'selected' : ''}>Active</option>
+                    <option value="delivered_no_warranty" ${productStatus === 'delivered_no_warranty' ? 'selected' : ''}>Delivered (No Warranty)</option>
+                    <option value="returned" ${productStatus === 'returned' ? 'selected' : ''}>Returned</option>
+                    <option value="pending" ${productStatus === 'pending' ? 'selected' : ''}>Pending</option>
+                </select>
+            `;
+            
             return `
                 <tr data-product-id="${escapeHtml(String(product.id))}">
                     <td>${escapeHtml(product.serial_number || '')}</td>
@@ -494,6 +538,7 @@ async function loadProducts() {
                     <td>${photosDisplay}</td>
                     <td>${formattedDate}</td>
                     <td>${trackingDisplay}</td>
+                    <td>${statusDisplay}</td>
                     <td>${warrantyStatus}</td>
                     <td>${daysRemaining}</td>
                     <td>
@@ -540,12 +585,69 @@ async function loadProducts() {
                     }
                 });
             });
+            
+            // Attach event listeners to status dropdowns
+            tableBody.querySelectorAll('.status-select').forEach(select => {
+                select.addEventListener('change', async function(e) {
+                    const productId = this.getAttribute('data-product-id');
+                    const newStatus = this.value;
+                    
+                    if (!productId) return;
+                    
+                    // If marking as returned, prompt for reason
+                    let returnReason = null;
+                    if (newStatus === 'returned') {
+                        returnReason = prompt('Enter return reason (optional):');
+                        if (returnReason === null) {
+                            // User cancelled, revert dropdown
+                            this.value = product.status || 'active';
+                            return;
+                        }
+                    }
+                    
+                    // Show loading state
+                    const originalValue = this.value;
+                    this.disabled = true;
+                    this.style.opacity = '0.6';
+                    
+                    try {
+                        const response = await fetch(`${API_BASE}/api/admin/product/${encodeURIComponent(productId)}/status`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ 
+                                status: newStatus,
+                                return_reason: returnReason || undefined
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (response.ok && data.success) {
+                            // Reload products to show updated status
+                            loadProducts();
+                        } else {
+                            // Revert on error
+                            this.value = originalValue;
+                            alert(data.error || 'Failed to update status');
+                        }
+                    } catch (error) {
+                        console.error('Status update error:', error);
+                        this.value = originalValue;
+                        alert('Network error. Please try again.');
+                    } finally {
+                        this.disabled = false;
+                        this.style.opacity = '1';
+                    }
+                });
+            });
         } else {
-            tableBody.innerHTML = '<tr><td colspan="12" style="text-align: center; padding: 20px; color: red;">Error loading products</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="13" style="text-align: center; padding: 20px; color: red;">Error loading products</td></tr>';
         }
     } catch (error) {
         console.error('Load products error:', error);
-        tableBody.innerHTML = '<tr><td colspan="12" style="text-align: center; padding: 20px; color: red;">Network error. Please refresh the page.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="13" style="text-align: center; padding: 20px; color: red;">Network error. Please refresh the page.</td></tr>';
     }
 }
 

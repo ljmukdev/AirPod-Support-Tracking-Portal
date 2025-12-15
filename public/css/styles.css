@@ -1290,6 +1290,44 @@ aside.admin-sidebar {
     background-color: var(--accent-teal-hover);
 }
 
+/* Status Select Dropdown */
+.status-select {
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+    font-size: 0.9rem;
+    cursor: pointer;
+    min-width: 150px;
+    background-color: white;
+    transition: all 0.2s ease;
+}
+
+.status-select:hover {
+    border-color: var(--accent-teal);
+}
+
+.status-select:focus {
+    outline: none;
+    border-color: var(--accent-teal);
+    box-shadow: 0 0 0 3px rgba(0, 164, 180, 0.1);
+}
+
+.status-select option[value="active"] {
+    background-color: #d4edda;
+}
+
+.status-select option[value="returned"] {
+    background-color: #f8d7da;
+}
+
+.status-select option[value="delivered_no_warranty"] {
+    background-color: #fff3cd;
+}
+
+.status-select option[value="pending"] {
+    background-color: #e2e3e5;
+}
+
 .delete-button {
     background-color: #dc3545;
     color: var(--background-white);

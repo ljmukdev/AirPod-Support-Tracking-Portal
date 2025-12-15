@@ -1866,6 +1866,62 @@ app.put('/api/admin/product/:id/reopen', requireAuth, requireDB, async (req, res
     }
 });
 
+// Quick status update (Admin only) - for dashboard quick editing
+app.put('/api/admin/product/:id/status', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid product ID' });
+    }
+    
+    const { status, return_reason } = req.body;
+    
+    if (!status) {
+        return res.status(400).json({ error: 'Status is required' });
+    }
+    
+    const validStatuses = ['active', 'returned', 'delivered_no_warranty', 'pending'];
+    if (!validStatuses.includes(status)) {
+        return res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
+    }
+    
+    try {
+        const updateData = {
+            status: status
+        };
+        
+        // If marking as returned, add return reason if provided
+        if (status === 'returned' && return_reason) {
+            updateData.return_reason = return_reason.trim();
+            updateData.last_return_date = new Date();
+            // Increment return count
+            const product = await db.collection('products').findOne({ _id: new ObjectId(id) });
+            if (product) {
+                updateData.return_count = (product.return_count || 0) + 1;
+            }
+        }
+        
+        // If marking as delivered_no_warranty, set a flag
+        if (status === 'delivered_no_warranty') {
+            updateData.delivered_no_warranty_date = new Date();
+        }
+        
+        const result = await db.collection('products').updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updateData }
+        );
+        
+        if (result.matchedCount === 0) {
+            res.status(404).json({ error: 'Product not found' });
+        } else {
+            res.json({ success: true, message: 'Status updated successfully' });
+        }
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // Get single product by ID (Admin only)
 app.get('/api/admin/product/:id', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;
