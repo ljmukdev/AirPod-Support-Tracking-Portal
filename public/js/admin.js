@@ -484,42 +484,15 @@ async function loadProducts() {
             }
             
             // Format product status
-            const productStatus = product.status || 'active';
-            let statusDisplay = '';
-            let statusClass = '';
-            let statusText = '';
+            let productStatus = product.status || 'active';
             
-            switch(productStatus) {
-                case 'returned':
-                    statusClass = 'status-returned';
-                    statusText = 'Returned';
-                    if (product.return_reason) {
-                        statusText += ` (${escapeHtml(product.return_reason)})`;
-                    }
-                    break;
-                case 'delivered_no_warranty':
-                    statusClass = 'status-delivered-no-warranty';
-                    statusText = 'Delivered (No Warranty)';
-                    break;
-                case 'pending':
-                    statusClass = 'status-pending';
-                    statusText = 'Pending';
-                    break;
-                case 'active':
-                default:
-                    statusClass = 'status-active';
-                    statusText = 'Active';
-                    break;
-            }
-            
-            // Check if delivered but no warranty (alternative check)
+            // Auto-detect "delivered_no_warranty" if tracking exists but no warranty
             if (productStatus === 'active' && product.tracking_number && !product.warranty) {
-                statusClass = 'status-delivered-no-warranty';
-                statusText = 'Delivered (No Warranty)';
+                productStatus = 'delivered_no_warranty';
             }
             
-            statusDisplay = `
-                <select class="status-select" data-product-id="${escapeHtml(String(product.id))}" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #ddd; font-size: 0.9rem; cursor: pointer; min-width: 150px;">
+            const statusDisplay = `
+                <select class="status-select" data-product-id="${escapeHtml(String(product.id))}" data-original-status="${productStatus}" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #ddd; font-size: 0.9rem; cursor: pointer; min-width: 150px;">
                     <option value="active" ${productStatus === 'active' ? 'selected' : ''}>Active</option>
                     <option value="delivered_no_warranty" ${productStatus === 'delivered_no_warranty' ? 'selected' : ''}>Delivered (No Warranty)</option>
                     <option value="returned" ${productStatus === 'returned' ? 'selected' : ''}>Returned</option>
