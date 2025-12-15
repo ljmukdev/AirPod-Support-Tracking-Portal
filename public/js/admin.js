@@ -491,14 +491,13 @@ async function loadProducts() {
                 productStatus = 'delivered_no_warranty';
             }
             
-            const statusDisplay = `
-                <select class="status-select" data-product-id="${escapeHtml(String(product.id))}" data-original-status="${productStatus}" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #ddd; font-size: 0.9rem; cursor: pointer; min-width: 150px;">
-                    <option value="active" ${productStatus === 'active' ? 'selected' : ''}>Active</option>
-                    <option value="delivered_no_warranty" ${productStatus === 'delivered_no_warranty' ? 'selected' : ''}>Delivered (No Warranty)</option>
-                    <option value="returned" ${productStatus === 'returned' ? 'selected' : ''}>Returned</option>
-                    <option value="pending" ${productStatus === 'pending' ? 'selected' : ''}>Pending</option>
-                </select>
-            `;
+            // Create status dropdown HTML - don't escape the HTML itself, only the values
+            const statusDisplay = '<select class="status-select" data-product-id="' + escapeHtml(String(product.id)) + '" data-original-status="' + escapeHtml(productStatus) + '" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #ddd; font-size: 0.9rem; cursor: pointer; min-width: 150px; background-color: white;">' +
+                '<option value="active"' + (productStatus === 'active' ? ' selected' : '') + '>Active</option>' +
+                '<option value="delivered_no_warranty"' + (productStatus === 'delivered_no_warranty' ? ' selected' : '') + '>Delivered (No Warranty)</option>' +
+                '<option value="returned"' + (productStatus === 'returned' ? ' selected' : '') + '>Returned</option>' +
+                '<option value="pending"' + (productStatus === 'pending' ? ' selected' : '') + '>Pending</option>' +
+                '</select>';
             
             return `
                 <tr data-product-id="${escapeHtml(String(product.id))}">
