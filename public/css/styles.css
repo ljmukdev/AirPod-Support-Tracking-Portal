@@ -594,6 +594,7 @@ body.admin-panel {
 .admin-sidebar {
     width: 260px;
     background-color: #1e3a5f !important;
+    background: #1e3a5f !important;
     color: #ffffff !important;
     display: flex;
     flex-direction: column;
@@ -605,6 +606,11 @@ body.admin-panel {
     box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
     overflow-y: auto;
     overflow-x: hidden;
+}
+
+aside.admin-sidebar {
+    background-color: #1e3a5f !important;
+    background: #1e3a5f !important;
 }
 
 .sidebar-header {
