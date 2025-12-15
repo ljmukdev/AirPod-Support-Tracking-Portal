@@ -600,7 +600,10 @@ async function openTrackingModal(productId) {
     currentInfo.style.display = 'none';
     
     // Focus the input field for easy pasting after modal is shown
+    // Also ensure paste is enabled - remove any readonly or disabled attributes
     setTimeout(() => {
+        trackingNumberInput.removeAttribute('readonly');
+        trackingNumberInput.removeAttribute('disabled');
         trackingNumberInput.focus();
     }, 150);
     
