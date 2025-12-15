@@ -1540,20 +1540,44 @@ app.get('/api/admin/products', requireAuth, requireDB, async (req, res) => {
         const total = await db.collection('products').countDocuments();
         
         // Get warranties for all products
-        const productBarcodes = products.map(p => p.security_barcode);
-        const warranties = await db.collection('warranties')
-            .find({ security_barcode: { $in: productBarcodes } })
-            .toArray();
+        // Build a flat array of all possible barcode matches (handling hyphen variations)
+        const warrantyConditions = [];
+        products.forEach(product => {
+            const normalized = normalizeSecurityBarcode(product.security_barcode);
+            const original = product.security_barcode.trim().toUpperCase();
+            
+            // Add exact matches
+            warrantyConditions.push({ security_barcode: original });
+            warrantyConditions.push({ security_barcode: normalized });
+            
+            // Add regex pattern for hyphen variations
+            if (normalized) {
+                const regexPattern = '^' + normalized.split('').join('[-]?') + '$';
+                warrantyConditions.push({ security_barcode: { $regex: regexPattern, $options: 'i' } });
+            }
+        });
         
-        // Create a map of security_barcode -> warranty for quick lookup
+        // Fetch warranties using $or with all conditions
+        const allWarranties = warrantyConditions.length > 0
+            ? await db.collection('warranties').find({ $or: warrantyConditions }).toArray()
+            : [];
+        
+        // Create a map of normalized security_barcode -> warranty for quick lookup
         const warrantyMap = {};
-        warranties.forEach(warranty => {
+        allWarranties.forEach(warranty => {
+            // Normalize both product and warranty barcodes for matching
+            const warrantyBarcodeNormalized = normalizeSecurityBarcode(warranty.security_barcode);
+            warrantyMap[warrantyBarcodeNormalized] = warranty;
+            // Also store with original barcode for exact matches
             warrantyMap[warranty.security_barcode] = warranty;
         });
         
         // Convert MongoDB ObjectId to string for JSON response and add warranty info
         const productsWithStringIds = products.map(product => {
-            const warranty = warrantyMap[product.security_barcode];
+            // Try to find warranty by exact match or normalized barcode
+            const productBarcodeNormalized = normalizeSecurityBarcode(product.security_barcode);
+            const warranty = warrantyMap[product.security_barcode] || warrantyMap[productBarcodeNormalized];
+            
             const productData = {
                 ...product,
                 id: product._id.toString(),
