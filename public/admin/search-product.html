@@ -418,6 +418,106 @@
                 <div class="warranty-details" id="warrantyDetails"></div>
             </div>
         </div>
+        </div>
+    </div>
+
+    <!-- Edit Product Modal -->
+    <div id="editProductModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>Edit Product</h2>
+                <span class="modal-close" id="closeEditModal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="editProductForm">
+                    <div class="form-group">
+                        <label for="editSerialNumber">Serial Number *</label>
+                        <input type="text" id="editSerialNumber" name="serial_number" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editSecurityBarcode">Security Barcode *</label>
+                        <input type="text" id="editSecurityBarcode" name="security_barcode" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editEbayOrderNumber">eBay Order Number</label>
+                        <input type="text" id="editEbayOrderNumber" name="ebay_order_number">
+                    </div>
+                    <div class="form-group">
+                        <label for="editPartType">Part Type *</label>
+                        <select id="editPartType" name="part_type" required>
+                            <option value="">Select part type</option>
+                            <option value="left">Left AirPod</option>
+                            <option value="right">Right AirPod</option>
+                            <option value="case">Case</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editGeneration">Generation</label>
+                        <input type="text" id="editGeneration" name="generation">
+                    </div>
+                    <div class="form-group">
+                        <label for="editPartModelNumber">Part Model Number</label>
+                        <input type="text" id="editPartModelNumber" name="part_model_number">
+                    </div>
+                    <div class="form-group">
+                        <label for="editNotes">Notes</label>
+                        <textarea id="editNotes" name="notes" rows="3"></textarea>
+                    </div>
+                    <div id="editProductError" class="error-message" style="display: none;"></div>
+                    <div id="editProductSuccess" class="success-message" style="display: none;"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="button button-secondary" id="cancelEditBtn">Cancel</button>
+                <button type="button" class="button" id="saveEditBtn">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mark as Returned Modal -->
+    <div id="returnProductModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>Mark Product as Returned</h2>
+                <span class="modal-close" id="closeReturnModal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="returnProductForm">
+                    <div class="form-group">
+                        <label for="returnReason">Return Reason *</label>
+                        <select id="returnReason" name="return_reason" required>
+                            <option value="">Select reason</option>
+                            <option value="Wrong item">Wrong item</option>
+                            <option value="Defective">Defective</option>
+                            <option value="Not compatible">Not compatible</option>
+                            <option value="Changed mind">Changed mind</option>
+                            <option value="Damaged in transit">Damaged in transit</option>
+                            <option value="Not as described">Not as described</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="customReasonGroup" style="display: none;">
+                        <label for="customReturnReason">Custom Reason</label>
+                        <input type="text" id="customReturnReason" name="custom_return_reason" placeholder="Enter custom reason">
+                    </div>
+                    <div class="form-group">
+                        <label for="refundAmount">Refund Amount (£) *</label>
+                        <input type="number" id="refundAmount" name="refund_amount" step="0.01" min="0" required placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label for="originalPostage">Original Postage & Packaging Paid (£)</label>
+                        <input type="number" id="originalPostage" name="original_postage_packaging" step="0.01" min="0" placeholder="0.00">
+                        <small style="color: #666; display: block; margin-top: 5px;">Enter the original postage and packaging cost that was paid</small>
+                    </div>
+                    <div id="returnProductError" class="error-message" style="display: none;"></div>
+                    <div id="returnProductSuccess" class="success-message" style="display: none;"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="button button-secondary" id="cancelReturnBtn">Cancel</button>
+                <button type="button" class="button" id="confirmReturnBtn" style="background: #dc3545;">Mark as Returned</button>
+            </div>
+        </div>
     </div>
 
     <script src="../js/admin.js"></script>
