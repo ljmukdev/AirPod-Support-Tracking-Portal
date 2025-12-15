@@ -626,6 +626,86 @@ h3 {
     background-color: rgba(255, 255, 255, 0.3);
 }
 
+/* Admin Navigation Buttons */
+.admin-nav-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.nav-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 16px;
+    background-color: rgba(255, 255, 255, 0.15);
+    color: var(--background-white);
+    text-decoration: none;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.nav-button:hover {
+    background-color: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.4);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.nav-button:active {
+    transform: translateY(0);
+    box-shadow: none;
+}
+
+.nav-button-highlight {
+    background-color: rgba(0, 164, 180, 0.3);
+    border-color: rgba(0, 164, 180, 0.5);
+    font-weight: 600;
+}
+
+.nav-button-highlight:hover {
+    background-color: rgba(0, 164, 180, 0.4);
+    border-color: rgba(0, 164, 180, 0.7);
+}
+
+.nav-button-logout {
+    background-color: rgba(220, 53, 69, 0.3);
+    border-color: rgba(220, 53, 69, 0.5);
+    margin-left: 8px;
+}
+
+.nav-button-logout:hover {
+    background-color: rgba(220, 53, 69, 0.4);
+    border-color: rgba(220, 53, 69, 0.7);
+}
+
+@media (max-width: 768px) {
+    .admin-nav-buttons {
+        gap: 6px;
+    }
+    
+    .nav-button {
+        padding: 8px 12px;
+        font-size: 0.85rem;
+    }
+    
+    .admin-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .admin-nav-buttons {
+        width: 100%;
+        margin-top: 15px;
+    }
+}
+
 .data-table {
     width: 100%;
     border-collapse: collapse;
