@@ -7,9 +7,9 @@
     <link rel="stylesheet" href="../css/styles.css">
     <style>
         .search-container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 0;
         }
         .search-form {
             background: white;
@@ -229,31 +229,159 @@
     </script>
 </head>
 <body class="admin-panel">
-    <div class="admin-container">
-        <div class="admin-header">
-            <div style="display: flex; align-items: center; gap: 15px;">
-                <div class="header-logo">
-                    <div class="logo-circle">
-                        <span class="logo-text">LJM</span>
-                    </div>
+    <!-- Sidebar Navigation -->
+    <aside class="admin-sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <div class="logo-circle">
+                    <span class="logo-text">LJM</span>
                 </div>
-                <h1>Search Product</h1>
-            </div>
-            <div class="admin-nav-buttons">
-                <a href="dashboard.html" class="nav-button">🏠 Dashboard</a>
-                <a href="parts.html" class="nav-button">📦 Parts</a>
-                <a href="setup-instructions.html" class="nav-button">📋 Setup</a>
-                <a href="warranties.html" class="nav-button">🛡️ Warranties</a>
-                <a href="warranty-pricing.html" class="nav-button">💰 Pricing</a>
-                <a href="warranty-terms.html" class="nav-button">📄 T&Cs</a>
-                <a href="addon-sales.html" class="nav-button">🛒 Add-Ons</a>
-                <a href="analytics.html" class="nav-button nav-button-highlight">📊 Analytics</a>
-                <a href="downloads.html" class="nav-button">📥 Downloads</a>
-                <button class="nav-button nav-button-logout" id="logoutButton">🚪 Logout</button>
+                <div>
+                    <div class="sidebar-logo-text">LJM Admin</div>
+                    <div class="sidebar-subtitle">Search</div>
+                </div>
             </div>
         </div>
-
-        <div class="search-container">
+        
+        <nav class="sidebar-nav">
+            <div class="nav-section">
+                <div class="nav-section-header">ADMIN</div>
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="dashboard.html" class="nav-link" data-page="dashboard">
+                            <svg class="nav-icon" width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 10L9 4L9 10L17 10M3 10L3 16M3 10L17 10M17 10L17 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="parts.html" class="nav-link" data-page="parts">
+                            <svg class="nav-icon" width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <rect x="3" y="3" width="6" height="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <rect x="11" y="3" width="6" height="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <rect x="3" y="11" width="6" height="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <rect x="11" y="11" width="6" height="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Manage Parts</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="setup-instructions.html" class="nav-link" data-page="setup-instructions">
+                            <svg class="nav-icon" width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M10 2L3 6L3 10C3 14.5 6.5 18.5 10 19C13.5 18.5 17 14.5 17 10L17 6L10 2Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M10 10L10 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <circle cx="10" cy="7" r="1" fill="currentColor"/>
+                            </svg>
+                            <span>Setup Instructions</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            
+            <div class="nav-section">
+                <div class="nav-section-header">WARRANTIES</div>
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="warranties.html" class="nav-link" data-page="warranties">
+                            <svg class="nav-icon" width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M10 2L3 6L3 10C3 14.5 6.5 18.5 10 19C13.5 18.5 17 14.5 17 10L17 6L10 2Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Warranties</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="warranty-pricing.html" class="nav-link" data-page="warranty-pricing">
+                            <svg class="nav-icon" width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M10 2L12 8L18 8L13 12L15 18L10 14L5 18L7 12L2 8L8 8L10 2Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Pricing</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="warranty-terms.html" class="nav-link" data-page="warranty-terms">
+                            <svg class="nav-icon" width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M4 4H16V16H4V4Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M7 7H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                <path d="M7 10H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                <path d="M7 13H11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                            <span>T&Cs</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            
+            <div class="nav-section">
+                <div class="nav-section-header">SALES</div>
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="addon-sales.html" class="nav-link" data-page="addon-sales">
+                            <svg class="nav-icon" width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M6 6L14 14M14 6L6 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"/>
+                            </svg>
+                            <span>Add-On Sales</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            
+            <div class="nav-section">
+                <div class="nav-section-header">ANALYTICS</div>
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="analytics.html" class="nav-link" data-page="analytics">
+                            <svg class="nav-icon" width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 16L3 12M7 16L7 8M11 16L11 10M15 16L15 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Analytics</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+        
+        <div class="sidebar-footer">
+            <a href="downloads.html" class="sidebar-footer-link" data-page="downloads">
+                <svg class="nav-icon" width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M10 13L10 3M10 13L6 9M10 13L14 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M3 16L17 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+                <span>Downloads</span>
+            </a>
+            <button class="sidebar-footer-link sidebar-logout" id="logoutButton">
+                <svg class="nav-icon" width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M13 15L17 10L13 5M17 10H7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M7 3H4C3.44772 3 3 3.44772 3 4V16C3 16.5523 3.44772 17 4 17H7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>Logout</span>
+            </button>
+        </div>
+    </aside>
+    
+    <!-- Main Content Area -->
+    <div class="admin-main">
+        <!-- Top Utility Bar -->
+        <header class="admin-topbar">
+            <div class="topbar-left">
+                <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 5H17M3 10H17M3 15H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                </button>
+                <h1 style="margin: 0; font-size: 1.25rem; font-weight: 600; color: var(--text-dark);">Search Product</h1>
+            </div>
+            <div class="topbar-right">
+                <div class="topbar-user">
+                    <span class="topbar-user-name">Admin</span>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Page Content -->
+        <div class="admin-content">
+            <div class="search-container">
             <div class="search-form">
                 <h2>🔍 Search for Product</h2>
                 <p style="color: #666; margin-bottom: 20px;">Search by Serial Number, eBay Order Number, or Security Barcode</p>
@@ -460,8 +588,200 @@
                     </div>
                 </div>
                 ${photosHtml ? `<div style="margin-top: 20px;"><strong>Photos:</strong>${photosHtml}</div>` : ''}
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #e5e7eb;">
+                    <h3 style="margin-top: 0; margin-bottom: 15px;">Actions</h3>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button id="editProductBtn" class="button" style="background: var(--accent-teal); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                            ✏️ Edit Product
+                        </button>
+                        ${product.status === 'returned' ? `
+                            <button id="reopenProductBtn" class="button" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                                ✅ Reopen Product
+                            </button>
+                        ` : `
+                            <button id="markReturnedBtn" class="button" style="background: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                                🔄 Mark as Returned
+                            </button>
+                        `}
+                    </div>
+                </div>
+                ${product.status === 'returned' ? `
+                    <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+                        <strong>⚠️ Product Status: RETURNED</strong>
+                        ${product.return_count ? `<p style="margin: 5px 0;">Return Count: ${product.return_count}</p>` : ''}
+                        ${product.return_reason ? `<p style="margin: 5px 0;"><strong>Reason:</strong> ${product.return_reason}</p>` : ''}
+                        ${product.refund_amount !== undefined ? `<p style="margin: 5px 0;"><strong>Refund Amount:</strong> £${parseFloat(product.refund_amount).toFixed(2)}</p>` : ''}
+                        ${product.total_refund_amount !== undefined ? `<p style="margin: 5px 0;"><strong>Total Refunds:</strong> £${parseFloat(product.total_refund_amount).toFixed(2)}</p>` : ''}
+                        ${product.total_postage_lost !== undefined ? `<p style="margin: 5px 0;"><strong>Total Postage Lost:</strong> £${parseFloat(product.total_postage_lost).toFixed(2)}</p>` : ''}
+                        ${product.return_date ? `<p style="margin: 5px 0;"><strong>Return Date:</strong> ${formatDate(product.return_date)}</p>` : ''}
+                    </div>
+                ` : ''}
             `;
+            
+            // Store product ID for actions
+            window.currentProductId = product.id;
+            window.currentProduct = product;
         }
+        
+        // Handle edit product button
+        document.addEventListener('click', async (e) => {
+            if (e.target.id === 'editProductBtn') {
+                const product = window.currentProduct;
+                if (product) {
+                    document.getElementById('editSerialNumber').value = product.serial_number || '';
+                    document.getElementById('editSecurityBarcode').value = product.security_barcode || '';
+                    document.getElementById('editEbayOrderNumber').value = product.ebay_order_number || '';
+                    document.getElementById('editPartType').value = product.part_type || '';
+                    document.getElementById('editGeneration').value = product.generation || '';
+                    document.getElementById('editPartModelNumber').value = product.part_model_number || '';
+                    document.getElementById('editNotes').value = product.notes || '';
+                    document.getElementById('editProductModal').style.display = 'block';
+                }
+            }
+            
+            if (e.target.id === 'markReturnedBtn') {
+                document.getElementById('returnProductModal').style.display = 'block';
+            }
+            
+            if (e.target.id === 'reopenProductBtn') {
+                if (confirm('Are you sure you want to reopen this product? This will change its status back to active.')) {
+                    try {
+                        const apiBase = window.API_BASE || '';
+                        const response = await fetch(`${apiBase}/api/admin/product/${window.currentProductId}/reopen`, {
+                            method: 'PUT',
+                            credentials: 'include',
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                        
+                        const data = await response.json();
+                        if (response.ok) {
+                            alert('Product reopened successfully');
+                            // Refresh the search results
+                            document.getElementById('searchForm').dispatchEvent(new Event('submit'));
+                        } else {
+                            alert('Error: ' + (data.error || 'Failed to reopen product'));
+                        }
+                    } catch (error) {
+                        alert('Network error: ' + error.message);
+                    }
+                }
+            }
+            
+            if (e.target.id === 'closeEditModal' || e.target.id === 'cancelEditBtn') {
+                document.getElementById('editProductModal').style.display = 'none';
+                document.getElementById('editProductError').style.display = 'none';
+                document.getElementById('editProductSuccess').style.display = 'none';
+            }
+            
+            if (e.target.id === 'closeReturnModal' || e.target.id === 'cancelReturnBtn') {
+                document.getElementById('returnProductModal').style.display = 'none';
+                document.getElementById('returnProductError').style.display = 'none';
+                document.getElementById('returnProductSuccess').style.display = 'none';
+                document.getElementById('returnProductForm').reset();
+            }
+        });
+        
+        // Handle return reason change
+        document.getElementById('returnReason')?.addEventListener('change', function() {
+            if (this.value === 'Other') {
+                document.getElementById('customReasonGroup').style.display = 'block';
+                document.getElementById('customReturnReason').required = true;
+            } else {
+                document.getElementById('customReasonGroup').style.display = 'none';
+                document.getElementById('customReturnReason').required = false;
+            }
+        });
+        
+        // Handle edit product form submission
+        document.getElementById('saveEditBtn')?.addEventListener('click', async () => {
+            const form = document.getElementById('editProductForm');
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData);
+            
+            try {
+                const apiBase = window.API_BASE || '';
+                const response = await fetch(`${apiBase}/api/admin/product/${window.currentProductId}`, {
+                    method: 'PUT',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                if (response.ok) {
+                    document.getElementById('editProductSuccess').textContent = 'Product updated successfully!';
+                    document.getElementById('editProductSuccess').style.display = 'block';
+                    document.getElementById('editProductError').style.display = 'none';
+                    setTimeout(() => {
+                        document.getElementById('editProductModal').style.display = 'none';
+                        // Refresh the search results
+                        document.getElementById('searchForm').dispatchEvent(new Event('submit'));
+                    }, 1500);
+                } else {
+                    document.getElementById('editProductError').textContent = result.error || 'Failed to update product';
+                    document.getElementById('editProductError').style.display = 'block';
+                    document.getElementById('editProductSuccess').style.display = 'none';
+                }
+            } catch (error) {
+                document.getElementById('editProductError').textContent = 'Network error: ' + error.message;
+                document.getElementById('editProductError').style.display = 'block';
+            }
+        });
+        
+        // Handle return product form submission
+        document.getElementById('confirmReturnBtn')?.addEventListener('click', async () => {
+            const form = document.getElementById('returnProductForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+            
+            const returnReason = document.getElementById('returnReason').value;
+            const customReason = document.getElementById('customReturnReason').value;
+            const finalReason = returnReason === 'Other' ? customReason : returnReason;
+            
+            if (!finalReason) {
+                document.getElementById('returnProductError').textContent = 'Please provide a return reason';
+                document.getElementById('returnProductError').style.display = 'block';
+                return;
+            }
+            
+            const data = {
+                return_reason: finalReason,
+                refund_amount: document.getElementById('refundAmount').value,
+                original_postage_packaging: document.getElementById('originalPostage').value || 0
+            };
+            
+            try {
+                const apiBase = window.API_BASE || '';
+                const response = await fetch(`${apiBase}/api/admin/product/${window.currentProductId}/return`, {
+                    method: 'PUT',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                if (response.ok) {
+                    document.getElementById('returnProductSuccess').textContent = 
+                        `Product marked as returned. Return count: ${result.return_count}, Total refunds: £${parseFloat(result.total_refund_amount).toFixed(2)}`;
+                    document.getElementById('returnProductSuccess').style.display = 'block';
+                    document.getElementById('returnProductError').style.display = 'none';
+                    setTimeout(() => {
+                        document.getElementById('returnProductModal').style.display = 'none';
+                        // Refresh the search results
+                        document.getElementById('searchForm').dispatchEvent(new Event('submit'));
+                    }, 2000);
+                } else {
+                    document.getElementById('returnProductError').textContent = result.error || 'Failed to mark product as returned';
+                    document.getElementById('returnProductError').style.display = 'block';
+                    document.getElementById('returnProductSuccess').style.display = 'none';
+                }
+            } catch (error) {
+                document.getElementById('returnProductError').textContent = 'Network error: ' + error.message;
+                document.getElementById('returnProductError').style.display = 'block';
+            }
+        });
         
         function displayWarranty(warranty) {
             const container = document.getElementById('warrantyDetails');
@@ -595,6 +915,44 @@
                 ${addressHtml ? `<div style="margin-top: 20px;"><strong>Billing Address:</strong>${addressHtml}</div>` : ''}
             `;
         }
+    </script>
+    
+    <!-- Sidebar Overlay for Mobile -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    
+    <script>
+        // Sidebar toggle functionality
+        (function() {
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const sidebar = document.querySelector('.admin-sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            
+            if (sidebarToggle && sidebar) {
+                sidebarToggle.addEventListener('click', function() {
+                    sidebar.classList.toggle('sidebar-open');
+                    if (overlay) {
+                        overlay.classList.toggle('active');
+                    }
+                });
+                
+                if (overlay) {
+                    overlay.addEventListener('click', function() {
+                        sidebar.classList.remove('sidebar-open');
+                        overlay.classList.remove('active');
+                    });
+                }
+            }
+            
+            // Set active nav item based on current page
+            const currentPage = window.location.pathname.split('/').pop() || 'search-product.html';
+            const navLinks = document.querySelectorAll('.nav-link, .sidebar-footer-link');
+            navLinks.forEach(link => {
+                const href = link.getAttribute('href');
+                if (href && (href === currentPage || currentPage.includes(href.replace('.html', '')))) {
+                    link.classList.add('active');
+                }
+            });
+        })();
     </script>
 </body>
 </html>

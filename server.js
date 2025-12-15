@@ -1767,6 +1767,105 @@ app.put('/api/admin/product/:id/tracking', requireAuth, requireDB, async (req, r
     }
 });
 
+// Mark product as returned/refunded (Admin only)
+app.put('/api/admin/product/:id/return', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid product ID' });
+    }
+    
+    const { return_reason, refund_amount, original_postage_packaging } = req.body;
+    
+    if (!return_reason || refund_amount === undefined || refund_amount === null || refund_amount === '') {
+        return res.status(400).json({ 
+            error: 'Return reason and refund amount are required' 
+        });
+    }
+    
+    const refundAmount = parseFloat(refund_amount);
+    const originalPostage = parseFloat(original_postage_packaging) || 0;
+    
+    if (isNaN(refundAmount) || refundAmount < 0) {
+        return res.status(400).json({ error: 'Invalid refund amount' });
+    }
+    
+    try {
+        // Get current product to check return count
+        const product = await db.collection('products').findOne({ _id: new ObjectId(id) });
+        
+        if (!product) {
+            return res.status(404).json({ error: 'Product not found' });
+        }
+        
+        const currentReturnCount = product.return_count || 0;
+        const totalRefundAmount = (product.total_refund_amount || 0) + refundAmount;
+        const totalPostageLost = (product.total_postage_lost || 0) + originalPostage;
+        
+        const updateData = {
+            status: 'returned',
+            return_reason: return_reason.trim(),
+            refund_amount: refundAmount,
+            original_postage_packaging: originalPostage,
+            return_date: new Date(),
+            return_count: currentReturnCount + 1,
+            total_refund_amount: totalRefundAmount,
+            total_postage_lost: totalPostageLost,
+            last_return_date: new Date()
+        };
+        
+        const result = await db.collection('products').updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updateData }
+        );
+        
+        if (result.matchedCount === 0) {
+            res.status(404).json({ error: 'Product not found' });
+        } else {
+            console.log('Product marked as returned, ID:', id);
+            res.json({ 
+                success: true, 
+                message: 'Product marked as returned successfully',
+                return_count: currentReturnCount + 1,
+                total_refund_amount: totalRefundAmount,
+                total_postage_lost: totalPostageLost
+            });
+        }
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Reopen/Reactivate a returned product (Admin only)
+app.put('/api/admin/product/:id/reopen', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid product ID' });
+    }
+    
+    try {
+        const updateData = {
+            status: 'active'
+        };
+        
+        const result = await db.collection('products').updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updateData }
+        );
+        
+        if (result.matchedCount === 0) {
+            res.status(404).json({ error: 'Product not found' });
+        } else {
+            res.json({ success: true, message: 'Product reopened successfully' });
+        }
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // Get single product by ID (Admin only)
 app.get('/api/admin/product/:id', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;
@@ -3748,7 +3847,16 @@ app.get('/api/admin/search-product', requireAuth, requireDB, async (req, res) =>
             tracking_date: product.tracking_date || null,
             date_added: product.date_added,
             confirmation_checked: product.confirmation_checked || false,
-            confirmation_date: product.confirmation_date || null
+            confirmation_date: product.confirmation_date || null,
+            status: product.status || 'active',
+            return_reason: product.return_reason || null,
+            refund_amount: product.refund_amount || null,
+            original_postage_packaging: product.original_postage_packaging || null,
+            return_date: product.return_date || null,
+            return_count: product.return_count || 0,
+            total_refund_amount: product.total_refund_amount || 0,
+            total_postage_lost: product.total_postage_lost || 0,
+            last_return_date: product.last_return_date || null
         };
         
         // Format warranty data if exists

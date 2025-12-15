@@ -659,7 +659,7 @@ aside.admin-sidebar {
 
 /* Sidebar Header */
 .sidebar-header {
-    padding: 20px 16px;
+    padding: 16px 16px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     flex-shrink: 0;
 }
@@ -709,14 +709,13 @@ aside.admin-sidebar {
 /* Sidebar Navigation */
 .sidebar-nav {
     flex: 1;
-    padding: 12px 12px;
-    overflow-y: auto;
-    overflow-x: hidden;
+    padding: 8px 12px;
+    overflow: hidden;
     min-height: 0;
 }
 
 .nav-section {
-    margin-bottom: 20px;
+    margin-bottom: 16px;
 }
 
 .nav-section-header {
@@ -725,8 +724,8 @@ aside.admin-sidebar {
     text-transform: uppercase !important;
     letter-spacing: 0.08em !important;
     color: var(--sidebar-text-muted) !important;
-    padding: 8px 14px !important;
-    margin: 0 0 8px 0 !important;
+    padding: 6px 14px !important;
+    margin: 0 0 4px 0 !important;
     line-height: 1.2;
 }
 
@@ -737,7 +736,7 @@ aside.admin-sidebar {
 }
 
 .nav-item {
-    margin: 0 0 2px 0 !important;
+    margin: 0 0 1px 0 !important;
     padding: 0 !important;
     list-style: none !important;
 }
@@ -747,8 +746,8 @@ aside.admin-sidebar {
     display: flex !important;
     align-items: center !important;
     gap: 12px !important;
-    height: 44px !important;
-    padding: 10px 14px !important;
+    height: 40px !important;
+    padding: 8px 14px !important;
     color: var(--sidebar-text) !important;
     text-decoration: none !important;
     font-size: 14px !important;
@@ -796,11 +795,11 @@ aside.admin-sidebar {
 
 /* Sidebar Footer (Pinned to Bottom) */
 .sidebar-footer {
-    padding: 12px 12px;
+    padding: 8px 12px;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 1px;
     flex-shrink: 0;
     margin-top: auto;
 }
@@ -809,8 +808,8 @@ aside.admin-sidebar {
     display: flex !important;
     align-items: center !important;
     gap: 12px !important;
-    height: 44px !important;
-    padding: 10px 14px !important;
+    height: 40px !important;
+    padding: 8px 14px !important;
     color: var(--sidebar-text) !important;
     text-decoration: none !important;
     font-size: 14px !important;
@@ -1300,6 +1299,69 @@ aside.admin-sidebar {
     cursor: pointer;
     font-size: 0.9rem;
     transition: background-color 0.3s ease;
+}
+
+/* Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 10000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 5% auto;
+    padding: 0;
+    border: 1px solid #888;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 600px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+    padding: 20px;
+    background-color: var(--primary-navy);
+    color: white;
+    border-radius: 8px 8px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h2 {
+    margin: 0;
+    color: white;
+}
+
+.modal-close {
+    color: white;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    line-height: 20px;
+}
+
+.modal-close:hover {
+    opacity: 0.7;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.modal-footer {
+    padding: 15px 20px;
+    border-top: 1px solid #ddd;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
 }
 
 .delete-button:hover {
