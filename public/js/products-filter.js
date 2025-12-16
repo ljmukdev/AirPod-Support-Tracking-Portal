@@ -1,9 +1,8 @@
-// Products Filter and Sort Functionality
+// Products Filter and Sort - Flat UI Version
 
-let allProducts = []; // Store all products for filtering
-let filteredProducts = []; // Currently filtered products
+let allProducts = [];
+let filteredProducts = [];
 
-// Filter state
 const filterState = {
     search: '',
     status: '',
@@ -14,10 +13,10 @@ const filterState = {
     sort: 'date_desc'
 };
 
-// Initialize filters when DOM is loaded
+// Initialize filters
 function initProductsFilter() {
-    // Get filter elements
     const filterSearch = document.getElementById('filterSearch');
+    const headerSearch = document.getElementById('headerSearch');
     const filterStatus = document.getElementById('filterStatus');
     const filterGeneration = document.getElementById('filterGeneration');
     const filterPartType = document.getElementById('filterPartType');
@@ -26,68 +25,70 @@ function initProductsFilter() {
     const filterSort = document.getElementById('filterSort');
     const clearFiltersBtn = document.getElementById('clearFilters');
 
-    if (!filterSearch) return; // Exit if not on products page
+    if (!filterSearch) return;
 
-    // Add event listeners
-    filterSearch.addEventListener('input', debounce((e) => {
-        filterState.search = e.target.value.toLowerCase();
-        applyFilters();
-    }, 300));
+    // Sync both search inputs
+    if (filterSearch && headerSearch) {
+        filterSearch.addEventListener('input', debounce((e) => {
+            filterState.search = e.target.value.toLowerCase();
+            headerSearch.value = e.target.value;
+            applyFilters();
+        }, 300));
 
-    filterStatus.addEventListener('change', (e) => {
+        headerSearch.addEventListener('input', debounce((e) => {
+            filterState.search = e.target.value.toLowerCase();
+            filterSearch.value = e.target.value;
+            applyFilters();
+        }, 300));
+    }
+
+    if (filterStatus) filterStatus.addEventListener('change', (e) => {
         filterState.status = e.target.value;
         applyFilters();
     });
 
-    filterGeneration.addEventListener('change', (e) => {
+    if (filterGeneration) filterGeneration.addEventListener('change', (e) => {
         filterState.generation = e.target.value;
         applyFilters();
     });
 
-    filterPartType.addEventListener('change', (e) => {
+    if (filterPartType) filterPartType.addEventListener('change', (e) => {
         filterState.partType = e.target.value;
         applyFilters();
     });
 
-    filterWarranty.addEventListener('change', (e) => {
+    if (filterWarranty) filterWarranty.addEventListener('change', (e) => {
         filterState.warranty = e.target.value;
         applyFilters();
     });
 
-    filterTracking.addEventListener('change', (e) => {
+    if (filterTracking) filterTracking.addEventListener('change', (e) => {
         filterState.tracking = e.target.value;
         applyFilters();
     });
 
-    filterSort.addEventListener('change', (e) => {
+    if (filterSort) filterSort.addEventListener('change', (e) => {
         filterState.sort = e.target.value;
         applyFilters();
     });
 
-    clearFiltersBtn.addEventListener('click', clearAllFilters);
+    if (clearFiltersBtn) clearFiltersBtn.addEventListener('click', clearAllFilters);
 }
 
-// Debounce function for search input
 function debounce(func, wait) {
     let timeout;
     return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
         clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
+        timeout = setTimeout(() => func(...args), wait);
     };
 }
 
-// Store products for filtering
 function setProductsForFiltering(products) {
     allProducts = products;
     filteredProducts = products;
     applyFilters();
 }
 
-// Apply all active filters
 function applyFilters() {
     let filtered = [...allProducts];
 
@@ -108,7 +109,6 @@ function applyFilters() {
     if (filterState.status) {
         filtered = filtered.filter(product => {
             let productStatus = product.status || 'active';
-            // Auto-detect "delivered_no_warranty"
             if (productStatus === 'active' && product.tracking_number && !product.warranty) {
                 productStatus = 'delivered_no_warranty';
             }
@@ -178,11 +178,9 @@ function applyFilters() {
 
     filteredProducts = filtered;
     updateProductsDisplay();
-    updateActiveFiltersDisplay();
     updateProductsCount();
 }
 
-// Sort products based on selected option
 function sortProducts(products, sortOption) {
     const sorted = [...products];
 
@@ -222,142 +220,12 @@ function sortProducts(products, sortOption) {
     return sorted;
 }
 
-// Update the products table display
 function updateProductsDisplay() {
-    // Call the original loadProducts function but with filtered data
-    // This function will be integrated with admin.js
     if (typeof window.renderFilteredProducts === 'function') {
         window.renderFilteredProducts(filteredProducts);
     }
 }
 
-// Update active filters display
-function updateActiveFiltersDisplay() {
-    const activeFiltersDiv = document.getElementById('activeFilters');
-    if (!activeFiltersDiv) return;
-
-    const activeFilters = [];
-
-    if (filterState.search) {
-        activeFilters.push({
-            label: 'Search',
-            value: filterState.search,
-            key: 'search'
-        });
-    }
-
-    if (filterState.status) {
-        const statusLabels = {
-            'active': 'Active',
-            'delivered_no_warranty': 'Delivered (No Warranty)',
-            'returned': 'Returned',
-            'pending': 'Pending'
-        };
-        activeFilters.push({
-            label: 'Status',
-            value: statusLabels[filterState.status] || filterState.status,
-            key: 'status'
-        });
-    }
-
-    if (filterState.generation) {
-        activeFilters.push({
-            label: 'Generation',
-            value: filterState.generation.replace('AirPods ', ''),
-            key: 'generation'
-        });
-    }
-
-    if (filterState.partType) {
-        const typeLabels = {
-            'left': 'Left AirPod',
-            'right': 'Right AirPod',
-            'case': 'Case'
-        };
-        activeFilters.push({
-            label: 'Type',
-            value: typeLabels[filterState.partType] || filterState.partType,
-            key: 'partType'
-        });
-    }
-
-    if (filterState.warranty) {
-        const warrantyLabels = {
-            'active': 'Active Warranty',
-            'none': 'No Warranty',
-            'expired': 'Expired',
-            'paid': 'Paid'
-        };
-        activeFilters.push({
-            label: 'Warranty',
-            value: warrantyLabels[filterState.warranty] || filterState.warranty,
-            key: 'warranty'
-        });
-    }
-
-    if (filterState.tracking) {
-        const trackingLabels = {
-            'tracked': 'Tracked',
-            'not_tracked': 'Not Tracked'
-        };
-        activeFilters.push({
-            label: 'Tracking',
-            value: trackingLabels[filterState.tracking] || filterState.tracking,
-            key: 'tracking'
-        });
-    }
-
-    if (activeFilters.length > 0) {
-        activeFiltersDiv.style.display = 'flex';
-        activeFiltersDiv.innerHTML = `
-            <span class="active-filters-label">Active Filters:</span>
-            ${activeFilters.map(filter => `
-                <span class="filter-chip">
-                    <strong>${filter.label}:</strong> ${filter.value}
-                    <button class="filter-chip-remove" data-filter-key="${filter.key}" title="Remove filter">
-                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M10.5 3.5L3.5 10.5M3.5 3.5L10.5 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                        </svg>
-                    </button>
-                </span>
-            `).join('')}
-        `;
-
-        // Add event listeners to remove buttons
-        activeFiltersDiv.querySelectorAll('.filter-chip-remove').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const filterKey = e.currentTarget.getAttribute('data-filter-key');
-                removeFilter(filterKey);
-            });
-        });
-    } else {
-        activeFiltersDiv.style.display = 'none';
-    }
-}
-
-// Remove a single filter
-function removeFilter(filterKey) {
-    filterState[filterKey] = '';
-
-    // Update the corresponding UI element
-    const elementMap = {
-        'search': 'filterSearch',
-        'status': 'filterStatus',
-        'generation': 'filterGeneration',
-        'partType': 'filterPartType',
-        'warranty': 'filterWarranty',
-        'tracking': 'filterTracking'
-    };
-
-    const element = document.getElementById(elementMap[filterKey]);
-    if (element) {
-        element.value = '';
-    }
-
-    applyFilters();
-}
-
-// Clear all filters
 function clearAllFilters() {
     filterState.search = '';
     filterState.status = '';
@@ -366,8 +234,8 @@ function clearAllFilters() {
     filterState.warranty = '';
     filterState.tracking = '';
 
-    // Reset all UI elements
     document.getElementById('filterSearch').value = '';
+    document.getElementById('headerSearch').value = '';
     document.getElementById('filterStatus').value = '';
     document.getElementById('filterGeneration').value = '';
     document.getElementById('filterPartType').value = '';
@@ -377,7 +245,6 @@ function clearAllFilters() {
     applyFilters();
 }
 
-// Update products count
 function updateProductsCount() {
     const countElement = document.getElementById('productsCount');
     if (countElement) {
@@ -392,6 +259,6 @@ function updateProductsCount() {
     }
 }
 
-// Expose functions to global scope
+// Expose functions
 window.initProductsFilter = initProductsFilter;
 window.setProductsForFiltering = setProductsForFiltering;
