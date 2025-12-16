@@ -274,10 +274,21 @@ async function saveSettings() {
         const data = await response.json();
         
         if (response.ok && data.success) {
-            showSuccess('Settings saved successfully!');
+            showSuccess('Settings saved successfully! The dashboard will use the new status options.');
+            
             // Clear status options cache in admin.js if it exists
             if (typeof window.clearStatusOptionsCache === 'function') {
                 window.clearStatusOptionsCache();
+                console.log('Status options cache cleared');
+            }
+            
+            // If we're on the dashboard, reload the products table
+            if (typeof loadProducts === 'function') {
+                console.log('Reloading products table with new status options...');
+                loadProducts();
+            } else {
+                // If not on dashboard, show message to refresh
+                console.log('Not on dashboard - user should refresh dashboard to see changes');
             }
         } else {
             showError(data.error || 'Failed to save settings.');

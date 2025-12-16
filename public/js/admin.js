@@ -401,6 +401,13 @@ let statusOptionsCache = null;
 // Clear status options cache (called when settings are updated)
 window.clearStatusOptionsCache = function() {
     statusOptionsCache = null;
+    console.log('Status options cache cleared');
+    
+    // If products table exists, reload it to use new status options
+    if (typeof loadProducts === 'function') {
+        console.log('Reloading products table with updated status options...');
+        loadProducts();
+    }
 };
 
 // Load status options from settings
