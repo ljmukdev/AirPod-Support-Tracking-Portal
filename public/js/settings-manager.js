@@ -14,13 +14,118 @@ const DEFAULT_STATUS_OPTIONS = [
     { value: 'pending', label: 'Pending' }
 ];
 
+// Define helper functions first (they'll be hoisted)
+function showError(message) {
+    const errorDiv = document.getElementById('errorMessage');
+    if (errorDiv) {
+        errorDiv.textContent = message;
+        errorDiv.style.display = 'block';
+        setTimeout(() => {
+            errorDiv.style.display = 'none';
+        }, 5000);
+    }
+    console.error(message);
+}
+
+function showSuccess(message) {
+    const successDiv = document.getElementById('successMessage');
+    if (successDiv) {
+        successDiv.textContent = message;
+        successDiv.style.display = 'block';
+        setTimeout(() => {
+            successDiv.style.display = 'none';
+        }, 5000);
+    }
+}
+
+function getCurrentStatusOptions() {
+    const list = document.getElementById('statusOptionsList');
+    if (!list) return [];
+    
+    const options = [];
+    const items = list.querySelectorAll('.status-option-item');
+    
+    items.forEach(item => {
+        const valueInput = item.querySelector('.status-value-input');
+        const labelInput = item.querySelector('.status-label-input');
+        
+        if (valueInput && labelInput && valueInput.value.trim() && labelInput.value.trim()) {
+            options.push({
+                value: valueInput.value.trim(),
+                label: labelInput.value.trim()
+            });
+        }
+    });
+    
+    return options;
+}
+
+function renderStatusOptions(options) {
+    const list = document.getElementById('statusOptionsList');
+    if (!list) return;
+    
+    list.innerHTML = '';
+    
+    options.forEach((option, index) => {
+        const li = document.createElement('li');
+        li.className = 'status-option-item';
+        li.innerHTML = `
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 5px;">
+                <div>
+                    <span class="status-value-label">Value (internal):</span>
+                    <input 
+                        type="text" 
+                        class="status-value-input" 
+                        value="${escapeHtml(option.value)}" 
+                        data-index="${index}"
+                        data-field="value"
+                        placeholder="e.g., active"
+                        required
+                    >
+                </div>
+                <div>
+                    <span class="status-value-label">Label (displayed):</span>
+                    <input 
+                        type="text" 
+                        class="status-label-input" 
+                        value="${escapeHtml(option.label)}" 
+                        data-index="${index}"
+                        data-field="label"
+                        placeholder="e.g., Active"
+                        required
+                    >
+                </div>
+            </div>
+            <button type="button" class="remove-status-btn" data-index="${index}">Remove</button>
+        `;
+        
+        // Add remove button listener
+        const removeBtn = li.querySelector('.remove-status-btn');
+        removeBtn.addEventListener('click', function() {
+            removeStatusOption(index);
+        });
+        
+        list.appendChild(li);
+    });
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 // Define addStatusOption function immediately so it's available for inline handlers
 window.addStatusOption = function() {
     console.log('addStatusOption called');
     const list = document.getElementById('statusOptionsList');
     if (!list) {
         console.error('statusOptionsList not found');
-        showError('Status options list not found. Please refresh the page.');
+        if (typeof showError === 'function') {
+            showError('Status options list not found. Please refresh the page.');
+        } else {
+            alert('Status options list not found. Please refresh the page.');
+        }
         return;
     }
     
@@ -34,7 +139,11 @@ window.addStatusOption = function() {
     // Validate value format
     const cleanValue = newValue.trim().toLowerCase().replace(/\s+/g, '_');
     if (!/^[a-z0-9_]+$/.test(cleanValue)) {
-        showError('Status value must contain only lowercase letters, numbers, and underscores.');
+        if (typeof showError === 'function') {
+            showError('Status value must contain only lowercase letters, numbers, and underscores.');
+        } else {
+            alert('Status value must contain only lowercase letters, numbers, and underscores.');
+        }
         return;
     }
     
@@ -49,7 +158,11 @@ window.addStatusOption = function() {
     
     // Check if value already exists
     if (currentOptions.some(opt => opt.value === cleanValue)) {
-        showError('A status with this value already exists.');
+        if (typeof showError === 'function') {
+            showError('A status with this value already exists.');
+        } else {
+            alert('A status with this value already exists.');
+        }
         return;
     }
     
@@ -60,15 +173,7 @@ window.addStatusOption = function() {
     });
     
     console.log('Adding new status option:', cleanValue, newLabel.trim());
-    
-    // Check if helper functions are available
-    if (typeof renderStatusOptions === 'function') {
-        renderStatusOptions(currentOptions);
-    } else {
-        console.error('renderStatusOptions not available');
-        alert('Error: renderStatusOptions function not found. Please refresh the page.');
-        return;
-    }
+    renderStatusOptions(currentOptions);
     
     if (typeof showSuccess === 'function') {
         showSuccess('Status option added. Don\'t forget to save!');
