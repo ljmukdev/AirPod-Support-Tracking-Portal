@@ -1602,6 +1602,7 @@ html {
     gap: 16px;
     margin-bottom: 24px;
     max-width: 100%;
+    width: 100%;
 }
 
 .stat-card {
@@ -1615,6 +1616,7 @@ html {
     display: flex;
     flex-direction: column;
     border: 1px solid #e5e7eb;
+    width: 100%;
 }
 
 .stat-card:hover {
