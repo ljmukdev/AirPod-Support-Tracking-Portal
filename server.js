@@ -1866,6 +1866,99 @@ app.put('/api/admin/product/:id/reopen', requireAuth, requireDB, async (req, res
     }
 });
 
+// Get settings (Admin only)
+app.get('/api/admin/settings', requireAuth, requireDB, async (req, res) => {
+    try {
+        const settingsDoc = await db.collection('settings').findOne({ type: 'system' });
+        
+        if (!settingsDoc) {
+            // Return default settings
+            return res.json({
+                success: true,
+                settings: {
+                    product_status_options: [
+                        { value: 'active', label: 'Active' },
+                        { value: 'delivered_no_warranty', label: 'Delivered (No Warranty)' },
+                        { value: 'returned', label: 'Returned' },
+                        { value: 'pending', label: 'Pending' }
+                    ]
+                }
+            });
+        }
+        
+        res.json({
+            success: true,
+            settings: settingsDoc.settings || {}
+        });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Update settings (Admin only)
+app.put('/api/admin/settings', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { product_status_options } = req.body;
+        
+        if (!product_status_options || !Array.isArray(product_status_options)) {
+            return res.status(400).json({ error: 'product_status_options array is required' });
+        }
+        
+        // Validate status options
+        for (const option of product_status_options) {
+            if (!option.value || !option.label) {
+                return res.status(400).json({ error: 'Each status option must have both value and label' });
+            }
+            if (!/^[a-z0-9_]+$/.test(option.value)) {
+                return res.status(400).json({ error: 'Status values must contain only lowercase letters, numbers, and underscores' });
+            }
+        }
+        
+        // Check for duplicate values
+        const values = product_status_options.map(opt => opt.value);
+        const uniqueValues = new Set(values);
+        if (values.length !== uniqueValues.size) {
+            return res.status(400).json({ error: 'Duplicate status values are not allowed' });
+        }
+        
+        const settings = {
+            product_status_options: product_status_options
+        };
+        
+        // Upsert settings document
+        await db.collection('settings').updateOne(
+            { type: 'system' },
+            { 
+                $set: { 
+                    settings: settings,
+                    updated_at: new Date()
+                }
+            },
+            { upsert: true }
+        );
+        
+        res.json({ success: true, message: 'Settings updated successfully' });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Get valid statuses helper function
+async function getValidStatuses() {
+    try {
+        const settingsDoc = await db.collection('settings').findOne({ type: 'system' });
+        if (settingsDoc && settingsDoc.settings && settingsDoc.settings.product_status_options) {
+            return settingsDoc.settings.product_status_options.map(opt => opt.value);
+        }
+    } catch (err) {
+        console.error('Error fetching valid statuses:', err);
+    }
+    // Return defaults if settings not found
+    return ['active', 'returned', 'delivered_no_warranty', 'pending'];
+}
+
 // Quick status update (Admin only) - for dashboard quick editing
 app.put('/api/admin/product/:id/status', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;
@@ -1880,7 +1973,8 @@ app.put('/api/admin/product/:id/status', requireAuth, requireDB, async (req, res
         return res.status(400).json({ error: 'Status is required' });
     }
     
-    const validStatuses = ['active', 'returned', 'delivered_no_warranty', 'pending'];
+    // Get valid statuses from settings
+    const validStatuses = await getValidStatuses();
     if (!validStatuses.includes(status)) {
         return res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
     }
@@ -5323,6 +5417,10 @@ app.get('/admin/parts', requireAuthHTML, (req, res) => {
 
 app.get('/admin/addon-sales', requireAuthHTML, (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin', 'addon-sales.html'));
+});
+
+app.get('/admin/settings', requireAuthHTML, (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'admin', 'settings.html'));
 });
 
 // Catch all route - serve index.html for SPA-like behavior

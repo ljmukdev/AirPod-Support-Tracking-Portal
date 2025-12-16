@@ -1,0 +1,253 @@
+// Settings Manager JavaScript
+
+// Define API_BASE globally if not already defined
+if (typeof window.API_BASE === 'undefined') {
+    window.API_BASE = '';
+}
+const API_BASE = window.API_BASE;
+
+// Default status options
+const DEFAULT_STATUS_OPTIONS = [
+    { value: 'active', label: 'Active' },
+    { value: 'delivered_no_warranty', label: 'Delivered (No Warranty)' },
+    { value: 'returned', label: 'Returned' },
+    { value: 'pending', label: 'Pending' }
+];
+
+// Load settings on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadSettings();
+    
+    // Add status button
+    const addStatusBtn = document.getElementById('addStatusBtn');
+    if (addStatusBtn) {
+        addStatusBtn.addEventListener('click', addStatusOption);
+    }
+    
+    // Save settings button
+    const saveBtn = document.getElementById('saveSettingsBtn');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', saveSettings);
+    }
+});
+
+// Load settings from API
+async function loadSettings() {
+    try {
+        const response = await fetch(`${API_BASE}/api/admin/settings`);
+        const data = await response.json();
+        
+        if (response.ok && data.settings) {
+            const statusOptions = data.settings.product_status_options || DEFAULT_STATUS_OPTIONS;
+            renderStatusOptions(statusOptions);
+        } else {
+            // Use defaults if no settings found
+            renderStatusOptions(DEFAULT_STATUS_OPTIONS);
+        }
+    } catch (error) {
+        console.error('Error loading settings:', error);
+        showError('Failed to load settings. Using defaults.');
+        renderStatusOptions(DEFAULT_STATUS_OPTIONS);
+    }
+}
+
+// Render status options
+function renderStatusOptions(options) {
+    const list = document.getElementById('statusOptionsList');
+    if (!list) return;
+    
+    list.innerHTML = '';
+    
+    options.forEach((option, index) => {
+        const li = document.createElement('li');
+        li.className = 'status-option-item';
+        li.innerHTML = `
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 5px;">
+                <div>
+                    <span class="status-value-label">Value (internal):</span>
+                    <input 
+                        type="text" 
+                        class="status-value-input" 
+                        value="${escapeHtml(option.value)}" 
+                        data-index="${index}"
+                        data-field="value"
+                        placeholder="e.g., active"
+                        required
+                    >
+                </div>
+                <div>
+                    <span class="status-value-label">Label (displayed):</span>
+                    <input 
+                        type="text" 
+                        class="status-label-input" 
+                        value="${escapeHtml(option.label)}" 
+                        data-index="${index}"
+                        data-field="label"
+                        placeholder="e.g., Active"
+                        required
+                    >
+                </div>
+            </div>
+            <button type="button" class="remove-status-btn" data-index="${index}">Remove</button>
+        `;
+        
+        // Add remove button listener
+        const removeBtn = li.querySelector('.remove-status-btn');
+        removeBtn.addEventListener('click', function() {
+            removeStatusOption(index);
+        });
+        
+        list.appendChild(li);
+    });
+}
+
+// Add new status option
+function addStatusOption() {
+    const list = document.getElementById('statusOptionsList');
+    if (!list) return;
+    
+    const newValue = prompt('Enter status value (lowercase, no spaces, e.g., "in_transit"):');
+    if (!newValue) return;
+    
+    // Validate value format
+    const cleanValue = newValue.trim().toLowerCase().replace(/\s+/g, '_');
+    if (!/^[a-z0-9_]+$/.test(cleanValue)) {
+        showError('Status value must contain only lowercase letters, numbers, and underscores.');
+        return;
+    }
+    
+    const newLabel = prompt('Enter display label (e.g., "In Transit"):');
+    if (!newLabel) return;
+    
+    // Get current options
+    const currentOptions = getCurrentStatusOptions();
+    
+    // Check if value already exists
+    if (currentOptions.some(opt => opt.value === cleanValue)) {
+        showError('A status with this value already exists.');
+        return;
+    }
+    
+    // Add new option
+    currentOptions.push({
+        value: cleanValue,
+        label: newLabel.trim()
+    });
+    
+    renderStatusOptions(currentOptions);
+}
+
+// Remove status option
+function removeStatusOption(index) {
+    if (!confirm('Are you sure you want to remove this status option? Products using this status may be affected.')) {
+        return;
+    }
+    
+    const currentOptions = getCurrentStatusOptions();
+    currentOptions.splice(index, 1);
+    renderStatusOptions(currentOptions);
+}
+
+// Get current status options from DOM
+function getCurrentStatusOptions() {
+    const list = document.getElementById('statusOptionsList');
+    if (!list) return [];
+    
+    const options = [];
+    const items = list.querySelectorAll('.status-option-item');
+    
+    items.forEach(item => {
+        const valueInput = item.querySelector('.status-value-input');
+        const labelInput = item.querySelector('.status-label-input');
+        
+        if (valueInput && labelInput && valueInput.value.trim() && labelInput.value.trim()) {
+            options.push({
+                value: valueInput.value.trim(),
+                label: labelInput.value.trim()
+            });
+        }
+    });
+    
+    return options;
+}
+
+// Save settings
+async function saveSettings() {
+    const saveBtn = document.getElementById('saveSettingsBtn');
+    const statusOptions = getCurrentStatusOptions();
+    
+    // Validate
+    if (statusOptions.length === 0) {
+        showError('At least one status option is required.');
+        return;
+    }
+    
+    // Check for duplicate values
+    const values = statusOptions.map(opt => opt.value);
+    const uniqueValues = new Set(values);
+    if (values.length !== uniqueValues.size) {
+        showError('Duplicate status values are not allowed.');
+        return;
+    }
+    
+    // Disable save button
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving...';
+    
+    try {
+        const response = await fetch(`${API_BASE}/api/admin/settings`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                product_status_options: statusOptions
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            showSuccess('Settings saved successfully!');
+        } else {
+            showError(data.error || 'Failed to save settings.');
+        }
+    } catch (error) {
+        console.error('Error saving settings:', error);
+        showError('Network error. Please try again.');
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save Settings';
+    }
+}
+
+// Utility functions
+function showError(message) {
+    const errorDiv = document.getElementById('errorMessage');
+    if (errorDiv) {
+        errorDiv.textContent = message;
+        errorDiv.style.display = 'block';
+        setTimeout(() => {
+            errorDiv.style.display = 'none';
+        }, 5000);
+    }
+    console.error(message);
+}
+
+function showSuccess(message) {
+    const successDiv = document.getElementById('successMessage');
+    if (successDiv) {
+        successDiv.textContent = message;
+        successDiv.style.display = 'block';
+        setTimeout(() => {
+            successDiv.style.display = 'none';
+        }, 5000);
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+

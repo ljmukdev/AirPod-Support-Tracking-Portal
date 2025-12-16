@@ -395,9 +395,50 @@ if (productForm) {
 }
 
 // Load products table
+// Cache for status options
+let statusOptionsCache = null;
+
+// Load status options from settings
+async function loadStatusOptions() {
+    if (statusOptionsCache) {
+        return statusOptionsCache;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE}/api/admin/settings`);
+        const data = await response.json();
+        
+        if (response.ok && data.settings && data.settings.product_status_options) {
+            statusOptionsCache = data.settings.product_status_options;
+        } else {
+            // Use defaults
+            statusOptionsCache = [
+                { value: 'active', label: 'Active' },
+                { value: 'delivered_no_warranty', label: 'Delivered (No Warranty)' },
+                { value: 'returned', label: 'Returned' },
+                { value: 'pending', label: 'Pending' }
+            ];
+        }
+    } catch (error) {
+        console.error('Error loading status options:', error);
+        // Use defaults on error
+        statusOptionsCache = [
+            { value: 'active', label: 'Active' },
+            { value: 'delivered_no_warranty', label: 'Delivered (No Warranty)' },
+            { value: 'returned', label: 'Returned' },
+            { value: 'pending', label: 'Pending' }
+        ];
+    }
+    
+    return statusOptionsCache;
+}
+
 async function loadProducts() {
     const tableBody = document.getElementById('productsTable');
     if (!tableBody) return;
+    
+    // Load status options first
+    const statusOptions = await loadStatusOptions();
     
     try {
         const response = await fetch(`${API_BASE}/api/admin/products`);
@@ -491,12 +532,16 @@ async function loadProducts() {
                 productStatus = 'delivered_no_warranty';
             }
             
+            // Build status dropdown options dynamically from settings
+            let statusOptionsHtml = '';
+            statusOptions.forEach(option => {
+                const selected = productStatus === option.value ? ' selected' : '';
+                statusOptionsHtml += '<option value="' + escapeHtml(option.value) + '"' + selected + '>' + escapeHtml(option.label) + '</option>';
+            });
+            
             // Create status dropdown HTML - don't escape the HTML itself, only the values
             const statusDisplay = '<select class="status-select" data-product-id="' + escapeHtml(String(product.id)) + '" data-original-status="' + escapeHtml(productStatus) + '" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #ddd; font-size: 0.9rem; cursor: pointer; min-width: 150px; background-color: white;">' +
-                '<option value="active"' + (productStatus === 'active' ? ' selected' : '') + '>Active</option>' +
-                '<option value="delivered_no_warranty"' + (productStatus === 'delivered_no_warranty' ? ' selected' : '') + '>Delivered (No Warranty)</option>' +
-                '<option value="returned"' + (productStatus === 'returned' ? ' selected' : '') + '>Returned</option>' +
-                '<option value="pending"' + (productStatus === 'pending' ? ' selected' : '') + '>Pending</option>' +
+                statusOptionsHtml +
                 '</select>';
             
             return `
