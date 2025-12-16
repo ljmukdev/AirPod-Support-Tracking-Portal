@@ -15,6 +15,8 @@ const filterState = {
 
 // Initialize filters
 function initProductsFilter() {
+    const filterSearch = document.getElementById('filterSearch');
+    const headerSearch = document.getElementById('headerSearch');
     const filterStatus = document.getElementById('filterStatus');
     const filterGeneration = document.getElementById('filterGeneration');
     const filterPartType = document.getElementById('filterPartType');
