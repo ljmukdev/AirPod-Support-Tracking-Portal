@@ -224,6 +224,9 @@ function updateProductsDisplay() {
     if (typeof window.renderFilteredProducts === 'function') {
         window.renderFilteredProducts(filteredProducts);
     }
+
+    // Ensure legacy action buttons continue to work after filtering
+    attachEventListeners();
 }
 
 function clearAllFilters() {
@@ -233,14 +236,25 @@ function clearAllFilters() {
     filterState.partType = '';
     filterState.warranty = '';
     filterState.tracking = '';
+    filterState.sort = 'date_desc';
 
-    document.getElementById('filterSearch').value = '';
-    document.getElementById('headerSearch').value = '';
-    document.getElementById('filterStatus').value = '';
-    document.getElementById('filterGeneration').value = '';
-    document.getElementById('filterPartType').value = '';
-    document.getElementById('filterWarranty').value = '';
-    document.getElementById('filterTracking').value = '';
+    const filterSearch = document.getElementById('filterSearch');
+    const headerSearch = document.getElementById('headerSearch');
+    const filterStatus = document.getElementById('filterStatus');
+    const filterGeneration = document.getElementById('filterGeneration');
+    const filterPartType = document.getElementById('filterPartType');
+    const filterWarranty = document.getElementById('filterWarranty');
+    const filterTracking = document.getElementById('filterTracking');
+    const filterSort = document.getElementById('filterSort');
+
+    if (filterSearch) filterSearch.value = '';
+    if (headerSearch) headerSearch.value = '';
+    if (filterStatus) filterStatus.value = '';
+    if (filterGeneration) filterGeneration.value = '';
+    if (filterPartType) filterPartType.value = '';
+    if (filterWarranty) filterWarranty.value = '';
+    if (filterTracking) filterTracking.value = '';
+    if (filterSort) filterSort.value = 'date_desc';
 
     applyFilters();
 }
@@ -257,6 +271,38 @@ function updateProductsCount() {
 
     countElements.forEach(el => {
         el.textContent = text;
+    });
+}
+
+function attachEventListeners() {
+    const tableBody = document.getElementById('productsTable');
+    if (!tableBody) return;
+
+    tableBody.querySelectorAll('[data-action="delete"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const productId = e.currentTarget.getAttribute('data-product-id');
+            if (productId) {
+                deleteProduct(productId);
+            }
+        });
+    });
+
+    tableBody.querySelectorAll('[data-action="edit"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const productId = e.currentTarget.getAttribute('data-product-id');
+            if (productId) {
+                editProduct(productId);
+            }
+        });
+    });
+
+    tableBody.querySelectorAll('[data-action="track"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const productId = e.currentTarget.getAttribute('data-product-id');
+            if (productId) {
+                openTrackingModal(productId);
+            }
+        });
     });
 }
 
