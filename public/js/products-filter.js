@@ -243,14 +243,11 @@ function applyFiltersAndRender() {
     
     // Sort products
     filteredProducts.sort((a, b) => {
-        const dateA = new Date(a.date_added || 0);
-        const dateB = new Date(b.date_added || 0);
-        
         switch (sortBy) {
             case 'date_desc':
-                return dateB - dateA;
+                return new Date(b.date_added || 0) - new Date(a.date_added || 0);
             case 'date_asc':
-                return dateA - dateB;
+                return new Date(a.date_added || 0) - new Date(b.date_added || 0);
             case 'serial_asc':
                 return (a.serial_number || '').localeCompare(b.serial_number || '');
             case 'serial_desc':
