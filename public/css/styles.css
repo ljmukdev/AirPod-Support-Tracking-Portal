@@ -946,6 +946,26 @@ aside.admin-sidebar {
     color: var(--accent-teal);
 }
 
+.topbar-add-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background-color: var(--accent-teal);
+    color: white;
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+    white-space: nowrap;
+    margin-left: 12px;
+}
+
+.topbar-add-button:hover {
+    background-color: var(--accent-teal-hover);
+}
+
 .topbar-right {
     display: flex;
     align-items: center;
