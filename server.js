@@ -1947,6 +1947,11 @@ app.put('/api/admin/settings', requireAuth, requireDB, async (req, res) => {
 
 // Get valid statuses helper function
 async function getValidStatuses() {
+    // Check if db is available
+    if (!db) {
+        return ['active', 'returned', 'delivered_no_warranty', 'pending'];
+    }
+    
     try {
         const settingsDoc = await db.collection('settings').findOne({ type: 'system' });
         if (settingsDoc && settingsDoc.settings && settingsDoc.settings.product_status_options) {
