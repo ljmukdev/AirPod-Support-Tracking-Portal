@@ -730,31 +730,33 @@ function getMongoSessionUrl() {
 
 const mongoSessionUrl = getMongoSessionUrl();
 
+// Session store - try MongoStore but fall back to MemoryStore on error
+let sessionStore;
+if (mongoSessionUrl && MongoStore && typeof MongoStore === 'function') {
+    try {
+        sessionStore = new MongoStore({
+            mongoUrl: mongoSessionUrl,
+            touchAfter: 24 * 3600,
+            crypto: {
+                secret: process.env.SESSION_SECRET || 'LJM_SECURE_SESSION_KEY_2024'
+            }
+        });
+        console.log('✅ Using MongoStore for sessions');
+    } catch (error) {
+        console.error('❌ Error creating MongoStore:', error.message);
+        console.warn('⚠️  Falling back to MemoryStore (sessions will not persist across restarts)');
+        sessionStore = undefined; // Fall back to MemoryStore
+    }
+} else {
+    console.warn('⚠️  MongoStore not available, using MemoryStore (sessions will not persist across restarts)');
+    sessionStore = undefined;
+}
+
 app.use(session({
     secret: process.env.SESSION_SECRET || 'LJM_SECURE_SESSION_KEY_2024',
     resave: false,
     saveUninitialized: false,
-    store: mongoSessionUrl ? (() => {
-        try {
-            // connect-mongo v5.x uses constructor API
-            if (MongoStore && typeof MongoStore === 'function') {
-                return new MongoStore({
-                    mongoUrl: mongoSessionUrl,
-                    touchAfter: 24 * 3600,
-                    crypto: {
-                        secret: process.env.SESSION_SECRET || 'LJM_SECURE_SESSION_KEY_2024'
-                    }
-                });
-            } else {
-                console.warn('MongoStore not available, falling back to MemoryStore');
-                return undefined;
-            }
-        } catch (error) {
-            console.error('Error creating MongoStore:', error.message);
-            console.error('Falling back to MemoryStore');
-            return undefined; // Fall back to MemoryStore
-        }
-    })() : undefined, // Fall back to MemoryStore if MongoDB URL not available
+    store: sessionStore, // Will be undefined if MongoStore failed, causing fallback to MemoryStore
     cookie: {
         secure: process.env.NODE_ENV === 'production', // Use secure cookies in production (HTTPS)
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
