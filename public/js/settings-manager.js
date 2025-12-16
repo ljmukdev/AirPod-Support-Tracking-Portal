@@ -1,13 +1,11 @@
 // Settings Manager JavaScript
 
-// Use existing API_BASE if available, otherwise define it
-// Don't redeclare if it already exists (from admin.js)
+// Use existing API_BASE from window (set by admin.js)
+// Don't redeclare to avoid conflicts - just use window.API_BASE directly
+// Create a local reference for convenience, but check if it exists first
 if (typeof window.API_BASE === 'undefined') {
     window.API_BASE = '';
 }
-// Reference the global API_BASE - use window.API_BASE directly to avoid redeclaration
-// eslint-disable-next-line no-var
-var API_BASE = window.API_BASE;
 
 // Default status options
 const DEFAULT_STATUS_OPTIONS = [
@@ -211,7 +209,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // Load settings from API
 async function loadSettings() {
     try {
-        const response = await fetch(`${API_BASE}/api/admin/settings`);
+        const response = await fetch(`${window.API_BASE || ''}/api/admin/settings`);
         const data = await response.json();
         
         if (response.ok && data.settings) {
@@ -385,7 +383,7 @@ async function saveSettings() {
     saveBtn.textContent = 'Saving...';
     
     try {
-        const response = await fetch(`${API_BASE}/api/admin/settings`, {
+        const response = await fetch(`${window.API_BASE || ''}/api/admin/settings`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
