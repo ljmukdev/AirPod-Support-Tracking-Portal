@@ -16,12 +16,20 @@ const DEFAULT_STATUS_OPTIONS = [
 
 // Load settings on page load
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('Settings manager: DOMContentLoaded');
     loadSettings();
     
     // Add status button
     const addStatusBtn = document.getElementById('addStatusBtn');
+    console.log('Add status button found:', !!addStatusBtn);
     if (addStatusBtn) {
-        addStatusBtn.addEventListener('click', addStatusOption);
+        addStatusBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log('Add status button clicked');
+            addStatusOption();
+        });
+    } else {
+        console.error('Add status button not found!');
     }
     
     // Save settings button
@@ -103,11 +111,19 @@ function renderStatusOptions(options) {
 
 // Add new status option
 function addStatusOption() {
+    console.log('addStatusOption called');
     const list = document.getElementById('statusOptionsList');
-    if (!list) return;
+    if (!list) {
+        console.error('statusOptionsList not found');
+        return;
+    }
     
+    // Use a more user-friendly approach - add inline form
     const newValue = prompt('Enter status value (lowercase, no spaces, e.g., "in_transit"):');
-    if (!newValue) return;
+    if (!newValue || newValue.trim() === '') {
+        console.log('User cancelled or empty value');
+        return;
+    }
     
     // Validate value format
     const cleanValue = newValue.trim().toLowerCase().replace(/\s+/g, '_');
@@ -117,7 +133,10 @@ function addStatusOption() {
     }
     
     const newLabel = prompt('Enter display label (e.g., "In Transit"):');
-    if (!newLabel) return;
+    if (!newLabel || newLabel.trim() === '') {
+        console.log('User cancelled or empty label');
+        return;
+    }
     
     // Get current options
     const currentOptions = getCurrentStatusOptions();
@@ -134,7 +153,9 @@ function addStatusOption() {
         label: newLabel.trim()
     });
     
+    console.log('Adding new status option:', cleanValue, newLabel.trim());
     renderStatusOptions(currentOptions);
+    showSuccess('Status option added. Don\'t forget to save!');
 }
 
 // Remove status option
