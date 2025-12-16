@@ -15,8 +15,6 @@ const filterState = {
 
 // Initialize filters
 function initProductsFilter() {
-    const filterSearch = document.getElementById('filterSearch');
-    const headerSearch = document.getElementById('headerSearch');
     const filterStatus = document.getElementById('filterStatus');
     const filterGeneration = document.getElementById('filterGeneration');
     const filterPartType = document.getElementById('filterPartType');
@@ -30,14 +28,16 @@ function initProductsFilter() {
     // Sync both search inputs
     if (filterSearch && headerSearch) {
         filterSearch.addEventListener('input', debounce((e) => {
-            filterState.search = e.target.value.toLowerCase();
-            headerSearch.value = e.target.value;
+            const value = e.target.value;
+            filterState.search = value.toLowerCase();
+            syncSearchInputs(value);
             applyFilters();
         }, 300));
 
         headerSearch.addEventListener('input', debounce((e) => {
-            filterState.search = e.target.value.toLowerCase();
-            filterSearch.value = e.target.value;
+            const value = e.target.value;
+            filterState.search = value.toLowerCase();
+            syncSearchInputs(value);
             applyFilters();
         }, 300));
     }
@@ -81,6 +81,14 @@ function debounce(func, wait) {
         clearTimeout(timeout);
         timeout = setTimeout(() => func(...args), wait);
     };
+}
+
+function syncSearchInputs(value) {
+    const filterSearch = document.getElementById('filterSearch');
+    const headerSearch = document.getElementById('headerSearch');
+
+    if (filterSearch) filterSearch.value = value;
+    if (headerSearch) headerSearch.value = value;
 }
 
 function setProductsForFiltering(products) {
@@ -247,8 +255,7 @@ function clearAllFilters() {
     const filterTracking = document.getElementById('filterTracking');
     const filterSort = document.getElementById('filterSort');
 
-    if (filterSearch) filterSearch.value = '';
-    if (headerSearch) headerSearch.value = '';
+    syncSearchInputs('');
     if (filterStatus) filterStatus.value = '';
     if (filterGeneration) filterGeneration.value = '';
     if (filterPartType) filterPartType.value = '';
