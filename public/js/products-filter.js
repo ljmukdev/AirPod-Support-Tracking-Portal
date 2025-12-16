@@ -101,7 +101,7 @@ async function initFilters() {
         'filterWarranty',
         'filterTracking',
         'filterSearch',
-        'sortBy'
+        'filterSort'
     ];
     
     filterInputs.forEach(id => {
@@ -114,6 +114,19 @@ async function initFilters() {
             }
         }
     });
+    
+    // Also sync headerSearch if it exists
+    const headerSearch = document.getElementById('headerSearch');
+    const filterSearch = document.getElementById('filterSearch');
+    if (headerSearch && filterSearch) {
+        headerSearch.addEventListener('input', debounce((e) => {
+            filterSearch.value = e.target.value;
+            applyFiltersAndRender();
+        }, 300));
+        filterSearch.addEventListener('input', debounce((e) => {
+            headerSearch.value = e.target.value;
+        }, 300));
+    }
     
     const clearFiltersBtn = document.getElementById('clearFilters');
     if (clearFiltersBtn) {
@@ -167,7 +180,7 @@ function applyFiltersAndRender() {
     const warrantyFilter = document.getElementById('filterWarranty')?.value || '';
     const trackingFilter = document.getElementById('filterTracking')?.value || '';
     const searchFilter = document.getElementById('filterSearch')?.value.toLowerCase() || '';
-    const sortBy = document.getElementById('sortBy')?.value || 'date_desc';
+    const sortBy = document.getElementById('filterSort')?.value || 'date_desc';
     
     // Filter products
     let filteredProducts = allProductsData.filter(product => {
@@ -409,13 +422,21 @@ function updateCounts(filteredCount) {
 }
 
 function clearAllFilters() {
-    document.getElementById('filterStatus').value = '';
-    document.getElementById('filterGeneration').value = '';
-    document.getElementById('filterPartType').value = '';
-    document.getElementById('filterWarranty').value = '';
-    document.getElementById('filterTracking').value = '';
-    document.getElementById('filterSearch').value = '';
-    document.getElementById('sortBy').value = 'date_desc';
+    const filterStatus = document.getElementById('filterStatus');
+    const filterGeneration = document.getElementById('filterGeneration');
+    const filterPartType = document.getElementById('filterPartType');
+    const filterWarranty = document.getElementById('filterWarranty');
+    const filterTracking = document.getElementById('filterTracking');
+    const filterSearch = document.getElementById('filterSearch');
+    const filterSort = document.getElementById('filterSort');
+    
+    if (filterStatus) filterStatus.value = '';
+    if (filterGeneration) filterGeneration.value = '';
+    if (filterPartType) filterPartType.value = '';
+    if (filterWarranty) filterWarranty.value = '';
+    if (filterTracking) filterTracking.value = '';
+    if (filterSearch) filterSearch.value = '';
+    if (filterSort) filterSort.value = 'date_desc';
     
     applyFiltersAndRender();
 }
