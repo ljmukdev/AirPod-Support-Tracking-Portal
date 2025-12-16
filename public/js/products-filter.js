@@ -117,6 +117,29 @@ async function initFilters() {
     
     // Also sync headerSearch if it exists
     const headerSearch = document.getElementById('headerSearch');
+    const filterStatus = document.getElementById('filterStatus');
+    const filterGeneration = document.getElementById('filterGeneration');
+    const filterPartType = document.getElementById('filterPartType');
+    const filterWarranty = document.getElementById('filterWarranty');
+    const filterTracking = document.getElementById('filterTracking');
+    const filterSort = document.getElementById('filterSort');
+    const clearFiltersBtn = document.getElementById('clearFilters');
+
+    if (!filterSearch && !headerSearch) return;
+
+    // Sync both search inputs
+    const handleSearchChange = debounce((value) => {
+        filterState.search = value.toLowerCase();
+        syncSearchInputs(value);
+        applyFilters();
+    }, 300);
+
+    if (filterSearch) {
+        filterSearch.addEventListener('input', (e) => handleSearchChange(e.target.value));
+    }
+
+    if (headerSearch) {
+        headerSearch.addEventListener('input', (e) => handleSearchChange(e.target.value));
     const filterSearch = document.getElementById('filterSearch');
     if (headerSearch && filterSearch) {
         headerSearch.addEventListener('input', debounce((e) => {
@@ -150,6 +173,33 @@ function debounce(func, wait) {
     };
 }
 
+function syncSearchInputs(value) {
+    const filterSearch = document.getElementById('filterSearch');
+    const headerSearch = document.getElementById('headerSearch');
+
+    if (filterSearch) filterSearch.value = value;
+    if (headerSearch) headerSearch.value = value;
+}
+
+function setProductsForFiltering(products) {
+    allProducts = products;
+    filteredProducts = products;
+    applyFilters();
+}
+
+function applyFilters() {
+    let filtered = [...allProducts];
+
+    // Apply search filter
+    if (filterState.search) {
+        filtered = filtered.filter(product => {
+            const searchStr = filterState.search;
+            return (
+                (product.serial_number || '').toLowerCase().includes(searchStr) ||
+                (product.security_barcode || '').toLowerCase().includes(searchStr) ||
+                (product.ebay_order_number || '').toLowerCase().includes(searchStr) ||
+                (product.part_model_number || '').toLowerCase().includes(searchStr)
+            );
 async function fetchAndStoreProducts() {
     try {
         const response = await fetch(`${API_BASE}/api/admin/products`, {
@@ -419,14 +469,28 @@ function updateCounts(filteredCount) {
     if (totalCountEl) {
         totalCountEl.textContent = allProductsData.length;
     }
+
+    // Ensure legacy action buttons continue to work after filtering
+    attachEventListeners();
 }
 
 function clearAllFilters() {
+    filterState.search = '';
+    filterState.status = '';
+    filterState.generation = '';
+    filterState.partType = '';
+    filterState.warranty = '';
+    filterState.tracking = '';
+    filterState.sort = 'date_desc';
+
     const filterStatus = document.getElementById('filterStatus');
     const filterGeneration = document.getElementById('filterGeneration');
     const filterPartType = document.getElementById('filterPartType');
     const filterWarranty = document.getElementById('filterWarranty');
     const filterTracking = document.getElementById('filterTracking');
+    const filterSort = document.getElementById('filterSort');
+
+    syncSearchInputs('');
     const filterSearch = document.getElementById('filterSearch');
     const filterSort = document.getElementById('filterSort');
     
@@ -435,6 +499,47 @@ function clearAllFilters() {
     if (filterPartType) filterPartType.value = '';
     if (filterWarranty) filterWarranty.value = '';
     if (filterTracking) filterTracking.value = '';
+    if (filterSort) filterSort.value = 'date_desc';
+
+    applyFilters();
+}
+
+function updateProductsCount() {
+    const countElements = [
+        ...document.querySelectorAll('[data-products-count]'),
+        ...document.querySelectorAll('#productsCount')
+    ];
+
+    if (!countElements.length) return;
+
+    const total = allProducts.length;
+    const filtered = filteredProducts.length;
+    const text = filtered === total
+        ? `${total} product${total !== 1 ? 's' : ''}`
+        : `${filtered} of ${total} products`;
+
+    countElements.forEach(el => {
+        el.textContent = text;
+    });
+}
+
+function attachEventListeners() {
+    const tableBody = document.getElementById('productsTable');
+    if (!tableBody) return;
+
+    tableBody.querySelectorAll('[data-action="delete"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const productId = e.currentTarget.getAttribute('data-product-id');
+            if (productId) {
+                deleteProduct(productId);
+            }
+        });
+    });
+
+    tableBody.querySelectorAll('[data-action="edit"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const productId = e.currentTarget.getAttribute('data-product-id');
+            if (productId) {
     if (filterSearch) filterSearch.value = '';
     if (filterSort) filterSort.value = 'date_desc';
     
@@ -485,6 +590,11 @@ function attachEventListeners() {
             }
         });
     });
+
+    tableBody.querySelectorAll('[data-action="track"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const productId = e.currentTarget.getAttribute('data-product-id');
+            if (productId) {
     
     tableBody.querySelectorAll('[data-action="track"]').forEach(btn => {
         btn.addEventListener('click', (e) => {
