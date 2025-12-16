@@ -165,6 +165,37 @@ async function fetchAndStoreProducts() {
     }
 }
 
+function getWarrantyInfo(product) {
+    const info = {
+        hasWarranty: !!product.warranty,
+        isExpired: false,
+        daysUntilExpiry: Infinity,
+        paymentStatus: null
+    };
+
+    if (!product.warranty) {
+        return info;
+    }
+
+    const warranty = product.warranty;
+    info.paymentStatus = warranty.payment_status || null;
+
+    const warrantyEndDate = warranty.extended_warranty_end && warranty.extended_warranty !== 'none'
+        ? new Date(warranty.extended_warranty_end)
+        : warranty.standard_warranty_end
+            ? new Date(warranty.standard_warranty_end)
+            : null;
+
+    if (warrantyEndDate) {
+        const now = new Date();
+        const diffDays = Math.ceil((warrantyEndDate - now) / (1000 * 60 * 60 * 24));
+        info.daysUntilExpiry = isNaN(diffDays) ? Infinity : diffDays;
+        info.isExpired = diffDays < 0;
+    }
+
+    return info;
+}
+
 function applyFiltersAndRender() {
     if (allProductsData.length === 0) {
         // If no products stored yet, fetch them first
@@ -205,35 +236,31 @@ function applyFiltersAndRender() {
         
         // Warranty filter
         if (warrantyFilter) {
-            const hasWarranty = !!product.warranty;
-            if (warrantyFilter === 'with' && !hasWarranty) {
-                return false;
-            }
-            if (warrantyFilter === 'without' && hasWarranty) {
-                return false;
-            }
-            if (warrantyFilter === 'expired') {
-                if (!hasWarranty) return false;
-                const warranty = product.warranty;
-                const now = new Date();
-                const warrantyEndDate = warranty.extended_warranty_end && warranty.extended_warranty !== 'none' 
-                    ? new Date(warranty.extended_warranty_end)
-                    : warranty.standard_warranty_end 
-                        ? new Date(warranty.standard_warranty_end)
-                        : null;
-                if (warrantyEndDate && warrantyEndDate >= now) {
-                    return false; // Not expired
-                }
+            const warrantyInfo = getWarrantyInfo(product);
+
+            switch (warrantyFilter) {
+                case 'active':
+                    if (!warrantyInfo.hasWarranty || warrantyInfo.isExpired) return false;
+                    break;
+                case 'none':
+                    if (warrantyInfo.hasWarranty) return false;
+                    break;
+                case 'expired':
+                    if (!warrantyInfo.hasWarranty || !warrantyInfo.isExpired) return false;
+                    break;
+                case 'paid':
+                    if (!warrantyInfo.hasWarranty || warrantyInfo.paymentStatus !== 'paid') return false;
+                    break;
             }
         }
         
         // Tracking filter
         if (trackingFilter) {
             const hasTracking = !!product.tracking_number;
-            if (trackingFilter === 'with' && !hasTracking) {
+            if (trackingFilter === 'tracked' && !hasTracking) {
                 return false;
             }
-            if (trackingFilter === 'without' && hasTracking) {
+            if (trackingFilter === 'not_tracked' && hasTracking) {
                 return false;
             }
         }
@@ -273,6 +300,13 @@ function applyFiltersAndRender() {
                 return ((a.status || 'active')).localeCompare(b.status || 'active');
             case 'status_desc':
                 return ((b.status || 'active')).localeCompare(a.status || 'active');
+            case 'warranty_desc': {
+                const aInfo = getWarrantyInfo(a);
+                const bInfo = getWarrantyInfo(b);
+
+                // Sort by soonest expiry first, expired items (negative) come before active, and items without warranty last
+                return aInfo.daysUntilExpiry - bInfo.daysUntilExpiry;
+            }
             default:
                 return 0;
         }
