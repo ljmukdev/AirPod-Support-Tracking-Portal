@@ -994,6 +994,7 @@ aside.admin-sidebar {
 .admin-container {
     max-width: 1400px;
     margin: 0 auto;
+    width: 100%;
 }
 
 .admin-form {
@@ -1597,12 +1598,13 @@ html {
 
 /* Dashboard Stats */
 .stats-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
     gap: 16px;
     margin-bottom: 24px;
     max-width: 100%;
     width: 100%;
+    grid-auto-flow: row;
 }
 
 .stat-card {
