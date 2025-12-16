@@ -5410,8 +5410,23 @@ app.get('/api/authenticity-images/:partModelNumber', requireDB, async (req, res)
 });
 
 // Serve admin pages
-app.get('/admin/login', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'admin', 'login.html'));
+app.get('/admin/login', (req, res, next) => {
+    try {
+        const loginPath = path.join(__dirname, 'public', 'admin', 'login.html');
+        res.sendFile(loginPath, (err) => {
+            if (err) {
+                console.error('Error serving login page:', err);
+                if (!res.headersSent) {
+                    res.status(500).json({ error: 'Internal server error' });
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Error in login route:', error);
+        if (!res.headersSent) {
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    }
 });
 
 app.get('/admin/dashboard', requireAuthHTML, (req, res) => {
