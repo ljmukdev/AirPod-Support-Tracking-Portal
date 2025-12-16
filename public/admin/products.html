@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard | LJM AirPod Support</title>
+    <title>Products | LJM AirPod Support</title>
     <link rel="stylesheet" href="../css/styles.css?v=1.2.0.043">
 
     <script>
@@ -236,7 +236,7 @@
                         </svg>
                     </button>
                 </form>
-                <a href="add-product.html" class="topbar-add-button" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; background-color: var(--accent-teal); color: white; text-decoration: none; border-radius: 6px; font-size: 0.85rem; font-weight: 500; transition: background-color 0.2s ease; white-space: nowrap;">
+                <a href="add-product.html" class="topbar-add-button">
                     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M8 3V13M3 8H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                     </svg>
@@ -253,79 +253,42 @@
         <!-- Page Content -->
         <div class="admin-content">
             <div class="admin-container">
-                <h1 style="margin-top: 0; margin-bottom: 24px;">Dashboard Overview</h1>
+                <h1 style="margin-top: 0; margin-bottom: 24px;">Products</h1>
                 
-                <!-- Stats Cards -->
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-card-header">
-                            <h3 class="stat-card-title">Total Products</h3>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="stat-icon" style="color: #3b82f6;">
-                                <path d="M20 7L12 3L4 7M20 7L12 11M20 7V17L12 21M12 11L4 7M12 11V21M4 7V17L12 21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                        </div>
-                        <div class="stat-card-value" id="statTotalProducts">-</div>
-                    </div>
-                    
-                    <div class="stat-card">
-                        <div class="stat-card-header">
-                            <h3 class="stat-card-title">Recent (7 days)</h3>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="stat-icon" style="color: #10b981;">
-                                <path d="M12 2V6M12 18V22M6 12H2M22 12H18M19.07 19.07L16.24 16.24M19.07 4.93L16.24 7.76M4.93 19.07L7.76 16.24M4.93 4.93L7.76 7.76" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                        </div>
-                        <div class="stat-card-value" id="statRecentProducts">-</div>
-                    </div>
-                    
-                    <div class="stat-card">
-                        <div class="stat-card-header">
-                            <h3 class="stat-card-title">With Warranty</h3>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="stat-icon" style="color: #f59e0b;">
-                                <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                        </div>
-                        <div class="stat-card-value" id="statWithWarranty">-</div>
-                    </div>
-                    
-                    <div class="stat-card">
-                        <div class="stat-card-header">
-                            <h3 class="stat-card-title">With Tracking</h3>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="stat-icon" style="color: #8b5cf6;">
-                                <path d="M5 12H19M5 12L2 9M5 12L2 15M19 12L22 9M19 12L22 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                        </div>
-                        <div class="stat-card-value" id="statWithTracking">-</div>
+                <div style="background-color: var(--background-white); padding: 30px; border-radius: var(--border-radius); box-shadow: var(--shadow);">
+                    <h2>All Products</h2>
+                    <div style="overflow-x: auto;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Serial Number</th>
+                                    <th>Security Barcode</th>
+                                    <th>Generation</th>
+                                    <th>Part/Model Number</th>
+                                    <th>Part Type</th>
+                                    <th>eBay Order</th>
+                                    <th>Photos</th>
+                                    <th>Date Added</th>
+                                    <th>Tracking</th>
+                                    <th>Status</th>
+                                    <th>Warranty Status</th>
+                                    <th>Days Remaining</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="productsTable">
+                                <tr>
+                                    <td colspan="13" style="text-align: center; padding: 20px;">
+                                        Loading products...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-                
-                <!-- Breakdown Sections -->
-                <div class="breakdown-grid">
-                    <div class="card breakdown-card">
-                        <h2 class="breakdown-title">Status Breakdown</h2>
-                        <div id="statusBreakdown" class="breakdown-content">
-                            <div style="text-align: center; padding: 20px; color: #6b7280;">Loading...</div>
-                        </div>
-                    </div>
-                    
-                    <div class="card breakdown-card">
-                        <h2 class="breakdown-title">Part Type Breakdown</h2>
-                        <div id="partTypeBreakdown" class="breakdown-content">
-                            <div style="text-align: center; padding: 20px; color: #6b7280;">Loading...</div>
-                        </div>
-                    </div>
-                    
-                    <div class="card breakdown-card">
-                        <h2 class="breakdown-title">Generation Breakdown</h2>
-                        <div id="generationBreakdown" class="breakdown-content">
-                            <div style="text-align: center; padding: 20px; color: #6b7280;">Loading...</div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div id="statsError" class="error-message" style="display: none; margin-top: 20px;"></div>
-                </div>
+            </div>
         </div>
-        </div>
+    </div>
 
     <!-- Tracking Modal -->
     <div id="trackingModal" class="modal" style="display: none;">
@@ -385,21 +348,7 @@
         </div>
     </div>
 
-    <!-- OCR and Barcode Scanning Libraries -->
-    <script>
-        // Ensure Tesseract loads before other scripts
-        window.tesseractLoaded = false;
-        window.tesseractError = null;
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.4/dist/tesseract.min.js" 
-            onerror="window.tesseractError = new Error('Failed to load Tesseract.js'); console.error('Failed to load Tesseract.js')"
-            onload="window.tesseractLoaded = true; console.log('Tesseract.js loaded successfully')"></script>
-    <script src="https://unpkg.com/quagga@0.12.1/dist/quagga.min.js"
-            onerror="console.error('Failed to load QuaggaJS')"
-            onload="console.log('QuaggaJS loaded successfully')"></script>
-    
     <script src="../js/admin.js?v=1.2.5.029"></script>
-    <script src="../js/dashboard-stats.js"></script>
     <script src="../js/version.js"></script>
     <script>
         // Quick search handler
@@ -459,3 +408,4 @@
     </script>
 </body>
 </html>
+
