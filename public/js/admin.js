@@ -5,7 +5,7 @@ if (typeof window.API_BASE === 'undefined') {
     window.API_BASE = '';
 }
 // Reference the global API_BASE
-var API_BASE = window.API_BASE;
+const API_BASE = window.API_BASE;
 
 // Utility functions
 function showError(message, elementId = 'errorMessage') {
@@ -539,7 +539,7 @@ async function loadProducts() {
             
             // Build status dropdown options dynamically from settings
             let statusOptionsHtml = '';
-            currentStatusOptions.forEach(option => {
+            statusOptions.forEach(option => {
                 const selected = productStatus === option.value ? ' selected' : '';
                 statusOptionsHtml += '<option value="' + escapeHtml(option.value) + '"' + selected + '>' + escapeHtml(option.label) + '</option>';
             });
