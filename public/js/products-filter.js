@@ -246,17 +246,18 @@ function clearAllFilters() {
 }
 
 function updateProductsCount() {
-    const countElement = document.getElementById('productsCount');
-    if (countElement) {
-        const total = allProducts.length;
-        const filtered = filteredProducts.length;
+    const countElements = document.querySelectorAll('[data-products-count]');
+    if (!countElements.length) return;
 
-        if (filtered === total) {
-            countElement.textContent = `${total} product${total !== 1 ? 's' : ''}`;
-        } else {
-            countElement.textContent = `${filtered} of ${total} products`;
-        }
-    }
+    const total = allProducts.length;
+    const filtered = filteredProducts.length;
+    const text = filtered === total
+        ? `${total} product${total !== 1 ? 's' : ''}`
+        : `${filtered} of ${total} products`;
+
+    countElements.forEach(el => {
+        el.textContent = text;
+    });
 }
 
 // Expose functions
