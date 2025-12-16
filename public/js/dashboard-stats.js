@@ -1,11 +1,11 @@
 // Dashboard Stats Loader - Fetches and displays statistics
 
-// Define API_BASE globally if not already defined
+// Use existing API_BASE if available, otherwise set it
 if (typeof window.API_BASE === 'undefined') {
     window.API_BASE = '';
 }
-// Reference the global API_BASE
-const API_BASE = window.API_BASE;
+// Reference the global API_BASE without redeclaring
+var API_BASE = window.API_BASE;
 
 // Load and display dashboard statistics
 async function loadDashboardStats() {
