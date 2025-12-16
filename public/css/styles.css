@@ -1596,6 +1596,255 @@ html {
     margin-top: 8px;
 }
 
+/* Products Page Header */
+.page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.page-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.products-count {
+    font-size: 0.9rem;
+    color: #6b7280;
+    font-weight: 500;
+    padding: 6px 12px;
+    background: #f3f4f6;
+    border-radius: 6px;
+}
+
+/* Filter Panel */
+.filter-panel {
+    background: var(--background-white);
+    border-radius: var(--border-radius);
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow);
+    border: 1px solid #e5e7eb;
+}
+
+.filter-panel-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.filter-panel-row:first-child {
+    margin-bottom: 16px;
+}
+
+/* Search Input */
+.filter-search-container {
+    position: relative;
+    flex: 1;
+    min-width: 280px;
+}
+
+.filter-search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9ca3af;
+    pointer-events: none;
+}
+
+.filter-search-input {
+    width: 100%;
+    padding: 10px 12px 10px 40px;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+    background: white;
+}
+
+.filter-search-input:focus {
+    outline: none;
+    border-color: var(--accent-teal);
+    box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.1);
+}
+
+.filter-search-input::placeholder {
+    color: #9ca3af;
+}
+
+/* Filter Controls */
+.filter-control {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 140px;
+}
+
+.filter-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #374151;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.filter-label svg {
+    color: #6b7280;
+}
+
+.filter-select {
+    padding: 10px 12px;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: #374151;
+    font-weight: 500;
+}
+
+.filter-select:hover {
+    border-color: #d1d5db;
+}
+
+.filter-select:focus {
+    outline: none;
+    border-color: var(--accent-teal);
+    box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.1);
+}
+
+/* Clear Filters Button */
+.filter-clear-btn {
+    padding: 10px 16px;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 8px;
+    background: white;
+    color: #6b7280;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.filter-clear-btn:hover {
+    background: #f9fafb;
+    border-color: #d1d5db;
+    color: #374151;
+}
+
+.filter-clear-btn:active {
+    transform: translateY(1px);
+}
+
+.filter-clear-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Active Filters Display */
+.active-filters {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.active-filters-label {
+    font-size: 0.85rem;
+    color: #6b7280;
+    font-weight: 600;
+}
+
+.filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: #e0f2f1;
+    color: #0f766e;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    border: 1px solid #99f6e4;
+}
+
+.filter-chip-remove {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    color: #0f766e;
+    display: flex;
+    align-items: center;
+    transition: color 0.2s ease;
+}
+
+.filter-chip-remove:hover {
+    color: #dc2626;
+}
+
+.filter-chip-remove svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+    .filter-panel-row {
+        gap: 10px;
+    }
+
+    .filter-control {
+        min-width: 130px;
+    }
+}
+
+@media (max-width: 768px) {
+    .filter-panel {
+        padding: 16px;
+    }
+
+    .filter-panel-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .filter-panel-row:first-child {
+        margin-bottom: 12px;
+    }
+
+    .filter-search-container {
+        min-width: unset;
+        width: 100%;
+    }
+
+    .filter-control {
+        width: 100%;
+        min-width: unset;
+    }
+
+    .filter-clear-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
 /* Dashboard Stats */
 .stats-grid {
     display: grid !important;
