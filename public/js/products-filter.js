@@ -9,11 +9,39 @@ var API_BASE = window.API_BASE;
 // Store all products in memory
 let allProductsData = [];
 let statusOptionsCache = [];
+let filtersInitialized = false;
+
+// Override loadProducts immediately before admin.js calls it
+(function() {
+    // Check if we're on the products page
+    const isProductsPage = window.location.pathname.includes('products.html');
+    if (!isProductsPage) return;
+    
+    // Override loadProducts immediately
+    const originalLoadProducts = window.loadProducts;
+    window.loadProducts = async function() {
+        // Fetch and store products first
+        await fetchAndStoreProducts();
+        // Then render with filters
+        if (filtersInitialized) {
+            applyFiltersAndRender();
+        } else {
+            // If filters not initialized yet, use original function
+            if (originalLoadProducts) {
+                await originalLoadProducts();
+            }
+        }
+    };
+})();
 
 // Initialize filters and sorting
 document.addEventListener('DOMContentLoaded', function() {
+    // Check if we're on the products page
+    const isProductsPage = window.location.pathname.includes('products.html');
+    if (!isProductsPage) return;
+    
     // Wait for admin.js to be ready
-    setTimeout(initFilters, 500);
+    setTimeout(initFilters, 100);
 });
 
 async function loadStatusOptions() {
@@ -50,19 +78,20 @@ async function loadStatusOptions() {
     return statusOptionsCache;
 }
 
-function initFilters() {
+async function initFilters() {
+    filtersInitialized = true;
+    
     // Populate status filter dropdown
-    loadStatusOptions().then(statusOptions => {
-        const statusFilter = document.getElementById('filterStatus');
-        if (statusFilter) {
-            statusOptions.forEach(option => {
-                const optionEl = document.createElement('option');
-                optionEl.value = option.value;
-                optionEl.textContent = option.label;
-                statusFilter.appendChild(optionEl);
-            });
-        }
-    });
+    const statusOptions = await loadStatusOptions();
+    const statusFilter = document.getElementById('filterStatus');
+    if (statusFilter) {
+        statusOptions.forEach(option => {
+            const optionEl = document.createElement('option');
+            optionEl.value = option.value;
+            optionEl.textContent = option.label;
+            statusFilter.appendChild(optionEl);
+        });
+    }
     
     // Attach event listeners
     const filterInputs = [
@@ -91,21 +120,9 @@ function initFilters() {
         clearFiltersBtn.addEventListener('click', clearAllFilters);
     }
     
-    // Override loadProducts to store products
-    if (typeof window.loadProducts === 'function') {
-        const originalLoadProducts = window.loadProducts;
-        window.loadProducts = async function() {
-            // Fetch and store products first
-            await fetchAndStoreProducts();
-            // Then render with filters
-            applyFiltersAndRender();
-        };
-    }
-    
-    // Initial load
-    if (typeof loadProducts === 'function') {
-        loadProducts();
-    }
+    // Initial load - fetch products and render
+    await fetchAndStoreProducts();
+    applyFiltersAndRender();
 }
 
 function debounce(func, wait) {
@@ -406,17 +423,7 @@ function clearAllFilters() {
     applyFiltersAndRender();
 }
 
-// Override the loadProducts function to integrate with filtering
-(function() {
-    const originalLoadProducts = window.loadProducts;
-    
-    window.loadProducts = async function() {
-        // Fetch and store products first
-        await fetchAndStoreProducts();
-        // Then render with filters
-        applyFiltersAndRender();
-    };
-})();
+// loadProducts override is now handled at the top of the file
 
 function attachEventListeners() {
     const tableBody = document.getElementById('productsTable');
