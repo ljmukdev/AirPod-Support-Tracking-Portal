@@ -117,29 +117,6 @@ async function initFilters() {
     
     // Also sync headerSearch if it exists
     const headerSearch = document.getElementById('headerSearch');
-    const filterStatus = document.getElementById('filterStatus');
-    const filterGeneration = document.getElementById('filterGeneration');
-    const filterPartType = document.getElementById('filterPartType');
-    const filterWarranty = document.getElementById('filterWarranty');
-    const filterTracking = document.getElementById('filterTracking');
-    const filterSort = document.getElementById('filterSort');
-    const clearFiltersBtn = document.getElementById('clearFilters');
-
-    if (!filterSearch && !headerSearch) return;
-
-    // Sync both search inputs
-    const handleSearchChange = debounce((value) => {
-        filterState.search = value.toLowerCase();
-        syncSearchInputs(value);
-        applyFilters();
-    }, 300);
-
-    if (filterSearch) {
-        filterSearch.addEventListener('input', (e) => handleSearchChange(e.target.value));
-    }
-
-    if (headerSearch) {
-        headerSearch.addEventListener('input', (e) => handleSearchChange(e.target.value));
     const filterSearch = document.getElementById('filterSearch');
     if (headerSearch && filterSearch) {
         headerSearch.addEventListener('input', debounce((e) => {
@@ -173,33 +150,6 @@ function debounce(func, wait) {
     };
 }
 
-function syncSearchInputs(value) {
-    const filterSearch = document.getElementById('filterSearch');
-    const headerSearch = document.getElementById('headerSearch');
-
-    if (filterSearch) filterSearch.value = value;
-    if (headerSearch) headerSearch.value = value;
-}
-
-function setProductsForFiltering(products) {
-    allProducts = products;
-    filteredProducts = products;
-    applyFilters();
-}
-
-function applyFilters() {
-    let filtered = [...allProducts];
-
-    // Apply search filter
-    if (filterState.search) {
-        filtered = filtered.filter(product => {
-            const searchStr = filterState.search;
-            return (
-                (product.serial_number || '').toLowerCase().includes(searchStr) ||
-                (product.security_barcode || '').toLowerCase().includes(searchStr) ||
-                (product.ebay_order_number || '').toLowerCase().includes(searchStr) ||
-                (product.part_model_number || '').toLowerCase().includes(searchStr)
-            );
 async function fetchAndStoreProducts() {
     try {
         const response = await fetch(`${API_BASE}/api/admin/products`, {
@@ -213,6 +163,37 @@ async function fetchAndStoreProducts() {
     } catch (error) {
         console.error('Error fetching products:', error);
     }
+}
+
+function getWarrantyInfo(product) {
+    const info = {
+        hasWarranty: !!product.warranty,
+        isExpired: false,
+        daysUntilExpiry: Infinity,
+        paymentStatus: null
+    };
+
+    if (!product.warranty) {
+        return info;
+    }
+
+    const warranty = product.warranty;
+    info.paymentStatus = warranty.payment_status || null;
+
+    const warrantyEndDate = warranty.extended_warranty_end && warranty.extended_warranty !== 'none'
+        ? new Date(warranty.extended_warranty_end)
+        : warranty.standard_warranty_end
+            ? new Date(warranty.standard_warranty_end)
+            : null;
+
+    if (warrantyEndDate) {
+        const now = new Date();
+        const diffDays = Math.ceil((warrantyEndDate - now) / (1000 * 60 * 60 * 24));
+        info.daysUntilExpiry = isNaN(diffDays) ? Infinity : diffDays;
+        info.isExpired = diffDays < 0;
+    }
+
+    return info;
 }
 
 function applyFiltersAndRender() {
@@ -255,35 +236,31 @@ function applyFiltersAndRender() {
         
         // Warranty filter
         if (warrantyFilter) {
-            const hasWarranty = !!product.warranty;
-            if (warrantyFilter === 'with' && !hasWarranty) {
-                return false;
-            }
-            if (warrantyFilter === 'without' && hasWarranty) {
-                return false;
-            }
-            if (warrantyFilter === 'expired') {
-                if (!hasWarranty) return false;
-                const warranty = product.warranty;
-                const now = new Date();
-                const warrantyEndDate = warranty.extended_warranty_end && warranty.extended_warranty !== 'none' 
-                    ? new Date(warranty.extended_warranty_end)
-                    : warranty.standard_warranty_end 
-                        ? new Date(warranty.standard_warranty_end)
-                        : null;
-                if (warrantyEndDate && warrantyEndDate >= now) {
-                    return false; // Not expired
-                }
+            const warrantyInfo = getWarrantyInfo(product);
+
+            switch (warrantyFilter) {
+                case 'active':
+                    if (!warrantyInfo.hasWarranty || warrantyInfo.isExpired) return false;
+                    break;
+                case 'none':
+                    if (warrantyInfo.hasWarranty) return false;
+                    break;
+                case 'expired':
+                    if (!warrantyInfo.hasWarranty || !warrantyInfo.isExpired) return false;
+                    break;
+                case 'paid':
+                    if (!warrantyInfo.hasWarranty || warrantyInfo.paymentStatus !== 'paid') return false;
+                    break;
             }
         }
         
         // Tracking filter
         if (trackingFilter) {
             const hasTracking = !!product.tracking_number;
-            if (trackingFilter === 'with' && !hasTracking) {
+            if (trackingFilter === 'tracked' && !hasTracking) {
                 return false;
             }
-            if (trackingFilter === 'without' && hasTracking) {
+            if (trackingFilter === 'not_tracked' && hasTracking) {
                 return false;
             }
         }
@@ -323,6 +300,13 @@ function applyFiltersAndRender() {
                 return ((a.status || 'active')).localeCompare(b.status || 'active');
             case 'status_desc':
                 return ((b.status || 'active')).localeCompare(a.status || 'active');
+            case 'warranty_desc': {
+                const aInfo = getWarrantyInfo(a);
+                const bInfo = getWarrantyInfo(b);
+
+                // Sort by soonest expiry first, expired items (negative) come before active, and items without warranty last
+                return aInfo.daysUntilExpiry - bInfo.daysUntilExpiry;
+            }
             default:
                 return 0;
         }
@@ -469,28 +453,14 @@ function updateCounts(filteredCount) {
     if (totalCountEl) {
         totalCountEl.textContent = allProductsData.length;
     }
-
-    // Ensure legacy action buttons continue to work after filtering
-    attachEventListeners();
 }
 
 function clearAllFilters() {
-    filterState.search = '';
-    filterState.status = '';
-    filterState.generation = '';
-    filterState.partType = '';
-    filterState.warranty = '';
-    filterState.tracking = '';
-    filterState.sort = 'date_desc';
-
     const filterStatus = document.getElementById('filterStatus');
     const filterGeneration = document.getElementById('filterGeneration');
     const filterPartType = document.getElementById('filterPartType');
     const filterWarranty = document.getElementById('filterWarranty');
     const filterTracking = document.getElementById('filterTracking');
-    const filterSort = document.getElementById('filterSort');
-
-    syncSearchInputs('');
     const filterSearch = document.getElementById('filterSearch');
     const filterSort = document.getElementById('filterSort');
     
@@ -499,47 +469,6 @@ function clearAllFilters() {
     if (filterPartType) filterPartType.value = '';
     if (filterWarranty) filterWarranty.value = '';
     if (filterTracking) filterTracking.value = '';
-    if (filterSort) filterSort.value = 'date_desc';
-
-    applyFilters();
-}
-
-function updateProductsCount() {
-    const countElements = [
-        ...document.querySelectorAll('[data-products-count]'),
-        ...document.querySelectorAll('#productsCount')
-    ];
-
-    if (!countElements.length) return;
-
-    const total = allProducts.length;
-    const filtered = filteredProducts.length;
-    const text = filtered === total
-        ? `${total} product${total !== 1 ? 's' : ''}`
-        : `${filtered} of ${total} products`;
-
-    countElements.forEach(el => {
-        el.textContent = text;
-    });
-}
-
-function attachEventListeners() {
-    const tableBody = document.getElementById('productsTable');
-    if (!tableBody) return;
-
-    tableBody.querySelectorAll('[data-action="delete"]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const productId = e.currentTarget.getAttribute('data-product-id');
-            if (productId) {
-                deleteProduct(productId);
-            }
-        });
-    });
-
-    tableBody.querySelectorAll('[data-action="edit"]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const productId = e.currentTarget.getAttribute('data-product-id');
-            if (productId) {
     if (filterSearch) filterSearch.value = '';
     if (filterSort) filterSort.value = 'date_desc';
     
@@ -590,11 +519,6 @@ function attachEventListeners() {
             }
         });
     });
-
-    tableBody.querySelectorAll('[data-action="track"]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const productId = e.currentTarget.getAttribute('data-product-id');
-            if (productId) {
     
     tableBody.querySelectorAll('[data-action="track"]').forEach(btn => {
         btn.addEventListener('click', (e) => {
