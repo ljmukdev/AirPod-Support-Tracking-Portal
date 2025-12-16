@@ -1207,15 +1207,9 @@ function setupTrackingModalListeners() {
     }
 }
 
-function viewProduct(productId) {
-    if (!productId) return;
-    window.location.href = `search-product.html?productId=${encodeURIComponent(productId)}`;
-}
-
 // Make functions available globally
 window.deleteProduct = deleteProduct;
 window.editProduct = editProduct;
-window.viewProduct = viewProduct;
 window.openTrackingModal = openTrackingModal;
 
 // Cancel edit button
