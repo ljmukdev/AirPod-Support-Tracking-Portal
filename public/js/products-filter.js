@@ -420,8 +420,6 @@ function clearAllFilters() {
     applyFiltersAndRender();
 }
 
-// loadProducts override is now handled at the top of the file
-
 function attachEventListeners() {
     const tableBody = document.getElementById('productsTable');
     if (!tableBody) return;
@@ -544,4 +542,3 @@ function escapeHtml(text) {
     div.textContent = text;
     return div.innerHTML;
 }
-
