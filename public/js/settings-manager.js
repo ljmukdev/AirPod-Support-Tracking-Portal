@@ -14,6 +14,67 @@ const DEFAULT_STATUS_OPTIONS = [
     { value: 'pending', label: 'Pending' }
 ];
 
+// Define addStatusOption function immediately so it's available for inline handlers
+window.addStatusOption = function() {
+    console.log('addStatusOption called');
+    const list = document.getElementById('statusOptionsList');
+    if (!list) {
+        console.error('statusOptionsList not found');
+        showError('Status options list not found. Please refresh the page.');
+        return;
+    }
+    
+    // Use a more user-friendly approach - add inline form
+    const newValue = prompt('Enter status value (lowercase, no spaces, e.g., "in_transit"):');
+    if (!newValue || newValue.trim() === '') {
+        console.log('User cancelled or empty value');
+        return;
+    }
+    
+    // Validate value format
+    const cleanValue = newValue.trim().toLowerCase().replace(/\s+/g, '_');
+    if (!/^[a-z0-9_]+$/.test(cleanValue)) {
+        showError('Status value must contain only lowercase letters, numbers, and underscores.');
+        return;
+    }
+    
+    const newLabel = prompt('Enter display label (e.g., "In Transit"):');
+    if (!newLabel || newLabel.trim() === '') {
+        console.log('User cancelled or empty label');
+        return;
+    }
+    
+    // Get current options
+    const currentOptions = getCurrentStatusOptions();
+    
+    // Check if value already exists
+    if (currentOptions.some(opt => opt.value === cleanValue)) {
+        showError('A status with this value already exists.');
+        return;
+    }
+    
+    // Add new option
+    currentOptions.push({
+        value: cleanValue,
+        label: newLabel.trim()
+    });
+    
+    console.log('Adding new status option:', cleanValue, newLabel.trim());
+    
+    // Check if helper functions are available
+    if (typeof renderStatusOptions === 'function') {
+        renderStatusOptions(currentOptions);
+    } else {
+        console.error('renderStatusOptions not available');
+        alert('Error: renderStatusOptions function not found. Please refresh the page.');
+        return;
+    }
+    
+    if (typeof showSuccess === 'function') {
+        showSuccess('Status option added. Don\'t forget to save!');
+    }
+};
+
 // Load settings on page load
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Settings manager: DOMContentLoaded');
