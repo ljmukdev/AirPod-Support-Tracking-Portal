@@ -5,7 +5,8 @@
 if (typeof window.API_BASE === 'undefined') {
     window.API_BASE = '';
 }
-// Reference the global API_BASE without redeclaring
+// Reference the global API_BASE - use window.API_BASE directly to avoid redeclaration
+// eslint-disable-next-line no-var
 var API_BASE = window.API_BASE;
 
 // Default status options
