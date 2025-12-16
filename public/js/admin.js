@@ -534,7 +534,7 @@ async function loadProducts() {
             
             // Build status dropdown options dynamically from settings
             let statusOptionsHtml = '';
-            statusOptions.forEach(option => {
+            currentStatusOptions.forEach(option => {
                 const selected = productStatus === option.value ? ' selected' : '';
                 statusOptionsHtml += '<option value="' + escapeHtml(option.value) + '"' + selected + '>' + escapeHtml(option.label) + '</option>';
             });
