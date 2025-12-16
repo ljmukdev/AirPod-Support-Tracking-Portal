@@ -1,11 +1,12 @@
 // Settings Manager JavaScript
 
 // Use existing API_BASE if available, otherwise define it
-var API_BASE = (typeof window.API_BASE !== 'undefined') ? window.API_BASE : '';
+// Don't redeclare if it already exists (from admin.js)
 if (typeof window.API_BASE === 'undefined') {
     window.API_BASE = '';
-    API_BASE = '';
 }
+// Reference the global API_BASE without redeclaring
+var API_BASE = window.API_BASE;
 
 // Default status options
 const DEFAULT_STATUS_OPTIONS = [
