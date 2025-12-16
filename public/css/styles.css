@@ -1604,42 +1604,6 @@ html {
     max-width: 100%;
 }
 
-/* Ensure all 4 metrics stay on one row on all screen sizes */
-@media (min-width: 1200px) {
-    .stats-grid {
-        gap: 20px;
-    }
-}
-
-@media (max-width: 1199px) {
-    .stats-grid {
-        gap: 12px;
-    }
-}
-
-@media (max-width: 767px) {
-    .stats-grid {
-        gap: 8px;
-    }
-    
-    .stat-card {
-        padding: 16px;
-    }
-    
-    .stat-card-title {
-        font-size: 0.75rem;
-    }
-    
-    .stat-card-value {
-        font-size: 1.5rem;
-    }
-    
-    .stat-icon {
-        width: 16px;
-        height: 16px;
-    }
-}
-
 .stat-card {
     background-color: var(--background-white);
     border-radius: var(--border-radius);
@@ -1689,6 +1653,42 @@ html {
     line-height: 1.2;
     word-break: break-word;
     margin-top: auto;
+}
+
+/* Ensure all 4 metrics stay on one row on all screen sizes */
+@media (min-width: 1200px) {
+    .stats-grid {
+        gap: 20px;
+    }
+}
+
+@media (max-width: 1199px) {
+    .stats-grid {
+        gap: 12px;
+    }
+}
+
+@media (max-width: 767px) {
+    .stats-grid {
+        gap: 8px;
+    }
+    
+    .stat-card {
+        padding: 16px;
+    }
+    
+    .stat-card-title {
+        font-size: 0.75rem;
+    }
+    
+    .stat-card-value {
+        font-size: 1.5rem;
+    }
+    
+    .stat-icon {
+        width: 16px;
+        height: 16px;
+    }
 }
 
 .breakdown-grid {
