@@ -255,6 +255,81 @@
             <div class="admin-container">
                 <h1 style="margin-top: 0; margin-bottom: 24px;">Products</h1>
                 
+                <!-- Filters and Sort Controls -->
+                <div class="products-controls" style="background-color: var(--background-white); padding: 20px; border-radius: var(--border-radius); box-shadow: var(--shadow); margin-bottom: 20px;">
+                    <div class="filters-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 16px;">
+                        <div class="filter-group">
+                            <label for="filterStatus" style="display: block; margin-bottom: 6px; font-size: 0.875rem; font-weight: 500; color: #374151;">Status</label>
+                            <select id="filterStatus" class="filter-select">
+                                <option value="">All Statuses</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="filterGeneration" style="display: block; margin-bottom: 6px; font-size: 0.875rem; font-weight: 500; color: #374151;">Generation</label>
+                            <select id="filterGeneration" class="filter-select">
+                                <option value="">All Generations</option>
+                                <option value="AirPods 1">AirPods 1</option>
+                                <option value="AirPods 2">AirPods 2</option>
+                                <option value="AirPods 3">AirPods 3</option>
+                                <option value="AirPods Pro">AirPods Pro</option>
+                                <option value="AirPods Pro 2">AirPods Pro 2</option>
+                                <option value="AirPods Max">AirPods Max</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="filterPartType" style="display: block; margin-bottom: 6px; font-size: 0.875rem; font-weight: 500; color: #374151;">Part Type</label>
+                            <select id="filterPartType" class="filter-select">
+                                <option value="">All Types</option>
+                                <option value="left">Left AirPod</option>
+                                <option value="right">Right AirPod</option>
+                                <option value="case">Case</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="filterWarranty" style="display: block; margin-bottom: 6px; font-size: 0.875rem; font-weight: 500; color: #374151;">Warranty</label>
+                            <select id="filterWarranty" class="filter-select">
+                                <option value="">All</option>
+                                <option value="with">With Warranty</option>
+                                <option value="without">Without Warranty</option>
+                                <option value="expired">Expired</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="filterTracking" style="display: block; margin-bottom: 6px; font-size: 0.875rem; font-weight: 500; color: #374151;">Tracking</label>
+                            <select id="filterTracking" class="filter-select">
+                                <option value="">All</option>
+                                <option value="with">With Tracking</option>
+                                <option value="without">Without Tracking</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="filterSearch" style="display: block; margin-bottom: 6px; font-size: 0.875rem; font-weight: 500; color: #374151;">Search</label>
+                            <input type="text" id="filterSearch" class="filter-input" placeholder="Serial, Barcode, Order...">
+                        </div>
+                    </div>
+                    <div class="controls-row" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <label for="sortBy" style="font-size: 0.875rem; font-weight: 500; color: #374151;">Sort by:</label>
+                            <select id="sortBy" class="filter-select" style="min-width: 180px;">
+                                <option value="date_desc">Date Added (Newest)</option>
+                                <option value="date_asc">Date Added (Oldest)</option>
+                                <option value="serial_asc">Serial Number (A-Z)</option>
+                                <option value="serial_desc">Serial Number (Z-A)</option>
+                                <option value="barcode_asc">Barcode (A-Z)</option>
+                                <option value="barcode_desc">Barcode (Z-A)</option>
+                                <option value="status_asc">Status (A-Z)</option>
+                                <option value="status_desc">Status (Z-A)</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="clearFilters" class="button button-secondary" style="padding: 8px 16px; font-size: 0.875rem;">Clear Filters</button>
+                            <span id="productCount" style="display: inline-flex; align-items: center; padding: 8px 16px; background-color: #f3f4f6; border-radius: 6px; font-size: 0.875rem; color: #374151; font-weight: 500;">
+                                <span id="filteredCount">0</span> / <span id="totalCount">0</span> products
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                
                 <div style="background-color: var(--background-white); padding: 30px; border-radius: var(--border-radius); box-shadow: var(--shadow);">
                     <h2>All Products</h2>
                     <div style="overflow-x: auto;">
@@ -349,6 +424,7 @@
     </div>
 
     <script src="../js/admin.js?v=1.2.5.029"></script>
+    <script src="../js/products-filter.js"></script>
     <script src="../js/version.js"></script>
     <script>
         // Quick search handler
