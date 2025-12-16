@@ -1598,12 +1598,13 @@ html {
 /* Dashboard Stats */
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    grid-template-columns: 1fr;
     gap: 16px;
     margin-bottom: 24px;
     max-width: 100%;
 }
 
+/* Desktop: Side by side (4 columns) */
 @media (min-width: 1200px) {
     .stats-grid {
         grid-template-columns: repeat(4, 1fr);
@@ -1611,6 +1612,7 @@ html {
     }
 }
 
+/* Tablet: 2 columns side by side */
 @media (min-width: 768px) and (max-width: 1199px) {
     .stats-grid {
         grid-template-columns: repeat(2, 1fr);
@@ -1618,9 +1620,10 @@ html {
     }
 }
 
+/* Mobile: Stacked vertically (1 column) */
 @media (max-width: 767px) {
     .stats-grid {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: 1fr;
         gap: 12px;
     }
 }
