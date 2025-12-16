@@ -354,7 +354,7 @@
                         <ul class="status-options-list" id="statusOptionsList">
                             <!-- Status options will be loaded here -->
                         </ul>
-                        <button type="button" class="add-status-btn" id="addStatusBtn">+ Add Status Option</button>
+                        <button type="button" class="add-status-btn" id="addStatusBtn" onclick="if(typeof addStatusOption === 'function') { addStatusOption(); } else { console.error('addStatusOption function not found'); alert('Settings script not loaded. Please refresh the page.'); }">+ Add Status Option</button>
                         <p class="help-text">Status values are used internally (lowercase, no spaces). Labels are displayed to users.</p>
                     </div>
                 </div>
