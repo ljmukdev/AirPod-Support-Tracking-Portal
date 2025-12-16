@@ -25,23 +25,21 @@ function initProductsFilter() {
     const filterSort = document.getElementById('filterSort');
     const clearFiltersBtn = document.getElementById('clearFilters');
 
-    if (!filterSearch) return;
+    if (!filterSearch && !headerSearch) return;
 
     // Sync both search inputs
-    if (filterSearch && headerSearch) {
-        filterSearch.addEventListener('input', debounce((e) => {
-            const value = e.target.value;
-            filterState.search = value.toLowerCase();
-            syncSearchInputs(value);
-            applyFilters();
-        }, 300));
+    const handleSearchChange = debounce((value) => {
+        filterState.search = value.toLowerCase();
+        syncSearchInputs(value);
+        applyFilters();
+    }, 300);
 
-        headerSearch.addEventListener('input', debounce((e) => {
-            const value = e.target.value;
-            filterState.search = value.toLowerCase();
-            syncSearchInputs(value);
-            applyFilters();
-        }, 300));
+    if (filterSearch) {
+        filterSearch.addEventListener('input', (e) => handleSearchChange(e.target.value));
+    }
+
+    if (headerSearch) {
+        headerSearch.addEventListener('input', (e) => handleSearchChange(e.target.value));
     }
 
     if (filterStatus) filterStatus.addEventListener('change', (e) => {
@@ -248,8 +246,6 @@ function clearAllFilters() {
     filterState.tracking = '';
     filterState.sort = 'date_desc';
 
-    const filterSearch = document.getElementById('filterSearch');
-    const headerSearch = document.getElementById('headerSearch');
     const filterStatus = document.getElementById('filterStatus');
     const filterGeneration = document.getElementById('filterGeneration');
     const filterPartType = document.getElementById('filterPartType');
@@ -269,7 +265,11 @@ function clearAllFilters() {
 }
 
 function updateProductsCount() {
-    const countElements = document.querySelectorAll('[data-products-count]');
+    const countElements = [
+        ...document.querySelectorAll('[data-products-count]'),
+        ...document.querySelectorAll('#productsCount')
+    ];
+
     if (!countElements.length) return;
 
     const total = allProducts.length;
