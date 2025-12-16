@@ -1,27 +1,25 @@
 // Dashboard Stats Loader - Fetches and displays statistics
 
-// Use existing API_BASE if available, otherwise set it
+// Ensure API_BASE exists on window object
 if (typeof window.API_BASE === 'undefined') {
     window.API_BASE = '';
 }
-// Reference the global API_BASE without redeclaring
-var API_BASE = window.API_BASE;
 
 // Load and display dashboard statistics
 async function loadDashboardStats() {
     try {
         // Check if we're authenticated first
-        const authCheck = await fetch(`${API_BASE}/api/admin/check-auth`);
+        const authCheck = await fetch(`${window.API_BASE}/api/admin/check-auth`);
         const authData = await authCheck.json();
-        
+
         if (!authData.authenticated) {
             console.error('Not authenticated');
             showError('Please log in to view statistics');
             return;
         }
-        
+
         // Fetch products to calculate stats
-        const response = await fetch(`${API_BASE}/api/admin/products?limit=10000`, {
+        const response = await fetch(`${window.API_BASE}/api/admin/products?limit=10000`, {
             credentials: 'include' // Include cookies for authentication
         });
         
