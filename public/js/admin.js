@@ -676,6 +676,11 @@ async function loadProducts() {
                     }
                 });
             });
+
+            // Pass products to filter system if available
+            if (typeof setProductsForFiltering === 'function') {
+                setProductsForFiltering(data.products);
+            }
         } else {
             tableBody.innerHTML = '<tr><td colspan="13" style="text-align: center; padding: 20px; color: red;">Error loading products</td></tr>';
         }
@@ -683,6 +688,213 @@ async function loadProducts() {
         console.error('Load products error:', error);
         tableBody.innerHTML = '<tr><td colspan="13" style="text-align: center; padding: 20px; color: red;">Network error. Please refresh the page.</td></tr>';
     }
+}
+
+// Render filtered products (called by filter system)
+window.renderFilteredProducts = function(products) {
+    renderProductsTable(products);
+};
+
+// Refactored function to render products table
+async function renderProductsTable(products) {
+    const tableBody = document.getElementById('productsTable');
+    if (!tableBody) return;
+
+    const statusOptions = await loadStatusOptions();
+
+    if (products.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="13" style="text-align: center; padding: 20px;">No products match your filters</td></tr>';
+        return;
+    }
+
+    tableBody.innerHTML = products.map(product => {
+        const date = new Date(product.date_added);
+        const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        // Determine warranty status
+        let warrantyStatus = '<span class="status-badge pending">No Warranty</span>';
+        let daysRemaining = '<span style="color: #999;">-</span>';
+
+        if (product.warranty) {
+            const warranty = product.warranty;
+            const now = new Date();
+
+            const warrantyEndDate = warranty.extended_warranty_end && warranty.extended_warranty !== 'none'
+                ? new Date(warranty.extended_warranty_end)
+                : warranty.standard_warranty_end
+                    ? new Date(warranty.standard_warranty_end)
+                    : null;
+
+            if (warrantyEndDate) {
+                const diffTime = warrantyEndDate - now;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                if (diffDays < 0) {
+                    daysRemaining = '<span style="color: #dc3545; font-weight: 600;">Expired</span>';
+                    warrantyStatus = '<span class="status-badge expired">Warranty Expired</span>';
+                } else if (diffDays === 0) {
+                    daysRemaining = '<span style="color: #ff9800; font-weight: 600;">0 days</span>';
+                    warrantyStatus = warranty.payment_status === 'paid'
+                        ? '<span class="status-badge paid">Paid Warranty</span>'
+                        : '<span class="status-badge confirmed">Free Warranty</span>';
+                } else {
+                    daysRemaining = diffDays <= 7
+                        ? `<span style="color: #ff9800; font-weight: 600;">${diffDays} day${diffDays !== 1 ? 's' : ''}</span>`
+                        : `<span style="color: var(--accent-teal);">${diffDays} day${diffDays !== 1 ? 's' : ''}</span>`;
+
+                    if (warranty.payment_status === 'paid') {
+                        warrantyStatus = '<span class="status-badge paid">Paid Warranty</span>';
+                    } else {
+                        warrantyStatus = '<span class="status-badge confirmed">Free Warranty</span>';
+                    }
+                }
+            } else {
+                warrantyStatus = warranty.payment_status === 'paid'
+                    ? '<span class="status-badge paid">Paid Warranty</span>'
+                    : '<span class="status-badge confirmed">Free Warranty</span>';
+            }
+        }
+
+        const partTypeMap = {
+            'left': 'Left AirPod',
+            'right': 'Right AirPod',
+            'case': 'Case'
+        };
+
+        let trackingDisplay = '<span style="color: #999;">Not tracked</span>';
+        if (product.tracking_number) {
+            const trackingDate = product.tracking_date ? new Date(product.tracking_date).toLocaleDateString() : '';
+            trackingDisplay = `<span style="color: var(--accent-teal); font-weight: 500;">${escapeHtml(product.tracking_number)}</span>${trackingDate ? '<br><small style="color: #666;">' + trackingDate + '</small>' : ''}`;
+        }
+
+        let photosDisplay = '<span style="color: #dc3545; font-size: 1.2rem; font-weight: bold;">✗</span>';
+        if (product.photos && product.photos.length > 0) {
+            photosDisplay = '<span style="color: #28a745; font-size: 1.2rem; font-weight: bold;">✓</span>';
+        }
+
+        let productStatus = product.status || 'active';
+        if (productStatus === 'active' && product.tracking_number && !product.warranty) {
+            productStatus = 'delivered_no_warranty';
+        }
+
+        let statusOptionsHtml = '';
+        statusOptions.forEach(option => {
+            const selected = productStatus === option.value ? ' selected' : '';
+            statusOptionsHtml += '<option value="' + escapeHtml(option.value) + '"' + selected + '>' + escapeHtml(option.label) + '</option>';
+        });
+
+        const statusDisplay = '<select class="status-select" data-product-id="' + escapeHtml(String(product.id)) + '" data-original-status="' + escapeHtml(productStatus) + '" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #ddd; font-size: 0.9rem; cursor: pointer; min-width: 150px; background-color: white;">' +
+            statusOptionsHtml +
+            '</select>';
+
+        return `
+            <tr data-product-id="${escapeHtml(String(product.id))}">
+                <td>${escapeHtml(product.serial_number || '')}</td>
+                <td>${escapeHtml(product.security_barcode)}</td>
+                <td>${escapeHtml(product.generation || '')}</td>
+                <td>${escapeHtml(product.part_model_number || '')}</td>
+                <td>${partTypeMap[product.part_type] || product.part_type}</td>
+                <td>${escapeHtml(product.ebay_order_number || '')}</td>
+                <td>${photosDisplay}</td>
+                <td>${formattedDate}</td>
+                <td>${trackingDisplay}</td>
+                <td>${statusDisplay}</td>
+                <td>${warrantyStatus}</td>
+                <td>${daysRemaining}</td>
+                <td>
+                    <button class="track-button" data-action="track" data-product-id="${escapeHtml(String(product.id))}" style="margin-right: 5px;">
+                        Track
+                    </button>
+                    <button class="edit-button" data-action="edit" data-product-id="${escapeHtml(String(product.id))}" style="margin-right: 5px;">
+                        Edit
+                    </button>
+                    <button class="delete-button" data-action="delete" data-product-id="${escapeHtml(String(product.id))}">
+                        Delete
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    // Attach event listeners
+    attachProductEventListeners(tableBody);
+}
+
+// Attach event listeners to product buttons
+function attachProductEventListeners(tableBody) {
+    tableBody.querySelectorAll('[data-action="delete"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const productId = e.target.getAttribute('data-product-id');
+            if (productId) deleteProduct(productId);
+        });
+    });
+
+    tableBody.querySelectorAll('[data-action="edit"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const productId = e.target.getAttribute('data-product-id');
+            if (productId) editProduct(productId);
+        });
+    });
+
+    tableBody.querySelectorAll('[data-action="track"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const productId = e.target.getAttribute('data-product-id');
+            if (productId) openTrackingModal(productId);
+        });
+    });
+
+    tableBody.querySelectorAll('.status-select').forEach(select => {
+        select.addEventListener('change', async function(e) {
+            const productId = this.getAttribute('data-product-id');
+            const newStatus = this.value;
+            const oldStatus = this.getAttribute('data-original-status') || this.value;
+
+            if (!productId) return;
+
+            if (!this.getAttribute('data-original-status')) {
+                this.setAttribute('data-original-status', oldStatus);
+            }
+
+            let returnReason = null;
+            if (newStatus === 'returned') {
+                returnReason = prompt('Enter return reason (optional):');
+                if (returnReason === null) {
+                    this.value = oldStatus;
+                    return;
+                }
+            }
+
+            this.disabled = true;
+            this.style.opacity = '0.6';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/product/${encodeURIComponent(productId)}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        status: newStatus,
+                        return_reason: returnReason || undefined
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    loadProducts();
+                } else {
+                    this.value = oldStatus;
+                    alert(data.error || 'Failed to update status');
+                }
+            } catch (error) {
+                console.error('Status update error:', error);
+                this.value = oldStatus;
+                alert('Network error. Please try again.');
+            } finally {
+                this.disabled = false;
+                this.style.opacity = '1';
+            }
+        });
+    });
 }
 
 // Delete product
@@ -1256,8 +1468,14 @@ if (productPhotos && photoPreviewGrid) {
 // Initialize dashboard
 if (document.getElementById('productsTable')) {
     checkAuth();
+
+    // Initialize filters if available
+    if (typeof initProductsFilter === 'function') {
+        initProductsFilter();
+    }
+
     loadProducts();
-    
+
     // Refresh products every 30 seconds
     setInterval(loadProducts, 30000);
 }

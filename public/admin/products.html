@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Products | LJM AirPod Support</title>
-    <link rel="stylesheet" href="../css/styles.css?v=1.2.0.043">
+    <link rel="stylesheet" href="../css/styles.css?v=1.2.5.031">
 
     <script>
         // Inline version display - fetches from API to always show current version
@@ -29,8 +29,8 @@
                     el.textContent = versionText;
                     el.title = 'Version ' + versionData.version + ' (Revision ' + versionData.revision + ')';
                 } else {
-                    el.textContent = 'v1.2.5.030';
-                    el.title = 'Version 1.2.5 (Revision 030)';
+                    el.textContent = 'v1.2.5.031';
+                    el.title = 'Version 1.2.5 (Revision 031)';
                 }
             }
             
@@ -253,10 +253,123 @@
         <!-- Page Content -->
         <div class="admin-content">
             <div class="admin-container">
-                <h1 style="margin-top: 0; margin-bottom: 24px;">Products</h1>
-                
+                <div class="page-header">
+                    <h1 style="margin: 0;">Products</h1>
+                    <div class="page-header-actions">
+                        <span id="productsCount" class="products-count">Loading...</span>
+                    </div>
+                </div>
+
+                <!-- Filter Panel -->
+                <div class="filter-panel">
+                    <div class="filter-panel-row">
+                        <!-- Search -->
+                        <div class="filter-search-container">
+                            <svg class="filter-search-icon" width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M8.33333 13.6667C11.2789 13.6667 13.6667 11.2789 13.6667 8.33333C13.6667 5.38781 11.2789 3 8.33333 3C5.38781 3 3 5.38781 3 8.33333C3 11.2789 5.38781 13.6667 8.33333 13.6667Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M15 15L12.1 12.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <input
+                                type="text"
+                                id="filterSearch"
+                                class="filter-search-input"
+                                placeholder="Search by serial, barcode, order..."
+                                autocomplete="off"
+                            >
+                        </div>
+
+                        <!-- Sort By -->
+                        <div class="filter-control">
+                            <label class="filter-label">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M4 6L8 2L12 6M4 10L8 14L12 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                Sort
+                            </label>
+                            <select id="filterSort" class="filter-select">
+                                <option value="date_desc">Date Added (Newest)</option>
+                                <option value="date_asc">Date Added (Oldest)</option>
+                                <option value="serial_asc">Serial Number (A-Z)</option>
+                                <option value="serial_desc">Serial Number (Z-A)</option>
+                                <option value="warranty_desc">Warranty (Expiring Soon)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="filter-panel-row">
+                        <!-- Status Filter -->
+                        <div class="filter-control">
+                            <label class="filter-label">Status</label>
+                            <select id="filterStatus" class="filter-select">
+                                <option value="">All Statuses</option>
+                                <option value="active">Active</option>
+                                <option value="delivered_no_warranty">Delivered (No Warranty)</option>
+                                <option value="returned">Returned</option>
+                                <option value="pending">Pending</option>
+                            </select>
+                        </div>
+
+                        <!-- Generation Filter -->
+                        <div class="filter-control">
+                            <label class="filter-label">Generation</label>
+                            <select id="filterGeneration" class="filter-select">
+                                <option value="">All Generations</option>
+                                <option value="AirPods (1st Gen)">1st Gen</option>
+                                <option value="AirPods (2nd Gen)">2nd Gen</option>
+                                <option value="AirPods (3rd Gen)">3rd Gen</option>
+                                <option value="AirPods (4th Gen)">4th Gen</option>
+                                <option value="AirPods Pro (1st Gen)">Pro (1st Gen)</option>
+                                <option value="AirPods Pro (2nd Gen)">Pro (2nd Gen)</option>
+                            </select>
+                        </div>
+
+                        <!-- Part Type Filter -->
+                        <div class="filter-control">
+                            <label class="filter-label">Part Type</label>
+                            <select id="filterPartType" class="filter-select">
+                                <option value="">All Types</option>
+                                <option value="left">Left AirPod</option>
+                                <option value="right">Right AirPod</option>
+                                <option value="case">Case</option>
+                            </select>
+                        </div>
+
+                        <!-- Warranty Filter -->
+                        <div class="filter-control">
+                            <label class="filter-label">Warranty</label>
+                            <select id="filterWarranty" class="filter-select">
+                                <option value="">All</option>
+                                <option value="active">Active</option>
+                                <option value="none">No Warranty</option>
+                                <option value="expired">Expired</option>
+                                <option value="paid">Paid</option>
+                            </select>
+                        </div>
+
+                        <!-- Tracking Filter -->
+                        <div class="filter-control">
+                            <label class="filter-label">Tracking</label>
+                            <select id="filterTracking" class="filter-select">
+                                <option value="">All</option>
+                                <option value="tracked">Tracked</option>
+                                <option value="not_tracked">Not Tracked</option>
+                            </select>
+                        </div>
+
+                        <!-- Clear Filters Button -->
+                        <button id="clearFilters" class="filter-clear-btn" title="Clear all filters">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 4L4 12M4 4L12 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                            Clear
+                        </button>
+                    </div>
+
+                    <!-- Active Filters Display -->
+                    <div id="activeFilters" class="active-filters" style="display: none;"></div>
+                </div>
+
                 <div style="background-color: var(--background-white); padding: 30px; border-radius: var(--border-radius); box-shadow: var(--shadow);">
-                    <h2>All Products</h2>
                     <div style="overflow-x: auto;">
                         <table class="data-table">
                             <thead>
@@ -348,7 +461,8 @@
         </div>
     </div>
 
-    <script src="../js/admin.js?v=1.2.5.029"></script>
+    <script src="../js/products-filter.js?v=1.2.5.031"></script>
+    <script src="../js/admin.js?v=1.2.5.031"></script>
     <script src="../js/version.js"></script>
     <script>
         // Quick search handler
