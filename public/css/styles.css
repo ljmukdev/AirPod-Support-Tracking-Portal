@@ -1628,11 +1628,14 @@ html {
 .stat-card {
     background-color: var(--background-white);
     border-radius: var(--border-radius);
-    padding: 20px;
+    padding: 24px;
     box-shadow: var(--shadow);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
     min-width: 0;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #e5e7eb;
 }
 
 .stat-card:hover {
@@ -1644,16 +1647,17 @@ html {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 12px;
+    margin-bottom: 16px;
 }
 
 .stat-card-title {
     margin: 0;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     color: #6b7280;
     font-weight: 500;
     flex: 1;
     min-width: 0;
+    line-height: 1.4;
 }
 
 .stat-icon {
@@ -1664,11 +1668,12 @@ html {
 }
 
 .stat-card-value {
-    font-size: 1.75rem;
+    font-size: 2rem;
     font-weight: 700;
     color: var(--text-dark);
     line-height: 1.2;
     word-break: break-word;
+    margin-top: auto;
 }
 
 .breakdown-grid {
