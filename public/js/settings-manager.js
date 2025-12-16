@@ -109,8 +109,8 @@ function renderStatusOptions(options) {
     });
 }
 
-// Add new status option
-function addStatusOption() {
+// Add new status option - make it globally accessible
+window.addStatusOption = function() {
     console.log('addStatusOption called');
     const list = document.getElementById('statusOptionsList');
     if (!list) {
