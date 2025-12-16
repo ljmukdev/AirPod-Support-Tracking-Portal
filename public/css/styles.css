@@ -1598,33 +1598,45 @@ html {
 /* Dashboard Stats */
 .stats-grid {
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(4, 1fr);
     gap: 16px;
     margin-bottom: 24px;
     max-width: 100%;
 }
 
-/* Desktop: Side by side (4 columns) */
+/* Ensure all 4 metrics stay on one row on all screen sizes */
 @media (min-width: 1200px) {
     .stats-grid {
-        grid-template-columns: repeat(4, 1fr);
         gap: 20px;
     }
 }
 
-/* Tablet: 2 columns side by side */
-@media (min-width: 768px) and (max-width: 1199px) {
+@media (max-width: 1199px) {
     .stats-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 16px;
+        gap: 12px;
     }
 }
 
-/* Mobile: Stacked vertically (1 column) */
 @media (max-width: 767px) {
     .stats-grid {
-        grid-template-columns: 1fr;
-        gap: 12px;
+        gap: 8px;
+    }
+    
+    .stat-card {
+        padding: 16px;
+    }
+    
+    .stat-card-title {
+        font-size: 0.75rem;
+    }
+    
+    .stat-card-value {
+        font-size: 1.5rem;
+    }
+    
+    .stat-icon {
+        width: 16px;
+        height: 16px;
     }
 }
 
