@@ -398,6 +398,11 @@ if (productForm) {
 // Cache for status options
 let statusOptionsCache = null;
 
+// Clear status options cache (called when settings are updated)
+window.clearStatusOptionsCache = function() {
+    statusOptionsCache = null;
+};
+
 // Load status options from settings
 async function loadStatusOptions() {
     if (statusOptionsCache) {

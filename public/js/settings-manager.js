@@ -209,6 +209,10 @@ async function saveSettings() {
         
         if (response.ok && data.success) {
             showSuccess('Settings saved successfully!');
+            // Clear status options cache in admin.js if it exists
+            if (typeof window.clearStatusOptionsCache === 'function') {
+                window.clearStatusOptionsCache();
+            }
         } else {
             showError(data.error || 'Failed to save settings.');
         }
