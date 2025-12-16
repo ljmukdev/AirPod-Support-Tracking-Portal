@@ -73,9 +73,8 @@ async function renderProductsTable(products) {
 
         // Tracking
         const hasTracking = product.tracking_number && product.tracking_number.trim();
-        const trackingIcon = hasTracking ? '●' : '○';
+        const trackingIcon = hasTracking ? '✓' : '✗';
         const trackingClass = hasTracking ? 'has-tracking' : 'no-tracking';
-        const trackingTitle = hasTracking ? 'Tracked' : 'Not tracked';
 
         // Date
         const date = new Date(product.date_added);
@@ -114,7 +113,7 @@ async function renderProductsTable(products) {
                     <span class="warranty-badge ${warrantyClass}">${warrantyText}</span>
                 </td>
                 <td>
-                    <span class="tracking-icon ${trackingClass}" title="${trackingTitle}">${trackingIcon}</span>
+                    <span class="tracking-icon ${trackingClass}">${trackingIcon}</span>
                 </td>
                 <td>
                     <span class="date-text">${dateText}</span>
@@ -129,10 +128,9 @@ async function renderProductsTable(products) {
                             </svg>
                         </button>
                         <div class="actions-dropdown" id="actions-${escapeHtml(String(product.id))}">
-                            <button onclick="viewProduct('${escapeHtml(String(product.id))}')">View</button>
-                            <button onclick="openTrackingModal('${escapeHtml(String(product.id))}')">Track</button>
+                            <button onclick="openTrackingModal('${escapeHtml(String(product.id))}')">Add Tracking</button>
                             <button onclick="editProduct('${escapeHtml(String(product.id))}')">Edit</button>
-                            <button class="danger" onclick="deleteProduct('${escapeHtml(String(product.id))}')">Delete</button>
+                            <button onclick="deleteProduct('${escapeHtml(String(product.id))}')">Delete</button>
                         </div>
                     </div>
                 </td>
