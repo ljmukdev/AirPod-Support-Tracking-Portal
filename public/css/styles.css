@@ -1013,6 +1013,7 @@ body[data-page="add-product"] .admin-container {
 body.add-product-page .admin-form {
     max-width: 100% !important;
     width: 100% !important;
+    margin: 0 0 30px 0 !important;
 }
 
 .admin-form {
