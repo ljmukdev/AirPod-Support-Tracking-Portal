@@ -1,11 +1,11 @@
 // Parts Manager JavaScript
 console.log('[Parts Manager] Script loading...');
 
-// Define API_BASE globally if not already defined
+// Use existing API_BASE if available, otherwise set it
 if (typeof window.API_BASE === 'undefined') {
     window.API_BASE = '';
 }
-// Reference the global API_BASE
+// Reference the global API_BASE without redeclaring
 var API_BASE = window.API_BASE;
 
 // Store all parts for autocomplete
@@ -55,7 +55,9 @@ async function loadParts() {
     if (!partsList) {
         // Still try to load parts data for associated parts even if partsList doesn't exist
         try {
-            const response = await fetch(`${API_BASE}/api/admin/parts`);
+            const response = await fetch(`${API_BASE}/api/admin/parts`, {
+                credentials: 'include'
+            });
             const data = await response.json();
             if (response.ok && data.parts) {
                 allPartsData = data.parts;
@@ -71,7 +73,9 @@ async function loadParts() {
     
     try {
         console.log('[Parts Manager] Fetching parts from:', `${API_BASE}/api/admin/parts`);
-        const response = await fetch(`${API_BASE}/api/admin/parts`);
+        const response = await fetch(`${API_BASE}/api/admin/parts`, {
+            credentials: 'include'
+        });
         console.log('[Parts Manager] Response status:', response.status, response.statusText);
         const data = await response.json();
         console.log('[Parts Manager] Response data:', data);
@@ -592,7 +596,9 @@ async function editPart(id) {
         // Convert id to string/number if needed
         const partId = String(id);
         
-        const response = await fetch(`${API_BASE}/api/admin/parts`);
+        const response = await fetch(`${API_BASE}/api/admin/parts`, {
+            credentials: 'include'
+        });
         const data = await response.json();
         
         if (response.ok && data.parts) {
@@ -748,7 +754,9 @@ function tryPopulateAutocomplete() {
     } else {
         // Try loading parts if not loaded
         console.log('[Autocomplete Init] No parts data, attempting to load...');
-        fetch(`${API_BASE}/api/admin/parts`)
+        fetch(`${API_BASE}/api/admin/parts`, {
+            credentials: 'include'
+        })
             .then(res => res.json())
             .then(data => {
                 if (data.parts) {
