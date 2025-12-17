@@ -1035,14 +1035,18 @@ body.add-product-page .form-fields-card {
     flex: 0 0 calc(50% - 10px);
 }
 
-@media (max-width: 1024px) {
+/* Mobile: Stack cards vertically */
+@media (max-width: 768px) {
     body.add-product-page .add-product-layout {
-        flex-direction: column;
+        flex-direction: column !important;
+        gap: 20px;
     }
     
     body.add-product-page .quick-scan-card,
     body.add-product-page .form-fields-card {
-        flex: 1 1 100%;
+        flex: 1 1 100% !important;
+        width: 100% !important;
+        max-width: 100% !important;
     }
 }
 
