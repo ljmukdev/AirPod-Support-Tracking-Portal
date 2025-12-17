@@ -3062,6 +3062,25 @@ async function sendWarrantyConfirmationEmail(warranty, product) {
         const productName = product?.part_name || 'AirPod Replacement Part';
         const totalPrice = warranty.warranty_price || 0;
         
+        // Calculate warranty price and accessories price separately
+        const warrantyPrice = warranty.extended_warranty && warranty.extended_warranty !== 'none' ? 
+            (warranty.warranty_price - (warranty.accessories?.reduce((sum, acc) => sum + (acc.price || 0), 0) || 0)) : 0;
+        const accessoriesPrice = warranty.accessories?.reduce((sum, acc) => sum + (acc.price || 0), 0) || 0;
+        
+        // Build accessories HTML
+        let accessoriesHtml = '';
+        let accessoriesText = '';
+        if (warranty.accessories && warranty.accessories.length > 0) {
+            accessoriesHtml = '<div class="receipt-item"><span><strong>Accessories:</strong></span><span>';
+            accessoriesText = '\nAccessories:\n';
+            warranty.accessories.forEach((acc, index) => {
+                const accPrice = parseFloat(acc.price || 0);
+                accessoriesHtml += `${acc.name} (£${accPrice.toFixed(2)})${index < warranty.accessories.length - 1 ? ', ' : ''}`;
+                accessoriesText += `  - ${acc.name}: £${accPrice.toFixed(2)}\n`;
+            });
+            accessoriesHtml += '</span></div>';
+        }
+        
         const emailHtml = `
 <!DOCTYPE html>
 <html>
@@ -3114,6 +3133,8 @@ async function sendWarrantyConfirmationEmail(warranty, product) {
                     <span>${standardEndDate}</span>
                 </div>
                 ${extendedEndDateText ? `<div class="receipt-item"><span><strong>Extended Warranty End:</strong></span><span>${extendedEndDateText.replace('Extended Warranty End Date: ', '')}</span></div>` : ''}
+                ${warrantyPrice > 0 ? `<div class="receipt-item"><span><strong>Extended Warranty:</strong></span><span>£${warrantyPrice.toFixed(2)}</span></div>` : ''}
+                ${accessoriesHtml}
                 <div class="receipt-total">
                     <span>Total Paid:</span>
                     <span>£${totalPrice.toFixed(2)}</span>
@@ -3152,7 +3173,7 @@ Warranty ID: ${warranty.warranty_id}
 Registration Date: ${regDate}
 Product: ${productName}
 Warranty Plan: ${warrantyPlanName}
-Standard Warranty End: ${standardEndDate}${extendedEndDateText ? '\nExtended Warranty End: ' + extendedEndDateText.replace('Extended Warranty End Date: ', '') : ''}
+Standard Warranty End: ${standardEndDate}${extendedEndDateText ? '\nExtended Warranty End: ' + extendedEndDateText.replace('Extended Warranty End Date: ', '') : ''}${warrantyPrice > 0 ? '\nExtended Warranty: £' + warrantyPrice.toFixed(2) : ''}${accessoriesText}
 Total Paid: £${totalPrice.toFixed(2)}
 
 Important Information:
@@ -3713,7 +3734,8 @@ app.post('/api/warranty/register', requireDB, async (req, res) => {
         warranty_price,
         payment_intent_id,
         terms_version,
-        terms_accepted
+        terms_accepted,
+        accessories
     } = req.body;
     
     // Check if user wants to register warranty (if they opted out, they might skip this)
@@ -3864,7 +3886,8 @@ app.post('/api/warranty/register', requireDB, async (req, res) => {
             registration_date: registrationDate,
             status: 'active',
             claims_count: 0,
-            last_claim_date: null
+            last_claim_date: null,
+            accessories: accessories || [] // Store accessories data
         };
         
         const result = await db.collection('warranties').insertOne(warranty);
@@ -3941,7 +3964,8 @@ app.get('/api/warranty/:warrantyId', requireDB, async (req, res) => {
             standard_warranty_end: warranty.standard_warranty_end,
             extended_warranty_end: warranty.extended_warranty_end,
             payment_status: warranty.payment_status,
-            status: warranty.status
+            status: warranty.status,
+            accessories: warranty.accessories || []
         });
     } catch (err) {
         console.error('Error fetching warranty:', err);

@@ -5501,6 +5501,19 @@ async function finishSetup() {
         const accessoryPrice = calculateAccessoryPrices();
         const totalPrice = warrantyPrice + accessoryPrice;
         
+        // Prepare accessories data for submission
+        let accessoriesData = [];
+        if (appState.selectedAccessories && appState.selectedAccessories.length > 0 && appState.addonSalesData) {
+            const selectedAddons = appState.addonSalesData.filter(addon => 
+                appState.selectedAccessories.includes(addon.id)
+            );
+            accessoriesData = selectedAddons.map(addon => ({
+                id: addon.id,
+                name: addon.name,
+                price: parseFloat(addon.price || 0)
+            }));
+        }
+        
         // Prepare warranty registration data
         const warrantyData = {
             security_barcode: appState.securityCode,
@@ -5512,7 +5525,8 @@ async function finishSetup() {
             payment_intent_id: appState.paymentIntentId || window.currentPaymentIntentId || null,
             marketing_consent: appState.contactDetails.marketingConsent || false,
             terms_version: appState.termsVersion || 1,
-            terms_accepted: true
+            terms_accepted: true,
+            accessories: accessoriesData // Include accessories data
         };
         
         console.log('[Registration] Submitting warranty registration:', warrantyData);

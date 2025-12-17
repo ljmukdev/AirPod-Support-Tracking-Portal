@@ -298,15 +298,35 @@
                         document.getElementById('extendedWarrantyInfo').style.display = 'block';
                     }
 
-                    // Total amount
-                    const total = (data.warranty_price || 0) / 100; // Convert from pence if needed, or assume pounds
-                    document.getElementById('totalAmount').textContent = `£${total.toFixed(2)}`;
-
+                    // Calculate warranty price and accessories price separately
+                    const warrantyPrice = data.extended_warranty && data.extended_warranty !== 'none' ? 
+                        (data.warranty_price - (data.accessories?.reduce((sum, acc) => sum + (acc.price || 0), 0) || 0)) : 0;
+                    const accessoriesPrice = data.accessories?.reduce((sum, acc) => sum + (acc.price || 0), 0) || 0;
+                    const total = data.warranty_price || 0; // Already in pounds
+                    
+                    // Add warranty price row if extended warranty was purchased
+                    if (warrantyPrice > 0) {
+                        const warrantyPriceRow = document.createElement('div');
+                        warrantyPriceRow.className = 'receipt-item';
+                        warrantyPriceRow.innerHTML = `
+                            <span class="receipt-label">Extended Warranty:</span>
+                            <span class="receipt-value">£${warrantyPrice.toFixed(2)}</span>
+                        `;
+                        document.getElementById('accessoriesRow').parentNode.insertBefore(warrantyPriceRow, document.getElementById('accessoriesRow'));
+                    }
+                    
                     // Accessories (if any)
                     if (data.accessories && data.accessories.length > 0) {
                         document.getElementById('accessoriesRow').style.display = 'flex';
-                        document.getElementById('accessories').textContent = data.accessories.join(', ');
+                        const accessoriesList = data.accessories.map(acc => {
+                            const accPrice = parseFloat(acc.price || 0);
+                            return `${acc.name} (£${accPrice.toFixed(2)})`;
+                        }).join(', ');
+                        document.getElementById('accessories').textContent = accessoriesList;
                     }
+                    
+                    // Total amount
+                    document.getElementById('totalAmount').textContent = `£${total.toFixed(2)}`;
                 })
                 .catch(error => {
                     console.error('Error fetching warranty details:', error);
