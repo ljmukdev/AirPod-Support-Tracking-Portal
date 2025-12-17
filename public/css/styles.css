@@ -1016,6 +1016,12 @@ body.add-product-page .admin-form {
     margin: 0 0 30px 0 !important;
 }
 
+/* Also ensure any cards inside the form span full width */
+body.add-product-page .admin-form .card {
+    max-width: 100% !important;
+    width: 100% !important;
+}
+
 .admin-form {
     background-color: var(--background-white);
     padding: 30px;
