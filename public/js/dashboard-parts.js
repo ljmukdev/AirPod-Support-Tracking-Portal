@@ -14,7 +14,9 @@ let allParts = []; // Store flat list of all parts for searching
 
 async function loadPartsData() {
     try {
-        const response = await fetch(`${API_BASE}/api/admin/parts`);
+        const response = await fetch(`${API_BASE}/api/admin/parts`, {
+            credentials: 'include'
+        });
         const data = await response.json();
         
         if (response.ok && data.parts) {
