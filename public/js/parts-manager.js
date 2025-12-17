@@ -701,7 +701,8 @@ async function deletePart(id) {
         // Convert id to string for URL encoding
         const partId = String(id);
         const response = await fetch(`${API_BASE_REF}/api/admin/part/${encodeURIComponent(partId)}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            credentials: 'include'
         });
         
         const data = await response.json();
