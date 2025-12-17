@@ -301,14 +301,26 @@
             <div class="nav-section">
                 <div class="nav-section-header">SETTINGS</div>
                 <ul class="nav-menu">
-                    <li class="nav-item">
-                        <a href="settings.html" class="nav-link active" data-page="settings">
+                    <li class="nav-item has-submenu expanded">
+                        <a href="settings.html" class="nav-link active" data-page="settings" onclick="event.preventDefault(); toggleSubmenu(this.parentElement);">
                             <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M10 12C11.1046 12 12 11.1046 12 10C12 8.89543 11.1046 8 10 8C8.89543 8 8 8.89543 8 10C8 11.1046 8.89543 12 10 12Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                                 <path d="M16.5 10C16.5 10.5 16.6 11 16.7 11.5L18.5 12.5C18.8 12.7 18.9 13.1 18.7 13.4L17.1 15.9C16.9 16.2 16.5 16.3 16.2 16.1L14.2 15.1C13.7 15.4 13.2 15.6 12.7 15.7L12.5 17.8C12.5 18.1 12.2 18.4 11.9 18.4H8.1C7.8 18.4 7.5 18.1 7.5 17.8L7.3 15.7C6.8 15.6 6.3 15.4 5.8 15.1L3.8 16.1C3.5 16.3 3.1 16.2 2.9 15.9L1.3 13.4C1.1 13.1 1.2 12.7 1.5 12.5L3.3 11.5C3.4 11 3.5 10.5 3.5 10C3.5 9.5 3.4 9 3.3 8.5L1.5 7.5C1.2 7.3 1.1 6.9 1.3 6.6L2.9 4.1C3.1 3.8 3.5 3.7 3.8 3.9L5.8 4.9C6.3 4.6 6.8 4.4 7.3 4.3L7.5 2.2C7.5 1.9 7.8 1.6 8.1 1.6H11.9C12.2 1.6 12.5 1.9 12.5 2.2L12.7 4.3C13.2 4.4 13.7 4.6 14.2 4.9L16.2 3.9C16.5 3.7 16.9 3.8 17.1 4.1L18.7 6.6C18.9 6.9 18.8 7.3 18.5 7.5L16.7 8.5C16.6 9 16.5 9.5 16.5 10Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                             </svg>
                             <span>Settings</span>
                         </a>
+                        <ul class="nav-submenu">
+                            <li class="nav-item">
+                                <a href="settings.html#email-settings" class="nav-link active" data-page="settings" data-section="email">
+                                    <span>Email Configuration</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="settings.html#page-field-options" class="nav-link" data-page="settings" data-section="status">
+                                    <span>Page Field Options</span>
+                                </a>
+                            </li>
+                        </ul>
                     </li>
                 </ul>
             </div>
@@ -345,10 +357,10 @@
             <div class="settings-container">
                 <h1>Settings</h1>
                 
-                <h2 style="margin-top: 30px; margin-bottom: 15px; color: var(--primary-navy); font-size: 1.3rem; font-weight: 600;">Email Settings</h2>
+                <h2 id="email-settings" style="margin-top: 30px; margin-bottom: 15px; color: var(--primary-navy); font-size: 1.3rem; font-weight: 600;">Email Settings</h2>
                 
                 <div class="settings-section">
-                    <h2>Email Configuration</h2>
+                    <h2>SMTP Settings</h2>
                     <p>Configure SMTP settings for sending warranty receipt emails. These settings are stored securely in the database.</p>
                     
                     <div class="field-group">
@@ -398,7 +410,7 @@
                     <div id="emailTestResult" style="display: none; margin-top: 15px; padding: 12px; border-radius: 4px;"></div>
                 </div>
                 
-                <h2 style="margin-top: 40px; margin-bottom: 15px; color: var(--primary-navy); font-size: 1.3rem; font-weight: 600;">Product Settings</h2>
+                <h2 id="page-field-options" style="margin-top: 40px; margin-bottom: 15px; color: var(--primary-navy); font-size: 1.3rem; font-weight: 600;">Page Field Options</h2>
                 
                 <h3 style="margin-top: 20px; margin-bottom: 10px; color: var(--primary-navy); font-size: 1.1rem; font-weight: 600;">Product Status Options</h3>
                 

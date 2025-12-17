@@ -105,6 +105,16 @@ if (document.readyState === 'loading') {
     setupUppercaseFields();
 }
 
+// Toggle submenu function (for Settings dropdown)
+function toggleSubmenu(navItem) {
+    if (navItem && navItem.classList) {
+        navItem.classList.toggle('expanded');
+    }
+}
+
+// Make toggleSubmenu available globally
+window.toggleSubmenu = toggleSubmenu;
+
 // Check authentication status
 async function checkAuth() {
     try {
