@@ -999,20 +999,20 @@ aside.admin-sidebar {
 
 /* Wider container for add-product page - match products page width */
 body.add-product-page .admin-content {
-    padding: 24px 8px;
+    padding: 24px 8px !important;
 }
 
 body.add-product-page .admin-container,
 body[data-page="add-product"] .admin-container {
-    max-width: 100%;
-    margin: 0;
-    width: 100%;
+    max-width: 100% !important;
+    margin: 0 !important;
+    width: 100% !important;
 }
 
-/* Ensure form cards span full width */
+/* Ensure form cards span full width - override the 500px max-width */
 body.add-product-page .admin-form {
-    max-width: 100%;
-    width: 100%;
+    max-width: 100% !important;
+    width: 100% !important;
 }
 
 .admin-form {
