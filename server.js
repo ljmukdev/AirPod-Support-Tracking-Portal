@@ -2305,6 +2305,11 @@ app.post('/api/confirm-understanding', requireDB, async (req, res) => {
 // Get warranty pricing (Public) - only returns enabled options
 app.get('/api/warranty/pricing', requireDB, async (req, res) => {
     try {
+        // Disable caching to ensure fresh pricing data
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        
         const pricing = await db.collection('warranty_pricing').findOne({}, { sort: { last_updated: -1 } });
         if (!pricing) {
             // Return default pricing if none exists (all enabled by default)

@@ -935,7 +935,12 @@ async function loadTermsAndConditions() {
 // Load warranty pricing and display lowest price in step 4
 async function loadAndDisplayLowestWarrantyPrice() {
     try {
-        const response = await fetch(`${API_BASE}/api/warranty/pricing`);
+        const response = await fetch(`${API_BASE}/api/warranty/pricing`, {
+            cache: 'no-store',
+            headers: {
+                'Cache-Control': 'no-cache'
+            }
+        });
         if (response.ok) {
             const pricing = await response.json();
             
@@ -1002,7 +1007,12 @@ function updatePriceDisplay(price, months) {
 // Load and display warranty options dynamically in step 5
 async function loadAndDisplayWarrantyOptions() {
     try {
-        const response = await fetch(`${API_BASE}/api/warranty/pricing`);
+        const response = await fetch(`${API_BASE}/api/warranty/pricing`, {
+            cache: 'no-store',
+            headers: {
+                'Cache-Control': 'no-cache'
+            }
+        });
         if (!response.ok) {
             console.warn('[Warranty Options] Failed to load pricing, using defaults');
             return;
