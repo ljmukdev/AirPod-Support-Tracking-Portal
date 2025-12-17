@@ -349,7 +349,8 @@ if (partForm) {
             
             const response = await fetch(url, {
                 method: method,
-                body: formData
+                body: formData,
+                credentials: 'include'
                 // Don't set Content-Type header - browser will set it with boundary for FormData
             });
             
