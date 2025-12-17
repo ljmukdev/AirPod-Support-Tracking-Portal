@@ -345,8 +345,65 @@
             <div class="settings-container">
                 <h1>Settings</h1>
                 
+                <h2 style="margin-top: 30px; margin-bottom: 15px; color: var(--primary-navy); font-size: 1.3rem; font-weight: 600;">Email Settings</h2>
+                
                 <div class="settings-section">
-                    <h2>Product Status Options</h2>
+                    <h2>Email Configuration</h2>
+                    <p>Configure SMTP settings for sending warranty receipt emails. These settings are stored securely in the database.</p>
+                    
+                    <div class="field-group">
+                        <label for="smtpHost">SMTP Host *</label>
+                        <input type="text" id="smtpHost" name="smtp_host" placeholder="e.g., smtp.gmail.com or smtp.mailgun.org" required>
+                        <p class="help-text">Your SMTP server hostname</p>
+                    </div>
+                    
+                    <div class="field-group">
+                        <label for="smtpPort">SMTP Port *</label>
+                        <input type="number" id="smtpPort" name="smtp_port" placeholder="587" value="587" required>
+                        <p class="help-text">Common ports: 587 (TLS), 465 (SSL), 25 (unencrypted)</p>
+                    </div>
+                    
+                    <div class="field-group">
+                        <label for="smtpSecure">Use Secure Connection</label>
+                        <select id="smtpSecure" name="smtp_secure">
+                            <option value="false">No (TLS - port 587)</option>
+                            <option value="true">Yes (SSL - port 465)</option>
+                        </select>
+                        <p class="help-text">Select 'Yes' for SSL (port 465), 'No' for TLS (port 587)</p>
+                    </div>
+                    
+                    <div class="field-group">
+                        <label for="smtpUser">SMTP Username/Email *</label>
+                        <input type="email" id="smtpUser" name="smtp_user" placeholder="your-email@example.com" required>
+                        <p class="help-text">Your SMTP username or email address</p>
+                    </div>
+                    
+                    <div class="field-group">
+                        <label for="smtpPass">SMTP Password *</label>
+                        <input type="password" id="smtpPass" name="smtp_pass" placeholder="Enter SMTP password" required>
+                        <p class="help-text">Your SMTP password or app-specific password</p>
+                    </div>
+                    
+                    <div class="field-group">
+                        <label for="smtpFrom">From Email Address</label>
+                        <input type="email" id="smtpFrom" name="smtp_from" placeholder="noreply@ljmuk.co.uk">
+                        <p class="help-text">Email address to send from (defaults to SMTP username if not set)</p>
+                    </div>
+                    
+                    <div class="field-group">
+                        <button type="button" class="add-status-btn" id="testEmailBtn" style="background-color: #28a745;">Test Email Configuration</button>
+                        <p class="help-text">Send a test email to verify your SMTP settings are working correctly</p>
+                    </div>
+                    
+                    <div id="emailTestResult" style="display: none; margin-top: 15px; padding: 12px; border-radius: 4px;"></div>
+                </div>
+                
+                <h2 style="margin-top: 40px; margin-bottom: 15px; color: var(--primary-navy); font-size: 1.3rem; font-weight: 600;">Product Settings</h2>
+                
+                <h3 style="margin-top: 20px; margin-bottom: 10px; color: var(--primary-navy); font-size: 1.1rem; font-weight: 600;">Product Status Options</h3>
+                
+                <div class="settings-section">
+                    <h2>Status Options</h2>
                     <p>Manage the status options available in the product status dropdown on the dashboard.</p>
                     
                     <div class="field-group">

@@ -1955,14 +1955,36 @@ app.get('/api/admin/settings', requireAuth, requireDB, async (req, res) => {
                         { value: 'delivered_no_warranty', label: 'Delivered (No Warranty)' },
                         { value: 'returned', label: 'Returned' },
                         { value: 'pending', label: 'Pending' }
-                    ]
+                    ],
+                    email_settings: {
+                        smtp_host: '',
+                        smtp_port: 587,
+                        smtp_secure: false,
+                        smtp_user: '',
+                        smtp_pass: '',
+                        smtp_from: ''
+                    }
                 }
             });
         }
         
+        const settings = settingsDoc.settings || {};
+        
+        // Ensure email_settings exists
+        if (!settings.email_settings) {
+            settings.email_settings = {
+                smtp_host: '',
+                smtp_port: 587,
+                smtp_secure: false,
+                smtp_user: '',
+                smtp_pass: '',
+                smtp_from: ''
+            };
+        }
+        
         res.json({
             success: true,
-            settings: settingsDoc.settings || {}
+            settings: settings
         });
     } catch (err) {
         console.error('Database error:', err);
@@ -1973,39 +1995,89 @@ app.get('/api/admin/settings', requireAuth, requireDB, async (req, res) => {
 // Update settings (Admin only)
 app.put('/api/admin/settings', requireAuth, requireDB, async (req, res) => {
     try {
-        const { product_status_options } = req.body;
+        const { product_status_options, email_settings } = req.body;
         
-        if (!product_status_options || !Array.isArray(product_status_options)) {
-            return res.status(400).json({ error: 'product_status_options array is required' });
-        }
+        const settings = {};
         
-        // Validate status options
-        for (const option of product_status_options) {
-            if (!option.value || !option.label) {
-                return res.status(400).json({ error: 'Each status option must have both value and label' });
+        // Handle product status options
+        if (product_status_options) {
+            if (!Array.isArray(product_status_options)) {
+                return res.status(400).json({ error: 'product_status_options must be an array' });
             }
-            if (!/^[a-z0-9_]+$/.test(option.value)) {
-                return res.status(400).json({ error: 'Status values must contain only lowercase letters, numbers, and underscores' });
+            
+            // Validate status options
+            for (const option of product_status_options) {
+                if (!option.value || !option.label) {
+                    return res.status(400).json({ error: 'Each status option must have both value and label' });
+                }
+                if (!/^[a-z0-9_]+$/.test(option.value)) {
+                    return res.status(400).json({ error: 'Status values must contain only lowercase letters, numbers, and underscores' });
+                }
+            }
+            
+            // Check for duplicate values
+            const values = product_status_options.map(opt => opt.value);
+            const uniqueValues = new Set(values);
+            if (values.length !== uniqueValues.size) {
+                return res.status(400).json({ error: 'Duplicate status values are not allowed' });
+            }
+            
+            settings.product_status_options = product_status_options;
+        }
+        
+        // Handle email settings
+        if (email_settings) {
+            // Validate email settings
+            if (!email_settings.smtp_host || !email_settings.smtp_user || !email_settings.smtp_pass) {
+                return res.status(400).json({ error: 'SMTP host, username, and password are required' });
+            }
+            
+            if (!email_settings.smtp_port || email_settings.smtp_port < 1 || email_settings.smtp_port > 65535) {
+                return res.status(400).json({ error: 'Valid SMTP port (1-65535) is required' });
+            }
+            
+            settings.email_settings = {
+                smtp_host: email_settings.smtp_host.trim(),
+                smtp_port: parseInt(email_settings.smtp_port),
+                smtp_secure: email_settings.smtp_secure === true || email_settings.smtp_secure === 'true',
+                smtp_user: email_settings.smtp_user.trim(),
+                smtp_pass: email_settings.smtp_pass.trim(), // Store password (will be encrypted in production)
+                smtp_from: email_settings.smtp_from ? email_settings.smtp_from.trim() : email_settings.smtp_user.trim()
+            };
+            
+            // Reinitialize email transporter with new settings
+            try {
+                if (nodemailer) {
+                    emailTransporter = nodemailer.createTransport({
+                        host: settings.email_settings.smtp_host,
+                        port: settings.email_settings.smtp_port,
+                        secure: settings.email_settings.smtp_secure,
+                        auth: {
+                            user: settings.email_settings.smtp_user,
+                            pass: settings.email_settings.smtp_pass
+                        }
+                    });
+                    console.log('✅ Email transporter updated with new settings');
+                }
+            } catch (emailErr) {
+                console.error('Error updating email transporter:', emailErr);
+                // Don't fail the save - just log the error
             }
         }
         
-        // Check for duplicate values
-        const values = product_status_options.map(opt => opt.value);
-        const uniqueValues = new Set(values);
-        if (values.length !== uniqueValues.size) {
-            return res.status(400).json({ error: 'Duplicate status values are not allowed' });
-        }
+        // Get existing settings and merge
+        const existingSettings = await db.collection('settings').findOne({ type: 'system' });
+        const mergedSettings = existingSettings?.settings || {};
         
-        const settings = {
-            product_status_options: product_status_options
-        };
+        // Merge new settings with existing
+        Object.assign(mergedSettings, settings);
         
         // Upsert settings document
         await db.collection('settings').updateOne(
             { type: 'system' },
             { 
                 $set: { 
-                    settings: settings,
+                    settings: mergedSettings,
                     updated_at: new Date()
                 }
             },
@@ -2016,6 +2088,59 @@ app.put('/api/admin/settings', requireAuth, requireDB, async (req, res) => {
     } catch (err) {
         console.error('Database error:', err);
         res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Test email configuration (Admin only)
+app.post('/api/admin/test-email', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { smtp_host, smtp_port, smtp_secure, smtp_user, smtp_pass, smtp_from, test_email } = req.body;
+        
+        // Validate required fields
+        if (!smtp_host || !smtp_user || !smtp_pass || !test_email) {
+            return res.status(400).json({ error: 'SMTP host, username, password, and test email address are required' });
+        }
+        
+        if (!nodemailer) {
+            return res.status(503).json({ error: 'Email service not available. Please ensure nodemailer is installed.' });
+        }
+        
+        // Create test transporter
+        const testTransporter = nodemailer.createTransport({
+            host: smtp_host.trim(),
+            port: parseInt(smtp_port) || 587,
+            secure: smtp_secure === true || smtp_secure === 'true',
+            auth: {
+                user: smtp_user.trim(),
+                pass: smtp_pass.trim()
+            }
+        });
+        
+        // Verify connection
+        await testTransporter.verify();
+        
+        // Send test email
+        const fromEmail = smtp_from ? smtp_from.trim() : smtp_user.trim();
+        const mailOptions = {
+            from: fromEmail,
+            to: test_email.trim(),
+            subject: 'Test Email from LJM AirPod Support',
+            text: 'This is a test email to verify your SMTP configuration is working correctly.',
+            html: '<p>This is a test email to verify your SMTP configuration is working correctly.</p><p>If you received this email, your email settings are configured properly!</p>'
+        };
+        
+        const info = await testTransporter.sendMail(mailOptions);
+        
+        res.json({ 
+            success: true, 
+            message: 'Test email sent successfully!',
+            messageId: info.messageId
+        });
+    } catch (err) {
+        console.error('Email test error:', err);
+        res.status(500).json({ 
+            error: 'Failed to send test email: ' + err.message 
+        });
     }
 });
 
@@ -3020,9 +3145,48 @@ app.post('/api/reconditioning-request', requireDB, async (req, res) => {
     }
 });
 
+// Helper function to initialize email transporter from database settings
+async function initializeEmailFromDatabase(db) {
+    if (!nodemailer) {
+        return null;
+    }
+    
+    try {
+        const settingsDoc = await db.collection('settings').findOne({ type: 'system' });
+        if (settingsDoc && settingsDoc.settings && settingsDoc.settings.email_settings) {
+            const emailSettings = settingsDoc.settings.email_settings;
+            if (emailSettings.smtp_host && emailSettings.smtp_user && emailSettings.smtp_pass) {
+                return nodemailer.createTransport({
+                    host: emailSettings.smtp_host,
+                    port: emailSettings.smtp_port || 587,
+                    secure: emailSettings.smtp_secure === true,
+                    auth: {
+                        user: emailSettings.smtp_user,
+                        pass: emailSettings.smtp_pass
+                    }
+                });
+            }
+        }
+    } catch (err) {
+        console.error('Error loading email settings from database:', err);
+    }
+    
+    return null;
+}
+
 // Helper function to send warranty confirmation email
-async function sendWarrantyConfirmationEmail(warranty, product) {
-    if (!emailTransporter || !nodemailer) {
+async function sendWarrantyConfirmationEmail(warranty, product, db) {
+    // Try to get transporter from database first, then fall back to global
+    let transporter = emailTransporter;
+    
+    if (!transporter && db && nodemailer) {
+        transporter = await initializeEmailFromDatabase(db);
+        if (transporter) {
+            emailTransporter = transporter; // Cache it
+        }
+    }
+    
+    if (!transporter || !nodemailer) {
         console.log('Email service not configured - skipping email send');
         return;
     }
@@ -3902,7 +4066,7 @@ app.post('/api/warranty/register', requireDB, async (req, res) => {
         if (product && product.part_name) {
             productName = product.part_name;
         }
-        sendWarrantyConfirmationEmail(warranty, { part_name: productName }).catch(err => {
+        sendWarrantyConfirmationEmail(warranty, { part_name: productName }, db).catch(err => {
             console.error('Failed to send confirmation email:', err);
             // Don't throw - email failure shouldn't break registration
         });

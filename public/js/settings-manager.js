@@ -185,6 +185,7 @@ window.addStatusOption = function() {
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Settings manager: DOMContentLoaded');
     loadSettings();
+    loadEmailSettings();
 
     // Add status button
     const addStatusBtn = document.getElementById('addStatusBtn');
@@ -203,6 +204,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const saveBtn = document.getElementById('saveSettingsBtn');
     if (saveBtn) {
         saveBtn.addEventListener('click', saveSettings);
+    }
+    
+    // Test email button
+    const testEmailBtn = document.getElementById('testEmailBtn');
+    if (testEmailBtn) {
+        testEmailBtn.addEventListener('click', testEmailConfiguration);
     }
 });
 
@@ -237,12 +244,134 @@ function removeStatusOption(index) {
     renderStatusOptions(currentOptions);
 }
 
+// Load email settings
+async function loadEmailSettings() {
+    try {
+        const response = await fetch(`${window.API_BASE || ''}/api/admin/settings`);
+        const data = await response.json();
+
+        if (response.ok && data.settings && data.settings.email_settings) {
+            const emailSettings = data.settings.email_settings;
+            document.getElementById('smtpHost').value = emailSettings.smtp_host || '';
+            document.getElementById('smtpPort').value = emailSettings.smtp_port || 587;
+            document.getElementById('smtpSecure').value = emailSettings.smtp_secure ? 'true' : 'false';
+            document.getElementById('smtpUser').value = emailSettings.smtp_user || '';
+            document.getElementById('smtpPass').value = emailSettings.smtp_pass || '';
+            document.getElementById('smtpFrom').value = emailSettings.smtp_from || '';
+        }
+    } catch (error) {
+        console.error('Error loading email settings:', error);
+    }
+}
+
+// Test email configuration
+async function testEmailConfiguration() {
+    const testBtn = document.getElementById('testEmailBtn');
+    const resultDiv = document.getElementById('emailTestResult');
+    
+    // Get email settings from form
+    const smtpHost = document.getElementById('smtpHost').value.trim();
+    const smtpPort = document.getElementById('smtpPort').value.trim();
+    const smtpSecure = document.getElementById('smtpSecure').value === 'true';
+    const smtpUser = document.getElementById('smtpUser').value.trim();
+    const smtpPass = document.getElementById('smtpPass').value.trim();
+    const smtpFrom = document.getElementById('smtpFrom').value.trim();
+    
+    // Validate required fields
+    if (!smtpHost || !smtpUser || !smtpPass) {
+        resultDiv.style.display = 'block';
+        resultDiv.style.backgroundColor = '#f8d7da';
+        resultDiv.style.color = '#721c24';
+        resultDiv.style.border = '1px solid #f5c6cb';
+        resultDiv.textContent = 'Please fill in SMTP Host, Username, and Password before testing.';
+        return;
+    }
+    
+    // Get test email address
+    const testEmail = prompt('Enter an email address to send the test email to:');
+    if (!testEmail || !testEmail.trim()) {
+        return;
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(testEmail.trim())) {
+        resultDiv.style.display = 'block';
+        resultDiv.style.backgroundColor = '#f8d7da';
+        resultDiv.style.color = '#721c24';
+        resultDiv.style.border = '1px solid #f5c6cb';
+        resultDiv.textContent = 'Please enter a valid email address.';
+        return;
+    }
+    
+    // Disable button and show loading
+    testBtn.disabled = true;
+    testBtn.textContent = 'Testing...';
+    resultDiv.style.display = 'block';
+    resultDiv.style.backgroundColor = '#d1ecf1';
+    resultDiv.style.color = '#0c5460';
+    resultDiv.style.border = '1px solid #bee5eb';
+    resultDiv.textContent = 'Sending test email...';
+    
+    try {
+        const response = await fetch(`${window.API_BASE || ''}/api/admin/test-email`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                smtp_host: smtpHost,
+                smtp_port: smtpPort,
+                smtp_secure: smtpSecure,
+                smtp_user: smtpUser,
+                smtp_pass: smtpPass,
+                smtp_from: smtpFrom,
+                test_email: testEmail.trim()
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            resultDiv.style.backgroundColor = '#d4edda';
+            resultDiv.style.color = '#155724';
+            resultDiv.style.border = '1px solid #c3e6cb';
+            resultDiv.textContent = `✅ Test email sent successfully to ${testEmail.trim()}! Check your inbox.`;
+        } else {
+            resultDiv.style.backgroundColor = '#f8d7da';
+            resultDiv.style.color = '#721c24';
+            resultDiv.style.border = '1px solid #f5c6cb';
+            resultDiv.textContent = `❌ Failed to send test email: ${data.error || 'Unknown error'}`;
+        }
+    } catch (error) {
+        console.error('Error testing email:', error);
+        resultDiv.style.backgroundColor = '#f8d7da';
+        resultDiv.style.color = '#721c24';
+        resultDiv.style.border = '1px solid #f5c6cb';
+        resultDiv.textContent = `❌ Network error: ${error.message}`;
+    } finally {
+        testBtn.disabled = false;
+        testBtn.textContent = 'Test Email Configuration';
+    }
+}
+
 // Save settings
 async function saveSettings() {
     const saveBtn = document.getElementById('saveSettingsBtn');
     const statusOptions = getCurrentStatusOptions();
     
-    // Validate
+    // Get email settings
+    const emailSettings = {
+        smtp_host: document.getElementById('smtpHost').value.trim(),
+        smtp_port: parseInt(document.getElementById('smtpPort').value) || 587,
+        smtp_secure: document.getElementById('smtpSecure').value === 'true',
+        smtp_user: document.getElementById('smtpUser').value.trim(),
+        smtp_pass: document.getElementById('smtpPass').value.trim(),
+        smtp_from: document.getElementById('smtpFrom').value.trim()
+    };
+    
+    // Validate status options
     if (statusOptions.length === 0) {
         showError('At least one status option is required.');
         return;
@@ -256,6 +385,14 @@ async function saveSettings() {
         return;
     }
     
+    // Validate email settings if provided
+    if (emailSettings.smtp_host || emailSettings.smtp_user || emailSettings.smtp_pass) {
+        if (!emailSettings.smtp_host || !emailSettings.smtp_user || !emailSettings.smtp_pass) {
+            showError('If configuring email, SMTP Host, Username, and Password are all required.');
+            return;
+        }
+    }
+    
     // Disable save button
     saveBtn.disabled = true;
     saveBtn.textContent = 'Saving...';
@@ -266,15 +403,17 @@ async function saveSettings() {
             headers: {
                 'Content-Type': 'application/json'
             },
+            credentials: 'include',
             body: JSON.stringify({
-                product_status_options: statusOptions
+                product_status_options: statusOptions,
+                email_settings: emailSettings
             })
         });
         
         const data = await response.json();
         
         if (response.ok && data.success) {
-            showSuccess('Settings saved successfully! The dashboard will use the new status options.');
+            showSuccess('Settings saved successfully!');
             
             // Clear status options cache in admin.js if it exists
             if (typeof window.clearStatusOptionsCache === 'function') {
