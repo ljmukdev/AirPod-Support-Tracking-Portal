@@ -806,6 +806,13 @@ aside.admin-sidebar {
     background-color: var(--sidebar-hover) !important;
 }
 
+/* Expand submenu on hover (desktop only) */
+@media (min-width: 769px) {
+    .nav-item.has-submenu:hover .nav-submenu {
+        max-height: 500px;
+    }
+}
+
 .nav-item.has-submenu > .nav-link {
     position: relative;
 }
