@@ -3353,15 +3353,33 @@ Thank you for choosing LJM AirPod Support!
 This is an automated email. Please do not reply.
         `;
         
+        // Get from email - prefer database settings, then env vars, then smtp_user
+        let fromEmail = warranty.customer_email; // fallback
+        if (db) {
+            try {
+                const settingsDoc = await db.collection('settings').findOne({ type: 'system' });
+                if (settingsDoc?.settings?.email_settings?.smtp_from) {
+                    fromEmail = settingsDoc.settings.email_settings.smtp_from;
+                } else if (settingsDoc?.settings?.email_settings?.smtp_user) {
+                    fromEmail = settingsDoc.settings.email_settings.smtp_user;
+                }
+            } catch (err) {
+                // Fall through to env vars
+            }
+        }
+        if (fromEmail === warranty.customer_email) {
+            fromEmail = process.env.SMTP_FROM || process.env.SMTP_USER || warranty.customer_email;
+        }
+        
         const mailOptions = {
-            from: process.env.SMTP_FROM || process.env.SMTP_USER,
+            from: fromEmail,
             to: warranty.customer_email,
             subject: `Warranty Registration Confirmed - ${warranty.warranty_id}`,
             text: emailText,
             html: emailHtml
         };
         
-        const info = await emailTransporter.sendMail(mailOptions);
+        const info = await transporter.sendMail(mailOptions);
         console.log(`✅ Confirmation email sent to ${warranty.customer_email}:`, info.messageId);
     } catch (error) {
         console.error('Error sending confirmation email:', error);
