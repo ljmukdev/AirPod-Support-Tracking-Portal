@@ -5,8 +5,8 @@ console.log('[Parts Manager] Script loading...');
 if (typeof window.API_BASE === 'undefined') {
     window.API_BASE = '';
 }
-// Reference the global API_BASE without redeclaring
-var API_BASE = window.API_BASE;
+// Reference the global API_BASE - use a different name to avoid const redeclaration conflict with admin.js
+const API_BASE_REF = window.API_BASE;
 
 // Store all parts for autocomplete
 let allPartsData = [];
