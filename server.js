@@ -1839,6 +1839,78 @@ app.put('/api/admin/product/:id/return', requireAuth, requireDB, async (req, res
     }
 });
 
+// Update return details for a returned product (Admin only)
+app.put('/api/admin/product/:id/return-details', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid product ID' });
+    }
+    
+    const { return_reason, refund_amount, original_postage_packaging, return_postage_cost } = req.body;
+    
+    if (!return_reason || refund_amount === undefined || refund_amount === null || refund_amount === '') {
+        return res.status(400).json({ 
+            error: 'Return reason and refund amount are required' 
+        });
+    }
+    
+    const refundAmount = parseFloat(refund_amount);
+    const originalPostage = parseFloat(original_postage_packaging) || 0;
+    const returnPostage = parseFloat(return_postage_cost) || 0;
+    
+    if (isNaN(refundAmount) || refundAmount < 0) {
+        return res.status(400).json({ error: 'Invalid refund amount' });
+    }
+    
+    try {
+        // Get current product
+        const product = await db.collection('products').findOne({ _id: new ObjectId(id) });
+        
+        if (!product) {
+            return res.status(404).json({ error: 'Product not found' });
+        }
+        
+        if (product.status !== 'returned') {
+            return res.status(400).json({ error: 'Product is not marked as returned' });
+        }
+        
+        // Calculate total costs
+        const totalCost = refundAmount + originalPostage + returnPostage;
+        
+        const updateData = {
+            return_reason: return_reason.trim(),
+            refund_amount: refundAmount,
+            original_postage_packaging: originalPostage,
+            return_postage_cost: returnPostage,
+            total_refund_amount: refundAmount, // Update total refund amount
+            total_postage_lost: originalPostage + returnPostage, // Update total postage lost
+            total_return_cost: totalCost // Store total cost for easy calculation
+        };
+        
+        const result = await db.collection('products').updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updateData }
+        );
+        
+        if (result.matchedCount === 0) {
+            res.status(404).json({ error: 'Product not found' });
+        } else {
+            console.log('Return details updated, ID:', id);
+            res.json({ 
+                success: true, 
+                message: 'Return details updated successfully',
+                total_refund_amount: refundAmount,
+                total_postage_lost: originalPostage + returnPostage,
+                total_return_cost: totalCost
+            });
+        }
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // Reopen/Reactivate a returned product (Admin only)
 app.put('/api/admin/product/:id/reopen', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;
@@ -4009,10 +4081,12 @@ app.get('/api/admin/search-product', requireAuth, requireDB, async (req, res) =>
             return_reason: product.return_reason || null,
             refund_amount: product.refund_amount || null,
             original_postage_packaging: product.original_postage_packaging || null,
+            return_postage_cost: product.return_postage_cost || null,
             return_date: product.return_date || null,
             return_count: product.return_count || 0,
             total_refund_amount: product.total_refund_amount || 0,
             total_postage_lost: product.total_postage_lost || 0,
+            total_return_cost: product.total_return_cost || null,
             last_return_date: product.last_return_date || null
         };
         

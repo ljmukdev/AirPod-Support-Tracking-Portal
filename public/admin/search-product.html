@@ -478,7 +478,7 @@
     <div id="returnProductModal" class="modal" style="display: none;">
         <div class="modal-content" style="max-width: 600px;">
             <div class="modal-header">
-                <h2>Mark Product as Returned</h2>
+                <h2 id="returnModalTitle">Mark Product as Returned</h2>
                 <span class="modal-close" id="closeReturnModal">&times;</span>
             </div>
             <div class="modal-body">
@@ -509,13 +509,18 @@
                         <input type="number" id="originalPostage" name="original_postage_packaging" step="0.01" min="0" placeholder="0.00">
                         <small style="color: #666; display: block; margin-top: 5px;">Enter the original postage and packaging cost that was paid</small>
                     </div>
+                    <div class="form-group">
+                        <label for="returnPostage">Return Postage Cost (£)</label>
+                        <input type="number" id="returnPostage" name="return_postage_cost" step="0.01" min="0" placeholder="0.00">
+                        <small style="color: #666; display: block; margin-top: 5px;">Enter the cost of shipping the return back to you</small>
+                    </div>
                     <div id="returnProductError" class="error-message" style="display: none;"></div>
                     <div id="returnProductSuccess" class="success-message" style="display: none;"></div>
                 </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="button button-secondary" id="cancelReturnBtn">Cancel</button>
-                <button type="button" class="button" id="confirmReturnBtn" style="background: #dc3545;">Mark as Returned</button>
+                <button type="button" class="button" id="confirmReturnBtn" style="background: #dc3545;">Save Return Details</button>
             </div>
         </div>
     </div>
@@ -707,12 +712,20 @@
                 </div>
                 ${product.status === 'returned' ? `
                     <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
-                        <strong>⚠️ Product Status: RETURNED</strong>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <strong>⚠️ Product Status: RETURNED</strong>
+                            <button id="editReturnDetailsBtn" class="button" style="background: #007bff; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.9rem;">
+                                ✏️ Edit Return Details
+                            </button>
+                        </div>
                         ${product.return_count ? `<p style="margin: 5px 0;">Return Count: ${product.return_count}</p>` : ''}
                         ${product.return_reason ? `<p style="margin: 5px 0;"><strong>Reason:</strong> ${product.return_reason}</p>` : ''}
                         ${product.refund_amount !== undefined ? `<p style="margin: 5px 0;"><strong>Refund Amount:</strong> £${parseFloat(product.refund_amount).toFixed(2)}</p>` : ''}
+                        ${product.original_postage_packaging !== undefined && product.original_postage_packaging > 0 ? `<p style="margin: 5px 0;"><strong>Original Postage:</strong> £${parseFloat(product.original_postage_packaging).toFixed(2)}</p>` : ''}
+                        ${product.return_postage_cost !== undefined && product.return_postage_cost > 0 ? `<p style="margin: 5px 0;"><strong>Return Postage:</strong> £${parseFloat(product.return_postage_cost).toFixed(2)}</p>` : ''}
                         ${product.total_refund_amount !== undefined ? `<p style="margin: 5px 0;"><strong>Total Refunds:</strong> £${parseFloat(product.total_refund_amount).toFixed(2)}</p>` : ''}
                         ${product.total_postage_lost !== undefined ? `<p style="margin: 5px 0;"><strong>Total Postage Lost:</strong> £${parseFloat(product.total_postage_lost).toFixed(2)}</p>` : ''}
+                        ${product.total_return_cost !== undefined ? `<p style="margin: 5px 0; font-weight: bold; color: #dc3545;"><strong>Total Return Cost:</strong> £${parseFloat(product.total_return_cost).toFixed(2)}</p>` : ''}
                         ${product.return_date ? `<p style="margin: 5px 0;"><strong>Return Date:</strong> ${formatDate(product.return_date)}</p>` : ''}
                     </div>
                 ` : ''}
@@ -740,7 +753,46 @@
             }
             
             if (e.target.id === 'markReturnedBtn') {
+                // Reset form for new return
+                document.getElementById('returnProductForm').reset();
+                document.getElementById('returnModalTitle').textContent = 'Mark Product as Returned';
+                document.getElementById('confirmReturnBtn').textContent = 'Mark as Returned';
+                document.getElementById('confirmReturnBtn').dataset.mode = 'create';
+                document.getElementById('customReasonGroup').style.display = 'none';
+                document.getElementById('returnProductError').style.display = 'none';
+                document.getElementById('returnProductSuccess').style.display = 'none';
                 document.getElementById('returnProductModal').style.display = 'block';
+            }
+            
+            if (e.target.id === 'editReturnDetailsBtn') {
+                const product = window.currentProduct;
+                if (product) {
+                    // Pre-populate form with existing return data
+                    document.getElementById('returnReason').value = product.return_reason || '';
+                    
+                    // Handle custom reason
+                    if (product.return_reason && !['Wrong item', 'Defective', 'Not compatible', 'Changed mind', 'Damaged in transit', 'Not as described'].includes(product.return_reason)) {
+                        document.getElementById('returnReason').value = 'Other';
+                        document.getElementById('customReturnReason').value = product.return_reason;
+                        document.getElementById('customReasonGroup').style.display = 'block';
+                        document.getElementById('customReturnReason').required = true;
+                    } else {
+                        document.getElementById('customReasonGroup').style.display = 'none';
+                        document.getElementById('customReturnReason').required = false;
+                    }
+                    
+                    document.getElementById('refundAmount').value = product.refund_amount || '';
+                    document.getElementById('originalPostage').value = product.original_postage_packaging || '';
+                    document.getElementById('returnPostage').value = product.return_postage_cost || '';
+                    
+                    // Update modal for editing
+                    document.getElementById('returnModalTitle').textContent = 'Edit Return Details';
+                    document.getElementById('confirmReturnBtn').textContent = 'Update Return Details';
+                    document.getElementById('confirmReturnBtn').dataset.mode = 'edit';
+                    document.getElementById('returnProductError').style.display = 'none';
+                    document.getElementById('returnProductSuccess').style.display = 'none';
+                    document.getElementById('returnProductModal').style.display = 'block';
+                }
             }
             
             if (e.target.id === 'reopenProductBtn') {
@@ -778,6 +830,8 @@
                 document.getElementById('returnProductError').style.display = 'none';
                 document.getElementById('returnProductSuccess').style.display = 'none';
                 document.getElementById('returnProductForm').reset();
+                document.getElementById('customReasonGroup').style.display = 'none';
+                document.getElementById('customReturnReason').required = false;
             }
         });
         
@@ -849,12 +903,18 @@
             const data = {
                 return_reason: finalReason,
                 refund_amount: document.getElementById('refundAmount').value,
-                original_postage_packaging: document.getElementById('originalPostage').value || 0
+                original_postage_packaging: document.getElementById('originalPostage').value || 0,
+                return_postage_cost: document.getElementById('returnPostage').value || 0
             };
             
             try {
                 const apiBase = window.API_BASE || '';
-                const response = await fetch(`${apiBase}/api/admin/product/${window.currentProductId}/return`, {
+                const mode = document.getElementById('confirmReturnBtn').dataset.mode || 'create';
+                const endpoint = mode === 'edit' 
+                    ? `${apiBase}/api/admin/product/${window.currentProductId}/return-details`
+                    : `${apiBase}/api/admin/product/${window.currentProductId}/return`;
+                
+                const response = await fetch(endpoint, {
                     method: 'PUT',
                     credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },
@@ -863,8 +923,13 @@
                 
                 const result = await response.json();
                 if (response.ok) {
-                    document.getElementById('returnProductSuccess').textContent = 
-                        `Product marked as returned. Return count: ${result.return_count}, Total refunds: £${parseFloat(result.total_refund_amount).toFixed(2)}`;
+                    if (mode === 'edit') {
+                        document.getElementById('returnProductSuccess').textContent = 
+                            `Return details updated successfully. Total cost: £${parseFloat(result.total_return_cost || 0).toFixed(2)}`;
+                    } else {
+                        document.getElementById('returnProductSuccess').textContent = 
+                            `Product marked as returned. Return count: ${result.return_count}, Total refunds: £${parseFloat(result.total_refund_amount).toFixed(2)}`;
+                    }
                     document.getElementById('returnProductSuccess').style.display = 'block';
                     document.getElementById('returnProductError').style.display = 'none';
                     setTimeout(() => {
@@ -873,13 +938,14 @@
                         document.getElementById('searchForm').dispatchEvent(new Event('submit'));
                     }, 2000);
                 } else {
-                    document.getElementById('returnProductError').textContent = result.error || 'Failed to mark product as returned';
+                    document.getElementById('returnProductError').textContent = result.error || (mode === 'edit' ? 'Failed to update return details' : 'Failed to mark product as returned');
                     document.getElementById('returnProductError').style.display = 'block';
                     document.getElementById('returnProductSuccess').style.display = 'none';
                 }
             } catch (error) {
                 document.getElementById('returnProductError').textContent = 'Network error: ' + error.message;
                 document.getElementById('returnProductError').style.display = 'block';
+                document.getElementById('returnProductSuccess').style.display = 'none';
             }
         });
         
