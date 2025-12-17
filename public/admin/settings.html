@@ -440,16 +440,37 @@
     <script src="../js/settings-manager.js?v=1.2.5.031"></script>
     
     <script>
-        // Set active nav item
+        // Set active nav item and handle submenu
         (function() {
             const currentPage = window.location.pathname.split('/').pop() || 'settings.html';
-            const navLinks = document.querySelectorAll('.nav-link, .sidebar-footer-link');
-            navLinks.forEach(link => {
-                const href = link.getAttribute('href');
-                if (href && (href === currentPage || currentPage.includes(href.replace('.html', '')))) {
-                    link.classList.add('active');
+            const hash = window.location.hash || '#email-settings';
+            
+            // Expand Settings submenu if on settings page
+            if (currentPage === 'settings.html') {
+                const submenuItem = document.querySelector('.nav-item.has-submenu');
+                if (submenuItem) {
+                    submenuItem.classList.add('expanded');
                 }
-            });
+            }
+            
+            // Set active submenu item based on hash
+            if (hash === '#email-settings') {
+                document.querySelector('.nav-submenu a[data-section="email"]')?.classList.add('active');
+                document.querySelector('.nav-submenu a[data-section="status"]')?.classList.remove('active');
+            } else if (hash === '#page-field-options') {
+                document.querySelector('.nav-submenu a[data-section="status"]')?.classList.add('active');
+                document.querySelector('.nav-submenu a[data-section="email"]')?.classList.remove('active');
+            }
+            
+            // Scroll to section on load
+            if (hash) {
+                setTimeout(() => {
+                    const element = document.querySelector(hash);
+                    if (element) {
+                        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                }, 100);
+            }
         })();
     </script>
 </body>
