@@ -997,16 +997,21 @@ aside.admin-sidebar {
     width: 100%;
 }
 
-/* Wider container for add-product page */
+/* Wider container for add-product page - match products page width */
 body.add-product-page .admin-content {
-    padding-left: 8px;
-    padding-right: 8px;
+    padding: 24px 8px;
 }
 
 body.add-product-page .admin-container,
 body[data-page="add-product"] .admin-container {
     max-width: 100%;
     margin: 0;
+    width: 100%;
+}
+
+/* Ensure form cards span full width */
+body.add-product-page .admin-form {
+    max-width: 100%;
     width: 100%;
 }
 
