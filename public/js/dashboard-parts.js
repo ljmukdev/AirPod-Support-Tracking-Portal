@@ -14,12 +14,21 @@ let allParts = []; // Store flat list of all parts for searching
 
 async function loadPartsData() {
     try {
+        console.log('[Parts Loader] Fetching parts from:', `${API_BASE}/api/admin/parts`);
         const response = await fetch(`${API_BASE}/api/admin/parts`, {
             credentials: 'include'
         });
+        
+        if (!response.ok) {
+            console.error('[Parts Loader] HTTP error:', response.status, response.statusText);
+            return;
+        }
+        
         const data = await response.json();
         
-        if (response.ok && data.parts) {
+        if (data.parts && Array.isArray(data.parts)) {
+            console.log('[Parts Loader] Loaded', data.parts.length, 'parts');
+            
             // Store flat list for searching
             allParts = data.parts;
             
@@ -35,6 +44,8 @@ async function loadPartsData() {
                 partsData[part.generation].push(part);
             });
             
+            console.log('[Parts Loader] Grouped into', generations.length, 'generations:', generations);
+            
             // Populate generation dropdown
             const generationSelect = document.getElementById('generation');
             if (generationSelect) {
@@ -45,12 +56,15 @@ async function loadPartsData() {
                     option.textContent = gen;
                     generationSelect.appendChild(option);
                 });
+                console.log('[Parts Loader] Populated generation dropdown');
+            } else {
+                console.warn('[Parts Loader] Generation select element not found');
             }
         } else {
-            console.error('Failed to load parts:', data.error);
+            console.error('[Parts Loader] Invalid response format:', data);
         }
     } catch (error) {
-        console.error('Error loading parts:', error);
+        console.error('[Parts Loader] Error loading parts:', error);
     }
 }
 
