@@ -4,8 +4,8 @@
 if (typeof window.API_BASE === 'undefined') {
     window.API_BASE = '';
 }
-// Reference the global API_BASE
-var API_BASE = window.API_BASE;
+// Reference the global API_BASE - use a different name to avoid const redeclaration conflict with admin.js
+const API_BASE_REF = window.API_BASE;
 
 // Load parts from API and populate dropdowns
 let partsData = {};
@@ -14,8 +14,8 @@ let allParts = []; // Store flat list of all parts for searching
 
 async function loadPartsData() {
     try {
-        console.log('[Parts Loader] Fetching parts from:', `${API_BASE}/api/admin/parts`);
-        const response = await fetch(`${API_BASE}/api/admin/parts`, {
+        console.log('[Parts Loader] Fetching parts from:', `${API_BASE_REF}/api/admin/parts`);
+        const response = await fetch(`${API_BASE_REF}/api/admin/parts`, {
             credentials: 'include'
         });
         
