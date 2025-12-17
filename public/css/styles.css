@@ -998,18 +998,16 @@ aside.admin-sidebar {
 }
 
 /* Wider container for add-product page */
-body.add-product-page .admin-container,
-body[data-page="add-product"] .admin-container {
-    max-width: calc(100% - 16px);
-    margin: 0 8px;
+body.add-product-page .admin-content {
+    padding-left: 8px;
+    padding-right: 8px;
 }
 
-@media (min-width: 1200px) {
-    body.add-product-page .admin-container,
-    body[data-page="add-product"] .admin-container {
-        max-width: calc(100vw - 280px - 16px); /* Account for sidebar width + margins */
-        margin: 0 8px;
-    }
+body.add-product-page .admin-container,
+body[data-page="add-product"] .admin-container {
+    max-width: 100%;
+    margin: 0;
+    width: 100%;
 }
 
 .admin-form {
