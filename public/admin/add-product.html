@@ -244,206 +244,215 @@
         <div class="admin-content">
             <div class="admin-container">
                 <div class="admin-form">
-            <h2 style="margin-top: 0;">Add New Product</h2>
+            <h2 style="margin-top: 0; margin-bottom: 24px;">Add New Product</h2>
             
-            <!-- Image Upload & OCR Section -->
-            <div class="card" style="margin-bottom: 30px; background-color: #f8f9fa;">
-                <h3 style="margin-top: 0;">📸 Quick Scan</h3>
-                <p style="font-size: 0.9rem; color: #666; margin-bottom: 15px;">
-                    Take a photo of the part label showing part number and serial number, or scan the security barcode
-                </p>
-                
-                <div class="form-group">
-                    <label for="imageUpload">Upload or Take Photo (Part Label)</label>
-                    <p style="font-size: 0.85rem; color: #666; margin-bottom: 10px;">
-                        📸 Click to upload from device or take a photo with your camera
+            <!-- Two Column Layout: Quick Scan (left) and Form Fields (right) -->
+            <div class="add-product-layout" style="display: flex; gap: 20px; margin-bottom: 30px; align-items: flex-start;">
+                <!-- Quick Scan Card (Left - 50%) -->
+                <div class="card quick-scan-card" style="flex: 0 0 calc(50% - 10px); background-color: #f8f9fa;">
+                    <h3 style="margin-top: 0;">📸 Quick Scan</h3>
+                    <p style="font-size: 0.9rem; color: #666; margin-bottom: 15px;">
+                        Take a photo of the part label showing part number and serial number, or scan the security barcode
                     </p>
-                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    
+                    <div class="form-group">
+                        <label for="imageUpload">Upload or Take Photo (Part Label)</label>
+                        <p style="font-size: 0.85rem; color: #666; margin-bottom: 10px;">
+                            📸 Click to upload from device or take a photo with your camera
+                        </p>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <input
+                                type="file"
+                                id="imageUpload"
+                                name="imageUpload"
+                                accept="image/*"
+                                style="flex: 1; min-width: 200px; padding: 10px; border: 2px dashed #007AFF; border-radius: 8px; cursor: pointer;"
+                            >
+                            <button type="button" class="button button-secondary" id="takePhotoButton" style="width: auto; min-width: 140px;">
+                                📷 Take Photo
+                            </button>
+                        </div>
                         <input
                             type="file"
-                            id="imageUpload"
-                            name="imageUpload"
+                            id="cameraCapture"
+                            name="cameraCapture"
                             accept="image/*"
-                            style="flex: 1; min-width: 200px; padding: 10px; border: 2px dashed #007AFF; border-radius: 8px; cursor: pointer;"
+                            capture="environment"
+                            style="display: none;"
                         >
-                        <button type="button" class="button button-secondary" id="takePhotoButton" style="width: auto; min-width: 140px;">
-                            📷 Take Photo
+                        <button type="button" class="button button-secondary" id="scanImageButton" style="margin-top: 10px; width: auto;">
+                            Extract Data from Image
                         </button>
-                    </div>
-                    <input
-                        type="file"
-                        id="cameraCapture"
-                        name="cameraCapture"
-                        accept="image/*"
-                        capture="environment"
-                        style="display: none;"
-                    >
-                    <button type="button" class="button button-secondary" id="scanImageButton" style="margin-top: 10px; width: auto;">
-                        Extract Data from Image
-                    </button>
-                    <div id="imagePreview" style="margin-top: 15px; display: none;">
-                        <div style="margin-bottom: 10px;">
-                            <p style="font-size: 0.85rem; color: #666; margin-bottom: 8px;">
-                                📍 Draw a box around the text area (serial number & part number), then click "Extract Data"
-                            </p>
-                            <div style="position: relative; display: inline-block; max-width: 100%; border: 2px solid #007AFF; border-radius: 8px; overflow: hidden;">
-                                <canvas id="cropCanvas" style="max-width: 100%; display: block; cursor: crosshair;"></canvas>
-                                <div id="cropOverlay" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; display: none;">
-                                    <div id="cropBox" style="position: absolute; border: 2px dashed #007AFF; background: rgba(0, 122, 255, 0.1); pointer-events: none;"></div>
+                        <div id="imagePreview" style="margin-top: 15px; display: none;">
+                            <div style="margin-bottom: 10px;">
+                                <p style="font-size: 0.85rem; color: #666; margin-bottom: 8px;">
+                                    📍 Draw a box around the text area (serial number & part number), then click "Extract Data"
+                                </p>
+                                <div style="position: relative; display: inline-block; max-width: 100%; border: 2px solid #007AFF; border-radius: 8px; overflow: hidden;">
+                                    <canvas id="cropCanvas" style="max-width: 100%; display: block; cursor: crosshair;"></canvas>
+                                    <div id="cropOverlay" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; display: none;">
+                                        <div id="cropBox" style="position: absolute; border: 2px dashed #007AFF; background: rgba(0, 122, 255, 0.1); pointer-events: none;"></div>
+                                    </div>
                                 </div>
                             </div>
+                            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                <button type="button" class="button button-secondary" id="resetCropButton" style="width: auto; min-width: 120px;">
+                                    🔄 Reset Selection
+                                </button>
+                                <button type="button" class="button button-secondary" id="zoomInButton" style="width: auto; min-width: 80px;">
+                                    🔍 Zoom In
+                                </button>
+                                <button type="button" class="button button-secondary" id="zoomOutButton" style="width: auto; min-width: 80px;">
+                                    🔍 Zoom Out
+                                </button>
+                            </div>
                         </div>
-                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                            <button type="button" class="button button-secondary" id="resetCropButton" style="width: auto; min-width: 120px;">
-                                🔄 Reset Selection
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="barcodeScan">Scan Security Barcode</label>
+                        <div style="display: flex; gap: 10px;">
+                            <input 
+                                type="text" 
+                                id="barcodeScan" 
+                                name="barcodeScan" 
+                                placeholder="Click to scan or enter manually"
+                                style="flex: 1;"
+                            >
+                            <button type="button" class="button button-secondary" id="startBarcodeScan" style="width: auto; min-width: 100px;">
+                                📷 Scan
                             </button>
-                            <button type="button" class="button button-secondary" id="zoomInButton" style="width: auto; min-width: 80px;">
-                                🔍 Zoom In
-                            </button>
-                            <button type="button" class="button button-secondary" id="zoomOutButton" style="width: auto; min-width: 80px;">
-                                🔍 Zoom Out
+                        </div>
+                        <div id="barcodeScanner" style="display: none; margin-top: 15px;">
+                            <video id="barcodeVideo" width="100%" style="border-radius: 8px; display: none;"></video>
+                            <canvas id="barcodeCanvas" style="display: none;"></canvas>
+                            <button type="button" class="button button-secondary" id="stopBarcodeScan" style="margin-top: 10px;">
+                                Stop Scanning
                             </button>
                         </div>
                     </div>
+                    
+                    <div id="ocrStatus" style="display: none; padding: 10px; border-radius: 8px; margin-top: 10px;"></div>
                 </div>
                 
-                <div class="form-group">
-                    <label for="barcodeScan">Scan Security Barcode</label>
-                    <div style="display: flex; gap: 10px;">
-                        <input 
-                            type="text" 
-                            id="barcodeScan" 
-                            name="barcodeScan" 
-                            placeholder="Click to scan or enter manually"
-                            style="flex: 1;"
-                        >
-                        <button type="button" class="button button-secondary" id="startBarcodeScan" style="width: auto; min-width: 100px;">
-                            📷 Scan
-                        </button>
-                    </div>
-                    <div id="barcodeScanner" style="display: none; margin-top: 15px;">
-                        <video id="barcodeVideo" width="100%" style="border-radius: 8px; display: none;"></video>
-                        <canvas id="barcodeCanvas" style="display: none;"></canvas>
-                        <button type="button" class="button button-secondary" id="stopBarcodeScan" style="margin-top: 10px;">
-                            Stop Scanning
-                        </button>
-                    </div>
+                <!-- Form Fields Card (Right - 50%) -->
+                <div class="card form-fields-card" style="flex: 0 0 calc(50% - 10px); background-color: var(--background-white);">
+                    <h3 style="margin-top: 0;">Product Details</h3>
+                    <form id="productForm">
+                        <div class="form-group">
+                            <label for="serialNumber">Item Serial Number</label>
+                            <input 
+                                type="text" 
+                                id="serialNumber" 
+                                name="serialNumber" 
+                                required
+                                placeholder="Enter serial number"
+                            >
+                        </div>
+                        <div class="form-group">
+                            <label for="securityBarcode">Security Barcode</label>
+                            <input 
+                                type="text" 
+                                id="securityBarcode" 
+                                name="securityBarcode" 
+                                required
+                                placeholder="Enter security barcode"
+                            >
+                        </div>
+                        <div class="form-group">
+                            <label for="partModelNumber">Part/Model Number</label>
+                            <p style="font-size: 0.85rem; color: #666; margin-bottom: 10px;">
+                                Enter part number (e.g., A2968) to auto-fill all fields, or select generation/part below
+                            </p>
+                            <input 
+                                type="text" 
+                                id="partModelNumber" 
+                                name="partModelNumber" 
+                                placeholder="Enter part number (e.g., A2968)"
+                                autocomplete="off"
+                            >
+                        </div>
+                        <div class="form-group">
+                            <label for="generation">Generation</label>
+                            <select id="generation" name="generation" required>
+                                <option value="">Select generation</option>
+                                <option value="AirPods (1st Gen)">AirPods (1st Gen)</option>
+                                <option value="AirPods (2nd Gen)">AirPods (2nd Gen)</option>
+                                <option value="AirPods (3rd Gen)">AirPods (3rd Gen)</option>
+                                <option value="AirPods (4th Gen) standard line (non-Pro)">AirPods (4th Gen) standard line (non-Pro)</option>
+                                <option value="AirPods (4th Gen) standard line (ANC version)">AirPods (4th Gen) standard line (ANC version)</option>
+                                <option value="AirPods Pro (1st Gen)">AirPods Pro (1st Gen)</option>
+                                <option value="AirPods Pro (2nd Gen)">AirPods Pro (2nd Gen)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="partSelection">Part Selection</label>
+                            <select id="partSelection" name="partSelection" required>
+                                <option value="">Select part</option>
+                                <!-- Options will be populated by JavaScript based on generation -->
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="partType">Part Type (for routing)</label>
+                            <select id="partType" name="partType" required>
+                                <option value="">Select part type</option>
+                                <option value="left">Left AirPod</option>
+                                <option value="right">Right AirPod</option>
+                                <option value="case">Case</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="ebayOrderNumber">eBay Order Number (optional)</label>
+                            <input 
+                                type="text" 
+                                id="ebayOrderNumber" 
+                                name="ebayOrderNumber" 
+                                placeholder="Enter eBay order number"
+                            >
+                        </div>
+                    </form>
                 </div>
-                
-                <div id="ocrStatus" style="display: none; padding: 10px; border-radius: 8px; margin-top: 10px;"></div>
             </div>
             
-            <form id="productForm">
-                <div class="form-group">
-                    <label for="serialNumber">Item Serial Number</label>
-                    <input 
-                        type="text" 
-                        id="serialNumber" 
-                        name="serialNumber" 
-                        required
-                        placeholder="Enter serial number"
-                    >
-                </div>
-                <div class="form-group">
-                    <label for="securityBarcode">Security Barcode</label>
-                    <input 
-                        type="text" 
-                        id="securityBarcode" 
-                        name="securityBarcode" 
-                        required
-                        placeholder="Enter security barcode"
-                    >
-                </div>
-                <div class="form-group">
-                    <label for="partModelNumber">Part/Model Number</label>
+            <!-- Notes and Photos Section (Full Width Below) -->
+            <div class="form-group">
+                <label for="notes">Notes (optional)</label>
+                <textarea 
+                    id="notes" 
+                    name="notes" 
+                    rows="3"
+                    placeholder="Additional notes about compatibility, etc."
+                ></textarea>
+            </div>
+            <div class="form-group">
+                <label for="productPhotos">Product Photos (optional)</label>
+                <p style="font-size: 0.85rem; color: #666; margin-bottom: 10px;">
+                    Upload photos showing the part condition. These will be visible to customers. You can select multiple photos at once or add them one by one.
+                </p>
+                <input 
+                    type="file" 
+                    id="productPhotos" 
+                    name="productPhotos" 
+                    accept="image/*"
+                    multiple
+                    style="padding: 10px;"
+                >
+                <div id="photoPreview" style="margin-top: 15px; display: none;">
                     <p style="font-size: 0.85rem; color: #666; margin-bottom: 10px;">
-                        Enter part number (e.g., A2968) to auto-fill all fields, or select generation/part below
+                        <strong id="photoCount">0</strong> photo(s) selected. Click × to remove individual photos.
                     </p>
-                    <input 
-                        type="text" 
-                        id="partModelNumber" 
-                        name="partModelNumber" 
-                        placeholder="Enter part number (e.g., A2968)"
-                        autocomplete="off"
-                    >
+                    <div id="photoPreviewGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px;"></div>
                 </div>
-                <div class="form-group">
-                    <label for="generation">Generation</label>
-                    <select id="generation" name="generation" required>
-                        <option value="">Select generation</option>
-                        <option value="AirPods (1st Gen)">AirPods (1st Gen)</option>
-                        <option value="AirPods (2nd Gen)">AirPods (2nd Gen)</option>
-                        <option value="AirPods (3rd Gen)">AirPods (3rd Gen)</option>
-                        <option value="AirPods (4th Gen) standard line (non-Pro)">AirPods (4th Gen) standard line (non-Pro)</option>
-                        <option value="AirPods (4th Gen) standard line (ANC version)">AirPods (4th Gen) standard line (ANC version)</option>
-                        <option value="AirPods Pro (1st Gen)">AirPods Pro (1st Gen)</option>
-                        <option value="AirPods Pro (2nd Gen)">AirPods Pro (2nd Gen)</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="partSelection">Part Selection</label>
-                    <select id="partSelection" name="partSelection" required>
-                        <option value="">Select part</option>
-                        <!-- Options will be populated by JavaScript based on generation -->
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="partType">Part Type (for routing)</label>
-                    <select id="partType" name="partType" required>
-                        <option value="">Select part type</option>
-                        <option value="left">Left AirPod</option>
-                        <option value="right">Right AirPod</option>
-                        <option value="case">Case</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="notes">Notes (optional)</label>
-                    <textarea 
-                        id="notes" 
-                        name="notes" 
-                        rows="3"
-                        placeholder="Additional notes about compatibility, etc."
-                    ></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="ebayOrderNumber">eBay Order Number (optional)</label>
-                    <input 
-                        type="text" 
-                        id="ebayOrderNumber" 
-                        name="ebayOrderNumber" 
-                        placeholder="Enter eBay order number"
-                    >
-                </div>
-                <div class="form-group">
-                    <label for="productPhotos">Product Photos (optional)</label>
-                    <p style="font-size: 0.85rem; color: #666; margin-bottom: 10px;">
-                        Upload photos showing the part condition. These will be visible to customers. You can select multiple photos at once or add them one by one.
-                    </p>
-                    <input 
-                        type="file" 
-                        id="productPhotos" 
-                        name="productPhotos" 
-                        accept="image/*"
-                        multiple
-                        style="padding: 10px;"
-                    >
-                    <div id="photoPreview" style="margin-top: 15px; display: none;">
-                        <p style="font-size: 0.85rem; color: #666; margin-bottom: 10px;">
-                            <strong id="photoCount">0</strong> photo(s) selected. Click × to remove individual photos.
-                        </p>
-                        <div id="photoPreviewGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px;"></div>
-                    </div>
-                </div>
-                <div id="errorMessage" class="error-message"></div>
-                <div id="successMessage" class="success-message"></div>
-                <button type="submit" class="button" id="addProductButton">
-                    Add Product
-                </button>
-                <button type="button" class="button button-secondary" id="cancelEditButton" style="display: none; margin-left: 10px;">
-                    Cancel Edit
-                </button>
-                <div class="spinner" id="spinner"></div>
-            </form>
+            </div>
+            <div id="errorMessage" class="error-message"></div>
+            <div id="successMessage" class="success-message"></div>
+            <button type="submit" form="productForm" class="button" id="addProductButton">
+                Add Product
+            </button>
+            <button type="button" class="button button-secondary" id="cancelEditButton" style="display: none; margin-left: 10px;">
+                Cancel Edit
+            </button>
+            <div class="spinner" id="spinner"></div>
                 </div>
         </div>
         </div>
