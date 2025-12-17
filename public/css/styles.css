@@ -997,6 +997,21 @@ aside.admin-sidebar {
     width: 100%;
 }
 
+/* Wider container for add-product page */
+body.add-product-page .admin-container,
+body[data-page="add-product"] .admin-container {
+    max-width: calc(100% - 16px);
+    margin: 0 8px;
+}
+
+@media (min-width: 1200px) {
+    body.add-product-page .admin-container,
+    body[data-page="add-product"] .admin-container {
+        max-width: calc(100vw - 280px - 16px); /* Account for sidebar width + margins */
+        margin: 0 8px;
+    }
+}
+
 .admin-form {
     background-color: var(--background-white);
     padding: 30px;
