@@ -10,7 +10,7 @@ var API_BASE = window.API_BASE;
 
 // Store all parts for autocomplete
 let allPartsData = [];
-console.log('[Parts Manager] Script loaded, API_BASE:', API_BASE);
+console.log('[Parts Manager] Script loaded, API_BASE_REF:', API_BASE_REF);
 
 // Utility functions
 function showError(message, elementId = 'errorMessage') {
@@ -55,7 +55,7 @@ async function loadParts() {
     if (!partsList) {
         // Still try to load parts data for associated parts even if partsList doesn't exist
         try {
-            const response = await fetch(`${API_BASE}/api/admin/parts`, {
+            const response = await fetch(`${API_BASE_REF}/api/admin/parts`, {
                 credentials: 'include'
             });
             const data = await response.json();
@@ -72,8 +72,8 @@ async function loadParts() {
     }
     
     try {
-        console.log('[Parts Manager] Fetching parts from:', `${API_BASE}/api/admin/parts`);
-        const response = await fetch(`${API_BASE}/api/admin/parts`, {
+        console.log('[Parts Manager] Fetching parts from:', `${API_BASE_REF}/api/admin/parts`);
+        const response = await fetch(`${API_BASE_REF}/api/admin/parts`, {
             credentials: 'include'
         });
         console.log('[Parts Manager] Response status:', response.status, response.statusText);
@@ -198,7 +198,9 @@ async function loadParts() {
 // Load generations for autocomplete
 async function loadGenerations() {
     try {
-        const response = await fetch(`${API_BASE}/api/admin/generations`);
+        const response = await fetch(`${API_BASE_REF}/api/admin/generations`, {
+            credentials: 'include'
+        });
         const data = await response.json();
         
         if (response.ok && data.generations) {
@@ -310,8 +312,8 @@ if (partForm) {
         
         try {
             const url = partId 
-                ? `${API_BASE}/api/admin/part/${partId}`
-                : `${API_BASE}/api/admin/part`;
+                ? `${API_BASE_REF}/api/admin/part/${partId}`
+                : `${API_BASE_REF}/api/admin/part`;
             const method = partId ? 'PUT' : 'POST';
             
             // Use FormData to handle file uploads
@@ -596,7 +598,7 @@ async function editPart(id) {
         // Convert id to string/number if needed
         const partId = String(id);
         
-        const response = await fetch(`${API_BASE}/api/admin/parts`, {
+        const response = await fetch(`${API_BASE_REF}/api/admin/parts`, {
             credentials: 'include'
         });
         const data = await response.json();
@@ -698,7 +700,7 @@ async function deletePart(id) {
     try {
         // Convert id to string for URL encoding
         const partId = String(id);
-        const response = await fetch(`${API_BASE}/api/admin/part/${encodeURIComponent(partId)}`, {
+        const response = await fetch(`${API_BASE_REF}/api/admin/part/${encodeURIComponent(partId)}`, {
             method: 'DELETE'
         });
         
@@ -754,7 +756,7 @@ function tryPopulateAutocomplete() {
     } else {
         // Try loading parts if not loaded
         console.log('[Autocomplete Init] No parts data, attempting to load...');
-        fetch(`${API_BASE}/api/admin/parts`, {
+        fetch(`${API_BASE_REF}/api/admin/parts`, {
             credentials: 'include'
         })
             .then(res => res.json())
