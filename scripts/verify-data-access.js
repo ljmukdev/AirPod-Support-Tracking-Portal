@@ -26,7 +26,16 @@ async function verifyDataAccess() {
             throw new Error('MONGODB_URI environment variable is required');
         }
         
-        client = new MongoClient(MONGODB_URI);
+        // Ensure authSource is included for Railway MongoDB
+        let connectionUri = MONGODB_URI;
+        if (!connectionUri.includes('authSource=')) {
+            // Add authSource if not present
+            const separator = connectionUri.includes('?') ? '&' : '?';
+            connectionUri = `${connectionUri}${separator}authSource=admin`;
+            console.log('   Adding authSource=admin to connection string');
+        }
+        
+        client = new MongoClient(connectionUri);
         await client.connect();
         console.log('✅ Connected to MongoDB\n');
         
