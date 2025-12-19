@@ -1246,9 +1246,42 @@ function requireAuth(req, res, next) {
 
 // Authentication middleware for HTML pages (redirects to login)
 function requireAuthHTML(req, res, next) {
+    // Check for JWT token in cookies or query params (from User Service)
+    const token = req.cookies?.accessToken || req.query?.token;
+    
+    if (token) {
+        // If token is in query params, it means we're coming from callback
+        // Let the page load and the frontend will handle it
+        if (req.query?.token) {
+            console.log('Token found in query params, allowing page load');
+            return next();
+        }
+        
+        // If token is in cookies, verify it
+        if (req.cookies?.accessToken) {
+            // Try to verify with User Service auth middleware
+            const authHeader = `Bearer ${req.cookies.accessToken}`;
+            req.headers.authorization = authHeader;
+            
+            // Use the JWT auth middleware
+            return auth.requireAuth()(req, res, (err) => {
+                if (err) {
+                    console.log('JWT verification failed, redirecting to login');
+                    res.redirect('/admin/login');
+                } else {
+                    next();
+                }
+            });
+        }
+    }
+    
+    // Check for session-based auth (backward compatibility)
     if (req.session && req.session.authenticated) {
         return next();
     }
+    
+    // Redirect to login if not authenticated
+    console.log('No authentication found, redirecting to login');
     res.redirect('/admin/login');
 }
 
