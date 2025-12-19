@@ -30,7 +30,28 @@ async function verifyDataAccess() {
         await client.connect();
         console.log('✅ Connected to MongoDB\n');
         
-        const dbName = MONGODB_URI.split('/').pop().split('?')[0];
+        // Extract database name from connection string
+        // Format: mongodb://user:pass@host:port/database?options
+        let dbName = 'airpod_support'; // default
+        try {
+            const url = new URL(MONGODB_URI);
+            // Get database name from pathname (remove leading slash)
+            dbName = url.pathname ? url.pathname.substring(1) : 'airpod_support';
+            // If no database in path, try to get from query params or use default
+            if (!dbName || dbName === '') {
+                dbName = process.env.MONGODB_DB || 'airpod_support';
+            }
+        } catch (e) {
+            // Fallback: try simple string parsing
+            const match = MONGODB_URI.match(/\/([^/?]+)(\?|$)/);
+            if (match && match[1]) {
+                dbName = match[1];
+            } else {
+                dbName = process.env.MONGODB_DB || 'airpod_support';
+            }
+        }
+        
+        console.log(`   Using database: ${dbName}\n`);
         const db = client.db(dbName);
         
         // Check products collection structure
