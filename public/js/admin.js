@@ -115,10 +115,33 @@ function toggleSubmenu(navItem) {
 // Make toggleSubmenu available globally
 window.toggleSubmenu = toggleSubmenu;
 
+// Check for token in URL (from User Service callback)
+function checkUrlToken() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    const refreshToken = urlParams.get('refresh_token');
+    
+    if (token) {
+        // Store tokens from URL
+        localStorage.setItem('accessToken', token);
+        if (refreshToken) {
+            localStorage.setItem('refreshToken', refreshToken);
+        }
+        
+        // Clean up URL
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+    }
+}
+
 // Check authentication status
 async function checkAuth() {
+    // First, check for token in URL (from User Service callback)
+    checkUrlToken();
+    
     try {
-        const token = localStorage.getItem('accessToken');
+        const token = localStorage.getItem('accessToken') || document.cookie.split('; ').find(row => row.startsWith('accessToken='))?.split('=')[1];
+        
         if (!token) {
             if (window.location.pathname.includes('dashboard') || window.location.pathname.includes('admin')) {
                 window.location.href = '/admin/login';

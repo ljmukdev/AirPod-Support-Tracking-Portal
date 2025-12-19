@@ -5705,6 +5705,40 @@ app.get('/api/authenticity-images/:partModelNumber', requireDB, async (req, res)
     }
 });
 
+// Callback handler for User Service authentication
+app.get('/auth/callback', (req, res) => {
+    try {
+        const { token, refresh_token } = req.query;
+        
+        if (!token) {
+            console.error('Auth callback: No token provided');
+            return res.redirect('/admin/login?error=no_token');
+        }
+        
+        // Store tokens in cookies
+        res.cookie('accessToken', token, { 
+            httpOnly: true, 
+            secure: NODE_ENV === 'production',
+            maxAge: 24 * 60 * 60 * 1000 // 24 hours
+        });
+        
+        if (refresh_token) {
+            res.cookie('refreshToken', refresh_token, { 
+                httpOnly: true, 
+                secure: NODE_ENV === 'production',
+                maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+            });
+        }
+        
+        // Also store in localStorage via redirect with token in URL (for frontend)
+        // The frontend will extract and store it
+        res.redirect(`/admin/dashboard?token=${token}&refresh_token=${refresh_token || ''}`);
+    } catch (error) {
+        console.error('Auth callback error:', error);
+        res.redirect('/admin/login?error=callback_failed');
+    }
+});
+
 // Serve admin pages
 app.get('/admin/login', (req, res, next) => {
     try {
