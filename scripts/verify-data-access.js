@@ -32,14 +32,14 @@ async function verifyDataAccess() {
         
         // Extract database name from connection string
         // Format: mongodb://user:pass@host:port/database?options
-        let dbName = 'airpod_support'; // default
+        let dbName = 'ARSDB'; // default (Railway MongoDB database name)
         try {
             const url = new URL(MONGODB_URI);
             // Get database name from pathname (remove leading slash)
-            dbName = url.pathname ? url.pathname.substring(1) : 'airpod_support';
+            dbName = url.pathname ? url.pathname.substring(1) : 'ARSDB';
             // If no database in path, try to get from query params or use default
             if (!dbName || dbName === '') {
-                dbName = process.env.MONGODB_DB || 'airpod_support';
+                dbName = process.env.MONGODB_DB || 'ARSDB';
             }
         } catch (e) {
             // Fallback: try simple string parsing
@@ -47,7 +47,7 @@ async function verifyDataAccess() {
             if (match && match[1]) {
                 dbName = match[1];
             } else {
-                dbName = process.env.MONGODB_DB || 'airpod_support';
+                dbName = process.env.MONGODB_DB || 'ARSDB';
             }
         }
         

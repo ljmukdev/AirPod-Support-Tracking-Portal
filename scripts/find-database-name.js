@@ -51,8 +51,8 @@ async function findDatabaseName() {
         
         if (!dbName || dbName === '') {
             console.log('   ⚠️  No database name found in URI');
-            console.log('   Using default: "airpod_support"');
-            dbName = 'airpod_support';
+            console.log('   Using default: "ARSDB"');
+            dbName = 'ARSDB';
         }
         
         console.log(`\n📊 Attempting to connect to database: "${dbName}"\n`);
@@ -89,7 +89,7 @@ async function findDatabaseName() {
         
         // Check other likely database names
         console.log('\n🔍 Checking other likely database names...\n');
-        const likelyNames = ['airpod_support', 'airpod', 'ljm', 'railway', 'production'];
+        const likelyNames = ['ARSDB', 'airpod_support', 'airpod', 'ljm', 'railway', 'production'];
         
         for (const name of likelyNames) {
             if (name === dbName) continue; // Skip already checked
