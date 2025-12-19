@@ -118,15 +118,61 @@ window.toggleSubmenu = toggleSubmenu;
 // Check authentication status
 async function checkAuth() {
     try {
-        const response = await fetch(`${API_BASE}/api/admin/check-auth`);
+        const token = localStorage.getItem('accessToken');
+        if (!token) {
+            if (window.location.pathname.includes('dashboard') || window.location.pathname.includes('admin')) {
+                window.location.href = '/admin/login';
+            }
+            return;
+        }
+        
+        // Verify token with User Service
+        const USER_SERVICE_URL = 'https://autorestock-user-service-production.up.railway.app';
+        const response = await fetch(`${USER_SERVICE_URL}/api/v1/auth/verify`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
         const data = await response.json();
         
-        if (!data.authenticated && window.location.pathname.includes('dashboard')) {
-            window.location.href = '/admin/login';
+        if (!response.ok || !data.success) {
+            // Token invalid, clear and redirect
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken');
+            localStorage.removeItem('user');
+            if (window.location.pathname.includes('dashboard') || window.location.pathname.includes('admin')) {
+                window.location.href = '/admin/login';
+            }
         }
     } catch (error) {
         console.error('Auth check error:', error);
+        // On error, clear tokens and redirect
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+        if (window.location.pathname.includes('dashboard') || window.location.pathname.includes('admin')) {
+            window.location.href = '/admin/login';
+        }
     }
+}
+
+// Helper function to add auth headers to fetch requests
+function authenticatedFetch(url, options = {}) {
+    const token = localStorage.getItem('accessToken');
+    const headers = {
+        ...options.headers,
+        'Content-Type': 'application/json'
+    };
+    
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    return fetch(url, {
+        ...options,
+        headers
+    });
 }
 
 // Login form
@@ -148,20 +194,33 @@ if (loginForm) {
         showSpinner();
         
         try {
-            const response = await fetch(`${API_BASE}/api/admin/login`, {
+            // Use User Service for authentication
+            const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'https://autorestock-user-service-production.up.railway.app';
+            
+            const response = await fetch(`${USER_SERVICE_URL}/api/v1/users/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ username, password })
+                body: JSON.stringify({
+                    email: username, // Use email field (username is email)
+                    password: password,
+                    serviceName: 'AirPod-Support-Tracking-Portal'
+                })
             });
             
             const data = await response.json();
             
             if (response.ok && data.success) {
+                // Store tokens
+                localStorage.setItem('accessToken', data.data.accessToken);
+                localStorage.setItem('refreshToken', data.data.refreshToken);
+                localStorage.setItem('user', JSON.stringify(data.data.user));
+                
+                // Redirect to dashboard
                 window.location.href = '/admin/dashboard';
             } else {
-                showError(data.error || 'Invalid credentials');
+                showError(data.message || data.error || 'Invalid credentials');
                 loginButton.disabled = false;
             }
         } catch (error) {
@@ -179,10 +238,17 @@ const logoutButton = document.getElementById('logoutButton');
 if (logoutButton) {
     logoutButton.addEventListener('click', async () => {
         try {
-            await fetch(`${API_BASE}/api/admin/logout`);
+            // Clear tokens from localStorage
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken');
+            localStorage.removeItem('user');
             window.location.href = '/admin/login';
         } catch (error) {
             console.error('Logout error:', error);
+            // Clear tokens anyway
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken');
+            localStorage.removeItem('user');
             window.location.href = '/admin/login';
         }
     });
@@ -196,6 +262,16 @@ const cancelEditButton = document.getElementById('cancelEditButton');
 
 // Edit product function
 async function editProduct(id) {
+    // Check if we're on add-product.html (form page) or products.html (table page)
+    const isAddProductPage = window.location.pathname.includes('add-product.html');
+    
+    if (!isAddProductPage) {
+        // If on products page, redirect to add-product page with the product ID
+        window.location.href = `add-product.html?edit=${encodeURIComponent(String(id))}`;
+        return;
+    }
+    
+    // If on add-product page, populate the form
     try {
         // Get all products to find the one we're editing
         const response = await fetch(`${API_BASE}/api/admin/products`);
@@ -269,6 +345,14 @@ async function editProduct(id) {
 
 // Cancel edit function
 function cancelEdit() {
+    // If we came from products page (via edit parameter), go back to products page
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('edit')) {
+        window.location.href = 'products.html';
+        return;
+    }
+    
+    // Otherwise just reset the form
     editingProductId = null;
     productForm.reset();
     const partSelectionSelect = document.getElementById('partSelection');
@@ -386,6 +470,14 @@ if (productForm) {
             if (response.ok && data.success) {
                 if (editingProductId) {
                     showSuccess('Product updated successfully!');
+                    // If we came from products page (via edit parameter), go back after a brief delay
+                    const urlParams = new URLSearchParams(window.location.search);
+                    if (urlParams.has('edit')) {
+                        setTimeout(() => {
+                            window.location.href = 'products.html';
+                        }, 1000);
+                        return;
+                    }
                 } else {
                     showSuccess('Product added successfully!');
                 }

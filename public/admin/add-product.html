@@ -541,6 +541,26 @@
                 }
             });
         })();
+        
+        // Auto-load product for editing if 'edit' parameter exists in URL
+        (function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const editProductId = urlParams.get('edit');
+            
+            if (editProductId) {
+                // Wait for page to fully load before calling editProduct
+                window.addEventListener('load', function() {
+                    // Wait a bit more for all scripts to initialize
+                    setTimeout(function() {
+                        if (typeof editProduct === 'function') {
+                            editProduct(editProductId);
+                        } else {
+                            console.error('editProduct function not available');
+                        }
+                    }, 500);
+                });
+            }
+        })();
     </script>
 </body>
 </html>

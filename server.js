@@ -1226,10 +1226,21 @@ function requireDB(req, res, next) {
 }
 
 // Authentication middleware
+// Use User Service authentication middleware
+const auth = require('./auth');
+
 function requireAuth(req, res, next) {
+    // Try JWT token first (from User Service)
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        return auth.requireAuth()(req, res, next);
+    }
+    
+    // Fallback to session-based auth for backward compatibility
     if (req.session && req.session.authenticated) {
         return next();
     }
+    
     res.status(401).json({ error: 'Unauthorized' });
 }
 
