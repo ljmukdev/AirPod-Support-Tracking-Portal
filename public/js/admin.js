@@ -122,16 +122,20 @@ function checkUrlToken() {
     const refreshToken = urlParams.get('refresh_token');
     
     if (token) {
+        console.log('Found token in URL, storing in localStorage');
         // Store tokens from URL
         localStorage.setItem('accessToken', token);
         if (refreshToken) {
             localStorage.setItem('refreshToken', refreshToken);
         }
         
-        // Clean up URL
+        // Clean up URL (remove token from query string)
         const cleanUrl = window.location.pathname;
         window.history.replaceState({}, document.title, cleanUrl);
+        
+        return true; // Indicate token was found and stored
     }
+    return false; // No token found
 }
 
 // Check authentication status
