@@ -137,13 +137,21 @@ function checkUrlToken() {
 // Check authentication status
 async function checkAuth() {
     // First, check for token in URL (from User Service callback)
-    checkUrlToken();
+    const tokenFoundInUrl = checkUrlToken();
+    
+    // If we just got a token from URL, don't verify immediately - let the page load
+    if (tokenFoundInUrl && window.location.pathname.includes('dashboard')) {
+        console.log('Token found in URL, skipping immediate auth check');
+        return; // Let the page load, token is stored
+    }
     
     try {
         const token = localStorage.getItem('accessToken') || document.cookie.split('; ').find(row => row.startsWith('accessToken='))?.split('=')[1];
         
         if (!token) {
-            if (window.location.pathname.includes('dashboard') || window.location.pathname.includes('admin')) {
+            // Only redirect if we're on a protected page (not login page)
+            if (window.location.pathname.includes('dashboard') || 
+                (window.location.pathname.includes('admin') && !window.location.pathname.includes('login'))) {
                 window.location.href = '/admin/login';
             }
             return;
@@ -164,18 +172,21 @@ async function checkAuth() {
             localStorage.removeItem('accessToken');
             localStorage.removeItem('refreshToken');
             localStorage.removeItem('user');
-            if (window.location.pathname.includes('dashboard') || window.location.pathname.includes('admin')) {
+            if (window.location.pathname.includes('dashboard') || 
+                (window.location.pathname.includes('admin') && !window.location.pathname.includes('login'))) {
                 window.location.href = '/admin/login';
             }
         }
     } catch (error) {
         console.error('Auth check error:', error);
-        // On error, clear tokens and redirect
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('user');
-        if (window.location.pathname.includes('dashboard') || window.location.pathname.includes('admin')) {
-            window.location.href = '/admin/login';
+        // On error, clear tokens and redirect (but not if we're on login page)
+        if (!window.location.pathname.includes('login')) {
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken');
+            localStorage.removeItem('user');
+            if (window.location.pathname.includes('dashboard') || window.location.pathname.includes('admin')) {
+                window.location.href = '/admin/login';
+            }
         }
     }
 }
@@ -218,7 +229,8 @@ if (loginForm) {
         
         try {
             // Use User Service for authentication
-            const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'https://autorestock-user-service-production.up.railway.app';
+            // Use hardcoded User Service URL (process.env is not available in browser)
+            const USER_SERVICE_URL = 'https://autorestock-user-service-production.up.railway.app';
             
             const response = await fetch(`${USER_SERVICE_URL}/api/v1/users/login`, {
                 method: 'POST',

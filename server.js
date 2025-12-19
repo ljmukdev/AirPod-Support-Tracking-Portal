@@ -5715,24 +5715,28 @@ app.get('/auth/callback', (req, res) => {
             return res.redirect('/admin/login?error=no_token');
         }
         
-        // Store tokens in cookies
+        // Store tokens in cookies (for server-side use if needed)
         res.cookie('accessToken', token, { 
-            httpOnly: true, 
+            httpOnly: false, // Allow JavaScript to read it
             secure: NODE_ENV === 'production',
+            sameSite: 'lax',
             maxAge: 24 * 60 * 60 * 1000 // 24 hours
         });
         
         if (refresh_token) {
             res.cookie('refreshToken', refresh_token, { 
-                httpOnly: true, 
+                httpOnly: false, // Allow JavaScript to read it
                 secure: NODE_ENV === 'production',
+                sameSite: 'lax',
                 maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
             });
         }
         
-        // Also store in localStorage via redirect with token in URL (for frontend)
-        // The frontend will extract and store it
-        res.redirect(`/admin/dashboard?token=${token}&refresh_token=${refresh_token || ''}`);
+        // Redirect to dashboard with tokens in URL - frontend will extract and store in localStorage
+        // Then clean up the URL
+        const redirectUrl = `/admin/dashboard?token=${encodeURIComponent(token)}${refresh_token ? `&refresh_token=${encodeURIComponent(refresh_token)}` : ''}`;
+        console.log('Auth callback: Redirecting to dashboard with tokens');
+        res.redirect(redirectUrl);
     } catch (error) {
         console.error('Auth callback error:', error);
         res.redirect('/admin/login?error=callback_failed');
