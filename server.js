@@ -2302,6 +2302,46 @@ app.put('/api/admin/product/:id/status', requireAuth, requireDB, async (req, res
     }
 });
 
+// Data access verification endpoint (Admin only)
+app.get('/api/admin/verify-data-access', requireAuth, requireDB, async (req, res) => {
+    try {
+        const productsSample = await db.collection('products').find({}).limit(1).toArray();
+        const productCount = await db.collection('products').countDocuments();
+        const warrantyCount = await db.collection('warranties').countDocuments();
+        
+        let hasUserOwnership = false;
+        let ownershipFields = [];
+        
+        if (productsSample.length > 0) {
+            const product = productsSample[0];
+            const allFields = Object.keys(product);
+            ownershipFields = allFields.filter(k => 
+                k.includes('user') || k.includes('owner') || k.includes('created_by')
+            );
+            hasUserOwnership = ownershipFields.length > 0;
+        }
+        
+        res.json({
+            success: true,
+            data: {
+                hasUserOwnership,
+                ownershipFields,
+                productCount,
+                warrantyCount,
+                message: hasUserOwnership 
+                    ? `Products have user ownership fields: ${ownershipFields.join(', ')}` 
+                    : 'Products have NO user ownership fields - data is shared',
+                conclusion: hasUserOwnership
+                    ? 'Data migration may be needed to associate with users'
+                    : '✅ No mounting needed - data is accessible to all authenticated users'
+            }
+        });
+    } catch (error) {
+        console.error('Error verifying data access:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Get single product by ID (Admin only)
 app.get('/api/admin/product/:id', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;
