@@ -241,6 +241,7 @@ if (loginForm) {
                 headers: {
                     'Content-Type': 'application/json'
                 },
+                credentials: 'include', // Include cookies for CORS
                 body: JSON.stringify({
                     email: username, // Use email field (username is email)
                     password: password,
@@ -248,7 +249,19 @@ if (loginForm) {
                 })
             });
             
-            const data = await response.json();
+            console.log('Login response status:', response.status);
+            
+            let data;
+            try {
+                data = await response.json();
+            } catch (parseError) {
+                const text = await response.text();
+                console.error('Failed to parse response:', text);
+                showError(`Server error (${response.status}): ${text || response.statusText}`);
+                loginButton.disabled = false;
+                hideSpinner();
+                return;
+            }
             
             if (response.ok && data.success) {
                 // Store tokens
@@ -259,12 +272,21 @@ if (loginForm) {
                 // Redirect to dashboard
                 window.location.href = '/admin/dashboard';
             } else {
-                showError(data.message || data.error || 'Invalid credentials');
+                // Show detailed error message
+                const errorMsg = data.message || data.error || 'Invalid credentials';
+                console.error('Login failed:', errorMsg, data);
+                
+                let userFriendlyMsg = errorMsg;
+                if (response.status === 401) {
+                    userFriendlyMsg = `Authentication failed: ${errorMsg}. Please ensure your account exists in the User Service. You can use the "Login with User Service" button above, or register a new account at the User Service.`;
+                }
+                
+                showError(userFriendlyMsg);
                 loginButton.disabled = false;
             }
         } catch (error) {
             console.error('Login error:', error);
-            showError('Network error. Please try again.');
+            showError(`Network error: ${error.message}. Please check your connection and try again, or use the "Login with User Service" button.`);
             loginButton.disabled = false;
         } finally {
             hideSpinner();
