@@ -66,16 +66,27 @@
                 </div>
                 <h1>LJM Admin Panel</h1>
             </div>
+            <div style="text-align: center; margin-bottom: 20px; padding: 15px; background: #f0f7ff; border-radius: 6px; border: 1px solid #667eea;">
+                <p style="margin: 0 0 10px 0; color: #333; font-size: 0.9em; font-weight: 600;">🔐 Recommended: Use Universal Login</p>
+                <a href="https://autorestock-user-service-production.up.railway.app/api/v1/users/login?redirect_uri=https://airpod-support-tracking-portal-production.up.railway.app/auth/callback&service_name=AirPod-Support-Tracking-Portal" 
+                   style="display: inline-block; padding: 12px 24px; background: #667eea; color: white; text-decoration: none; border-radius: 6px; font-weight: 600;">
+                    Login with User Service
+                </a>
+                <p style="margin: 10px 0 0 0; color: #666; font-size: 0.8em;">Use your master account or create a new account</p>
+            </div>
+            <div style="text-align: center; margin-bottom: 20px; padding-top: 15px; border-top: 1px solid #e0e0e0;">
+                <p style="margin: 0; color: #666; font-size: 0.85em;">Or use direct login (requires existing User Service account):</p>
+            </div>
             <form id="loginForm">
                 <div class="form-group">
-                    <label for="username">Username</label>
+                    <label for="username">Email (User Service account)</label>
                     <input 
-                        type="text" 
+                        type="email" 
                         id="username" 
                         name="username" 
                         required
                         autocomplete="username"
-                        autofocus
+                        placeholder="your@email.com"
                     >
                 </div>
                 <div class="form-group">
@@ -94,12 +105,6 @@
                 </button>
                 <div class="spinner" id="spinner"></div>
             </form>
-            <div style="text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
-                <p style="margin-bottom: 15px; color: #666; font-size: 0.9em;">Or authenticate with AutoRestock User Service:</p>
-                <a href="https://autorestock-user-service-production.up.railway.app/api/v1/users/login?redirect_uri=https://airpod-support-tracking-portal-production.up.railway.app/auth/callback&service_name=AirPod-Support-Tracking-Portal" 
-                   style="display: inline-block; padding: 12px 24px; background: #667eea; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; margin-bottom: 15px;">
-                    🔐 Login with User Service
-                </a>
                 <div style="margin-top: 15px;">
                     <a href="../index.html" style="color: var(--accent-teal); text-decoration: none; font-size: 0.9em;">
                         Back to Customer Site
