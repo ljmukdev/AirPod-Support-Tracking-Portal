@@ -261,8 +261,30 @@ if (loginForm) {
         showSpinner();
         
         try {
-            // Use User Service for authentication
-            // Use hardcoded User Service URL (process.env is not available in browser)
+            // Try legacy login first (for existing accounts)
+            const legacyResponse = await fetch('/api/admin/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    username: username,
+                    password: password
+                })
+            });
+            
+            const legacyData = await legacyResponse.json();
+            
+            if (legacyResponse.ok && legacyData.success) {
+                // Legacy login successful - redirect to dashboard
+                console.log('Legacy login successful');
+                window.location.href = '/admin/dashboard';
+                return;
+            }
+            
+            // If legacy login fails, try User Service
+            console.log('Legacy login failed, trying User Service...');
             const USER_SERVICE_URL = 'https://autorestock-user-service-production.up.railway.app';
             
             const response = await fetch(`${USER_SERVICE_URL}/api/v1/users/login`, {
@@ -270,7 +292,7 @@ if (loginForm) {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                credentials: 'include', // Include cookies for CORS
+                credentials: 'include',
                 body: JSON.stringify({
                     email: username, // Use email field (username is email)
                     password: password,
@@ -278,7 +300,7 @@ if (loginForm) {
                 })
             });
             
-            console.log('Login response status:', response.status);
+            console.log('User Service login response status:', response.status);
             
             let data;
             try {
@@ -307,7 +329,7 @@ if (loginForm) {
                 
                 let userFriendlyMsg = errorMsg;
                 if (response.status === 401) {
-                    userFriendlyMsg = `Authentication failed: ${errorMsg}. Please ensure your account exists in the User Service. You can use the "Login with User Service" button above, or register a new account at the User Service.`;
+                    userFriendlyMsg = `Authentication failed: ${errorMsg}. Please check your credentials or use the "Login with User Service" button above.`;
                 }
                 
                 showError(userFriendlyMsg);
@@ -315,7 +337,7 @@ if (loginForm) {
             }
         } catch (error) {
             console.error('Login error:', error);
-            showError(`Network error: ${error.message}. Please check your connection and try again, or use the "Login with User Service" button.`);
+            showError(`Network error: ${error.message}. Please check your connection and try again.`);
             loginButton.disabled = false;
         } finally {
             hideSpinner();

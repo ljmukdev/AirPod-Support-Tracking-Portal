@@ -1287,18 +1287,21 @@ function requireAuthHTML(req, res, next) {
 
 // API Routes
 
-// Admin Login (DEPRECATED - Use User Service instead)
-// This endpoint is kept for backward compatibility but should not be used
-// All authentication is now handled by the AutoRestock User Service
+// Admin Login (TEMPORARILY RE-ENABLED for access recovery)
+// This endpoint is temporarily enabled to allow access to existing accounts
+// TODO: Migrate to User Service and disable this endpoint
 app.post('/api/admin/login', (req, res) => {
-    console.warn('⚠️  DEPRECATED: /api/admin/login endpoint called. Use User Service authentication instead.');
-    res.status(410).json({ 
-        error: 'DEPRECATED',
-        message: 'This login endpoint has been deprecated. Please use the AutoRestock User Service for authentication.',
-        redirectUrl: 'https://autorestock-user-service-production.up.railway.app/api/v1/users/login?redirect_uri=' + 
-                     encodeURIComponent('https://airpod-support-tracking-portal-production.up.railway.app/auth/callback') +
-                     '&service_name=AirPod-Support-Tracking-Portal'
-    });
+    const { username, password } = req.body;
+    const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
+    const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'LJM2024secure';
+    
+    if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+        req.session.authenticated = true;
+        req.session.username = username;
+        res.json({ success: true, message: 'Login successful' });
+    } else {
+        res.status(401).json({ error: 'Invalid credentials' });
+    }
 });
 
 // Admin Logout
