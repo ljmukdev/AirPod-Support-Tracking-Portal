@@ -41,12 +41,12 @@ async function exportAllData(db) {
         'products',
         'warranties',
         'settings',
-        'parts',
+        'airpod_parts',
         'generations',
-        'setupInstructions',
-        'addonSales',
-        'warrantyPricing',
-        'warrantyTerms'
+        'setup_instructions',
+        'addon_sales',
+        'warranty_pricing',
+        'warranty_terms'
     ];
     
     const exportData = {
