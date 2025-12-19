@@ -1291,16 +1291,52 @@ function requireAuthHTML(req, res, next) {
 // This endpoint is temporarily enabled to allow access to existing accounts
 // TODO: Migrate to User Service and disable this endpoint
 app.post('/api/admin/login', (req, res) => {
-    const { username, password } = req.body;
-    const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
-    const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'LJM2024secure';
-    
-    if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-        req.session.authenticated = true;
-        req.session.username = username;
-        res.json({ success: true, message: 'Login successful' });
-    } else {
-        res.status(401).json({ error: 'Invalid credentials' });
+    try {
+        const { username, password } = req.body;
+        
+        if (!username || !password) {
+            return res.status(400).json({ 
+                success: false,
+                error: 'BAD_REQUEST', 
+                message: 'Username and password are required' 
+            });
+        }
+        
+        const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
+        const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'LJM2024secure';
+        
+        console.log('Legacy login attempt:', { username, providedPassword: password ? '***' : 'missing', expectedUsername: ADMIN_USERNAME });
+        
+        if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+            // Ensure session is available
+            if (!req.session) {
+                console.error('Session not available - session middleware may not be configured');
+                return res.status(500).json({ 
+                    success: false,
+                    error: 'SESSION_ERROR', 
+                    message: 'Session not available. Please check server configuration.' 
+                });
+            }
+            
+            req.session.authenticated = true;
+            req.session.username = username;
+            console.log('Legacy login successful for user:', username);
+            return res.json({ success: true, message: 'Login successful' });
+        } else {
+            console.log('Legacy login failed - invalid credentials');
+            return res.status(401).json({ 
+                success: false,
+                error: 'INVALID_CREDENTIALS', 
+                message: 'Invalid username or password' 
+            });
+        }
+    } catch (error) {
+        console.error('Error in legacy login endpoint:', error);
+        return res.status(500).json({ 
+            success: false,
+            error: 'SERVER_ERROR', 
+            message: 'An error occurred during login. Please try again.' 
+        });
     }
 });
 

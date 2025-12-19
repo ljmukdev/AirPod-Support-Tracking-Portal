@@ -262,29 +262,54 @@ if (loginForm) {
         
         try {
             // Try legacy login first (for existing accounts)
-            const legacyResponse = await fetch('/api/admin/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                credentials: 'include',
-                body: JSON.stringify({
-                    username: username,
-                    password: password
-                })
-            });
-            
-            const legacyData = await legacyResponse.json();
-            
-            if (legacyResponse.ok && legacyData.success) {
-                // Legacy login successful - redirect to dashboard
-                console.log('Legacy login successful');
-                window.location.href = '/admin/dashboard';
-                return;
+            let legacyData;
+            try {
+                const legacyResponse = await fetch('/api/admin/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        username: username,
+                        password: password
+                    })
+                });
+                
+                // Check if response is JSON
+                const contentType = legacyResponse.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    legacyData = await legacyResponse.json();
+                } else {
+                    // Server returned HTML (error page) instead of JSON
+                    const text = await legacyResponse.text();
+                    console.error('Legacy login returned non-JSON response:', text.substring(0, 200));
+                    throw new Error(`Server error (${legacyResponse.status}): Server returned HTML instead of JSON. The server may be down or misconfigured.`);
+                }
+                
+                if (legacyResponse.ok && legacyData.success) {
+                    // Legacy login successful - redirect to dashboard
+                    console.log('✅ Legacy login successful');
+                    window.location.href = '/admin/dashboard';
+                    return;
+                }
+                
+                // If credentials are wrong, show error
+                if (legacyResponse.status === 401) {
+                    showError(legacyData.message || 'Invalid username or password');
+                    loginButton.disabled = false;
+                    hideSpinner();
+                    return;
+                }
+            } catch (legacyError) {
+                console.error('Legacy login error:', legacyError);
+                // If legacy login fails due to server error, try User Service
+                console.log('Legacy login failed, trying User Service...');
             }
             
             // If legacy login fails, try User Service
-            console.log('Legacy login failed, trying User Service...');
+            if (!legacyData || !legacyData.success) {
+                console.log('Trying User Service login...');
             const USER_SERVICE_URL = 'https://autorestock-user-service-production.up.railway.app';
             
             const response = await fetch(`${USER_SERVICE_URL}/api/v1/users/login`, {
