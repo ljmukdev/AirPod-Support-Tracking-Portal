@@ -760,7 +760,7 @@ async function validateSecurityCode() {
                 continueBtn.style.display = 'none';
             }).catch((error) => {
                 console.error('Failed to load product info:', error);
-                showError('Product found but details could not be loaded. Please try again.');
+                showError(error.message || 'Product found but details could not be loaded. Please try again.');
                 // Show security code entry again on error
                 if (securityCodeEntry) {
                     securityCodeEntry.style.display = 'block';
@@ -829,7 +829,7 @@ function handleContactDetailsSubmit() {
             showStep(3);
     }).catch((error) => {
         console.error('Failed to register warranty:', error);
-        alert('Failed to register warranty. Please try again.');
+        alert(error.message || 'Failed to register warranty. Please try again.');
     });
 }
 
@@ -2666,7 +2666,7 @@ async function handleReconditioningFormSubmit(e) {
         }
     } catch (error) {
         console.error('[Reconditioning] Error submitting form:', error);
-        alert('Failed to submit request. Please try again or contact support directly.');
+        alert(error.message || 'Failed to submit request. Please try again or contact support directly.');
         if (submitBtn) {
             submitBtn.disabled = false;
             submitBtn.textContent = 'Submit Request';
