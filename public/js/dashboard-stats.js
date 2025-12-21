@@ -15,15 +15,30 @@ async function loadDashboardStats() {
             return;
         }
 
-        // Fetch products to calculate stats
-        const response = await authenticatedFetch(`${window.API_BASE}/api/admin/products?limit=10000`);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+        // Check if token exists
+        const token = localStorage.getItem('accessToken');
+        console.log('[Dashboard] Token exists:', !!token);
+        if (!token) {
+            console.error('[Dashboard] No access token found in localStorage');
+            showError('Please log in to view statistics');
+            return;
         }
-        
+
+        // Fetch products to calculate stats
+        console.log('[Dashboard] Fetching products...');
+        const response = await authenticatedFetch(`${window.API_BASE}/api/admin/products?limit=10000`);
+
+        console.log('[Dashboard] Response status:', response.status);
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('[Dashboard] Request failed:', response.status, errorText);
+            throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+        }
+
         const data = await response.json();
-        
+        console.log('[Dashboard] Received data:', data ? 'yes' : 'no', 'products:', data?.products?.length);
+
         if (data.products) {
             const products = data.products;
             const total = data.total || products.length;
