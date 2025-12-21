@@ -1156,6 +1156,18 @@ async function loadAndDisplayWarrantyOptions() {
 // Register warranty with contact details
 async function registerWarranty() {
     try {
+        console.log('[registerWarranty] Submitting registration with data:', {
+            security_barcode: appState.securityCode,
+            customer_name: appState.contactDetails.name,
+            customer_email: appState.contactDetails.email,
+            customer_phone: appState.contactDetails.phone,
+            extended_warranty: 'none',
+            warranty_price: 0,
+            marketing_consent: false,
+            terms_version: appState.termsVersion,
+            terms_accepted: true
+        });
+
         const response = await fetch(`${API_BASE}/api/warranty/register`, {
             method: 'POST',
             headers: {
@@ -1173,22 +1185,41 @@ async function registerWarranty() {
                 terms_accepted: true
             })
         });
-        
-        const data = await response.json();
-        
+
+        console.log('[registerWarranty] Response status:', response.status, response.statusText);
+
+        // Try to parse JSON response
+        let data;
+        const responseText = await response.text();
+        try {
+            data = JSON.parse(responseText);
+            console.log('[registerWarranty] Response data:', data);
+        } catch (parseError) {
+            console.error('[registerWarranty] Failed to parse response as JSON:', parseError);
+            console.error('[registerWarranty] Response text:', responseText);
+            throw new Error('Server returned an invalid response. Please try again or contact support.');
+        }
+
         if (response.ok && data.success) {
-            console.log('Warranty registered successfully');
+            console.log('[registerWarranty] Warranty registered successfully');
             trackEvent('warranty_registered', {
                 name: appState.contactDetails.name,
                 email: appState.contactDetails.email
             });
             return Promise.resolve(data);
         } else {
-            return Promise.reject(new Error(data.error || 'Failed to register warranty'));
+            const errorMessage = data.error || 'Failed to register warranty. Please try again.';
+            console.error('[registerWarranty] Registration failed:', errorMessage);
+            throw new Error(errorMessage);
         }
     } catch (error) {
-        console.error('Error registering warranty:', error);
-        return Promise.reject(error);
+        console.error('[registerWarranty] Error during registration:', error);
+        // Re-throw the error with proper message
+        if (error.message) {
+            throw error;
+        } else {
+            throw new Error('Network error. Please check your connection and try again.');
+        }
     }
 }
 

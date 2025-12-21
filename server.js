@@ -4039,6 +4039,9 @@ app.get('/api/admin/user-journey', requireAuth, requireDB, async (req, res) => {
 });
 
 app.post('/api/warranty/register', requireDB, async (req, res) => {
+    console.log('=== Warranty Registration Request ===');
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+
     const {
         security_barcode,
         customer_name,
@@ -4053,29 +4056,35 @@ app.post('/api/warranty/register', requireDB, async (req, res) => {
         terms_accepted,
         accessories
     } = req.body;
-    
+
     // Check if user wants to register warranty (if they opted out, they might skip this)
     // For now, we require basic info if they're calling this endpoint
     // Frontend should handle skipping if they don't want warranty
-    
+
     // Validation
     if (!security_barcode) {
-        return res.status(400).json({ 
-            error: 'Security barcode is required' 
+        console.error('[Warranty Registration] ERROR: Security barcode is missing');
+        return res.status(400).json({
+            error: 'Security barcode is required'
         });
     }
-    
+
     // If registering warranty, require customer info
     if (!customer_name || !customer_email) {
-        return res.status(400).json({ 
-            error: 'Customer name and email are required for warranty registration' 
+        console.error('[Warranty Registration] ERROR: Customer name or email is missing', {
+            has_name: !!customer_name,
+            has_email: !!customer_email
+        });
+        return res.status(400).json({
+            error: 'Customer name and email are required for warranty registration'
         });
     }
-    
+
     // Validate terms acceptance
     if (!terms_accepted) {
-        return res.status(400).json({ 
-            error: 'You must accept the Terms & Conditions to register a warranty' 
+        console.error('[Warranty Registration] ERROR: Terms not accepted');
+        return res.status(400).json({
+            error: 'You must accept the Terms & Conditions to register a warranty'
         });
     }
     
@@ -4102,24 +4111,38 @@ app.post('/api/warranty/register', requireDB, async (req, res) => {
     
     // Verify product exists
     try {
+        console.log('[Warranty Registration] Looking up product with barcode:', security_barcode);
+
         // Search for barcode with or without hyphens
         const barcodeQuery = createSecurityBarcodeQuery(security_barcode);
+        console.log('[Warranty Registration] Barcode query:', barcodeQuery);
+
         const product = await db.collection('products').findOne(barcodeQuery);
-        
+
         if (!product) {
-            return res.status(404).json({ error: 'Product not found' });
+            console.error('[Warranty Registration] ERROR: Product not found for barcode:', security_barcode);
+            return res.status(404).json({ error: 'Product not found. Please verify your security barcode.' });
         }
-        
+
+        console.log('[Warranty Registration] Product found:', {
+            _id: product._id,
+            security_barcode: product.security_barcode,
+            part_name: product.part_name
+        });
+
         // Use the product's actual security_barcode (may have hyphens) for warranty lookup
         const productBarcode = product.security_barcode;
-        
+
         // Check if warranty already registered for this product
         // Use the same query function to handle both formats
         const warrantyQuery = createSecurityBarcodeQuery(productBarcode);
+        console.log('[Warranty Registration] Checking for existing warranty with query:', warrantyQuery);
+
         const existingWarranty = await db.collection('warranties').findOne(warrantyQuery);
-        
+
         if (existingWarranty) {
-            return res.status(409).json({ 
+            console.error('[Warranty Registration] ERROR: Warranty already exists:', existingWarranty.warranty_id);
+            return res.status(409).json({
                 error: 'Warranty already registered for this product',
                 warranty_id: existingWarranty.warranty_id
             });
@@ -4235,10 +4258,14 @@ app.post('/api/warranty/register', requireDB, async (req, res) => {
             }
         });
     } catch (err) {
+        console.error('[Warranty Registration] ERROR: Exception during registration:', err);
+        console.error('[Warranty Registration] Error stack:', err.stack);
+
         if (err.code === 11000) {
+            console.error('[Warranty Registration] Duplicate key error');
             res.status(409).json({ error: 'Warranty ID conflict. Please try again.' });
         } else {
-            console.error('Database error:', err);
+            console.error('[Warranty Registration] Database error:', err.message);
             res.status(500).json({ error: 'Database error: ' + err.message });
         }
     }
