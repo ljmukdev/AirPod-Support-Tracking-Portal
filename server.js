@@ -4291,13 +4291,19 @@ app.get('/api/warranty/:warrantyId', requireDB, async (req, res) => {
 
 // List all warranties (Admin only)
 app.get('/api/admin/warranties', requireAuth, requireDB, async (req, res) => {
+    console.log('[WARRANTIES] Request received');
+    console.log('[WARRANTIES] User:', req.user?.email || 'no user data');
+    console.log('[WARRANTIES] User Level:', req.user?.userLevel || 'N/A');
+
     try {
         const warranties = await db.collection('warranties')
             .find({})
             .sort({ registration_date: -1 })
             .limit(1000) // Limit to prevent overwhelming response
             .toArray();
-        
+
+        console.log(`[WARRANTIES] ✅ Found ${warranties.length} warranties`);
+
         // Format warranties for display
         const formattedWarranties = warranties.map(warranty => ({
             id: warranty._id.toString(),
@@ -4315,10 +4321,11 @@ app.get('/api/admin/warranties', requireAuth, requireDB, async (req, res) => {
             extended_warranty_end: warranty.extended_warranty_end,
             marketing_consent: warranty.marketing_consent
         }));
-        
+
+        console.log(`[WARRANTIES] ✅ Returning ${formattedWarranties.length} formatted warranties`);
         res.json({ warranties: formattedWarranties });
     } catch (err) {
-        console.error('Database error:', err);
+        console.error('[WARRANTIES] ❌ Database error:', err);
         res.status(500).json({ error: 'Database error: ' + err.message });
     }
 });
@@ -6028,6 +6035,22 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
     console.log(`LJM AirPod Support Server running on http://localhost:${PORT}`);
     console.log(`Admin panel: http://localhost:${PORT}/admin/login`);
+
+    // Check JWT_SECRET configuration
+    if (!process.env.JWT_SECRET) {
+        console.error('\n⚠️  ========================================');
+        console.error('⚠️  WARNING: JWT_SECRET is NOT configured!');
+        console.error('⚠️  ========================================');
+        console.error('   User Service authentication will FAIL');
+        console.error('   Users will NOT be able to see data after logging in');
+        console.error('\n   To fix:');
+        console.error('   1. Set JWT_SECRET environment variable in Railway');
+        console.error('   2. Value must match the JWT_SECRET in User Service');
+        console.error('   3. Restart the application');
+        console.error('\n   Without JWT_SECRET, only legacy session-based login will work\n');
+    } else {
+        console.log('✅ JWT_SECRET configured - User Service authentication enabled');
+    }
 });
 
 // Graceful shutdown

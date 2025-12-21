@@ -238,6 +238,9 @@ function authenticatedFetch(url, options = {}) {
 
     if (token) {
         headers['Authorization'] = `Bearer ${token}`;
+        console.log(`[AUTH] Making authenticated request to ${url} with token: ${token.substring(0, 20)}...`);
+    } else {
+        console.warn(`[AUTH] ⚠️  No token found in localStorage for request to ${url}`);
     }
 
     return fetch(url, {
