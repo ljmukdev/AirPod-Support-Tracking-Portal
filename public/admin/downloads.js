@@ -37,7 +37,7 @@ async function loadDownloads() {
     try {
         spinner.classList.add('active');
         
-        const response = await fetch(`${API_BASE}/api/admin/downloads`, {
+        const response = await authenticatedFetch(`${API_BASE}/api/admin/downloads`, {
             credentials: 'include'
         });
         

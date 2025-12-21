@@ -8,20 +8,15 @@ if (typeof window.API_BASE === 'undefined') {
 // Load and display dashboard statistics
 async function loadDashboardStats() {
     try {
-        // Check if we're authenticated first
-        const authCheck = await fetch(`${window.API_BASE}/api/admin/check-auth`);
-        const authData = await authCheck.json();
-
-        if (!authData.authenticated) {
-            console.error('Not authenticated');
-            showError('Please log in to view statistics');
+        // Check if authenticatedFetch is available (loaded from admin.js)
+        if (typeof authenticatedFetch !== 'function') {
+            console.error('authenticatedFetch not available - admin.js may not be loaded');
+            showError('Error: Authentication system not loaded');
             return;
         }
 
         // Fetch products to calculate stats
-        const response = await fetch(`${window.API_BASE}/api/admin/products?limit=10000`, {
-            credentials: 'include' // Include cookies for authentication
-        });
+        const response = await authenticatedFetch(`${window.API_BASE}/api/admin/products?limit=10000`);
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);

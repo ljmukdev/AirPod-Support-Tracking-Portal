@@ -26,7 +26,7 @@ async function loadAddonSales() {
     if (!addonList) return;
     
     try {
-        const response = await fetch(`${getApiBase()}/api/admin/addon-sales`);
+        const response = await authenticatedFetch(`${getApiBase()}/api/admin/addon-sales`);
         const data = await response.json();
         
         if (response.ok && data.addonSales) {
@@ -97,7 +97,7 @@ async function loadAddonSales() {
 async function loadPartsAndGenerations() {
     try {
         // Load parts
-        const partsResponse = await fetch(`${getApiBase()}/api/admin/parts`);
+        const partsResponse = await authenticatedFetch(`${getApiBase()}/api/admin/parts`);
         if (partsResponse.ok) {
             const partsData = await partsResponse.json();
             allParts = partsData.parts || [];
@@ -105,7 +105,7 @@ async function loadPartsAndGenerations() {
         }
         
         // Load generations
-        const generationsResponse = await fetch(`${getApiBase()}/api/admin/generations`);
+        const generationsResponse = await authenticatedFetch(`${getApiBase()}/api/admin/generations`);
         if (generationsResponse.ok) {
             const generationsData = await generationsResponse.json();
             allGenerations = generationsData.generations || [];
@@ -202,7 +202,7 @@ async function editAddon(id) {
     editingAddonId = id;
     
     try {
-        const response = await fetch(`${getApiBase()}/api/admin/addon-sale/${id}`);
+        const response = await authenticatedFetch(`${getApiBase()}/api/admin/addon-sale/${id}`);
         const data = await response.json();
         
         if (response.ok && data.addonSale) {
@@ -262,7 +262,7 @@ async function deleteAddon(id) {
     }
     
     try {
-        const response = await fetch(`${getApiBase()}/api/admin/addon-sale/${id}`, {
+        const response = await authenticatedFetch(`${getApiBase()}/api/admin/addon-sale/${id}`, {
             method: 'DELETE'
         });
         
@@ -388,7 +388,7 @@ document.getElementById('cancelButton')?.addEventListener('click', cancelEdit);
 // Logout
 document.getElementById('logoutButton')?.addEventListener('click', async () => {
     try {
-        const response = await fetch(`${getApiBase()}/api/admin/logout`, { method: 'POST' });
+        const response = await authenticatedFetch(`${getApiBase()}/api/admin/logout`, { method: 'POST' });
         if (response.ok) {
             window.location.href = 'login.html';
         }
