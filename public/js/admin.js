@@ -228,14 +228,18 @@ async function checkAuth() {
 function authenticatedFetch(url, options = {}) {
     const token = localStorage.getItem('accessToken');
     const headers = {
-        ...options.headers,
-        'Content-Type': 'application/json'
+        ...options.headers
     };
-    
+
+    // Only set Content-Type if not already set and not sending FormData
+    if (!headers['Content-Type'] && !(options.body instanceof FormData)) {
+        headers['Content-Type'] = 'application/json';
+    }
+
     if (token) {
         headers['Authorization'] = `Bearer ${token}`;
     }
-    
+
     return fetch(url, {
         ...options,
         headers
@@ -411,7 +415,7 @@ async function editProduct(id) {
     // If on add-product page, populate the form
     try {
         // Get all products to find the one we're editing
-        const response = await fetch(`${API_BASE}/api/admin/products`);
+        const response = await authenticatedFetch(`${API_BASE}/api/admin/products`);
         const data = await response.json();
         
         if (response.ok && data.products) {
@@ -581,12 +585,12 @@ if (productForm) {
             }
             
             // Determine if we're updating or adding
-            const url = editingProductId 
+            const url = editingProductId
                 ? `${API_BASE}/api/admin/product/${encodeURIComponent(String(editingProductId))}`
                 : `${API_BASE}/api/admin/product`;
             const method = editingProductId ? 'PUT' : 'POST';
-            
-            const response = await fetch(url, {
+
+            const response = await authenticatedFetch(url, {
                 method: method,
                 body: formData // Don't set Content-Type header, browser will set it with boundary
             });
@@ -656,7 +660,7 @@ async function loadStatusOptions() {
     }
     
     try {
-        const response = await fetch(`${API_BASE}/api/admin/settings`);
+        const response = await authenticatedFetch(`${API_BASE}/api/admin/settings`);
         const data = await response.json();
         
         if (response.ok && data.settings && data.settings.product_status_options) {
@@ -692,7 +696,7 @@ async function loadProducts() {
     const statusOptions = await loadStatusOptions();
     
     try {
-        const response = await fetch(`${API_BASE}/api/admin/products`);
+        const response = await authenticatedFetch(`${API_BASE}/api/admin/products`);
         const data = await response.json();
         
         if (response.ok && data.products) {
@@ -884,7 +888,7 @@ async function loadProducts() {
                     this.style.opacity = '0.6';
                     
                     try {
-                        const response = await fetch(`${API_BASE}/api/admin/product/${encodeURIComponent(productId)}/status`, {
+                        const response = await authenticatedFetch(`${API_BASE}/api/admin/product/${encodeURIComponent(productId)}/status`, {
                             method: 'PUT',
                             headers: {
                                 'Content-Type': 'application/json'
@@ -1107,7 +1111,7 @@ function attachProductEventListeners(tableBody) {
             this.style.opacity = '0.6';
 
             try {
-                const response = await fetch(`${API_BASE}/api/admin/product/${encodeURIComponent(productId)}/status`, {
+                const response = await authenticatedFetch(`${API_BASE}/api/admin/product/${encodeURIComponent(productId)}/status`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1145,7 +1149,7 @@ async function deleteProduct(id) {
     try {
         // Convert id to string and encode for URL
         const productId = String(id);
-        const response = await fetch(`${API_BASE}/api/admin/product/${encodeURIComponent(productId)}`, {
+        const response = await authenticatedFetch(`${API_BASE}/api/admin/product/${encodeURIComponent(productId)}`, {
             method: 'DELETE'
         });
         
@@ -1196,7 +1200,7 @@ async function openTrackingModal(productId) {
     
     try {
         // Load product details
-        const response = await fetch(`${API_BASE}/api/admin/product/${encodeURIComponent(String(productId))}`);
+        const response = await authenticatedFetch(`${API_BASE}/api/admin/product/${encodeURIComponent(String(productId))}`);
         const data = await response.json();
         
         if (response.ok && data.product) {
@@ -1261,7 +1265,7 @@ async function saveTracking() {
     }
     
     try {
-        const response = await fetch(`${API_BASE}/api/admin/product/${encodeURIComponent(String(currentTrackingProductId))}/tracking`, {
+        const response = await authenticatedFetch(`${API_BASE}/api/admin/product/${encodeURIComponent(String(currentTrackingProductId))}/tracking`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
