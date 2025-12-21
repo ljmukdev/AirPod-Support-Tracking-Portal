@@ -32,7 +32,10 @@ function init(options = {}) {
 
 function requireAuth() {
   return (req, res, next) => {
+    console.log('[JWT] Validating JWT token...');
+
     if (!config.jwtSecret) {
+      console.error('[JWT] ❌ JWT_SECRET not configured!');
       return res.status(500).json({
         error: 'AUTH_CONFIG_ERROR',
         message: 'JWT_SECRET not configured. Set JWT_SECRET environment variable.'
@@ -40,8 +43,9 @@ function requireAuth() {
     }
 
     const authHeader = req.headers.authorization;
-    
+
     if (!authHeader) {
+      console.error('[JWT] ❌ No authorization header');
       return res.status(401).json({
         error: 'UNAUTHORIZED',
         message: 'No authorization token provided'
@@ -50,6 +54,7 @@ function requireAuth() {
 
     const parts = authHeader.split(' ');
     if (parts.length !== 2 || parts[0] !== 'Bearer') {
+      console.error('[JWT] ❌ Invalid authorization header format');
       return res.status(401).json({
         error: 'UNAUTHORIZED',
         message: 'Invalid authorization header. Expected: Bearer <token>'
@@ -57,12 +62,15 @@ function requireAuth() {
     }
 
     const token = parts[1];
+    console.log(`[JWT] Token received: ${token.substring(0, 20)}...`);
 
     try {
       const decoded = jwt.verify(token, config.jwtSecret, {
         audience: 'autorestock-microservices',
         issuer: 'autorestock-user-service'
       });
+
+      console.log(`[JWT] ✅ Token valid - User: ${decoded.email}, Level: ${decoded.userLevel}`);
 
       req.user = {
         id: decoded.userId || decoded.id,
@@ -75,6 +83,7 @@ function requireAuth() {
       next();
     } catch (error) {
       if (error.name === 'TokenExpiredError') {
+        console.error('[JWT] ❌ Token expired');
         return res.status(401).json({
           error: 'TOKEN_EXPIRED',
           message: 'Authentication token has expired'
@@ -82,13 +91,14 @@ function requireAuth() {
       }
 
       if (error.name === 'JsonWebTokenError') {
+        console.error('[JWT] ❌ Invalid token:', error.message);
         return res.status(401).json({
           error: 'INVALID_TOKEN',
           message: 'Invalid authentication token'
         });
       }
 
-      console.error('Authentication error:', error);
+      console.error('[JWT] ❌ Authentication error:', error);
       return res.status(401).json({
         error: 'AUTH_ERROR',
         message: 'Authentication failed'
