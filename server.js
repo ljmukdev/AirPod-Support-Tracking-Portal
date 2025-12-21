@@ -5890,6 +5890,54 @@ app.get('/admin/settings', requireAuthHTML, (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin', 'settings.html'));
 });
 
+// Health check endpoint - shows database status and readiness for warranty registration
+app.get('/api/health', async (req, res) => {
+    const health = {
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        database: {
+            connected: !!db,
+            status: db ? 'connected' : 'disconnected'
+        },
+        warranty_registration: {
+            ready: false,
+            issues: []
+        }
+    };
+
+    if (db) {
+        try {
+            // Check if we can access the database
+            const productsCount = await db.collection('products').countDocuments();
+            const warrantiesCount = await db.collection('warranties').countDocuments();
+
+            health.database.collections = {
+                products: productsCount,
+                warranties: warrantiesCount
+            };
+
+            // Check if warranty registration is ready
+            if (productsCount > 0) {
+                health.warranty_registration.ready = true;
+                health.warranty_registration.message = 'Warranty registration is operational';
+            } else {
+                health.warranty_registration.issues.push('No products found in database');
+            }
+        } catch (err) {
+            health.database.status = 'error';
+            health.database.error = err.message;
+            health.warranty_registration.issues.push('Database query failed: ' + err.message);
+        }
+    } else {
+        health.database.status = 'disconnected';
+        health.warranty_registration.issues.push('Database not connected');
+    }
+
+    // Set HTTP status based on readiness
+    const httpStatus = health.warranty_registration.ready ? 200 : 503;
+    res.status(httpStatus).json(health);
+});
+
 // Catch all route - serve index.html for SPA-like behavior
 app.get('*', (req, res) => {
     if (req.path.startsWith('/api') || req.path.startsWith('/admin')) {
