@@ -1230,17 +1230,25 @@ function requireDB(req, res, next) {
 const auth = require('./auth');
 
 function requireAuth(req, res, next) {
+    console.log(`[AUTH] ${req.method} ${req.path} - Checking authentication`);
+
     // Try JWT token first (from User Service)
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        console.log(`[AUTH] JWT token present: ${token.substring(0, 20)}...`);
         return auth.requireAuth()(req, res, next);
     }
-    
+
     // Fallback to session-based auth for backward compatibility
     if (req.session && req.session.authenticated) {
+        console.log('[AUTH] Session-based auth successful');
         return next();
     }
-    
+
+    console.log('[AUTH] ❌ No valid authentication found - returning 401');
+    console.log('[AUTH] Authorization header:', authHeader ? 'present but invalid' : 'missing');
+    console.log('[AUTH] Session authenticated:', req.session?.authenticated ? 'yes' : 'no');
     res.status(401).json({ error: 'Unauthorized' });
 }
 
@@ -1610,9 +1618,12 @@ app.post('/api/admin/product', requireAuth, requireDB, (req, res, next) => {
 
 // Get all products (Admin only, paginated)
 app.get('/api/admin/products', requireAuth, requireDB, async (req, res) => {
+    console.log('[PRODUCTS] Request received - limit:', req.query.limit, 'offset:', req.query.offset);
+    console.log('[PRODUCTS] User:', req.user?.email || 'no user data');
+
     const limit = parseInt(req.query.limit) || 50;
     const offset = parseInt(req.query.offset) || 0;
-    
+
     try {
         const products = await db.collection('products')
             .find({})
@@ -1620,8 +1631,9 @@ app.get('/api/admin/products', requireAuth, requireDB, async (req, res) => {
             .limit(limit)
             .skip(offset)
             .toArray();
-        
+
         const total = await db.collection('products').countDocuments();
+        console.log(`[PRODUCTS] ✅ Found ${products.length} products (total: ${total})`);
         
         // Get warranties for all products
         // Build a flat array of all possible barcode matches (handling hyphen variations)
