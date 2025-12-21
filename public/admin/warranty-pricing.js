@@ -37,7 +37,7 @@ function hideMessages() {
 // Load current pricing
 async function loadPricing() {
     try {
-        const response = await fetch(`${API_BASE}/api/admin/warranty-pricing`);
+        const response = await authenticatedFetch(`${API_BASE}/api/admin/warranty-pricing`);
         const data = await response.json();
         
         if (response.ok) {
@@ -121,7 +121,7 @@ if (pricingForm) {
         try {
             console.log('Saving warranty pricing:', formData); // Debug log
             
-            const response = await fetch(`${API_BASE}/api/admin/warranty-pricing`, {
+            const response = await authenticatedFetch(`${API_BASE}/api/admin/warranty-pricing`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

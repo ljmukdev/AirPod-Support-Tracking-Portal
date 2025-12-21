@@ -44,7 +44,7 @@ async function loadWarranties() {
     try {
         spinner.classList.add('active');
         
-        const response = await fetch(`${API_BASE}/api/admin/warranties`, {
+        const response = await authenticatedFetch(`${API_BASE}/api/admin/warranties`, {
             credentials: 'include'
         });
         
@@ -157,7 +157,7 @@ async function handleDelete(event) {
     button.textContent = 'Deleting...';
     
     try {
-        const response = await fetch(`${API_BASE}/api/admin/warranty/${warrantyId}`, {
+        const response = await authenticatedFetch(`${API_BASE}/api/admin/warranty/${warrantyId}`, {
             method: 'DELETE',
             credentials: 'include'
         });
