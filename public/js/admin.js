@@ -7,6 +7,129 @@ if (typeof window.API_BASE === 'undefined') {
 // Reference the global API_BASE
 const API_BASE = window.API_BASE;
 
+// Session Management Configuration
+const SESSION_CONFIG = {
+    IDLE_TIMEOUT: 30 * 60 * 1000, // 30 minutes in milliseconds
+    WARNING_BEFORE_LOGOUT: 2 * 60 * 1000, // Show warning 2 minutes before logout
+    STORAGE_TYPE: 'sessionStorage' // Use sessionStorage (clears on browser close)
+};
+
+// Idle timeout management
+let idleTimer = null;
+let warningTimer = null;
+let lastActivity = Date.now();
+
+// Get storage (sessionStorage or localStorage based on config)
+function getStorage() {
+    return SESSION_CONFIG.STORAGE_TYPE === 'sessionStorage' ? sessionStorage : localStorage;
+}
+
+// Reset idle timer on user activity
+function resetIdleTimer() {
+    lastActivity = Date.now();
+
+    // Clear existing timers
+    if (idleTimer) clearTimeout(idleTimer);
+    if (warningTimer) clearTimeout(warningTimer);
+
+    // Set warning timer (2 minutes before logout)
+    warningTimer = setTimeout(() => {
+        showIdleWarning();
+    }, SESSION_CONFIG.IDLE_TIMEOUT - SESSION_CONFIG.WARNING_BEFORE_LOGOUT);
+
+    // Set logout timer
+    idleTimer = setTimeout(() => {
+        handleIdleLogout();
+    }, SESSION_CONFIG.IDLE_TIMEOUT);
+}
+
+// Show warning before auto-logout
+function showIdleWarning() {
+    const minutesLeft = Math.floor(SESSION_CONFIG.WARNING_BEFORE_LOGOUT / 60000);
+    const warningMessage = `You will be logged out in ${minutesLeft} minutes due to inactivity. Move your mouse or press a key to stay logged in.`;
+
+    // Create warning banner
+    let warningBanner = document.getElementById('idle-warning-banner');
+    if (!warningBanner) {
+        warningBanner = document.createElement('div');
+        warningBanner.id = 'idle-warning-banner';
+        warningBanner.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #ff9800;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            z-index: 10000;
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        `;
+        document.body.appendChild(warningBanner);
+    }
+    warningBanner.textContent = warningMessage;
+    warningBanner.style.display = 'block';
+}
+
+// Hide warning banner
+function hideIdleWarning() {
+    const warningBanner = document.getElementById('idle-warning-banner');
+    if (warningBanner) {
+        warningBanner.style.display = 'none';
+    }
+}
+
+// Handle auto-logout due to inactivity
+function handleIdleLogout() {
+    console.log('[SESSION] Auto-logout due to inactivity');
+
+    // Clear tokens
+    const storage = getStorage();
+    storage.removeItem('accessToken');
+    storage.removeItem('refreshToken');
+    storage.removeItem('user');
+
+    // Show logout message
+    alert('You have been logged out due to inactivity. Please log in again.');
+
+    // Redirect to login
+    window.location.href = '/admin/login';
+}
+
+// Initialize activity tracking
+function initActivityTracking() {
+    // Don't track on login page
+    if (window.location.pathname.includes('login')) {
+        return;
+    }
+
+    // Track various user activities
+    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+
+    // Throttle activity tracking (don't reset timer on every single event)
+    let throttleTimer = null;
+    const throttleDelay = 1000; // Only reset timer once per second max
+
+    activityEvents.forEach(eventType => {
+        document.addEventListener(eventType, () => {
+            hideIdleWarning(); // Hide warning on any activity
+
+            if (!throttleTimer) {
+                throttleTimer = setTimeout(() => {
+                    resetIdleTimer();
+                    throttleTimer = null;
+                }, throttleDelay);
+            }
+        }, true);
+    });
+
+    // Start initial timer
+    resetIdleTimer();
+
+    console.log(`[SESSION] Activity tracking initialized (timeout: ${SESSION_CONFIG.IDLE_TIMEOUT / 60000} minutes)`);
+}
+
 // Utility functions
 function showError(message, elementId = 'errorMessage') {
     const errorDiv = document.getElementById(elementId);
@@ -226,7 +349,8 @@ async function checkAuth() {
 
 // Helper function to add auth headers to fetch requests
 function authenticatedFetch(url, options = {}) {
-    const token = localStorage.getItem('accessToken');
+    const storage = getStorage();
+    const token = storage.getItem('accessToken');
     const headers = {
         ...options.headers
     };
@@ -240,7 +364,7 @@ function authenticatedFetch(url, options = {}) {
         headers['Authorization'] = `Bearer ${token}`;
         console.log(`[AUTH] Making authenticated request to ${url} with token: ${token.substring(0, 20)}...`);
     } else {
-        console.warn(`[AUTH] ⚠️  No token found in localStorage for request to ${url}`);
+        console.warn(`[AUTH] ⚠️  No token found in ${SESSION_CONFIG.STORAGE_TYPE} for request to ${url}`);
     }
 
     return fetch(url, {
@@ -347,10 +471,13 @@ if (loginForm) {
                 }
 
                 if (response.ok && data.success) {
-                    // Store tokens
-                    localStorage.setItem('accessToken', data.data.accessToken);
-                    localStorage.setItem('refreshToken', data.data.refreshToken);
-                    localStorage.setItem('user', JSON.stringify(data.data.user));
+                    // Store tokens in session storage
+                    const storage = getStorage();
+                    storage.setItem('accessToken', data.data.accessToken);
+                    storage.setItem('refreshToken', data.data.refreshToken);
+                    storage.setItem('user', JSON.stringify(data.data.user));
+
+                    console.log(`[SESSION] Tokens stored in ${SESSION_CONFIG.STORAGE_TYPE}`);
 
                     // Redirect to dashboard
                     window.location.href = '/admin/dashboard';
@@ -383,17 +510,26 @@ const logoutButton = document.getElementById('logoutButton');
 if (logoutButton) {
     logoutButton.addEventListener('click', async () => {
         try {
-            // Clear tokens from localStorage
-            localStorage.removeItem('accessToken');
-            localStorage.removeItem('refreshToken');
-            localStorage.removeItem('user');
+            console.log('[SESSION] Manual logout initiated');
+
+            // Clear session storage
+            const storage = getStorage();
+            storage.removeItem('accessToken');
+            storage.removeItem('refreshToken');
+            storage.removeItem('user');
+
+            // Clear timers
+            if (idleTimer) clearTimeout(idleTimer);
+            if (warningTimer) clearTimeout(warningTimer);
+
             window.location.href = '/admin/login';
         } catch (error) {
             console.error('Logout error:', error);
             // Clear tokens anyway
-            localStorage.removeItem('accessToken');
-            localStorage.removeItem('refreshToken');
-            localStorage.removeItem('user');
+            const storage = getStorage();
+            storage.removeItem('accessToken');
+            storage.removeItem('refreshToken');
+            storage.removeItem('user');
             window.location.href = '/admin/login';
         }
     });
@@ -1725,5 +1861,12 @@ if (document.getElementById('productsTable')) {
 
     // Refresh products every 30 seconds
     setInterval(loadProducts, 30000);
+}
+
+// Initialize session management on page load
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initActivityTracking);
+} else {
+    initActivityTracking();
 }
 
