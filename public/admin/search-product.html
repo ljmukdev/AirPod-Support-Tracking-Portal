@@ -564,15 +564,20 @@
             
             try {
                 const apiBase = window.API_BASE || '';
-                const response = await fetch(`${apiBase}/api/admin/search-product?${params.toString()}`, {
+                const response = await authenticatedFetch(`${apiBase}/api/admin/search-product?${params.toString()}`, {
                     credentials: 'include'
                 });
-                
+
                 const data = await response.json();
-                
+
                 document.getElementById('loadingMessage').style.display = 'none';
-                
+
                 if (!response.ok) {
+                    if (response.status === 401) {
+                        // Redirect to login if unauthorized
+                        window.location.href = 'login.html';
+                        return;
+                    }
                     if (response.status === 404) {
                         document.getElementById('notFoundMessage').style.display = 'block';
                     } else {
