@@ -34,51 +34,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const uploadButton = document.getElementById('uploadPhonePhotos');
     const fileInput = document.getElementById('phonePhotos');
     const cameraInput = document.getElementById('phonePhotosCamera');
-    const chooseFromLibraryBtn = document.getElementById('chooseFromLibraryBtn');
-    const takePhotoBtn = document.getElementById('takePhotoBtn');
     const selectedPhotosInfo = document.getElementById('selectedPhotosInfo');
     const selectedCount = document.getElementById('selectedCount');
+
+    // Combined files array to store all selected files
+    let allFiles = [];
 
     if (!sessionId) {
         setStatus('Missing upload session. Please scan the QR code again.', 'error');
         if (uploadButton) uploadButton.disabled = true;
         return;
-    }
-
-    // Handle "Choose from Library" button
-    if (chooseFromLibraryBtn && fileInput) {
-        chooseFromLibraryBtn.addEventListener('click', () => {
-            fileInput.click();
-        });
-    }
-
-    // Handle "Take Photo" button
-    if (takePhotoBtn && cameraInput) {
-        takePhotoBtn.addEventListener('click', () => {
-            cameraInput.click();
-        });
-    }
-
-    // Update selected count when files are chosen from library
-    if (fileInput) {
-        fileInput.addEventListener('change', () => {
-            updateSelectedCount(fileInput.files.length);
-        });
-    }
-
-    // Update selected count when photos are taken with camera
-    if (cameraInput && fileInput) {
-        cameraInput.addEventListener('change', () => {
-            // Transfer files from camera to main input
-            const dt = new DataTransfer();
-            Array.from(cameraInput.files).forEach(file => dt.items.add(file));
-            
-            // If there are existing files in main input, add them too
-            Array.from(fileInput.files).forEach(file => dt.items.add(file));
-            
-            fileInput.files = dt.files;
-            updateSelectedCount(fileInput.files.length);
-        });
     }
 
     function updateSelectedCount(count) {
@@ -88,9 +53,41 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Update selected count when files are chosen from library
+    if (fileInput) {
+        fileInput.addEventListener('change', () => {
+            // Add new files to allFiles array
+            const newFiles = Array.from(fileInput.files);
+            newFiles.forEach(file => {
+                // Check if file already exists
+                const exists = allFiles.some(f => f.name === file.name && f.size === file.size);
+                if (!exists) {
+                    allFiles.push(file);
+                }
+            });
+            updateSelectedCount(allFiles.length);
+        });
+    }
+
+    // Update selected count when photos are taken with camera
+    if (cameraInput) {
+        cameraInput.addEventListener('change', () => {
+            // Add new files to allFiles array
+            const newFiles = Array.from(cameraInput.files);
+            newFiles.forEach(file => {
+                // Check if file already exists
+                const exists = allFiles.some(f => f.name === file.name && f.size === file.size);
+                if (!exists) {
+                    allFiles.push(file);
+                }
+            });
+            updateSelectedCount(allFiles.length);
+        });
+    }
+
     if (uploadButton) {
         uploadButton.addEventListener('click', async () => {
-            if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+            if (allFiles.length === 0) {
                 setStatus('Select at least one photo to upload.', 'error');
                 return;
             }
@@ -99,9 +96,16 @@ document.addEventListener('DOMContentLoaded', () => {
             setStatus('Uploading photos...', '');
 
             try {
-                const uploaded = await uploadPhonePhotos(sessionId, fileInput.files);
+                // Create FileList-like object from allFiles array
+                const dt = new DataTransfer();
+                allFiles.forEach(file => dt.items.add(file));
+                
+                const uploaded = await uploadPhonePhotos(sessionId, dt.files);
                 setStatus(`Uploaded ${uploaded.length} photo(s). You can return to your laptop and click "Load Phone Photos".`, 'success');
-                fileInput.value = '';
+                
+                // Clear all files and reset inputs
+                allFiles = [];
+                if (fileInput) fileInput.value = '';
                 if (cameraInput) cameraInput.value = '';
                 updateSelectedCount(0);
             } catch (error) {

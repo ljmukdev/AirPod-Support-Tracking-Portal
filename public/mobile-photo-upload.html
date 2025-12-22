@@ -42,28 +42,29 @@
             <div class="form-group">
                 <label>Select Photos</label>
                 <div style="display: flex; gap: 10px; flex-direction: column; margin-bottom: 15px;">
-                    <button type="button" class="button button-secondary" id="chooseFromLibraryBtn" style="width: 100%;">
+                    <input
+                        type="file"
+                        id="phonePhotos"
+                        accept="image/*"
+                        multiple
+                        style="display: none;"
+                    >
+                    <label for="phonePhotos" class="button button-secondary" style="width: 100%; text-align: center; cursor: pointer; margin: 0; display: block;">
                         🖼️ Choose from Photo Library
-                    </button>
-                    <button type="button" class="button button-secondary" id="takePhotoBtn" style="width: 100%;">
+                    </label>
+                    
+                    <input
+                        type="file"
+                        id="phonePhotosCamera"
+                        accept="image/*"
+                        capture="environment"
+                        multiple
+                        style="display: none;"
+                    >
+                    <label for="phonePhotosCamera" class="button button-secondary" style="width: 100%; text-align: center; cursor: pointer; margin: 0; display: block;">
                         📷 Take New Photos
-                    </button>
+                    </label>
                 </div>
-                <input
-                    type="file"
-                    id="phonePhotos"
-                    accept="image/*"
-                    multiple
-                    style="display: none;"
-                >
-                <input
-                    type="file"
-                    id="phonePhotosCamera"
-                    accept="image/*"
-                    capture="environment"
-                    multiple
-                    style="display: none;"
-                >
                 <div id="selectedPhotosInfo" style="font-size: 0.9rem; color: #666; margin-bottom: 10px; display: none;">
                     <strong id="selectedCount">0</strong> photo(s) selected
                 </div>
