@@ -14,6 +14,7 @@ try {
 const path = require('path');
 const multer = require('multer');
 const fs = require('fs');
+const crypto = require('crypto');
 // Initialize Stripe only if secret key is available
 let stripe = null;
 if (process.env.STRIPE_SECRET_KEY) {
@@ -1365,6 +1366,92 @@ app.get('/api/admin/check-auth', (req, res) => {
         res.json({ authenticated: true });
     } else {
         res.json({ authenticated: false });
+    }
+});
+
+// Create a phone photo upload session (Admin only)
+app.post('/api/admin/photo-upload-session', requireAuth, requireDB, async (req, res) => {
+    try {
+        const sessionId = crypto.randomBytes(16).toString('hex');
+        const collection = req.db.collection('photo_upload_sessions');
+        await collection.insertOne({
+            session_id: sessionId,
+            created_at: new Date(),
+            photos: []
+        });
+
+        res.json({ success: true, sessionId });
+    } catch (error) {
+        console.error('Error creating photo upload session:', error);
+        res.status(500).json({ success: false, error: 'Failed to create upload session' });
+    }
+});
+
+// Get phone photo upload session details (Admin only)
+app.get('/api/admin/photo-upload-session/:sessionId', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { sessionId } = req.params;
+        const collection = req.db.collection('photo_upload_sessions');
+        const session = await collection.findOne({ session_id: sessionId });
+
+        if (!session) {
+            return res.status(404).json({ success: false, error: 'Upload session not found' });
+        }
+
+        res.json({ success: true, sessionId, photos: session.photos || [] });
+    } catch (error) {
+        console.error('Error fetching photo upload session:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch upload session' });
+    }
+});
+
+// Upload phone photos to an existing session (Public)
+app.post('/api/photo-upload/:sessionId', requireDB, (req, res, next) => {
+    upload.array('photos', 5)(req, res, (err) => {
+        if (err) {
+            return handleMulterError(err, req, res, next);
+        }
+        next();
+    });
+}, async (req, res) => {
+    try {
+        const { sessionId } = req.params;
+        const collection = req.db.collection('photo_upload_sessions');
+        const session = await collection.findOne({ session_id: sessionId });
+
+        if (!session) {
+            return res.status(404).json({ success: false, error: 'Upload session not found' });
+        }
+
+        if (!req.files || req.files.length === 0) {
+            return res.status(400).json({ success: false, error: 'No photos uploaded' });
+        }
+
+        const currentUploadsDir = global.uploadsDir || uploadsDir;
+        const savedPhotos = [];
+
+        for (const file of req.files) {
+            const actualSavedPath = file.path || path.join(currentUploadsDir, file.filename);
+            if (fs.existsSync(actualSavedPath)) {
+                savedPhotos.push(`/uploads/${file.filename}`);
+            } else {
+                console.warn(`⚠️  Uploaded file missing on disk: ${actualSavedPath}`);
+            }
+        }
+
+        if (savedPhotos.length === 0) {
+            return res.status(500).json({ success: false, error: 'Failed to persist uploaded photos' });
+        }
+
+        await collection.updateOne(
+            { session_id: sessionId },
+            { $push: { photos: { $each: savedPhotos } } }
+        );
+
+        res.json({ success: true, photos: savedPhotos });
+    } catch (error) {
+        console.error('Error uploading phone photos:', error);
+        res.status(500).json({ success: false, error: 'Failed to upload photos' });
     }
 });
 
