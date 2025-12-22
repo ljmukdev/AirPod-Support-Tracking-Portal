@@ -1373,7 +1373,7 @@ app.get('/api/admin/check-auth', (req, res) => {
 app.post('/api/admin/photo-upload-session', requireAuth, requireDB, async (req, res) => {
     try {
         const sessionId = crypto.randomBytes(16).toString('hex');
-        const collection = req.db.collection('photo_upload_sessions');
+        const collection = db.collection('photo_upload_sessions');
         await collection.insertOne({
             session_id: sessionId,
             created_at: new Date(),
@@ -1391,7 +1391,7 @@ app.post('/api/admin/photo-upload-session', requireAuth, requireDB, async (req, 
 app.get('/api/admin/photo-upload-session/:sessionId', requireAuth, requireDB, async (req, res) => {
     try {
         const { sessionId } = req.params;
-        const collection = req.db.collection('photo_upload_sessions');
+        const collection = db.collection('photo_upload_sessions');
         const session = await collection.findOne({ session_id: sessionId });
 
         if (!session) {
@@ -1416,7 +1416,7 @@ app.post('/api/photo-upload/:sessionId', requireDB, (req, res, next) => {
 }, async (req, res) => {
     try {
         const { sessionId } = req.params;
-        const collection = req.db.collection('photo_upload_sessions');
+        const collection = db.collection('photo_upload_sessions');
         const session = await collection.findOne({ session_id: sessionId });
 
         if (!session) {
@@ -3221,8 +3221,8 @@ app.post('/api/gocardless/complete-redirect-flow', requireDB, async (req, res) =
         console.log(`💳 Payment created: ${payment.id} - £${(amount / 100).toFixed(2)}`);
         
         // Store payment info in database
-        if (req.db) {
-            await req.db.collection('payments').insertOne({
+        if (db) {
+            await db.collection('payments').insertOne({
                 paymentId: payment.id,
                 mandateId: completedFlow.links.mandate,
                 amount: amount,
@@ -3274,8 +3274,8 @@ app.post('/api/gocardless/webhook', requireDB, async (req, res) => {
                 const paymentId = event.links.payment;
                 
                 // Update payment status in database
-                if (req.db) {
-                    await req.db.collection('payments').updateOne(
+                if (db) {
+                    await db.collection('payments').updateOne(
                         { paymentId: paymentId },
                         {
                             $set: {
