@@ -1892,6 +1892,7 @@ const phoneUploadSessionDisplay = document.getElementById('phoneUploadSession');
 const phoneUploadStatus = document.getElementById('phoneUploadStatus');
 
 let phoneUploadSessionId = null;
+let phoneUploadSessionUrl = null;
 const phoneUploadLoadedUrls = new Set();
 
 function setPhoneUploadStatus(message, tone = 'neutral') {
@@ -1907,49 +1908,18 @@ function updatePhoneUploadSessionDisplay(sessionId) {
         : 'Session not created yet.';
 }
 
-async function renderPhoneUploadQr(sessionId) {
+function renderPhoneUploadQr(sessionId) {
     if (!phoneUploadQr) return;
     const uploadUrl = `${window.location.origin}/mobile-photo-upload.html?session=${sessionId}`;
-
-    if (window.QRCode && typeof window.QRCode.toCanvas === 'function') {
-        return window.QRCode.toCanvas(phoneUploadQr, uploadUrl, { width: 220, margin: 1 });
-    }
-
-    const ctx = phoneUploadQr.getContext('2d');
-    if (ctx) {
-        ctx.clearRect(0, 0, phoneUploadQr.width, phoneUploadQr.height);
-        ctx.fillStyle = '#f5f5f5';
-        ctx.fillRect(0, 0, phoneUploadQr.width, phoneUploadQr.height);
-        ctx.fillStyle = '#666';
-        ctx.font = '14px sans-serif';
-        ctx.fillText('QR unavailable', 30, phoneUploadQr.height / 2);
-    }
-    throw new Error('QR code library unavailable.');
-}
-
-function waitForQRCodeLibrary({ timeoutMs = 5000, intervalMs = 150 } = {}) {
-    return new Promise((resolve, reject) => {
-        const start = Date.now();
-        const check = () => {
-            if (window.QRCode && typeof window.QRCode.toCanvas === 'function') {
-                resolve();
-                return;
-            }
-            if (Date.now() - start > timeoutMs) {
-                reject(new Error('QR code library unavailable.'));
-                return;
-            }
-            setTimeout(check, intervalMs);
-        };
-        check();
-    });
+    phoneUploadSessionUrl = uploadUrl;
+    const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(uploadUrl)}`;
+    phoneUploadQr.src = qrSrc;
+    phoneUploadQr.alt = `QR code for ${uploadUrl}`;
 }
 
 async function createPhoneUploadSession() {
     try {
         setPhoneUploadStatus('Generating QR code...', 'neutral');
-
-        await waitForQRCodeLibrary();
 
         const response = await authenticatedFetch(`${API_BASE}/api/admin/photo-upload-session`, {
             method: 'POST'
@@ -1964,7 +1934,7 @@ async function createPhoneUploadSession() {
         phoneUploadLoadedUrls.clear();
         updatePhoneUploadSessionDisplay(phoneUploadSessionId);
 
-        await renderPhoneUploadQr(phoneUploadSessionId);
+        renderPhoneUploadQr(phoneUploadSessionId);
         setPhoneUploadStatus('Scan the QR code with your phone to upload photos.', 'success');
 
         if (loadPhoneUploadsButton) {
@@ -2054,6 +2024,17 @@ if (loadPhoneUploadsButton && phoneUploadQr) {
 }
 
 if (phoneUploadQr) {
+    phoneUploadQr.addEventListener('error', () => {
+        if (phoneUploadSessionUrl) {
+            setPhoneUploadStatus('Failed to load QR code. Use the link below on your phone.', 'error');
+            if (phoneUploadSessionDisplay) {
+                phoneUploadSessionDisplay.innerHTML = `Upload link: <a href="${phoneUploadSessionUrl}" target="_blank" rel="noopener">${phoneUploadSessionUrl}</a>`;
+            }
+        } else {
+            setPhoneUploadStatus('Failed to load QR code.', 'error');
+        }
+    });
+
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
             createPhoneUploadSession();
