@@ -1887,7 +1887,6 @@ if (productPhotos && photoPreviewGrid) {
 
 // Phone photo upload via QR code (Add Product page)
 const phoneUploadQr = document.getElementById('phoneUploadQr');
-const generatePhoneUploadButton = document.getElementById('generatePhoneUpload');
 const loadPhoneUploadsButton = document.getElementById('loadPhoneUploads');
 const phoneUploadSessionDisplay = document.getElementById('phoneUploadSession');
 const phoneUploadStatus = document.getElementById('phoneUploadStatus');
@@ -1928,12 +1927,29 @@ async function renderPhoneUploadQr(sessionId) {
     throw new Error('QR code library unavailable.');
 }
 
+function waitForQRCodeLibrary({ timeoutMs = 5000, intervalMs = 150 } = {}) {
+    return new Promise((resolve, reject) => {
+        const start = Date.now();
+        const check = () => {
+            if (window.QRCode && typeof window.QRCode.toCanvas === 'function') {
+                resolve();
+                return;
+            }
+            if (Date.now() - start > timeoutMs) {
+                reject(new Error('QR code library unavailable.'));
+                return;
+            }
+            setTimeout(check, intervalMs);
+        };
+        check();
+    });
+}
+
 async function createPhoneUploadSession() {
     try {
-        if (generatePhoneUploadButton) {
-            generatePhoneUploadButton.disabled = true;
-        }
         setPhoneUploadStatus('Generating QR code...', 'neutral');
+
+        await waitForQRCodeLibrary();
 
         const response = await authenticatedFetch(`${API_BASE}/api/admin/photo-upload-session`, {
             method: 'POST'
@@ -1957,10 +1973,6 @@ async function createPhoneUploadSession() {
     } catch (error) {
         console.error('Phone upload session error:', error);
         setPhoneUploadStatus(error.message || 'Failed to generate QR code.', 'error');
-    } finally {
-        if (generatePhoneUploadButton) {
-            generatePhoneUploadButton.disabled = false;
-        }
     }
 }
 
@@ -2037,12 +2049,18 @@ async function loadPhoneUploadedPhotos() {
     }
 }
 
-if (generatePhoneUploadButton && phoneUploadQr) {
-    generatePhoneUploadButton.addEventListener('click', createPhoneUploadSession);
-}
-
 if (loadPhoneUploadsButton && phoneUploadQr) {
     loadPhoneUploadsButton.addEventListener('click', loadPhoneUploadedPhotos);
+}
+
+if (phoneUploadQr) {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            createPhoneUploadSession();
+        });
+    } else {
+        createPhoneUploadSession();
+    }
 }
 
 // Initialize dashboard
