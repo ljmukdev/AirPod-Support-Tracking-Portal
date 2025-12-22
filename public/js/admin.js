@@ -1823,12 +1823,44 @@ function renderPhotoPreviews() {
 // Function to update the file input with all selected files
 function updateFileInput() {
     if (!productPhotos) return;
-    
+
     const dt = new DataTransfer();
     selectedFiles.forEach(file => {
         dt.items.add(file);
     });
     productPhotos.files = dt.files;
+}
+
+// Handle "Choose Photos from Library" button
+const chooseProductPhotosButton = document.getElementById('chooseProductPhotosButton');
+const takeProductPhotoButton = document.getElementById('takeProductPhotoButton');
+const productPhotosCamera = document.getElementById('productPhotosCamera');
+
+if (chooseProductPhotosButton && productPhotos) {
+    chooseProductPhotosButton.addEventListener('click', () => {
+        productPhotos.click();
+    });
+}
+
+if (takeProductPhotoButton && productPhotosCamera) {
+    takeProductPhotoButton.addEventListener('click', () => {
+        productPhotosCamera.click();
+    });
+}
+
+// Handle camera input for product photos
+if (productPhotosCamera && productPhotos) {
+    productPhotosCamera.addEventListener('change', (e) => {
+        // Transfer files from camera input to main input to trigger watermarking
+        const files = Array.from(e.target.files);
+        if (files.length > 0) {
+            // Create a new change event on productPhotos to trigger watermarking
+            const dt = new DataTransfer();
+            files.forEach(file => dt.items.add(file));
+            productPhotos.files = dt.files;
+            productPhotos.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    });
 }
 
 if (productPhotos && photoPreviewGrid) {

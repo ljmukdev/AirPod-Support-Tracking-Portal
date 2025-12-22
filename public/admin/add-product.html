@@ -270,20 +270,23 @@
                     <div class="form-group">
                         <label for="imageUpload">Upload or Take Photo (Part Label)</label>
                         <p style="font-size: 0.85rem; color: #666; margin-bottom: 10px;">
-                            📸 Click to upload from device or take a photo with your camera
+                            📸 Choose from your photo library or take a new photo
                         </p>
                         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                            <input
-                                type="file"
-                                id="imageUpload"
-                                name="imageUpload"
-                                accept="image/*"
-                                style="flex: 1; min-width: 200px; padding: 10px; border: 2px dashed #007AFF; border-radius: 8px; cursor: pointer;"
-                            >
-                            <button type="button" class="button button-secondary" id="takePhotoButton" style="width: auto; min-width: 140px;">
+                            <button type="button" class="button button-secondary" id="chooseFromLibraryButton" style="flex: 1; min-width: 140px;">
+                                🖼️ Choose from Library
+                            </button>
+                            <button type="button" class="button button-secondary" id="takePhotoButton" style="flex: 1; min-width: 140px;">
                                 📷 Take Photo
                             </button>
                         </div>
+                        <input
+                            type="file"
+                            id="imageUpload"
+                            name="imageUpload"
+                            accept="image/*"
+                            style="display: none;"
+                        >
                         <input
                             type="file"
                             id="cameraCapture"
@@ -439,15 +442,32 @@
             <div class="form-group">
                 <label for="productPhotos">Product Photos (optional)</label>
                 <p style="font-size: 0.85rem; color: #666; margin-bottom: 10px;">
-                    Upload photos showing the part condition. These will be visible to customers. You can select multiple photos at once or add them one by one.
+                    Upload photos showing the part condition. These will be visible to customers. You can select multiple photos at once.
                 </p>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px;">
+                    <button type="button" class="button button-secondary" id="chooseProductPhotosButton" style="flex: 1; min-width: 180px;">
+                        🖼️ Choose Photos from Library
+                    </button>
+                    <button type="button" class="button button-secondary" id="takeProductPhotoButton" style="flex: 1; min-width: 180px;">
+                        📷 Take Photos
+                    </button>
+                </div>
                 <input 
                     type="file" 
                     id="productPhotos" 
                     name="productPhotos" 
                     accept="image/*"
                     multiple
-                    style="padding: 10px;"
+                    style="display: none;"
+                >
+                <input 
+                    type="file" 
+                    id="productPhotosCamera" 
+                    name="productPhotosCamera" 
+                    accept="image/*"
+                    capture="environment"
+                    multiple
+                    style="display: none;"
                 >
                 <div class="card" style="margin-top: 15px; background-color: #f8f9fa;">
                     <h4 style="margin-top: 0;">📱 Phone Photo Upload</h4>

@@ -21,6 +21,7 @@ window.addEventListener('load', () => {
 // Initialize OCR button
 const imageUpload = document.getElementById('imageUpload');
 const cameraCapture = document.getElementById('cameraCapture');
+const chooseFromLibraryButton = document.getElementById('chooseFromLibraryButton');
 const takePhotoButton = document.getElementById('takePhotoButton');
 const scanImageButton = document.getElementById('scanImageButton');
 const imagePreview = document.getElementById('imagePreview');
@@ -314,6 +315,13 @@ if (imageUpload) {
             dataTransfer.items.add(file);
             cameraCapture.files = dataTransfer.files;
         }
+    });
+}
+
+// Handle "Choose from Library" button click
+if (chooseFromLibraryButton && imageUpload) {
+    chooseFromLibraryButton.addEventListener('click', () => {
+        imageUpload.click();
     });
 }
 
