@@ -15,12 +15,17 @@ let allParts = []; // Store flat list of all parts for searching
 async function loadPartsData() {
     try {
         console.log('[Parts Loader] Fetching parts from:', `${API_BASE_REF}/api/admin/parts`);
-        const response = await fetch(`${API_BASE_REF}/api/admin/parts`, {
+        const response = await authenticatedFetch(`${API_BASE_REF}/api/admin/parts`, {
             credentials: 'include'
         });
-        
+
         if (!response.ok) {
             console.error('[Parts Loader] HTTP error:', response.status, response.statusText);
+            if (response.status === 401) {
+                console.error('[Parts Loader] Unauthorized - redirecting to login');
+                window.location.href = '/admin/login';
+                return;
+            }
             return;
         }
         
