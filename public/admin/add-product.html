@@ -449,6 +449,24 @@
                     multiple
                     style="padding: 10px;"
                 >
+                <div class="card" style="margin-top: 15px; background-color: #f8f9fa;">
+                    <h4 style="margin-top: 0;">📱 Phone Photo Upload</h4>
+                    <p style="font-size: 0.85rem; color: #666; margin-bottom: 10px;">
+                        Generate a QR code to upload photos from your phone, then load them into this form.
+                    </p>
+                    <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center;">
+                        <div style="text-align: center;">
+                            <img id="phoneUploadQr" width="220" height="220" alt="Phone upload QR code" style="border: 1px solid #ddd; border-radius: 8px; background: #fff; display: block;">
+                            <div id="phoneUploadSession" style="font-size: 0.8rem; color: #555; margin-top: 6px;">Session not created yet.</div>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 10px;">
+                            <button type="button" class="button button-secondary" id="loadPhoneUploads" disabled>
+                                Load Phone Photos
+                            </button>
+                            <div id="phoneUploadStatus" style="font-size: 0.85rem; color: #666;"></div>
+                        </div>
+                    </div>
+                </div>
                 <div id="photoPreview" style="margin-top: 15px; display: none;">
                     <p style="font-size: 0.85rem; color: #666; margin-bottom: 10px;">
                         <strong id="photoCount">0</strong> photo(s) selected. Click × to remove individual photos.
@@ -564,4 +582,3 @@
     </script>
 </body>
 </html>
-

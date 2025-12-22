@@ -1885,6 +1885,165 @@ if (productPhotos && photoPreviewGrid) {
     });
 }
 
+// Phone photo upload via QR code (Add Product page)
+const phoneUploadQr = document.getElementById('phoneUploadQr');
+const loadPhoneUploadsButton = document.getElementById('loadPhoneUploads');
+const phoneUploadSessionDisplay = document.getElementById('phoneUploadSession');
+const phoneUploadStatus = document.getElementById('phoneUploadStatus');
+
+let phoneUploadSessionId = null;
+let phoneUploadSessionUrl = null;
+const phoneUploadLoadedUrls = new Set();
+
+function setPhoneUploadStatus(message, tone = 'neutral') {
+    if (!phoneUploadStatus) return;
+    phoneUploadStatus.textContent = message;
+    phoneUploadStatus.style.color = tone === 'error' ? '#c62828' : tone === 'success' ? '#1f7a1f' : '#666';
+}
+
+function updatePhoneUploadSessionDisplay(sessionId) {
+    if (!phoneUploadSessionDisplay) return;
+    phoneUploadSessionDisplay.textContent = sessionId
+        ? `Session ID: ${sessionId}`
+        : 'Session not created yet.';
+}
+
+function renderPhoneUploadQr(sessionId) {
+    if (!phoneUploadQr) return;
+    const uploadUrl = `${window.location.origin}/mobile-photo-upload.html?session=${sessionId}`;
+    phoneUploadSessionUrl = uploadUrl;
+    const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(uploadUrl)}`;
+    phoneUploadQr.src = qrSrc;
+    phoneUploadQr.alt = `QR code for ${uploadUrl}`;
+}
+
+async function createPhoneUploadSession() {
+    try {
+        setPhoneUploadStatus('Generating QR code...', 'neutral');
+
+        const response = await authenticatedFetch(`${API_BASE}/api/admin/photo-upload-session`, {
+            method: 'POST'
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to create upload session.');
+        }
+
+        phoneUploadSessionId = data.sessionId;
+        phoneUploadLoadedUrls.clear();
+        updatePhoneUploadSessionDisplay(phoneUploadSessionId);
+
+        renderPhoneUploadQr(phoneUploadSessionId);
+        setPhoneUploadStatus('Scan the QR code with your phone to upload photos.', 'success');
+
+        if (loadPhoneUploadsButton) {
+            loadPhoneUploadsButton.disabled = false;
+        }
+    } catch (error) {
+        console.error('Phone upload session error:', error);
+        setPhoneUploadStatus(error.message || 'Failed to generate QR code.', 'error');
+    }
+}
+
+async function loadPhoneUploadedPhotos() {
+    if (!phoneUploadSessionId) {
+        setPhoneUploadStatus('Generate a QR code first.', 'error');
+        return;
+    }
+
+    try {
+        if (loadPhoneUploadsButton) {
+            loadPhoneUploadsButton.disabled = true;
+        }
+        setPhoneUploadStatus('Checking for uploaded photos...', 'neutral');
+
+        const response = await authenticatedFetch(`${API_BASE}/api/admin/photo-upload-session/${encodeURIComponent(phoneUploadSessionId)}`);
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to fetch uploaded photos.');
+        }
+
+        const photos = data.photos || [];
+        const newPhotos = photos.filter(photo => !phoneUploadLoadedUrls.has(photo));
+
+        if (newPhotos.length === 0) {
+            setPhoneUploadStatus('No new photos found yet.', 'neutral');
+            return;
+        }
+
+        for (const photoUrl of newPhotos) {
+            const photoResponse = await fetch(photoUrl, { cache: 'no-store' });
+            if (!photoResponse.ok) {
+                console.warn('Failed to fetch phone photo:', photoUrl);
+                continue;
+            }
+            const blob = await photoResponse.blob();
+            const fileName = photoUrl.split('/').pop() || `phone-upload-${Date.now()}.jpg`;
+            const file = new File([blob], fileName, {
+                type: blob.type || 'image/jpeg',
+                lastModified: Date.now()
+            });
+
+            let finalFile = file;
+            try {
+                finalFile = await addWatermarkToImage(file);
+            } catch (error) {
+                console.warn('Failed to watermark phone photo:', error);
+            }
+
+            const isDuplicate = selectedFiles.some(existingFile =>
+                existingFile.name === finalFile.name &&
+                existingFile.size === finalFile.size
+            );
+
+            if (!isDuplicate) {
+                selectedFiles.push(finalFile);
+            }
+
+            phoneUploadLoadedUrls.add(photoUrl);
+        }
+
+        updateFileInput();
+        renderPhotoPreviews();
+
+        setPhoneUploadStatus(`Loaded ${newPhotos.length} new photo(s).`, 'success');
+    } catch (error) {
+        console.error('Failed to load phone uploads:', error);
+        setPhoneUploadStatus(error.message || 'Failed to load phone photos.', 'error');
+    } finally {
+        if (loadPhoneUploadsButton) {
+            loadPhoneUploadsButton.disabled = false;
+        }
+    }
+}
+
+if (loadPhoneUploadsButton && phoneUploadQr) {
+    loadPhoneUploadsButton.addEventListener('click', loadPhoneUploadedPhotos);
+}
+
+if (phoneUploadQr) {
+    phoneUploadQr.addEventListener('error', () => {
+        if (phoneUploadSessionUrl) {
+            setPhoneUploadStatus('Failed to load QR code. Use the link below on your phone.', 'error');
+            if (phoneUploadSessionDisplay) {
+                phoneUploadSessionDisplay.innerHTML = `Upload link: <a href="${phoneUploadSessionUrl}" target="_blank" rel="noopener">${phoneUploadSessionUrl}</a>`;
+            }
+        } else {
+            setPhoneUploadStatus('Failed to load QR code.', 'error');
+        }
+    });
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            createPhoneUploadSession();
+        });
+    } else {
+        createPhoneUploadSession();
+    }
+}
+
 // Initialize dashboard
 if (document.getElementById('productsTable')) {
     checkAuth();
@@ -1906,4 +2065,3 @@ if (document.readyState === 'loading') {
 } else {
     initActivityTracking();
 }
-
