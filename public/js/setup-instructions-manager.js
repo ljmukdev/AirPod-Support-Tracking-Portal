@@ -90,7 +90,7 @@ async function loadGenerations() {
 async function loadParts() {
     try {
         const apiBase = window.API_BASE || '';
-        const response = await fetch(`${apiBase}/api/admin/parts`);
+        const response = await authenticatedFetch(`${apiBase}/api/admin/parts`);
         if (!response.ok) throw new Error('Failed to load parts');
         const data = await response.json();
         allParts = data.parts || [];

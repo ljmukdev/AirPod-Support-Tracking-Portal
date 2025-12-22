@@ -55,7 +55,7 @@ async function loadParts() {
     if (!partsList) {
         // Still try to load parts data for associated parts even if partsList doesn't exist
         try {
-            const response = await fetch(`${API_BASE_REF}/api/admin/parts`, {
+            const response = await authenticatedFetch(`${API_BASE_REF}/api/admin/parts`, {
                 credentials: 'include'
             });
             const data = await response.json();
@@ -73,7 +73,7 @@ async function loadParts() {
     
     try {
         console.log('[Parts Manager] Fetching parts from:', `${API_BASE_REF}/api/admin/parts`);
-        const response = await fetch(`${API_BASE_REF}/api/admin/parts`, {
+        const response = await authenticatedFetch(`${API_BASE_REF}/api/admin/parts`, {
             credentials: 'include'
         });
         console.log('[Parts Manager] Response status:', response.status, response.statusText);
@@ -599,7 +599,7 @@ async function editPart(id) {
         // Convert id to string/number if needed
         const partId = String(id);
         
-        const response = await fetch(`${API_BASE_REF}/api/admin/parts`, {
+        const response = await authenticatedFetch(`${API_BASE_REF}/api/admin/parts`, {
             credentials: 'include'
         });
         const data = await response.json();
