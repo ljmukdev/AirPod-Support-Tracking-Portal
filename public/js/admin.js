@@ -1885,6 +1885,184 @@ if (productPhotos && photoPreviewGrid) {
     });
 }
 
+// Phone photo upload via QR code (Add Product page)
+const phoneUploadQr = document.getElementById('phoneUploadQr');
+const loadPhoneUploadsButton = document.getElementById('loadPhoneUploads');
+const phoneUploadSessionDisplay = document.getElementById('phoneUploadSession');
+const phoneUploadStatus = document.getElementById('phoneUploadStatus');
+
+let phoneUploadSessionId = null;
+const phoneUploadLoadedUrls = new Set();
+
+function setPhoneUploadStatus(message, tone = 'neutral') {
+    if (!phoneUploadStatus) return;
+    phoneUploadStatus.textContent = message;
+    phoneUploadStatus.style.color = tone === 'error' ? '#c62828' : tone === 'success' ? '#1f7a1f' : '#666';
+}
+
+function updatePhoneUploadSessionDisplay(sessionId) {
+    if (!phoneUploadSessionDisplay) return;
+    phoneUploadSessionDisplay.textContent = sessionId
+        ? `Session ID: ${sessionId}`
+        : 'Session not created yet.';
+}
+
+async function renderPhoneUploadQr(sessionId) {
+    if (!phoneUploadQr) return;
+    const uploadUrl = `${window.location.origin}/mobile-photo-upload.html?session=${sessionId}`;
+
+    if (window.QRCode && typeof window.QRCode.toCanvas === 'function') {
+        return window.QRCode.toCanvas(phoneUploadQr, uploadUrl, { width: 220, margin: 1 });
+    }
+
+    const ctx = phoneUploadQr.getContext('2d');
+    if (ctx) {
+        ctx.clearRect(0, 0, phoneUploadQr.width, phoneUploadQr.height);
+        ctx.fillStyle = '#f5f5f5';
+        ctx.fillRect(0, 0, phoneUploadQr.width, phoneUploadQr.height);
+        ctx.fillStyle = '#666';
+        ctx.font = '14px sans-serif';
+        ctx.fillText('QR unavailable', 30, phoneUploadQr.height / 2);
+    }
+    throw new Error('QR code library unavailable.');
+}
+
+function waitForQRCodeLibrary({ timeoutMs = 5000, intervalMs = 150 } = {}) {
+    return new Promise((resolve, reject) => {
+        const start = Date.now();
+        const check = () => {
+            if (window.QRCode && typeof window.QRCode.toCanvas === 'function') {
+                resolve();
+                return;
+            }
+            if (Date.now() - start > timeoutMs) {
+                reject(new Error('QR code library unavailable.'));
+                return;
+            }
+            setTimeout(check, intervalMs);
+        };
+        check();
+    });
+}
+
+async function createPhoneUploadSession() {
+    try {
+        setPhoneUploadStatus('Generating QR code...', 'neutral');
+
+        await waitForQRCodeLibrary();
+
+        const response = await authenticatedFetch(`${API_BASE}/api/admin/photo-upload-session`, {
+            method: 'POST'
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to create upload session.');
+        }
+
+        phoneUploadSessionId = data.sessionId;
+        phoneUploadLoadedUrls.clear();
+        updatePhoneUploadSessionDisplay(phoneUploadSessionId);
+
+        await renderPhoneUploadQr(phoneUploadSessionId);
+        setPhoneUploadStatus('Scan the QR code with your phone to upload photos.', 'success');
+
+        if (loadPhoneUploadsButton) {
+            loadPhoneUploadsButton.disabled = false;
+        }
+    } catch (error) {
+        console.error('Phone upload session error:', error);
+        setPhoneUploadStatus(error.message || 'Failed to generate QR code.', 'error');
+    }
+}
+
+async function loadPhoneUploadedPhotos() {
+    if (!phoneUploadSessionId) {
+        setPhoneUploadStatus('Generate a QR code first.', 'error');
+        return;
+    }
+
+    try {
+        if (loadPhoneUploadsButton) {
+            loadPhoneUploadsButton.disabled = true;
+        }
+        setPhoneUploadStatus('Checking for uploaded photos...', 'neutral');
+
+        const response = await authenticatedFetch(`${API_BASE}/api/admin/photo-upload-session/${encodeURIComponent(phoneUploadSessionId)}`);
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to fetch uploaded photos.');
+        }
+
+        const photos = data.photos || [];
+        const newPhotos = photos.filter(photo => !phoneUploadLoadedUrls.has(photo));
+
+        if (newPhotos.length === 0) {
+            setPhoneUploadStatus('No new photos found yet.', 'neutral');
+            return;
+        }
+
+        for (const photoUrl of newPhotos) {
+            const photoResponse = await fetch(photoUrl, { cache: 'no-store' });
+            if (!photoResponse.ok) {
+                console.warn('Failed to fetch phone photo:', photoUrl);
+                continue;
+            }
+            const blob = await photoResponse.blob();
+            const fileName = photoUrl.split('/').pop() || `phone-upload-${Date.now()}.jpg`;
+            const file = new File([blob], fileName, {
+                type: blob.type || 'image/jpeg',
+                lastModified: Date.now()
+            });
+
+            let finalFile = file;
+            try {
+                finalFile = await addWatermarkToImage(file);
+            } catch (error) {
+                console.warn('Failed to watermark phone photo:', error);
+            }
+
+            const isDuplicate = selectedFiles.some(existingFile =>
+                existingFile.name === finalFile.name &&
+                existingFile.size === finalFile.size
+            );
+
+            if (!isDuplicate) {
+                selectedFiles.push(finalFile);
+            }
+
+            phoneUploadLoadedUrls.add(photoUrl);
+        }
+
+        updateFileInput();
+        renderPhotoPreviews();
+
+        setPhoneUploadStatus(`Loaded ${newPhotos.length} new photo(s).`, 'success');
+    } catch (error) {
+        console.error('Failed to load phone uploads:', error);
+        setPhoneUploadStatus(error.message || 'Failed to load phone photos.', 'error');
+    } finally {
+        if (loadPhoneUploadsButton) {
+            loadPhoneUploadsButton.disabled = false;
+        }
+    }
+}
+
+if (loadPhoneUploadsButton && phoneUploadQr) {
+    loadPhoneUploadsButton.addEventListener('click', loadPhoneUploadedPhotos);
+}
+
+if (phoneUploadQr) {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            createPhoneUploadSession();
+        });
+    } else {
+        createPhoneUploadSession();
+    }
+}
+
 // Initialize dashboard
 if (document.getElementById('productsTable')) {
     checkAuth();
@@ -1906,4 +2084,3 @@ if (document.readyState === 'loading') {
 } else {
     initActivityTracking();
 }
-
