@@ -1034,7 +1034,7 @@ function parseOCRText(text) {
 async function tryMatchPartNumber(partNumber) {
     try {
         // Get all parts from API
-        const response = await fetch(`${API_BASE}/api/admin/parts`);
+        const response = await authenticatedFetch(`${API_BASE}/api/admin/parts`);
         const data = await response.json();
         
         if (response.ok && data.parts) {
