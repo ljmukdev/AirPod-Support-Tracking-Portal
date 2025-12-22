@@ -33,11 +33,59 @@ document.addEventListener('DOMContentLoaded', () => {
     const sessionId = getSessionId();
     const uploadButton = document.getElementById('uploadPhonePhotos');
     const fileInput = document.getElementById('phonePhotos');
+    const cameraInput = document.getElementById('phonePhotosCamera');
+    const chooseFromLibraryBtn = document.getElementById('chooseFromLibraryBtn');
+    const takePhotoBtn = document.getElementById('takePhotoBtn');
+    const selectedPhotosInfo = document.getElementById('selectedPhotosInfo');
+    const selectedCount = document.getElementById('selectedCount');
 
     if (!sessionId) {
         setStatus('Missing upload session. Please scan the QR code again.', 'error');
         if (uploadButton) uploadButton.disabled = true;
         return;
+    }
+
+    // Handle "Choose from Library" button
+    if (chooseFromLibraryBtn && fileInput) {
+        chooseFromLibraryBtn.addEventListener('click', () => {
+            fileInput.click();
+        });
+    }
+
+    // Handle "Take Photo" button
+    if (takePhotoBtn && cameraInput) {
+        takePhotoBtn.addEventListener('click', () => {
+            cameraInput.click();
+        });
+    }
+
+    // Update selected count when files are chosen from library
+    if (fileInput) {
+        fileInput.addEventListener('change', () => {
+            updateSelectedCount(fileInput.files.length);
+        });
+    }
+
+    // Update selected count when photos are taken with camera
+    if (cameraInput && fileInput) {
+        cameraInput.addEventListener('change', () => {
+            // Transfer files from camera to main input
+            const dt = new DataTransfer();
+            Array.from(cameraInput.files).forEach(file => dt.items.add(file));
+            
+            // If there are existing files in main input, add them too
+            Array.from(fileInput.files).forEach(file => dt.items.add(file));
+            
+            fileInput.files = dt.files;
+            updateSelectedCount(fileInput.files.length);
+        });
+    }
+
+    function updateSelectedCount(count) {
+        if (selectedCount) selectedCount.textContent = count;
+        if (selectedPhotosInfo) {
+            selectedPhotosInfo.style.display = count > 0 ? 'block' : 'none';
+        }
     }
 
     if (uploadButton) {
@@ -54,6 +102,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const uploaded = await uploadPhonePhotos(sessionId, fileInput.files);
                 setStatus(`Uploaded ${uploaded.length} photo(s). You can return to your laptop and click "Load Phone Photos".`, 'success');
                 fileInput.value = '';
+                if (cameraInput) cameraInput.value = '';
+                updateSelectedCount(0);
             } catch (error) {
                 setStatus(error.message, 'error');
             } finally {

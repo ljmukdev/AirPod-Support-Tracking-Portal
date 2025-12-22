@@ -37,18 +37,36 @@
         <div class="mobile-upload-card">
             <h2 style="margin-top: 0;">📸 Upload Photos from Your Phone</h2>
             <p style="color: #555;">
-                Take or select photos of the product. They will be ready to load on your laptop form.
+                Select photos from your library or take new photos. They will be ready to load on your laptop form.
             </p>
             <div class="form-group">
-                <label for="phonePhotos">Choose photos</label>
+                <label>Select Photos</label>
+                <div style="display: flex; gap: 10px; flex-direction: column; margin-bottom: 15px;">
+                    <button type="button" class="button button-secondary" id="chooseFromLibraryBtn" style="width: 100%;">
+                        🖼️ Choose from Photo Library
+                    </button>
+                    <button type="button" class="button button-secondary" id="takePhotoBtn" style="width: 100%;">
+                        📷 Take New Photos
+                    </button>
+                </div>
                 <input
                     type="file"
                     id="phonePhotos"
                     accept="image/*"
+                    multiple
+                    style="display: none;"
+                >
+                <input
+                    type="file"
+                    id="phonePhotosCamera"
+                    accept="image/*"
                     capture="environment"
                     multiple
-                    style="padding: 10px;"
+                    style="display: none;"
                 >
+                <div id="selectedPhotosInfo" style="font-size: 0.9rem; color: #666; margin-bottom: 10px; display: none;">
+                    <strong id="selectedCount">0</strong> photo(s) selected
+                </div>
             </div>
             <button type="button" class="button" id="uploadPhonePhotos">
                 Upload Photos
