@@ -317,55 +317,56 @@ if (loginForm) {
             // If legacy login fails, try User Service
             if (!legacyData || !legacyData.success) {
                 console.log('Trying User Service login...');
-            const USER_SERVICE_URL = 'https://autorestock-user-service-production.up.railway.app';
-            
-            const response = await fetch(`${USER_SERVICE_URL}/api/v1/users/login`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                credentials: 'include',
-                body: JSON.stringify({
-                    email: username, // Use email field (username is email)
-                    password: password,
-                    serviceName: 'AirPod-Support-Tracking-Portal'
-                })
-            });
-            
-            console.log('User Service login response status:', response.status);
-            
-            let data;
-            try {
-                data = await response.json();
-            } catch (parseError) {
-                const text = await response.text();
-                console.error('Failed to parse response:', text);
-                showError(`Server error (${response.status}): ${text || response.statusText}`);
-                loginButton.disabled = false;
-                hideSpinner();
-                return;
-            }
-            
-            if (response.ok && data.success) {
-                // Store tokens
-                localStorage.setItem('accessToken', data.data.accessToken);
-                localStorage.setItem('refreshToken', data.data.refreshToken);
-                localStorage.setItem('user', JSON.stringify(data.data.user));
-                
-                // Redirect to dashboard
-                window.location.href = '/admin/dashboard';
-            } else {
-                // Show detailed error message
-                const errorMsg = data.message || data.error || 'Invalid credentials';
-                console.error('Login failed:', errorMsg, data);
-                
-                let userFriendlyMsg = errorMsg;
-                if (response.status === 401) {
-                    userFriendlyMsg = `Authentication failed: ${errorMsg}. Please check your credentials or use the "Login with User Service" button above.`;
+                const USER_SERVICE_URL = 'https://autorestock-user-service-production.up.railway.app';
+
+                const response = await fetch(`${USER_SERVICE_URL}/api/v1/users/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        email: username, // Use email field (username is email)
+                        password: password,
+                        serviceName: 'AirPod-Support-Tracking-Portal'
+                    })
+                });
+
+                console.log('User Service login response status:', response.status);
+
+                let data;
+                try {
+                    data = await response.json();
+                } catch (parseError) {
+                    const text = await response.text();
+                    console.error('Failed to parse response:', text);
+                    showError(`Server error (${response.status}): ${text || response.statusText}`);
+                    loginButton.disabled = false;
+                    hideSpinner();
+                    return;
                 }
-                
-                showError(userFriendlyMsg);
-                loginButton.disabled = false;
+
+                if (response.ok && data.success) {
+                    // Store tokens
+                    localStorage.setItem('accessToken', data.data.accessToken);
+                    localStorage.setItem('refreshToken', data.data.refreshToken);
+                    localStorage.setItem('user', JSON.stringify(data.data.user));
+
+                    // Redirect to dashboard
+                    window.location.href = '/admin/dashboard';
+                } else {
+                    // Show detailed error message
+                    const errorMsg = data.message || data.error || 'Invalid credentials';
+                    console.error('Login failed:', errorMsg, data);
+
+                    let userFriendlyMsg = errorMsg;
+                    if (response.status === 401) {
+                        userFriendlyMsg = `Authentication failed: ${errorMsg}. Please check your credentials or use the "Login with User Service" button above.`;
+                    }
+
+                    showError(userFriendlyMsg);
+                    loginButton.disabled = false;
+                }
             }
         } catch (error) {
             console.error('Login error:', error);
