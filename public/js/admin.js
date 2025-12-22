@@ -24,6 +24,43 @@ function getStorage() {
     return SESSION_CONFIG.STORAGE_TYPE === 'sessionStorage' ? sessionStorage : localStorage;
 }
 
+// Migrate tokens from localStorage to sessionStorage (one-time migration)
+function migrateTokenStorage() {
+    // Only migrate if we're using sessionStorage
+    if (SESSION_CONFIG.STORAGE_TYPE !== 'sessionStorage') {
+        return;
+    }
+
+    // Check if tokens exist in localStorage but not in sessionStorage
+    const localAccessToken = localStorage.getItem('accessToken');
+    const sessionAccessToken = sessionStorage.getItem('accessToken');
+
+    if (localAccessToken && !sessionAccessToken) {
+        console.log('[SESSION] Migrating tokens from localStorage to sessionStorage');
+
+        // Copy tokens to sessionStorage
+        sessionStorage.setItem('accessToken', localAccessToken);
+
+        const localRefreshToken = localStorage.getItem('refreshToken');
+        if (localRefreshToken) {
+            sessionStorage.setItem('refreshToken', localRefreshToken);
+        }
+
+        const localUser = localStorage.getItem('user');
+        if (localUser) {
+            sessionStorage.setItem('user', localUser);
+        }
+    }
+
+    // Always clear localStorage tokens to prevent confusion
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+}
+
+// Run migration on page load
+migrateTokenStorage();
+
 // Reset idle timer on user activity
 function resetIdleTimer() {
     lastActivity = Date.now();
