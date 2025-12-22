@@ -11,34 +11,126 @@ const jwt = require('jsonwebtoken');
 const config = {
   jwtSecret: process.env.JWT_SECRET,
   userServiceUrl: process.env.USER_SERVICE_URL || 'https://autorestock-user-service-production.up.railway.app',
-  serviceName: process.env.SERVICE_NAME || 'AirPod-Support-Tracking-Portal'
+  serviceName: process.env.SERVICE_NAME || 'AirPod-Support-Tracking-Portal',
+  serviceApiKey: process.env.SERVICE_API_KEY
 };
 
+// Track if we've attempted to fetch JWT_SECRET
+let jwtSecretFetchAttempted = false;
+let jwtSecretFetchPromise = null;
+
 if (!config.jwtSecret) {
-  console.warn('⚠️  JWT_SECRET not set - authentication will fail');
-  console.warn('   Set JWT_SECRET environment variable to match User Service');
+  console.warn('⚠️  JWT_SECRET not set - will attempt to fetch from User Service');
+  console.warn('   Set JWT_SECRET environment variable to skip auto-fetch');
+}
+
+// Fetch JWT_SECRET from User Service
+async function fetchJwtSecretFromUserService(retryCount = 0, maxRetries = 3) {
+  const { userServiceUrl, serviceApiKey, serviceName } = config;
+
+  if (!serviceApiKey) {
+    throw new Error('SERVICE_API_KEY not configured - cannot fetch JWT_SECRET from User Service');
+  }
+
+  try {
+    console.log(`[AUTH] Fetching JWT_SECRET from User Service (attempt ${retryCount + 1}/${maxRetries + 1})...`);
+
+    const response = await fetch(`${userServiceUrl}/api/v1/services/config`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${serviceApiKey}`,
+        'X-Service-Name': serviceName,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch config: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.success || !data.data?.jwtSecret) {
+      throw new Error('Invalid response from User Service: jwtSecret not found');
+    }
+
+    config.jwtSecret = data.data.jwtSecret;
+    console.log('[AUTH] ✅ JWT_SECRET fetched successfully from User Service');
+    return data.data.jwtSecret;
+
+  } catch (error) {
+    console.error(`[AUTH] Failed to fetch JWT_SECRET (attempt ${retryCount + 1}/${maxRetries + 1}):`, error.message);
+
+    // Retry with exponential backoff
+    if (retryCount < maxRetries) {
+      const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+      console.log(`[AUTH] Retrying in ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return fetchJwtSecretFromUserService(retryCount + 1, maxRetries);
+    }
+
+    throw new Error(`Failed to fetch JWT_SECRET after ${maxRetries + 1} attempts: ${error.message}`);
+  }
+}
+
+// Initialize JWT_SECRET (fetch from User Service if needed)
+async function ensureJwtSecret() {
+  // If already set, no need to fetch
+  if (config.jwtSecret) {
+    return config.jwtSecret;
+  }
+
+  // If already attempting to fetch, wait for that promise
+  if (jwtSecretFetchPromise) {
+    return jwtSecretFetchPromise;
+  }
+
+  // If already attempted and failed, don't retry
+  if (jwtSecretFetchAttempted && !config.jwtSecret) {
+    throw new Error('JWT_SECRET fetch previously failed - manual configuration required');
+  }
+
+  // Mark that we're attempting to fetch
+  jwtSecretFetchAttempted = true;
+
+  // Start fetching
+  jwtSecretFetchPromise = fetchJwtSecretFromUserService()
+    .then(secret => {
+      jwtSecretFetchPromise = null; // Clear promise
+      return secret;
+    })
+    .catch(error => {
+      jwtSecretFetchPromise = null; // Clear promise
+      throw error;
+    });
+
+  return jwtSecretFetchPromise;
 }
 
 function init(options = {}) {
   if (options.jwtSecret) config.jwtSecret = options.jwtSecret;
   if (options.userServiceUrl) config.userServiceUrl = options.userServiceUrl;
   if (options.serviceName) config.serviceName = options.serviceName;
+  if (options.serviceApiKey) config.serviceApiKey = options.serviceApiKey;
 
-  if (!config.jwtSecret) {
-    console.warn('⚠️  JWT_SECRET not set - authentication will fail');
-    console.warn('   Set JWT_SECRET environment variable or pass it to init()');
+  if (!config.jwtSecret && !config.serviceApiKey) {
+    console.warn('⚠️  JWT_SECRET not set and SERVICE_API_KEY not configured');
+    console.warn('   Either set JWT_SECRET directly or set SERVICE_API_KEY to fetch from User Service');
   }
 }
 
 function requireAuth() {
-  return (req, res, next) => {
+  return async (req, res, next) => {
     console.log('[JWT] Validating JWT token...');
 
-    if (!config.jwtSecret) {
-      console.error('[JWT] ❌ JWT_SECRET not configured!');
+    // Ensure JWT_SECRET is available (fetch if needed)
+    try {
+      await ensureJwtSecret();
+    } catch (error) {
+      console.error('[JWT] ❌ JWT_SECRET not available:', error.message);
       return res.status(500).json({
         error: 'AUTH_CONFIG_ERROR',
-        message: 'JWT_SECRET not configured. Set JWT_SECRET environment variable.'
+        message: 'JWT_SECRET not configured. Set JWT_SECRET environment variable or SERVICE_API_KEY to fetch from User Service.'
       });
     }
 
@@ -308,6 +400,8 @@ module.exports = {
   login,
   refreshToken,
   isTokenExpired,
-  getTokenExpiration
+  getTokenExpiration,
+  ensureJwtSecret,
+  fetchJwtSecretFromUserService
 };
 

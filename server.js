@@ -6037,19 +6037,20 @@ app.listen(PORT, () => {
     console.log(`Admin panel: http://localhost:${PORT}/admin/login`);
 
     // Check JWT_SECRET configuration
-    if (!process.env.JWT_SECRET) {
+    if (!process.env.JWT_SECRET && !process.env.SERVICE_API_KEY) {
         console.error('\n⚠️  ========================================');
         console.error('⚠️  WARNING: JWT_SECRET is NOT configured!');
         console.error('⚠️  ========================================');
         console.error('   User Service authentication will FAIL');
         console.error('   Users will NOT be able to see data after logging in');
-        console.error('\n   To fix:');
-        console.error('   1. Set JWT_SECRET environment variable in Railway');
-        console.error('   2. Value must match the JWT_SECRET in User Service');
-        console.error('   3. Restart the application');
-        console.error('\n   Without JWT_SECRET, only legacy session-based login will work\n');
-    } else {
-        console.log('✅ JWT_SECRET configured - User Service authentication enabled');
+        console.error('\n   To fix (choose one):');
+        console.error('   Option 1: Set JWT_SECRET environment variable in Railway');
+        console.error('   Option 2: Set SERVICE_API_KEY to auto-fetch from User Service');
+        console.error('\n   Without JWT_SECRET or SERVICE_API_KEY, only legacy session-based login will work\n');
+    } else if (process.env.JWT_SECRET) {
+        console.log('✅ JWT_SECRET configured directly - User Service authentication enabled');
+    } else if (process.env.SERVICE_API_KEY) {
+        console.log('✅ SERVICE_API_KEY configured - will fetch JWT_SECRET from User Service on first auth request');
     }
 });
 
