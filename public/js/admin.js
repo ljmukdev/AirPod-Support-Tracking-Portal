@@ -11,7 +11,7 @@ const API_BASE = window.API_BASE;
 const SESSION_CONFIG = {
     IDLE_TIMEOUT: 30 * 60 * 1000, // 30 minutes in milliseconds
     WARNING_BEFORE_LOGOUT: 2 * 60 * 1000, // Show warning 2 minutes before logout
-    STORAGE_TYPE: 'sessionStorage' // Use sessionStorage (clears on browser close)
+    STORAGE_TYPE: 'localStorage' // Use localStorage (persists across tabs and page reloads)
 };
 
 // Idle timeout management
@@ -24,38 +24,61 @@ function getStorage() {
     return SESSION_CONFIG.STORAGE_TYPE === 'sessionStorage' ? sessionStorage : localStorage;
 }
 
-// Migrate tokens from localStorage to sessionStorage (one-time migration)
+// Migrate tokens to the configured storage (one-time migration)
 function migrateTokenStorage() {
-    // Only migrate if we're using sessionStorage
-    if (SESSION_CONFIG.STORAGE_TYPE !== 'sessionStorage') {
-        return;
-    }
+    // If using localStorage, migrate from sessionStorage to localStorage
+    if (SESSION_CONFIG.STORAGE_TYPE === 'localStorage') {
+        const sessionAccessToken = sessionStorage.getItem('accessToken');
+        const localAccessToken = localStorage.getItem('accessToken');
 
-    // Check if tokens exist in localStorage but not in sessionStorage
-    const localAccessToken = localStorage.getItem('accessToken');
-    const sessionAccessToken = sessionStorage.getItem('accessToken');
+        // Migrate from sessionStorage to localStorage if tokens exist in session but not local
+        if (sessionAccessToken && !localAccessToken) {
+            console.log('[SESSION] Migrating tokens from sessionStorage to localStorage');
 
-    if (localAccessToken && !sessionAccessToken) {
-        console.log('[SESSION] Migrating tokens from localStorage to sessionStorage');
+            localStorage.setItem('accessToken', sessionAccessToken);
 
-        // Copy tokens to sessionStorage
-        sessionStorage.setItem('accessToken', localAccessToken);
+            const sessionRefreshToken = sessionStorage.getItem('refreshToken');
+            if (sessionRefreshToken) {
+                localStorage.setItem('refreshToken', sessionRefreshToken);
+            }
 
-        const localRefreshToken = localStorage.getItem('refreshToken');
-        if (localRefreshToken) {
-            sessionStorage.setItem('refreshToken', localRefreshToken);
+            const sessionUser = sessionStorage.getItem('user');
+            if (sessionUser) {
+                localStorage.setItem('user', sessionUser);
+            }
         }
 
-        const localUser = localStorage.getItem('user');
-        if (localUser) {
-            sessionStorage.setItem('user', localUser);
-        }
+        // Clear sessionStorage tokens after migration
+        sessionStorage.removeItem('accessToken');
+        sessionStorage.removeItem('refreshToken');
+        sessionStorage.removeItem('user');
     }
+    // If using sessionStorage, migrate from localStorage to sessionStorage
+    else if (SESSION_CONFIG.STORAGE_TYPE === 'sessionStorage') {
+        const localAccessToken = localStorage.getItem('accessToken');
+        const sessionAccessToken = sessionStorage.getItem('accessToken');
 
-    // Always clear localStorage tokens to prevent confusion
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
+        if (localAccessToken && !sessionAccessToken) {
+            console.log('[SESSION] Migrating tokens from localStorage to sessionStorage');
+
+            sessionStorage.setItem('accessToken', localAccessToken);
+
+            const localRefreshToken = localStorage.getItem('refreshToken');
+            if (localRefreshToken) {
+                sessionStorage.setItem('refreshToken', localRefreshToken);
+            }
+
+            const localUser = localStorage.getItem('user');
+            if (localUser) {
+                sessionStorage.setItem('user', localUser);
+            }
+        }
+
+        // Clear localStorage tokens after migration
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+    }
 }
 
 // Run migration on page load
