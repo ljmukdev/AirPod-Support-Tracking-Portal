@@ -2102,10 +2102,14 @@ if (phoneUploadQr) {
     }
 }
 
-// Initialize dashboard
-if (document.getElementById('productsTable')) {
+// Initialize auth check on ALL admin pages (not just products page)
+// Run checkAuth on page load for any admin page
+if (!window.location.pathname.includes('login')) {
     checkAuth();
+}
 
+// Initialize dashboard/products page
+if (document.getElementById('productsTable')) {
     // Initialize filters if available
     if (typeof initProductsFilter === 'function') {
         initProductsFilter();

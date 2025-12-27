@@ -15,11 +15,14 @@ async function loadDashboardStats() {
             return;
         }
 
-        // Check if token exists
-        const token = localStorage.getItem('accessToken');
+        // Get token using the same storage method as admin.js
+        // Check both localStorage (new) and sessionStorage (legacy) for compatibility
+        const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
         console.log('[Dashboard] Token exists:', !!token);
+        console.log('[Dashboard] Token source:', token ? (localStorage.getItem('accessToken') ? 'localStorage' : 'sessionStorage') : 'none');
+
         if (!token) {
-            console.error('[Dashboard] No access token found in localStorage');
+            console.error('[Dashboard] No access token found in localStorage or sessionStorage');
             showError('Please log in to view statistics');
             return;
         }
