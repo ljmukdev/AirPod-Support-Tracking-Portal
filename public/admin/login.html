@@ -119,9 +119,9 @@
         (function() {
             // Wait a moment for admin.js to load and process any URL tokens
             setTimeout(function() {
-                const token = localStorage.getItem('accessToken');
+                const token = sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken');
                 if (token && !window.location.search.includes('error')) {
-                    console.log('Token found in localStorage, redirecting to dashboard');
+                    console.log('Token found, redirecting to dashboard');
                     window.location.href = '/admin/dashboard';
                 }
             }, 100);

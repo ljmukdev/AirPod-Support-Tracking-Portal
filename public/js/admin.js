@@ -329,8 +329,9 @@ async function checkAuth() {
     }
     
     try {
-        const token = localStorage.getItem('accessToken') || document.cookie.split('; ').find(row => row.startsWith('accessToken='))?.split('=')[1];
-        
+        const storage = getStorage();
+        const token = storage.getItem('accessToken') || document.cookie.split('; ').find(row => row.startsWith('accessToken='))?.split('=')[1];
+
         if (!token) {
             // Only redirect if we're on a protected page
             if (window.location.pathname.includes('dashboard') || 
@@ -355,9 +356,9 @@ async function checkAuth() {
             if (!response.ok || !data.success) {
                 // Token invalid, clear and redirect
                 console.error('❌ Token verification failed:', data);
-                localStorage.removeItem('accessToken');
-                localStorage.removeItem('refreshToken');
-                localStorage.removeItem('user');
+                storage.removeItem('accessToken');
+                storage.removeItem('refreshToken');
+                storage.removeItem('user');
                 if (window.location.pathname.includes('dashboard') || 
                     (window.location.pathname.includes('admin') && !window.location.pathname.includes('login'))) {
                     window.location.href = '/admin/login';
@@ -374,9 +375,10 @@ async function checkAuth() {
         console.error('❌ Auth check error:', error);
         // On error, only redirect if we're sure we're not in a callback flow
         if (!window.location.pathname.includes('login') && !tokenJustProcessed) {
-            localStorage.removeItem('accessToken');
-            localStorage.removeItem('refreshToken');
-            localStorage.removeItem('user');
+            const storage = getStorage();
+            storage.removeItem('accessToken');
+            storage.removeItem('refreshToken');
+            storage.removeItem('user');
             if (window.location.pathname.includes('dashboard') || window.location.pathname.includes('admin')) {
                 window.location.href = '/admin/login';
             }
