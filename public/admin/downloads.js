@@ -1,10 +1,5 @@
 // Downloads Management JavaScript
-
-// Define API_BASE globally if not already defined
-if (typeof window.API_BASE === 'undefined') {
-    window.API_BASE = '';
-}
-var API_BASE = window.API_BASE;
+// Uses window.API_BASE set by admin.js
 
 // Format file size
 function formatFileSize(bytes) {
@@ -37,7 +32,7 @@ async function loadDownloads() {
     try {
         spinner.classList.add('active');
         
-        const response = await authenticatedFetch(`${API_BASE}/api/admin/downloads`, {
+        const response = await authenticatedFetch(`${window.API_BASE || ""}/api/admin/downloads`, {
             credentials: 'include'
         });
         
