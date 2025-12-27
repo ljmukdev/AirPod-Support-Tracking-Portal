@@ -280,29 +280,30 @@ function checkUrlToken() {
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
     const refreshToken = urlParams.get('refresh_token');
-    
+
     if (token) {
-        console.log('✅ Found token in URL, storing in localStorage');
-        // Store tokens from URL immediately
-        localStorage.setItem('accessToken', token);
+        const storage = getStorage();
+        console.log(`✅ Found token in URL, storing in ${SESSION_CONFIG.STORAGE_TYPE}`);
+        // Store tokens from URL immediately using configured storage
+        storage.setItem('accessToken', token);
         if (refreshToken) {
-            localStorage.setItem('refreshToken', refreshToken);
+            storage.setItem('refreshToken', refreshToken);
         }
-        
+
         // Mark that we just processed a token from URL (to prevent immediate redirect)
         sessionStorage.setItem('tokenJustProcessed', 'true');
         sessionStorage.setItem('tokenProcessedAt', Date.now().toString());
-        
+
         // Clean up URL (remove token from query string) immediately
         const cleanUrl = window.location.pathname;
         window.history.replaceState({}, document.title, cleanUrl);
-        
+
         // Remove flag after 5 seconds (enough time for page to load)
         setTimeout(() => {
             sessionStorage.removeItem('tokenJustProcessed');
             sessionStorage.removeItem('tokenProcessedAt');
         }, 5000);
-        
+
         return true; // Indicate token was found and stored
     }
     return false; // No token found
@@ -317,30 +318,31 @@ async function checkAuth() {
     const tokenJustProcessed = sessionStorage.getItem('tokenJustProcessed') === 'true';
     const tokenProcessedAt = sessionStorage.getItem('tokenProcessedAt');
     const timeSinceProcessed = tokenProcessedAt ? Date.now() - parseInt(tokenProcessedAt) : Infinity;
-    
+
     if (tokenJustProcessed && timeSinceProcessed < 5000) {
         console.log('⏳ Token just processed from URL (' + Math.round(timeSinceProcessed) + 'ms ago), skipping auth check to prevent redirect loop');
         return; // Don't check auth immediately, let the page load
     }
-    
+
     // Don't check auth on login page
     if (window.location.pathname.includes('login')) {
         return;
     }
-    
+
     try {
-        const token = localStorage.getItem('accessToken') || document.cookie.split('; ').find(row => row.startsWith('accessToken='))?.split('=')[1];
-        
+        const storage = getStorage();
+        const token = storage.getItem('accessToken') || document.cookie.split('; ').find(row => row.startsWith('accessToken='))?.split('=')[1];
+
         if (!token) {
             // Only redirect if we're on a protected page
-            if (window.location.pathname.includes('dashboard') || 
+            if (window.location.pathname.includes('dashboard') ||
                 (window.location.pathname.includes('admin') && !window.location.pathname.includes('login'))) {
                 console.log('❌ No token found, redirecting to login');
                 window.location.href = '/admin/login';
             }
             return;
         }
-        
+
         // Verify token with User Service (but don't block if it fails immediately after getting token from URL)
         const USER_SERVICE_URL = 'https://autorestock-user-service-production.up.railway.app';
         try {
@@ -349,16 +351,16 @@ async function checkAuth() {
                     'Authorization': `Bearer ${token}`
                 }
             });
-            
+
             const data = await response.json();
-            
+
             if (!response.ok || !data.success) {
                 // Token invalid, clear and redirect
                 console.error('❌ Token verification failed:', data);
-                localStorage.removeItem('accessToken');
-                localStorage.removeItem('refreshToken');
-                localStorage.removeItem('user');
-                if (window.location.pathname.includes('dashboard') || 
+                storage.removeItem('accessToken');
+                storage.removeItem('refreshToken');
+                storage.removeItem('user');
+                if (window.location.pathname.includes('dashboard') ||
                     (window.location.pathname.includes('admin') && !window.location.pathname.includes('login'))) {
                     window.location.href = '/admin/login';
                 }
@@ -374,9 +376,10 @@ async function checkAuth() {
         console.error('❌ Auth check error:', error);
         // On error, only redirect if we're sure we're not in a callback flow
         if (!window.location.pathname.includes('login') && !tokenJustProcessed) {
-            localStorage.removeItem('accessToken');
-            localStorage.removeItem('refreshToken');
-            localStorage.removeItem('user');
+            const storage = getStorage();
+            storage.removeItem('accessToken');
+            storage.removeItem('refreshToken');
+            storage.removeItem('user');
             if (window.location.pathname.includes('dashboard') || window.location.pathname.includes('admin')) {
                 window.location.href = '/admin/login';
             }
