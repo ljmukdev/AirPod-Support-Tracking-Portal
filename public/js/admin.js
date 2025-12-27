@@ -9,7 +9,7 @@ const API_BASE = window.API_BASE;
 
 // Session Management Configuration
 const SESSION_CONFIG = {
-    IDLE_TIMEOUT: 30 * 60 * 1000, // 30 minutes in milliseconds
+    IDLE_TIMEOUT: 15 * 60 * 1000, // 15 minutes in milliseconds
     WARNING_BEFORE_LOGOUT: 2 * 60 * 1000, // Show warning 2 minutes before logout
     STORAGE_TYPE: 'localStorage' // Use localStorage (persists across tabs and page reloads)
 };
