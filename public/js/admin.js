@@ -375,11 +375,11 @@ async function checkAuth() {
                 }
             });
 
-            const data = await response.json();
-
-            if (!response.ok || !data.success) {
-                // Token invalid, clear and redirect
-                console.error('❌ Token verification failed:', data);
+            // Only logout on 401 Unauthorized (actual auth failure)
+            // Don't logout on service errors (404, 500, etc.) - those are non-fatal
+            if (response.status === 401) {
+                // Token is actually invalid/expired - logout required
+                console.error('❌ Token verification failed: 401 Unauthorized');
                 storage.removeItem('accessToken');
                 storage.removeItem('refreshToken');
                 storage.removeItem('user');
@@ -387,8 +387,16 @@ async function checkAuth() {
                     (window.location.pathname.includes('admin') && !window.location.pathname.includes('login'))) {
                     window.location.href = '/admin/login';
                 }
+            } else if (!response.ok) {
+                // Service error (404, 500, etc.) - log warning but keep user logged in
+                console.warn(`⚠️ Token verification service error: ${response.status} - keeping session active`);
             } else {
-                console.log('✅ Token verified successfully');
+                const data = await response.json();
+                if (data.success) {
+                    console.log('✅ Token verified successfully');
+                } else {
+                    console.warn('⚠️ Token verification returned non-success, but not 401 - keeping session active');
+                }
             }
         } catch (verifyError) {
             // If verification fails due to network error, don't redirect immediately
@@ -396,17 +404,10 @@ async function checkAuth() {
             console.warn('⚠️ Token verification error (non-fatal):', verifyError);
         }
     } catch (error) {
-        console.error('❌ Auth check error:', error);
-        // On error, only redirect if we're sure we're not in a callback flow
-        if (!window.location.pathname.includes('login') && !tokenJustProcessed) {
-            const storage = getStorage();
-            storage.removeItem('accessToken');
-            storage.removeItem('refreshToken');
-            storage.removeItem('user');
-            if (window.location.pathname.includes('dashboard') || window.location.pathname.includes('admin')) {
-                window.location.href = '/admin/login';
-            }
-        }
+        // Unexpected error in auth check - log but DON'T logout
+        // Only logout on explicit 401 responses, not on unexpected errors
+        console.error('❌ Auth check error (non-fatal):', error);
+        console.warn('⚠️ Keeping user logged in despite auth check error');
     }
 }
 
