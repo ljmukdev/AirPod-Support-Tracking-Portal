@@ -205,7 +205,7 @@ function attachProductEventListeners(tableBody) {
             this.style.opacity = '0.6';
 
             try {
-                const response = await fetch(`${window.API_BASE}/api/admin/product/${encodeURIComponent(productId)}/status`, {
+                const response = await authenticatedFetch(`${window.API_BASE}/api/admin/product/${encodeURIComponent(productId)}/status`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -244,7 +244,7 @@ async function loadStatusOptions() {
     }
 
     try {
-        const response = await fetch(`${window.API_BASE}/api/admin/settings`);
+        const response = await authenticatedFetch(`${window.API_BASE}/api/admin/settings`);
         if (response.ok) {
             const settings = await response.json();
             if (settings.status_options && Array.isArray(settings.status_options)) {

@@ -338,12 +338,12 @@ document.getElementById('addonForm')?.addEventListener('submit', async (e) => {
             formData.append('image', imageFile);
         }
         
-        const url = editingAddonId 
+        const url = editingAddonId
             ? `${getApiBase()}/api/admin/addon-sale/${editingAddonId}`
             : `${getApiBase()}/api/admin/addon-sale`;
         const method = editingAddonId ? 'PUT' : 'POST';
-        
-        const response = await fetch(url, {
+
+        const response = await authenticatedFetch(url, {
             method: method,
             body: formData
         });

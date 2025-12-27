@@ -216,7 +216,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // Load settings from API
 async function loadSettings() {
     try {
-        const response = await fetch(`${window.API_BASE || ''}/api/admin/settings`);
+        const response = await authenticatedFetch(`${window.API_BASE || ''}/api/admin/settings`);
         const data = await response.json();
 
         if (response.ok && data.settings) {
@@ -247,7 +247,7 @@ function removeStatusOption(index) {
 // Load email settings
 async function loadEmailSettings() {
     try {
-        const response = await fetch(`${window.API_BASE || ''}/api/admin/settings`);
+        const response = await authenticatedFetch(`${window.API_BASE || ''}/api/admin/settings`);
         const data = await response.json();
 
         if (response.ok && data.settings && data.settings.email_settings) {
@@ -314,7 +314,7 @@ async function testEmailConfiguration() {
     resultDiv.textContent = 'Sending test email...';
     
     try {
-        const response = await fetch(`${window.API_BASE || ''}/api/admin/test-email`, {
+        const response = await authenticatedFetch(`${window.API_BASE || ''}/api/admin/test-email`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -398,7 +398,7 @@ async function saveSettings() {
     saveBtn.textContent = 'Saving...';
     
     try {
-        const response = await fetch(`${window.API_BASE || ''}/api/admin/settings`, {
+        const response = await authenticatedFetch(`${window.API_BASE || ''}/api/admin/settings`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'

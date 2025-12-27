@@ -50,7 +50,7 @@ async function loadStatusOptions() {
     }
     
     try {
-        const response = await fetch(`${API_BASE}/api/admin/settings`, {
+        const response = await authenticatedFetch(`${API_BASE}/api/admin/settings`, {
             credentials: 'include'
         });
         const data = await response.json();
@@ -152,7 +152,7 @@ function debounce(func, wait) {
 
 async function fetchAndStoreProducts() {
     try {
-        const response = await fetch(`${API_BASE}/api/admin/products`, {
+        const response = await authenticatedFetch(`${API_BASE}/api/admin/products`, {
             credentials: 'include'
         });
         const data = await response.json();
@@ -489,7 +489,7 @@ function attachEventListeners() {
                 }
                 
                 try {
-                    const response = await fetch(`${API_BASE}/api/admin/product/${encodeURIComponent(String(productId))}`, {
+                    const response = await authenticatedFetch(`${API_BASE}/api/admin/product/${encodeURIComponent(String(productId))}`, {
                         method: 'DELETE',
                         credentials: 'include'
                     });
@@ -554,7 +554,7 @@ function attachEventListeners() {
             this.style.opacity = '0.6';
             
             try {
-                const response = await fetch(`${API_BASE}/api/admin/product/${encodeURIComponent(productId)}/status`, {
+                const response = await authenticatedFetch(`${API_BASE}/api/admin/product/${encodeURIComponent(productId)}/status`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json'
