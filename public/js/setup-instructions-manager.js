@@ -45,7 +45,7 @@ async function loadGenerations() {
     try {
         const apiBase = window.API_BASE || '';
         console.log('[Setup Instructions] Loading generations from:', `${apiBase}/api/admin/generations`);
-        const response = await fetch(`${apiBase}/api/admin/generations`);
+        const response = await authenticatedFetch(`${apiBase}/api/admin/generations`);
         console.log('[Setup Instructions] Response status:', response.status);
         
         if (!response.ok) {
@@ -165,7 +165,7 @@ function removeInstructionStep(stepIndex) {
 async function loadInstructions() {
     try {
         const apiBase = window.API_BASE || '';
-        const response = await fetch(`${apiBase}/api/admin/setup-instructions`);
+        const response = await authenticatedFetch(`${apiBase}/api/admin/setup-instructions`);
         if (!response.ok) throw new Error('Failed to load instructions');
         const data = await response.json();
         
@@ -270,7 +270,7 @@ async function handleFormSubmit(e) {
         
         const method = editingId ? 'PUT' : 'POST';
         
-        const response = await fetch(url, {
+        const response = await authenticatedFetch(url, {
             method: method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(formData)
@@ -294,7 +294,7 @@ async function handleFormSubmit(e) {
 async function editInstruction(id) {
     try {
         const apiBase = window.API_BASE || '';
-        const response = await fetch(`${apiBase}/api/admin/setup-instructions/${id}`);
+        const response = await authenticatedFetch(`${apiBase}/api/admin/setup-instructions/${id}`);
         if (!response.ok) throw new Error('Failed to load instruction');
         const instruction = await response.json();
         
@@ -341,7 +341,7 @@ async function deleteInstruction(id) {
     
     try {
         const apiBase = window.API_BASE || '';
-        const response = await fetch(`${apiBase}/api/admin/setup-instructions/${id}`, {
+        const response = await authenticatedFetch(`${apiBase}/api/admin/setup-instructions/${id}`, {
             method: 'DELETE'
         });
         
