@@ -198,7 +198,7 @@ async function loadParts() {
 // Load generations for autocomplete
 async function loadGenerations() {
     try {
-        const response = await fetch(`${API_BASE_REF}/api/admin/generations`, {
+        const response = await authenticatedFetch(`${API_BASE_REF}/api/admin/generations`, {
             credentials: 'include'
         });
         const data = await response.json();
@@ -347,7 +347,7 @@ if (partForm) {
                 formData.append('authenticity_airpod_image', airpodImageFile);
             }
             
-            const response = await fetch(url, {
+            const response = await authenticatedFetch(url, {
                 method: method,
                 body: formData,
                 credentials: 'include'
@@ -701,7 +701,7 @@ async function deletePart(id) {
     try {
         // Convert id to string for URL encoding
         const partId = String(id);
-        const response = await fetch(`${API_BASE_REF}/api/admin/part/${encodeURIComponent(partId)}`, {
+        const response = await authenticatedFetch(`${API_BASE_REF}/api/admin/part/${encodeURIComponent(partId)}`, {
             method: 'DELETE',
             credentials: 'include'
         });

@@ -712,7 +712,7 @@
                 if (startDate) params.append('startDate', startDate);
                 if (endDate) params.append('endDate', endDate);
 
-                const response = await fetch(`${API_BASE}/api/admin/registration-analytics?${params}`);
+                const response = await authenticatedFetch(`${API_BASE}/api/admin/registration-analytics?${params}`);
                 
                 if (response.status === 503) {
                     throw new Error('Database not available. Please check MongoDB connection. The server may still be connecting to the database.');
@@ -835,7 +835,7 @@
                 if (startDate) params.append('startDate', startDate);
                 if (endDate) params.append('endDate', endDate);
 
-                const response = await fetch(`${API_BASE}/api/admin/site-analytics?${params}`);
+                const response = await authenticatedFetch(`${API_BASE}/api/admin/site-analytics?${params}`);
                 
                 if (response.status === 503) {
                     throw new Error('Database not available. Please check MongoDB connection. The server may still be connecting to the database.');
@@ -945,7 +945,7 @@
                 if (startDate) params.append('startDate', startDate);
                 if (endDate) params.append('endDate', endDate);
 
-                const response = await fetch(`${API_BASE}/api/admin/cookie-analytics?${params}`);
+                const response = await authenticatedFetch(`${API_BASE}/api/admin/cookie-analytics?${params}`);
                 
                 if (response.status === 503) {
                     throw new Error('Database not available. Please check MongoDB connection. The server may still be connecting to the database.');
@@ -1016,7 +1016,7 @@
             document.getElementById('userJourneyContent').style.display = 'none';
 
             try {
-                const response = await fetch(`${API_BASE}/api/admin/user-journey?tracking_id=${encodeURIComponent(trackingId)}`);
+                const response = await authenticatedFetch(`${API_BASE}/api/admin/user-journey?tracking_id=${encodeURIComponent(trackingId)}`);
                 
                 if (response.status === 503) {
                     throw new Error('Database not available. Please check MongoDB connection. The server may still be connecting to the database.');
@@ -1114,6 +1114,7 @@
             });
         })();
     </script>
+    <script src="../js/admin.js?v=1.2.5.031"></script>
 </body>
 </html>
 
