@@ -514,6 +514,13 @@
                         <input type="number" id="returnPostage" name="return_postage_cost" step="0.01" min="0" placeholder="0.00">
                         <small style="color: #666; display: block; margin-top: 5px;">Enter the cost of shipping the return back to you</small>
                     </div>
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" id="itemOpened" name="item_opened" style="width: auto; height: 18px; cursor: pointer;">
+                            <span>Item has been opened (security seal broken)</span>
+                        </label>
+                        <small style="color: #666; display: block; margin-top: 5px; margin-left: 28px;">Check this box if the returned item has been opened or the security seal is broken. Leave unchecked if sealed.</small>
+                    </div>
                     <div id="returnProductError" class="error-message" style="display: none;"></div>
                     <div id="returnProductSuccess" class="success-message" style="display: none;"></div>
                 </form>
@@ -725,6 +732,7 @@
                         </div>
                         ${product.return_count ? `<p style="margin: 5px 0;">Return Count: ${product.return_count}</p>` : ''}
                         ${product.return_reason ? `<p style="margin: 5px 0;"><strong>Reason:</strong> ${product.return_reason}</p>` : ''}
+                        ${product.item_opened !== undefined ? `<p style="margin: 5px 0;"><strong>Condition:</strong> <span style="display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 4px; font-size: 0.85rem; ${product.item_opened ? 'background: #fff3cd; color: #856404;' : 'background: #d4edda; color: #155724;'}">${product.item_opened ? '📦 Opened (seal broken)' : '✅ Sealed (unopened)'}</span></p>` : ''}
                         ${product.refund_amount !== undefined ? `<p style="margin: 5px 0;"><strong>Refund Amount:</strong> £${parseFloat(product.refund_amount).toFixed(2)}</p>` : ''}
                         ${product.original_postage_packaging !== undefined && product.original_postage_packaging > 0 ? `<p style="margin: 5px 0;"><strong>Original Postage:</strong> £${parseFloat(product.original_postage_packaging).toFixed(2)}</p>` : ''}
                         ${product.return_postage_cost !== undefined && product.return_postage_cost > 0 ? `<p style="margin: 5px 0;"><strong>Return Postage:</strong> £${parseFloat(product.return_postage_cost).toFixed(2)}</p>` : ''}
@@ -789,6 +797,7 @@
                     document.getElementById('refundAmount').value = product.refund_amount || '';
                     document.getElementById('originalPostage').value = product.original_postage_packaging || '';
                     document.getElementById('returnPostage').value = product.return_postage_cost || '';
+                    document.getElementById('itemOpened').checked = product.item_opened || false;
                     
                     // Update modal for editing
                     document.getElementById('returnModalTitle').textContent = 'Edit Return Details';
@@ -909,7 +918,8 @@
                 return_reason: finalReason,
                 refund_amount: document.getElementById('refundAmount').value,
                 original_postage_packaging: document.getElementById('originalPostage').value || 0,
-                return_postage_cost: document.getElementById('returnPostage').value || 0
+                return_postage_cost: document.getElementById('returnPostage').value || 0,
+                item_opened: document.getElementById('itemOpened').checked
             };
             
             try {

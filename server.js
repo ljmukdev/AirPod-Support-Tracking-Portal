@@ -1958,7 +1958,7 @@ app.put('/api/admin/product/:id/return', requireAuth, requireDB, async (req, res
         return res.status(400).json({ error: 'Invalid product ID' });
     }
     
-    const { return_reason, refund_amount, original_postage_packaging } = req.body;
+    const { return_reason, refund_amount, original_postage_packaging, item_opened } = req.body;
     
     if (!return_reason || refund_amount === undefined || refund_amount === null || refund_amount === '') {
         return res.status(400).json({ 
@@ -1968,6 +1968,7 @@ app.put('/api/admin/product/:id/return', requireAuth, requireDB, async (req, res
     
     const refundAmount = parseFloat(refund_amount);
     const originalPostage = parseFloat(original_postage_packaging) || 0;
+    const itemOpened = item_opened === true || item_opened === 'true';
     
     if (isNaN(refundAmount) || refundAmount < 0) {
         return res.status(400).json({ error: 'Invalid refund amount' });
@@ -1990,6 +1991,7 @@ app.put('/api/admin/product/:id/return', requireAuth, requireDB, async (req, res
             return_reason: return_reason.trim(),
             refund_amount: refundAmount,
             original_postage_packaging: originalPostage,
+            item_opened: itemOpened,
             return_date: new Date(),
             return_count: currentReturnCount + 1,
             total_refund_amount: totalRefundAmount,
@@ -2028,7 +2030,7 @@ app.put('/api/admin/product/:id/return-details', requireAuth, requireDB, async (
         return res.status(400).json({ error: 'Invalid product ID' });
     }
     
-    const { return_reason, refund_amount, original_postage_packaging, return_postage_cost } = req.body;
+    const { return_reason, refund_amount, original_postage_packaging, return_postage_cost, item_opened } = req.body;
     
     if (!return_reason || refund_amount === undefined || refund_amount === null || refund_amount === '') {
         return res.status(400).json({ 
@@ -2039,6 +2041,7 @@ app.put('/api/admin/product/:id/return-details', requireAuth, requireDB, async (
     const refundAmount = parseFloat(refund_amount);
     const originalPostage = parseFloat(original_postage_packaging) || 0;
     const returnPostage = parseFloat(return_postage_cost) || 0;
+    const itemOpened = item_opened === true || item_opened === 'true';
     
     if (isNaN(refundAmount) || refundAmount < 0) {
         return res.status(400).json({ error: 'Invalid refund amount' });
@@ -2064,6 +2067,7 @@ app.put('/api/admin/product/:id/return-details', requireAuth, requireDB, async (
             refund_amount: refundAmount,
             original_postage_packaging: originalPostage,
             return_postage_cost: returnPostage,
+            item_opened: itemOpened,
             total_refund_amount: refundAmount, // Update total refund amount
             total_postage_lost: originalPostage + returnPostage, // Update total postage lost
             total_return_cost: totalCost // Store total cost for easy calculation
