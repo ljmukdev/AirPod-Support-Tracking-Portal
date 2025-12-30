@@ -804,7 +804,7 @@
                 if (confirm('Are you sure you want to reopen this product? This will change its status back to active.')) {
                     try {
                         const apiBase = window.API_BASE || '';
-                        const response = await fetch(`${apiBase}/api/admin/product/${window.currentProductId}/reopen`, {
+                        const response = await authenticatedFetch(`${apiBase}/api/admin/product/${window.currentProductId}/reopen`, {
                             method: 'PUT',
                             credentials: 'include',
                             headers: { 'Content-Type': 'application/json' }
@@ -859,7 +859,7 @@
             
             try {
                 const apiBase = window.API_BASE || '';
-                const response = await fetch(`${apiBase}/api/admin/product/${window.currentProductId}`, {
+                const response = await authenticatedFetch(`${apiBase}/api/admin/product/${window.currentProductId}`, {
                     method: 'PUT',
                     credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },
@@ -919,7 +919,7 @@
                     ? `${apiBase}/api/admin/product/${window.currentProductId}/return-details`
                     : `${apiBase}/api/admin/product/${window.currentProductId}/return`;
                 
-                const response = await fetch(endpoint, {
+                const response = await authenticatedFetch(endpoint, {
                     method: 'PUT',
                     credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },
