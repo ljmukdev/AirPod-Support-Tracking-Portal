@@ -2125,6 +2125,115 @@ app.put('/api/admin/product/:id/reopen', requireAuth, requireDB, async (req, res
     }
 });
 
+// Mark returned product as resold to new buyer (Admin only)
+app.put('/api/admin/product/:id/resale', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid product ID' });
+    }
+    
+    const { ebay_order_number, security_barcode, resale_notes, archive_return } = req.body;
+    
+    if (!ebay_order_number || !ebay_order_number.trim()) {
+        return res.status(400).json({ error: 'New eBay order number is required' });
+    }
+    
+    try {
+        // Get current product to archive return info
+        const product = await db.collection('products').findOne({ _id: new ObjectId(id) });
+        
+        if (!product) {
+            return res.status(404).json({ error: 'Product not found' });
+        }
+        
+        if (product.status !== 'returned') {
+            return res.status(400).json({ error: 'Product is not marked as returned' });
+        }
+        
+        // Initialize or get resale history
+        const resaleHistory = product.resale_history || [];
+        const resaleCount = (product.resale_count || 0) + 1;
+        
+        // Create resale record
+        const resaleRecord = {
+            resale_date: new Date(),
+            resale_number: resaleCount,
+            new_ebay_order_number: ebay_order_number.trim(),
+            previous_ebay_order_number: product.ebay_order_number,
+            security_barcode_changed: security_barcode ? true : false,
+            old_security_barcode: product.security_barcode,
+            new_security_barcode: security_barcode || product.security_barcode,
+            resale_notes: resale_notes || '',
+            return_info_archived: archive_return === true
+        };
+        
+        // If archiving return info, add it to the resale record
+        if (archive_return) {
+            resaleRecord.archived_return_data = {
+                return_reason: product.return_reason,
+                refund_amount: product.refund_amount,
+                original_postage_packaging: product.original_postage_packaging,
+                return_postage_cost: product.return_postage_cost,
+                item_opened: product.item_opened,
+                return_date: product.return_date,
+                return_count: product.return_count,
+                total_refund_amount: product.total_refund_amount,
+                total_postage_lost: product.total_postage_lost,
+                total_return_cost: product.total_return_cost
+            };
+        }
+        
+        resaleHistory.push(resaleRecord);
+        
+        // Build update data
+        const updateData = {
+            status: 'active',
+            ebay_order_number: ebay_order_number.trim(),
+            resale_count: resaleCount,
+            resale_history: resaleHistory,
+            last_resale_date: new Date()
+        };
+        
+        // Update security barcode if provided
+        if (security_barcode && security_barcode.trim()) {
+            updateData.security_barcode = security_barcode.trim().toUpperCase();
+        }
+        
+        // If archiving, clear return fields from main product
+        if (archive_return) {
+            updateData.return_reason = null;
+            updateData.refund_amount = null;
+            updateData.original_postage_packaging = null;
+            updateData.return_postage_cost = null;
+            updateData.item_opened = null;
+            updateData.return_date = null;
+            updateData.total_return_cost = null;
+            // Note: Keep return_count and totals for analytics, just clear the last return details
+        }
+        
+        const result = await db.collection('products').updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updateData }
+        );
+        
+        if (result.matchedCount === 0) {
+            res.status(404).json({ error: 'Product not found' });
+        } else {
+            res.json({ 
+                success: true, 
+                message: 'Product marked as resold successfully',
+                resale_count: resaleCount,
+                ebay_order_number: ebay_order_number.trim(),
+                archived: archive_return
+            });
+        }
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // Get settings (Admin only)
 app.get('/api/admin/settings', requireAuth, requireDB, async (req, res) => {
     try {

@@ -532,6 +532,52 @@
         </div>
     </div>
 
+    <!-- Resale Product Modal -->
+    <div id="resaleProductModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>💰 Mark Product as Resold to New Buyer</h2>
+                <span class="modal-close" id="closeResaleModal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div style="background: #d1ecf1; padding: 12px; border-radius: 6px; margin-bottom: 20px; border-left: 4px solid #17a2b8;">
+                    <p style="margin: 0; font-size: 0.9rem; color: #0c5460;">
+                        <strong>📋 Note:</strong> This will mark the returned item as sold again to a new buyer. The return history will be preserved for records.
+                    </p>
+                </div>
+                <form id="resaleProductForm">
+                    <div class="form-group">
+                        <label for="resaleEbayOrderNumber">New eBay Order Number *</label>
+                        <input type="text" id="resaleEbayOrderNumber" name="ebay_order_number" required placeholder="Enter new buyer's eBay order number">
+                        <small style="color: #666; display: block; margin-top: 5px;">Enter the eBay order number for the new buyer</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="resaleSecurityBarcode">New Security Barcode (Optional)</label>
+                        <input type="text" id="resaleSecurityBarcode" name="security_barcode" placeholder="Leave blank to keep existing barcode">
+                        <small style="color: #666; display: block; margin-top: 5px;">Update if you're applying a new security sticker, or leave blank to keep the original</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="resaleNotes">Resale Notes (Optional)</label>
+                        <textarea id="resaleNotes" name="resale_notes" rows="3" placeholder="Any notes about this resale (e.g., inspected, repackaged, etc.)"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" id="resaleArchiveReturn" name="archive_return" checked style="width: auto; height: 18px; cursor: pointer;">
+                            <span>Archive return information (recommended)</span>
+                        </label>
+                        <small style="color: #666; display: block; margin-top: 5px; margin-left: 28px;">Return details will be moved to history. Uncheck to keep visible in main product details.</small>
+                    </div>
+                    <div id="resaleProductError" class="error-message" style="display: none;"></div>
+                    <div id="resaleProductSuccess" class="success-message" style="display: none;"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="button button-secondary" id="cancelResaleBtn">Cancel</button>
+                <button type="button" class="button" id="confirmResaleBtn" style="background: #17a2b8;">Confirm Resale</button>
+            </div>
+        </div>
+    </div>
+
     <script src="../js/admin.js"></script>
     <script>
         // Ensure API_BASE is available (from admin.js, but handle if not loaded yet)
@@ -712,8 +758,11 @@
                             ✏️ Edit Product
                         </button>
                         ${product.status === 'returned' ? `
+                            <button id="resoldProductBtn" class="button" style="background: #17a2b8; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                                💰 Mark as Resold to New Buyer
+                            </button>
                             <button id="reopenProductBtn" class="button" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600;">
-                                ✅ Reopen Product
+                                ✅ Reopen (Keep Same Buyer)
                             </button>
                         ` : `
                             <button id="markReturnedBtn" class="button" style="background: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600;">
@@ -740,6 +789,33 @@
                         ${product.total_postage_lost !== undefined ? `<p style="margin: 5px 0;"><strong>Total Postage Lost:</strong> £${parseFloat(product.total_postage_lost).toFixed(2)}</p>` : ''}
                         ${product.total_return_cost !== undefined ? `<p style="margin: 5px 0; font-weight: bold; color: #dc3545;"><strong>Total Return Cost:</strong> £${parseFloat(product.total_return_cost).toFixed(2)}</p>` : ''}
                         ${product.return_date ? `<p style="margin: 5px 0;"><strong>Return Date:</strong> ${formatDate(product.return_date)}</p>` : ''}
+                    </div>
+                ` : ''}
+                ${product.resale_history && product.resale_history.length > 0 ? `
+                    <div style="margin-top: 20px; padding: 15px; background: #d1ecf1; border-left: 4px solid #17a2b8; border-radius: 4px;">
+                        <strong>♻️ Resale History (${product.resale_count || product.resale_history.length} time${(product.resale_count || product.resale_history.length) !== 1 ? 's' : ''})</strong>
+                        ${product.resale_history.slice().reverse().map((resale, index) => `
+                            <div style="margin-top: 15px; padding: 12px; background: white; border-radius: 4px; border: 1px solid #bee5eb;">
+                                <p style="margin: 5px 0; font-weight: bold; color: #17a2b8;">Resale #${resale.resale_number} - ${formatDate(resale.resale_date)}</p>
+                                <p style="margin: 5px 0;"><strong>New Order:</strong> ${resale.new_ebay_order_number}</p>
+                                ${resale.previous_ebay_order_number ? `<p style="margin: 5px 0;"><strong>Previous Order:</strong> ${resale.previous_ebay_order_number}</p>` : ''}
+                                ${resale.security_barcode_changed ? `
+                                    <p style="margin: 5px 0;"><strong>Security Barcode:</strong> ${resale.old_security_barcode} → ${resale.new_security_barcode}</p>
+                                ` : `<p style="margin: 5px 0;"><strong>Security Barcode:</strong> ${resale.new_security_barcode} (unchanged)</p>`}
+                                ${resale.resale_notes ? `<p style="margin: 5px 0;"><strong>Notes:</strong> ${resale.resale_notes}</p>` : ''}
+                                ${resale.return_info_archived && resale.archived_return_data ? `
+                                    <details style="margin-top: 10px;">
+                                        <summary style="cursor: pointer; color: #666; font-size: 0.9rem;">📦 View Archived Return Info</summary>
+                                        <div style="margin-top: 8px; padding-left: 15px; border-left: 2px solid #ddd;">
+                                            ${resale.archived_return_data.return_reason ? `<p style="margin: 3px 0; font-size: 0.85rem;"><strong>Reason:</strong> ${resale.archived_return_data.return_reason}</p>` : ''}
+                                            ${resale.archived_return_data.item_opened !== undefined ? `<p style="margin: 3px 0; font-size: 0.85rem;"><strong>Condition:</strong> ${resale.archived_return_data.item_opened ? 'Opened' : 'Sealed'}</p>` : ''}
+                                            ${resale.archived_return_data.refund_amount !== undefined ? `<p style="margin: 3px 0; font-size: 0.85rem;"><strong>Refund:</strong> £${parseFloat(resale.archived_return_data.refund_amount).toFixed(2)}</p>` : ''}
+                                            ${resale.archived_return_data.return_date ? `<p style="margin: 3px 0; font-size: 0.85rem;"><strong>Return Date:</strong> ${formatDate(resale.archived_return_data.return_date)}</p>` : ''}
+                                        </div>
+                                    </details>
+                                ` : ''}
+                            </div>
+                        `).join('')}
                     </div>
                 ` : ''}
             `;
@@ -809,8 +885,17 @@
                 }
             }
             
+            if (e.target.id === 'resoldProductBtn') {
+                // Reset form for new resale
+                document.getElementById('resaleProductForm').reset();
+                document.getElementById('resaleArchiveReturn').checked = true; // Default to archiving
+                document.getElementById('resaleProductError').style.display = 'none';
+                document.getElementById('resaleProductSuccess').style.display = 'none';
+                document.getElementById('resaleProductModal').style.display = 'block';
+            }
+            
             if (e.target.id === 'reopenProductBtn') {
-                if (confirm('Are you sure you want to reopen this product? This will change its status back to active.')) {
+                if (confirm('Are you sure you want to reopen this product? This will change its status back to active and keep the same buyer information.')) {
                     try {
                         const apiBase = window.API_BASE || '';
                         const response = await authenticatedFetch(`${apiBase}/api/admin/product/${window.currentProductId}/reopen`, {
@@ -846,6 +931,13 @@
                 document.getElementById('returnProductForm').reset();
                 document.getElementById('customReasonGroup').style.display = 'none';
                 document.getElementById('customReturnReason').required = false;
+            }
+            
+            if (e.target.id === 'closeResaleModal' || e.target.id === 'cancelResaleBtn') {
+                document.getElementById('resaleProductModal').style.display = 'none';
+                document.getElementById('resaleProductError').style.display = 'none';
+                document.getElementById('resaleProductSuccess').style.display = 'none';
+                document.getElementById('resaleProductForm').reset();
             }
         });
         
@@ -961,6 +1053,55 @@
                 document.getElementById('returnProductError').textContent = 'Network error: ' + error.message;
                 document.getElementById('returnProductError').style.display = 'block';
                 document.getElementById('returnProductSuccess').style.display = 'none';
+            }
+        });
+        
+        // Handle resale form submission
+        document.getElementById('confirmResaleBtn')?.addEventListener('click', async () => {
+            const ebayOrderNumber = document.getElementById('resaleEbayOrderNumber').value.trim();
+            
+            if (!ebayOrderNumber) {
+                document.getElementById('resaleProductError').textContent = 'New eBay order number is required';
+                document.getElementById('resaleProductError').style.display = 'block';
+                return;
+            }
+            
+            const data = {
+                ebay_order_number: ebayOrderNumber,
+                security_barcode: document.getElementById('resaleSecurityBarcode').value.trim() || null,
+                resale_notes: document.getElementById('resaleNotes').value.trim() || null,
+                archive_return: document.getElementById('resaleArchiveReturn').checked
+            };
+            
+            try {
+                const apiBase = window.API_BASE || '';
+                const response = await authenticatedFetch(`${apiBase}/api/admin/product/${window.currentProductId}/resale`, {
+                    method: 'PUT',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                if (response.ok) {
+                    document.getElementById('resaleProductSuccess').textContent = 
+                        `Product marked as resold! New order: ${ebayOrderNumber}. ${result.resale_count ? `Total resales: ${result.resale_count}` : ''}`;
+                    document.getElementById('resaleProductSuccess').style.display = 'block';
+                    document.getElementById('resaleProductError').style.display = 'none';
+                    setTimeout(() => {
+                        document.getElementById('resaleProductModal').style.display = 'none';
+                        // Refresh the search results
+                        document.getElementById('searchForm').dispatchEvent(new Event('submit'));
+                    }, 2000);
+                } else {
+                    document.getElementById('resaleProductError').textContent = result.error || 'Failed to mark product as resold';
+                    document.getElementById('resaleProductError').style.display = 'block';
+                    document.getElementById('resaleProductSuccess').style.display = 'none';
+                }
+            } catch (error) {
+                document.getElementById('resaleProductError').textContent = 'Network error: ' + error.message;
+                document.getElementById('resaleProductError').style.display = 'block';
+                document.getElementById('resaleProductSuccess').style.display = 'none';
             }
         });
         
