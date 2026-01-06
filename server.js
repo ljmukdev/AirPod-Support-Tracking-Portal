@@ -2008,13 +2008,14 @@ app.post('/api/admin/purchases', requireAuth, requireDB, async (req, res) => {
             quantity,
             purchase_price,
             condition,
+            status,
             expected_delivery,
             serial_numbers,
             notes
         } = req.body;
         
         // Validation
-        if (!platform || !order_number || !seller_name || !purchase_date || !generation || !items_purchased || !Array.isArray(items_purchased) || items_purchased.length === 0 || !quantity || purchase_price === undefined) {
+        if (!platform || !order_number || !seller_name || !purchase_date || !generation || !items_purchased || !Array.isArray(items_purchased) || items_purchased.length === 0 || !quantity || purchase_price === undefined || !status) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
         
@@ -2028,11 +2029,11 @@ app.post('/api/admin/purchases', requireAuth, requireDB, async (req, res) => {
             quantity: parseInt(quantity),
             purchase_price: parseFloat(purchase_price),
             condition: condition || 'good',
+            status: status, // paid, awaiting_despatch, awaiting_delivery, delivered, awaiting_return, returned, refunded
             expected_delivery: expected_delivery ? new Date(expected_delivery) : null,
             serial_numbers: serial_numbers || [],
             notes: notes || '',
-            date_added: new Date(),
-            status: 'pending' // pending, received, processed
+            date_added: new Date()
         };
         
         const result = await db.collection('purchases').insertOne(purchase);
@@ -2086,13 +2087,14 @@ app.put('/api/admin/purchases/:id', requireAuth, requireDB, async (req, res) => 
             quantity,
             purchase_price,
             condition,
+            status,
             expected_delivery,
             serial_numbers,
             notes
         } = req.body;
         
         // Validation
-        if (!platform || !order_number || !seller_name || !purchase_date || !generation || !items_purchased || !Array.isArray(items_purchased) || items_purchased.length === 0 || !quantity || purchase_price === undefined) {
+        if (!platform || !order_number || !seller_name || !purchase_date || !generation || !items_purchased || !Array.isArray(items_purchased) || items_purchased.length === 0 || !quantity || purchase_price === undefined || !status) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
         
@@ -2106,6 +2108,7 @@ app.put('/api/admin/purchases/:id', requireAuth, requireDB, async (req, res) => 
             quantity: parseInt(quantity),
             purchase_price: parseFloat(purchase_price),
             condition: condition || 'good',
+            status: status, // paid, awaiting_despatch, awaiting_delivery, delivered, awaiting_return, returned, refunded
             expected_delivery: expected_delivery ? new Date(expected_delivery) : null,
             serial_numbers: serial_numbers || [],
             notes: notes || '',

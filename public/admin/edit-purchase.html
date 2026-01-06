@@ -256,6 +256,21 @@
                             </select>
                         </div>
 
+                        <!-- Status -->
+                        <div class="form-group">
+                            <label for="status">Status *</label>
+                            <select id="status" name="status" required>
+                                <option value="">Select status</option>
+                                <option value="paid">Paid</option>
+                                <option value="awaiting_despatch">Awaiting Despatch</option>
+                                <option value="awaiting_delivery">Awaiting Delivery</option>
+                                <option value="delivered">Delivered</option>
+                                <option value="awaiting_return">Awaiting Return</option>
+                                <option value="returned">Returned</option>
+                                <option value="refunded">Refunded</option>
+                            </select>
+                        </div>
+
                         <!-- Expected Delivery -->
                         <div class="form-group">
                             <label for="expectedDelivery">Expected Delivery</label>
@@ -332,6 +347,7 @@
                 document.getElementById('quantity').value = purchase.quantity || 1;
                 document.getElementById('purchasePrice').value = purchase.purchase_price || '';
                 document.getElementById('condition').value = purchase.condition || '';
+                document.getElementById('status').value = purchase.status || '';
                 document.getElementById('expectedDelivery').value = purchase.expected_delivery ? new Date(purchase.expected_delivery).toISOString().split('T')[0] : '';
                 document.getElementById('serialNumbers').value = purchase.serial_numbers ? purchase.serial_numbers.join('\n') : '';
                 document.getElementById('notes').value = purchase.notes || '';
@@ -434,6 +450,7 @@
                     quantity: parseInt(formData.get('quantity')),
                     purchase_price: parseFloat(formData.get('purchasePrice')),
                     condition: formData.get('condition'),
+                    status: formData.get('status'),
                     expected_delivery: formData.get('expectedDelivery') || null,
                     serial_numbers: formData.get('serialNumbers') ? formData.get('serialNumbers').split('\n').filter(s => s.trim()) : [],
                     notes: formData.get('notes') || ''

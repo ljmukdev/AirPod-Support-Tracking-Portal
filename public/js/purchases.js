@@ -68,7 +68,7 @@ async function loadPurchases() {
     } catch (error) {
         console.error('[PURCHASES] Error loading purchases:', error);
         document.getElementById('purchasesTable').innerHTML = 
-            '<tr><td colspan="10" style="text-align: center; padding: 20px; color: #dc3545;">Failed to load purchases: ' + error.message + '</td></tr>';
+            '<tr><td colspan="11" style="text-align: center; padding: 20px; color: #dc3545;">Failed to load purchases: ' + error.message + '</td></tr>';
     }
 }
 
@@ -76,7 +76,7 @@ function renderPurchases(purchases) {
     const tableBody = document.getElementById('purchasesTable');
     
     if (purchases.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 40px; color: #666;">No purchases found. <a href="add-purchase.html">Add your first purchase</a></td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="11" style="text-align: center; padding: 40px; color: #666;">No purchases found. <a href="add-purchase.html">Add your first purchase</a></td></tr>';
         return;
     }
     
@@ -115,6 +115,29 @@ function renderPurchases(purchases) {
         const conditionLabel = conditionLabels[purchase.condition] || purchase.condition;
         const conditionBadge = `<span style="display: inline-block; padding: 4px 8px; background-color: ${conditionColor}; color: white; border-radius: 4px; font-size: 0.85rem;">${escapeHtml(conditionLabel)}</span>`;
         
+        // Status badge
+        const statusColors = {
+            'paid': '#17a2b8',
+            'awaiting_despatch': '#ffc107',
+            'awaiting_delivery': '#fd7e14',
+            'delivered': '#28a745',
+            'awaiting_return': '#6c757d',
+            'returned': '#dc3545',
+            'refunded': '#343a40'
+        };
+        const statusLabels = {
+            'paid': 'Paid',
+            'awaiting_despatch': 'Awaiting Despatch',
+            'awaiting_delivery': 'Awaiting Delivery',
+            'delivered': 'Delivered',
+            'awaiting_return': 'Awaiting Return',
+            'returned': 'Returned',
+            'refunded': 'Refunded'
+        };
+        const statusColor = statusColors[purchase.status] || '#6c757d';
+        const statusLabel = statusLabels[purchase.status] || purchase.status || 'Unknown';
+        const statusBadge = `<span style="display: inline-block; padding: 4px 8px; background-color: ${statusColor}; color: white; border-radius: 4px; font-size: 0.85rem;">${escapeHtml(statusLabel)}</span>`;
+        
         // Items purchased badges
         const itemLabels = {
             'case': 'Case',
@@ -142,6 +165,7 @@ function renderPurchases(purchases) {
                 <td style="text-align: center;">${escapeHtml(String(purchase.quantity))}</td>
                 <td style="font-weight: 600; color: var(--accent-teal);">£${parseFloat(purchase.purchase_price).toFixed(2)}</td>
                 <td>${conditionBadge}</td>
+                <td>${statusBadge}</td>
                 <td>${formattedDate}</td>
                 <td>
                     <div class="action-buttons">
