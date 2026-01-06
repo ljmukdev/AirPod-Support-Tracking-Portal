@@ -1,10 +1,15 @@
 /* LJM AirPod Support - Main Stylesheet */
 
 /* Reset and Base Styles */
-* {
+*, *::before, *::after {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+}
+
+html, body {
+    margin: 0 !important;
+    padding: 0 !important;
 }
 
 :root {
@@ -26,6 +31,8 @@ body {
     color: var(--text-dark);
     background-color: var(--background-white);
     min-height: 100vh;
+    margin: 0;
+    padding: 0;
 }
 
 /* Typography */
@@ -1706,6 +1713,8 @@ html {
     overflow-x: hidden;
     width: 100%;
     background-color: #f5f7fa;
+    margin: 0;
+    padding: 0;
 }
 
 /* Troubleshooting Accordion */
