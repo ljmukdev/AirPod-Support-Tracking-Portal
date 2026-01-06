@@ -17,6 +17,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
+    // Auto-convert tracking number to uppercase as user types
+    document.getElementById('trackingNumberInput').addEventListener('input', function(e) {
+        this.value = this.value.toUpperCase();
+    });
+    
     // Cancel button
     document.getElementById('cancelButton').addEventListener('click', resetForm);
     
@@ -36,7 +41,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 async function searchByTracking() {
-    const trackingNumber = document.getElementById('trackingNumberInput').value.trim();
+    const trackingNumber = document.getElementById('trackingNumberInput').value.trim().toUpperCase();
     const errorBanner = document.getElementById('errorBanner');
     const successBanner = document.getElementById('successBanner');
     

@@ -338,7 +338,7 @@
                         <!-- Tracking Number -->
                         <div class="form-group">
                             <label for="trackingNumber">Tracking Number</label>
-                            <input type="text" id="trackingNumber" name="trackingNumber" placeholder="Enter tracking number">
+                            <input type="text" id="trackingNumber" name="trackingNumber" placeholder="Enter tracking number" style="text-transform: uppercase;">
                         </div>
 
                         <!-- Serial Numbers (Full width) -->
@@ -530,7 +530,7 @@
                     feedback_left: document.getElementById('feedbackLeft').checked,
                     expected_delivery: formData.get('expectedDelivery') || null,
                     tracking_provider: formData.get('trackingProvider') || null,
-                    tracking_number: formData.get('trackingNumber') || null,
+                    tracking_number: formData.get('trackingNumber') ? formData.get('trackingNumber').trim().toUpperCase() : null,
                     serial_numbers: formData.get('serialNumbers') ? formData.get('serialNumbers').split('\n').filter(s => s.trim()) : [],
                     notes: formData.get('notes') || ''
                 };
@@ -591,6 +591,11 @@
         
         // Set today's date as default for purchase date
         document.getElementById('purchaseDate').valueAsDate = new Date();
+        
+        // Auto-convert tracking number to uppercase
+        document.getElementById('trackingNumber').addEventListener('input', function(e) {
+            this.value = this.value.toUpperCase();
+        });
         
         // Sidebar toggle
         document.getElementById('sidebarToggle').addEventListener('click', function() {

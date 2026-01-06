@@ -2040,7 +2040,7 @@ app.post('/api/admin/purchases', requireAuth, requireDB, async (req, res) => {
             feedback_left: feedback_left === true,
             expected_delivery: expected_delivery ? new Date(expected_delivery) : null,
             tracking_provider: tracking_provider || null,
-            tracking_number: tracking_number || null,
+            tracking_number: tracking_number ? tracking_number.trim().toUpperCase() : null,
             serial_numbers: serial_numbers || [],
             notes: notes || '',
             date_added: new Date()
@@ -2087,8 +2087,9 @@ app.get('/api/admin/purchases/by-tracking/:trackingNumber', requireAuth, require
     }
     
     try {
+        // Search case-insensitively
         const purchase = await db.collection('purchases').findOne({ 
-            tracking_number: trackingNumber.trim()
+            tracking_number: { $regex: new RegExp(`^${trackingNumber.trim()}$`, 'i') }
         });
         
         if (!purchase) {
@@ -2206,7 +2207,7 @@ app.put('/api/admin/purchases/:id', requireAuth, requireDB, async (req, res) => 
             feedback_left: feedback_left === true,
             expected_delivery: expected_delivery ? new Date(expected_delivery) : null,
             tracking_provider: tracking_provider || null,
-            tracking_number: tracking_number || null,
+            tracking_number: tracking_number ? tracking_number.trim().toUpperCase() : null,
             serial_numbers: serial_numbers || [],
             notes: notes || '',
             date_updated: new Date()
