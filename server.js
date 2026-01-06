@@ -2045,6 +2045,90 @@ app.post('/api/admin/purchases', requireAuth, requireDB, async (req, res) => {
     }
 });
 
+// Get single purchase (Admin only)
+app.get('/api/admin/purchases/:id', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid purchase ID' });
+    }
+    
+    try {
+        const purchase = await db.collection('purchases').findOne({ _id: new ObjectId(id) });
+        
+        if (!purchase) {
+            return res.status(404).json({ error: 'Purchase not found' });
+        }
+        
+        res.json({ success: true, purchase });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Update purchase (Admin only)
+app.put('/api/admin/purchases/:id', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid purchase ID' });
+    }
+    
+    try {
+        const {
+            platform,
+            order_number,
+            seller_name,
+            purchase_date,
+            generation,
+            items_purchased,
+            quantity,
+            purchase_price,
+            condition,
+            expected_delivery,
+            serial_numbers,
+            notes
+        } = req.body;
+        
+        // Validation
+        if (!platform || !order_number || !seller_name || !purchase_date || !generation || !items_purchased || !Array.isArray(items_purchased) || items_purchased.length === 0 || !quantity || purchase_price === undefined) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+        
+        const updateData = {
+            platform,
+            order_number,
+            seller_name,
+            purchase_date: new Date(purchase_date),
+            generation,
+            items_purchased,
+            quantity: parseInt(quantity),
+            purchase_price: parseFloat(purchase_price),
+            condition: condition || 'good',
+            expected_delivery: expected_delivery ? new Date(expected_delivery) : null,
+            serial_numbers: serial_numbers || [],
+            notes: notes || '',
+            date_updated: new Date()
+        };
+        
+        const result = await db.collection('purchases').updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updateData }
+        );
+        
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ error: 'Purchase not found' });
+        }
+        
+        console.log('Purchase updated successfully, ID:', id);
+        res.json({ success: true, message: 'Purchase updated successfully' });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // Delete purchase (Admin only)
 app.delete('/api/admin/purchases/:id', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;

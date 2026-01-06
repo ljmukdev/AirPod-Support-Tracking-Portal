@@ -250,9 +250,8 @@ function filterPurchases() {
 }
 
 async function editPurchase(id) {
-    // For now, just redirect to a future edit page
-    // You can implement this later similar to editing products
-    alert('Edit functionality coming soon! Purchase ID: ' + id);
+    // Redirect to edit page with purchase ID
+    window.location.href = `edit-purchase.html?id=${encodeURIComponent(id)}`;
 }
 
 async function deletePurchase(id) {

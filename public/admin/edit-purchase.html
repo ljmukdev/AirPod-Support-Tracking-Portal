@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Purchase | LJM Admin</title>
+    <link rel="stylesheet" href="../css/styles.css?v=1.2.5.032">
+    <style>
+        .form-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .form-group-full {
+            grid-column: 1 / -1;
+        }
+        .form-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #e0e0e0;
+        }
+        .success-banner {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .error-banner {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+    </style>
+</head>
+<body class="admin-panel">
+    <!-- Sidebar (same as purchases.html) -->
+    <aside class="admin-sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <div class="logo-circle">
+                    <span class="logo-text">LJM</span>
+                </div>
+                <div>
+                    <div class="sidebar-logo-text">LJM Admin</div>
+                    <div class="sidebar-subtitle">Dashboard</div>
+                </div>
+            </div>
+        </div>
+        
+        <nav class="sidebar-nav">
+            <div class="nav-section">
+                <div class="nav-section-header">ADMIN</div>
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="dashboard.html" class="nav-link">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 10L9 4L9 10L17 10M3 10L3 16M3 10L17 10M17 10L17 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="parts.html" class="nav-link">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <rect x="3" y="3" width="6" height="6" stroke="currentColor" stroke-width="1.5"/>
+                                <rect x="11" y="3" width="6" height="6" stroke="currentColor" stroke-width="1.5"/>
+                                <rect x="3" y="11" width="6" height="6" stroke="currentColor" stroke-width="1.5"/>
+                                <rect x="11" y="11" width="6" height="6" stroke="currentColor" stroke-width="1.5"/>
+                            </svg>
+                            <span>Manage Parts</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="products.html" class="nav-link">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M4 4H16V16H4V4Z" stroke="currentColor" stroke-width="1.5"/>
+                                <path d="M4 8H16" stroke="currentColor" stroke-width="1.5"/>
+                                <path d="M8 4V16" stroke="currentColor" stroke-width="1.5"/>
+                            </svg>
+                            <span>Products</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="purchases.html" class="nav-link active">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 5L10 2L17 5M3 5L3 15L10 18M3 5L10 8M17 5L17 15L10 18M17 5L10 8M10 8L10 18" stroke="currentColor" stroke-width="1.5"/>
+                            </svg>
+                            <span>Purchases</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+        
+        <div class="sidebar-footer">
+            <button class="sidebar-footer-link sidebar-logout" id="logoutButton">
+                <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M13 15L17 10L13 5M17 10H7" stroke="currentColor" stroke-width="1.5"/>
+                    <path d="M7 3H4C3.44772 3 3 3.44772 3 4V16C3 16.5523 3.44772 17 4 17H7" stroke="currentColor" stroke-width="1.5"/>
+                </svg>
+                <span>Logout</span>
+            </button>
+        </div>
+    </aside>
+    
+    <!-- Main Content -->
+    <div class="admin-main">
+        <header class="admin-topbar">
+            <div class="topbar-left">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 5H17M3 10H17M3 15H17" stroke="currentColor" stroke-width="1.5"/>
+                    </svg>
+                </button>
+                <h2 style="margin: 0; font-size: 1.25rem;">Edit Purchase</h2>
+            </div>
+            <div class="topbar-right">
+                <a href="purchases.html" class="button button-secondary" style="padding: 8px 16px; font-size: 0.9rem;">
+                    ← Back to Purchases
+                </a>
+            </div>
+        </header>
+        
+        <div class="admin-content">
+            <div class="form-container">
+                <div id="successBanner" class="success-banner"></div>
+                <div id="errorBanner" class="error-banner"></div>
+
+                <h1>Edit Purchase</h1>
+                <p style="color: #666; margin-bottom: 30px;">Update purchase details</p>
+
+                <form id="addPurchaseForm">
+                    <div class="form-grid">
+                        <!-- Platform -->
+                        <div class="form-group">
+                            <label for="platform">Platform *</label>
+                            <select id="platform" name="platform" required>
+                                <option value="">Select platform</option>
+                                <option value="ebay">eBay</option>
+                                <option value="vinted">Vinted</option>
+                                <option value="facebook">Facebook Marketplace</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+
+                        <!-- Order Number -->
+                        <div class="form-group">
+                            <label for="orderNumber">Order Number *</label>
+                            <input type="text" id="orderNumber" name="orderNumber" required placeholder="e.g., 01-12345-67890">
+                        </div>
+
+                        <!-- Seller Name -->
+                        <div class="form-group">
+                            <label for="sellerName">Seller Name *</label>
+                            <input type="text" id="sellerName" name="sellerName" required placeholder="Seller username or name">
+                        </div>
+
+                        <!-- Purchase Date -->
+                        <div class="form-group">
+                            <label for="purchaseDate">Purchase Date *</label>
+                            <input type="date" id="purchaseDate" name="purchaseDate" required>
+                        </div>
+
+                        <!-- Generation -->
+                        <div class="form-group">
+                            <label for="generation">Generation *</label>
+                            <select id="generation" name="generation" required>
+                                <option value="">Select generation</option>
+                                <option value="AirPods (1st Gen)">AirPods (1st Gen)</option>
+                                <option value="AirPods (2nd Gen)">AirPods (2nd Gen)</option>
+                                <option value="AirPods (3rd Gen)">AirPods (3rd Gen)</option>
+                                <option value="AirPods (4th Gen)">AirPods (4th Gen)</option>
+                                <option value="AirPods Pro (1st Gen)">AirPods Pro (1st Gen)</option>
+                                <option value="AirPods Pro (2nd Gen)">AirPods Pro (2nd Gen)</option>
+                                <option value="AirPods Max">AirPods Max</option>
+                            </select>
+                        </div>
+
+                        <!-- What was purchased - Checkboxes -->
+                        <div class="form-group form-group-full">
+                            <label>What was purchased? * <span style="font-size: 0.85rem; color: #666; font-weight: normal;">(Select all that apply)</span></label>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 10px;">
+                                <label style="display: flex; align-items: center; cursor: pointer; padding: 8px; border: 1px solid #ddd; border-radius: 4px; transition: all 0.2s;" class="checkbox-label">
+                                    <input type="checkbox" name="items_purchased" value="case" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
+                                    <span>Case</span>
+                                </label>
+                                <label style="display: flex; align-items: center; cursor: pointer; padding: 8px; border: 1px solid #ddd; border-radius: 4px; transition: all 0.2s;" class="checkbox-label">
+                                    <input type="checkbox" name="items_purchased" value="left" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
+                                    <span>Left AirPod</span>
+                                </label>
+                                <label style="display: flex; align-items: center; cursor: pointer; padding: 8px; border: 1px solid #ddd; border-radius: 4px; transition: all 0.2s;" class="checkbox-label">
+                                    <input type="checkbox" name="items_purchased" value="right" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
+                                    <span>Right AirPod</span>
+                                </label>
+                                <label style="display: flex; align-items: center; cursor: pointer; padding: 8px; border: 1px solid #ddd; border-radius: 4px; transition: all 0.2s;" class="checkbox-label">
+                                    <input type="checkbox" name="items_purchased" value="box" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
+                                    <span>Box</span>
+                                </label>
+                                <label style="display: flex; align-items: center; cursor: pointer; padding: 8px; border: 1px solid #ddd; border-radius: 4px; transition: all 0.2s;" class="checkbox-label">
+                                    <input type="checkbox" name="items_purchased" value="ear_tips" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
+                                    <span>Ear Tips</span>
+                                </label>
+                                <label style="display: flex; align-items: center; cursor: pointer; padding: 8px; border: 1px solid #ddd; border-radius: 4px; transition: all 0.2s;" class="checkbox-label">
+                                    <input type="checkbox" name="items_purchased" value="cable" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
+                                    <span>Cable</span>
+                                </label>
+                                <label style="display: flex; align-items: center; cursor: pointer; padding: 8px; border: 1px solid #ddd; border-radius: 4px; transition: all 0.2s;" class="checkbox-label">
+                                    <input type="checkbox" name="items_purchased" value="protective_case" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
+                                    <span>Protective Case</span>
+                                </label>
+                            </div>
+                            <div id="itemsError" style="color: #dc3545; font-size: 0.85rem; margin-top: 8px; display: none;">Please select at least one item</div>
+                        </div>
+
+                        <!-- Quantity -->
+                        <div class="form-group">
+                            <label for="quantity">Quantity *</label>
+                            <input type="number" id="quantity" name="quantity" min="1" value="1" required>
+                        </div>
+
+                        <!-- Purchase Price -->
+                        <div class="form-group">
+                            <label for="purchasePrice">Purchase Price (£) *</label>
+                            <input type="number" id="purchasePrice" name="purchasePrice" step="0.01" min="0" required placeholder="0.00">
+                        </div>
+
+                        <!-- Condition -->
+                        <div class="form-group">
+                            <label for="condition">Condition *</label>
+                            <select id="condition" name="condition" required>
+                                <option value="">Select condition</option>
+                                <option value="new">New / Sealed</option>
+                                <option value="like_new">Like New</option>
+                                <option value="excellent">Excellent</option>
+                                <option value="good">Good</option>
+                                <option value="fair">Fair</option>
+                                <option value="for_parts">For Parts / Not Working</option>
+                            </select>
+                        </div>
+
+                        <!-- Expected Delivery -->
+                        <div class="form-group">
+                            <label for="expectedDelivery">Expected Delivery</label>
+                            <input type="date" id="expectedDelivery" name="expectedDelivery">
+                        </div>
+
+                        <!-- Serial Numbers (Full width) -->
+                        <div class="form-group form-group-full">
+                            <label for="serialNumbers">Serial Numbers (if known)</label>
+                            <textarea id="serialNumbers" name="serialNumbers" rows="2" placeholder="Enter serial numbers, one per line"></textarea>
+                            <small style="color: #666;">Enter one serial number per line</small>
+                        </div>
+
+                        <!-- Notes (Full width) -->
+                        <div class="form-group form-group-full">
+                            <label for="notes">Notes</label>
+                            <textarea id="notes" name="notes" rows="4" placeholder="Any additional notes about this purchase..."></textarea>
+                        </div>
+
+                        <!-- Photos (Full width) -->
+                        <div class="form-group form-group-full">
+                            <label for="photos">Photos</label>
+                            <p style="font-size: 0.85rem; color: #666; margin-bottom: 10px;">
+                                Upload photos of the listing or received items
+                            </p>
+                            <input type="file" id="photos" name="photos" accept="image/*" multiple>
+                            <div id="photoPreview" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; margin-top: 15px;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Form Actions -->
+                    <div class="form-actions">
+                        <a href="purchases.html" class="button button-secondary">Cancel</a>
+                        <button type="submit" class="button" id="submitButton">
+                            Update Purchase
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <script src="../js/admin.js"></script>
+    <script>
+        // Get purchase ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const purchaseId = urlParams.get('id');
+        
+        if (!purchaseId) {
+            alert('No purchase ID provided');
+            window.location.href = 'purchases.html';
+        }
+        
+        // Load existing purchase data
+        async function loadPurchaseData() {
+            try {
+                const response = await authenticatedFetch(`${window.API_BASE}/api/admin/purchases/${encodeURIComponent(purchaseId)}`);
+                
+                if (!response.ok) {
+                    throw new Error('Failed to load purchase');
+                }
+                
+                const data = await response.json();
+                const purchase = data.purchase;
+                
+                // Populate form fields
+                document.getElementById('platform').value = purchase.platform || '';
+                document.getElementById('orderNumber').value = purchase.order_number || '';
+                document.getElementById('sellerName').value = purchase.seller_name || '';
+                document.getElementById('purchaseDate').value = purchase.purchase_date ? new Date(purchase.purchase_date).toISOString().split('T')[0] : '';
+                document.getElementById('generation').value = purchase.generation || '';
+                document.getElementById('quantity').value = purchase.quantity || 1;
+                document.getElementById('purchasePrice').value = purchase.purchase_price || '';
+                document.getElementById('condition').value = purchase.condition || '';
+                document.getElementById('expectedDelivery').value = purchase.expected_delivery ? new Date(purchase.expected_delivery).toISOString().split('T')[0] : '';
+                document.getElementById('serialNumbers').value = purchase.serial_numbers ? purchase.serial_numbers.join('\n') : '';
+                document.getElementById('notes').value = purchase.notes || '';
+                
+                // Check the appropriate item checkboxes
+                if (purchase.items_purchased && Array.isArray(purchase.items_purchased)) {
+                    purchase.items_purchased.forEach(item => {
+                        const checkbox = document.querySelector(`input[name="items_purchased"][value="${item}"]`);
+                        if (checkbox) {
+                            checkbox.checked = true;
+                            // Trigger visual update
+                            const label = checkbox.closest('.checkbox-label');
+                            if (label) {
+                                label.style.backgroundColor = '#e8f4f8';
+                                label.style.borderColor = 'var(--accent-teal)';
+                            }
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading purchase:', error);
+                alert('Failed to load purchase data: ' + error.message);
+                window.location.href = 'purchases.html';
+            }
+        }
+        
+        // Checkbox hover effects
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load purchase data first
+            loadPurchaseData();
+            
+            const checkboxLabels = document.querySelectorAll('.checkbox-label');
+            checkboxLabels.forEach(label => {
+                const checkbox = label.querySelector('input[type="checkbox"]');
+                
+                // Update label style when checked
+                checkbox.addEventListener('change', function() {
+                    if (this.checked) {
+                        label.style.backgroundColor = '#e8f4f8';
+                        label.style.borderColor = 'var(--accent-teal)';
+                    } else {
+                        label.style.backgroundColor = '';
+                        label.style.borderColor = '#ddd';
+                    }
+                });
+                
+                // Hover effect
+                label.addEventListener('mouseenter', function() {
+                    if (!checkbox.checked) {
+                        label.style.backgroundColor = '#f8f9fa';
+                    }
+                });
+                
+                label.addEventListener('mouseleave', function() {
+                    if (!checkbox.checked) {
+                        label.style.backgroundColor = '';
+                    }
+                });
+            });
+        });
+        
+        // Form submission
+        document.getElementById('addPurchaseForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const submitButton = document.getElementById('submitButton');
+            const successBanner = document.getElementById('successBanner');
+            const errorBanner = document.getElementById('errorBanner');
+            const itemsError = document.getElementById('itemsError');
+            
+            // Hide previous messages
+            successBanner.style.display = 'none';
+            errorBanner.style.display = 'none';
+            itemsError.style.display = 'none';
+            
+            // Get checked items
+            const checkedItems = Array.from(document.querySelectorAll('input[name="items_purchased"]:checked'))
+                .map(cb => cb.value);
+            
+            // Validate at least one item is selected
+            if (checkedItems.length === 0) {
+                itemsError.style.display = 'block';
+                itemsError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return;
+            }
+            
+            submitButton.disabled = true;
+            submitButton.textContent = 'Updating...';
+            
+            try {
+                const formData = new FormData(this);
+                
+                const purchaseData = {
+                    platform: formData.get('platform'),
+                    order_number: formData.get('orderNumber'),
+                    seller_name: formData.get('sellerName'),
+                    purchase_date: formData.get('purchaseDate'),
+                    generation: formData.get('generation'),
+                    items_purchased: checkedItems,
+                    quantity: parseInt(formData.get('quantity')),
+                    purchase_price: parseFloat(formData.get('purchasePrice')),
+                    condition: formData.get('condition'),
+                    expected_delivery: formData.get('expectedDelivery') || null,
+                    serial_numbers: formData.get('serialNumbers') ? formData.get('serialNumbers').split('\n').filter(s => s.trim()) : [],
+                    notes: formData.get('notes') || ''
+                };
+                
+                const response = await authenticatedFetch(`${window.API_BASE}/api/admin/purchases/${encodeURIComponent(purchaseId)}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(purchaseData)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    successBanner.textContent = 'Purchase updated successfully!';
+                    successBanner.style.display = 'block';
+                    
+                    // Redirect after 1 second
+                    setTimeout(() => {
+                        window.location.href = 'purchases.html';
+                    }, 1000);
+                } else {
+                    throw new Error(data.error || 'Failed to update purchase');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                errorBanner.textContent = error.message || 'An error occurred. Please try again.';
+                errorBanner.style.display = 'block';
+                submitButton.disabled = false;
+                submitButton.textContent = 'Update Purchase';
+            }
+        });
+        
+        // Photo preview
+        document.getElementById('photos').addEventListener('change', function(e) {
+            const preview = document.getElementById('photoPreview');
+            preview.innerHTML = '';
+            
+            Array.from(this.files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.style.width = '100%';
+                    img.style.height = '100px';
+                    img.style.objectFit = 'cover';
+                    img.style.borderRadius = '4px';
+                    preview.appendChild(img);
+                };
+                reader.readAsDataURL(file);
+            });
+        });
+        
+        // Sidebar toggle
+        document.getElementById('sidebarToggle').addEventListener('click', function() {
+            document.querySelector('.admin-sidebar').classList.toggle('sidebar-open');
+            document.getElementById('sidebarOverlay').classList.toggle('active');
+        });
+        
+        document.getElementById('sidebarOverlay').addEventListener('click', function() {
+            document.querySelector('.admin-sidebar').classList.remove('sidebar-open');
+            this.classList.remove('active');
+        });
+    </script>
+</body>
+</html>
