@@ -11,6 +11,88 @@ let allProductsData = [];
 let statusOptionsCache = [];
 let filtersInitialized = false;
 
+// Universal search function
+window.handleUniversalSearch = function(event) {
+    event.preventDefault();
+    
+    const searchInput = document.getElementById('universalSearchInput');
+    const searchTerm = searchInput.value.trim().toUpperCase();
+    
+    if (!searchTerm) {
+        // If empty, show all products
+        applyFiltersAndRender();
+        return false;
+    }
+    
+    console.log('[UNIVERSAL SEARCH] Searching for:', searchTerm);
+    
+    // Filter products that match any of the search fields
+    const matchingProducts = allProductsData.filter(product => {
+        // Search in serial number
+        if (product.serial_number && product.serial_number.toUpperCase().includes(searchTerm)) {
+            return true;
+        }
+        
+        // Search in security number
+        if (product.security_number && product.security_number.toUpperCase().includes(searchTerm)) {
+            return true;
+        }
+        
+        // Search in eBay order number
+        if (product.ebay_order_number && product.ebay_order_number.toUpperCase().includes(searchTerm)) {
+            return true;
+        }
+        
+        // Search in tracking number
+        if (product.tracking_number && product.tracking_number.toUpperCase().includes(searchTerm)) {
+            return true;
+        }
+        
+        // Search in product name
+        if (product.product_name && product.product_name.toUpperCase().includes(searchTerm)) {
+            return true;
+        }
+        
+        return false;
+    });
+    
+    console.log('[UNIVERSAL SEARCH] Found', matchingProducts.length, 'matching products');
+    
+    if (matchingProducts.length === 0) {
+        // Show no results message
+        const tbody = document.querySelector('#productsTableBody');
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="12" style="text-align: center; padding: 40px; color: #6b7280;">
+                        <div style="font-size: 1.2rem; margin-bottom: 8px;">No products found</div>
+                        <div style="font-size: 0.9rem;">No products match "${searchTerm}"</div>
+                        <button onclick="clearUniversalSearch()" style="margin-top: 16px; padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                            Clear Search
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }
+    } else {
+        // Render matching products
+        if (typeof window.renderProductsTable === 'function') {
+            window.renderProductsTable(matchingProducts);
+        }
+    }
+    
+    return false;
+};
+
+// Clear search function
+window.clearUniversalSearch = function() {
+    const searchInput = document.getElementById('universalSearchInput');
+    if (searchInput) {
+        searchInput.value = '';
+    }
+    applyFiltersAndRender();
+};
+
 // Override loadProducts immediately before admin.js calls it
 (function() {
     // Check if we're on the products page
