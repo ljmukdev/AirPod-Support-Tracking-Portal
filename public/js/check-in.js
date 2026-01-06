@@ -441,13 +441,18 @@ function displayCheckedInItems(checkIns) {
             issuesHtml = '<div style="margin-top: 10px;"><span class="issue-badge no-issues">✓ No Issues Detected</span></div>';
         }
         
+        const checkInId = checkIn._id || checkIn.id;
+        
         return `
             <div class="check-in-item">
                 <div class="check-in-header">
                     <div>
                         <strong style="font-size: 1.1rem;">Tracking: ${escapeHtml(checkIn.tracking_number || 'N/A')}</strong>
                     </div>
-                    <div class="check-in-date">${checkedInDate}</div>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <button onclick="viewCheckInDetails('${checkInId}')" class="button button-secondary" style="padding: 6px 12px; font-size: 0.85rem;">View Details</button>
+                        <div class="check-in-date">${checkedInDate}</div>
+                    </div>
                 </div>
                 <div class="check-in-details">
                     <div class="check-in-detail">
@@ -464,6 +469,25 @@ function displayCheckedInItems(checkIns) {
             </div>
         `;
     }).join('');
+}
+
+function viewCheckInDetails(checkInId) {
+    console.log('[CHECK-IN] Viewing check-in details:', checkInId);
+    // For now, we could show a modal or navigate to a detail page
+    // Let's create a simple alert showing the details
+    authenticatedFetch(`${window.API_BASE}/api/admin/check-in/${checkInId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('[CHECK-IN] Check-in details:', data);
+                alert('Check-in details loaded. Check console for full data.\n\nTracking: ' + (data.check_in.tracking_number || 'N/A') + '\nIssues: ' + (data.check_in.has_issues ? 'Yes' : 'No'));
+                // TODO: Create a proper modal or detail page
+            }
+        })
+        .catch(error => {
+            console.error('[CHECK-IN] Error loading details:', error);
+            alert('Error loading check-in details');
+        });
 }
 
 function escapeHtml(text) {

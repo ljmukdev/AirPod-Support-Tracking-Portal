@@ -2239,12 +2239,20 @@ app.post('/api/admin/check-in', requireAuth, requireDB, async (req, res) => {
         }
         
         // Analyze items for issues
+        console.log('[CHECK-IN] Analyzing items for issues:', JSON.stringify(items, null, 2));
         const issues = [];
         items.forEach(item => {
+            console.log(`[CHECK-IN] Checking item: ${item.item_type}`);
+            console.log(`  - is_genuine: ${item.is_genuine}`);
+            console.log(`  - condition: ${item.condition}`);
+            console.log(`  - audible_condition: ${item.audible_condition}`);
+            console.log(`  - connects_correctly: ${item.connects_correctly}`);
+            
             const itemIssues = [];
             
             // Check if not genuine
             if (item.is_genuine === false) {
+                console.log(`  ✗ Issue detected: Not genuine`);
                 itemIssues.push({
                     type: 'authenticity',
                     severity: 'critical',
@@ -2254,6 +2262,7 @@ app.post('/api/admin/check-in', requireAuth, requireDB, async (req, res) => {
             
             // Check visual condition issues (fair or poor)
             if (['fair', 'poor'].includes(item.condition)) {
+                console.log(`  ✗ Issue detected: Visual condition ${item.condition}`);
                 itemIssues.push({
                     type: 'condition',
                     severity: item.condition === 'poor' ? 'high' : 'medium',
@@ -2263,7 +2272,9 @@ app.post('/api/admin/check-in', requireAuth, requireDB, async (req, res) => {
             
             // Check audible condition issues (only for left/right AirPods)
             if (['left', 'right'].includes(item.item_type) && item.audible_condition) {
+                console.log(`  - Checking audible condition: ${item.audible_condition}`);
                 if (['poor', 'not_working'].includes(item.audible_condition)) {
+                    console.log(`  ✗ Issue detected: Audible condition ${item.audible_condition}`);
                     itemIssues.push({
                         type: 'audible',
                         severity: item.audible_condition === 'not_working' ? 'critical' : 'high',
@@ -2272,6 +2283,7 @@ app.post('/api/admin/check-in', requireAuth, requireDB, async (req, res) => {
                             : `Poor sound quality - audible condition is ${item.audible_condition}`
                     });
                 } else if (item.audible_condition === 'fair') {
+                    console.log(`  ✗ Issue detected: Audible condition fair`);
                     itemIssues.push({
                         type: 'audible',
                         severity: 'medium',
@@ -2282,6 +2294,7 @@ app.post('/api/admin/check-in', requireAuth, requireDB, async (req, res) => {
             
             // Check connectivity issues
             if (item.connects_correctly === false) {
+                console.log(`  ✗ Issue detected: Connectivity problem`);
                 itemIssues.push({
                     type: 'connectivity',
                     severity: 'high',
@@ -2290,13 +2303,18 @@ app.post('/api/admin/check-in', requireAuth, requireDB, async (req, res) => {
             }
             
             if (itemIssues.length > 0) {
+                console.log(`  Total issues for ${item.item_type}: ${itemIssues.length}`);
                 issues.push({
                     item_type: item.item_type,
                     item_name: getItemDisplayName(item.item_type),
                     issues: itemIssues
                 });
+            } else {
+                console.log(`  ✓ No issues detected for ${item.item_type}`);
             }
         });
+        
+        console.log(`[CHECK-IN] Total items with issues: ${issues.length}`);
         
         const checkInRecord = {
             purchase_id: new ObjectId(purchase_id),
