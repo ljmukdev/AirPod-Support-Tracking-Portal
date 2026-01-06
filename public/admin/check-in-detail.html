@@ -205,16 +205,18 @@
                 <h2>Admin Panel</h2>
             </div>
             <nav class="sidebar-nav">
-                <a href="dashboard.html">📊 Dashboard</a>
-                <a href="products.html">📦 Products</a>
-                <a href="purchases.html">🛒 Purchases</a>
-                <a href="check-in.html" class="active">✅ Check-In</a>
-                <a href="warranties.html">🛡️ Warranties</a>
-                <a href="addon-sales.html">💰 Add-on Sales</a>
-                <a href="analytics.html">📈 Analytics</a>
-                <a href="settings.html">⚙️ Settings</a>
+                <a href="dashboard.html" class="nav-link">Dashboard</a>
+                <a href="products.html" class="nav-link">Products</a>
+                <a href="purchases.html" class="nav-link">Purchases</a>
+                <a href="check-in.html" class="nav-link active">Check-In</a>
+                <a href="warranties.html" class="nav-link">Warranties</a>
+                <a href="addon-sales.html" class="nav-link">Add-on Sales</a>
+                <a href="analytics.html" class="nav-link">Analytics</a>
+                <a href="settings.html" class="nav-link">Settings</a>
             </nav>
-            <button class="logout-button" onclick="logout()">Logout</button>
+            <div class="sidebar-footer">
+                <button class="sidebar-footer-link" onclick="logout()">Logout</button>
+            </div>
         </aside>
 
         <div class="admin-overlay" id="sidebarOverlay"></div>
