@@ -168,17 +168,25 @@ function displaySplitSection() {
         return;
     }
     
-    // Get items that can be split (have serial numbers)
-    const splittableItems = checkInData.items.filter(item => 
-        ['case', 'left', 'right'].includes(item.item_type) && item.serial_number
-    );
+    // Get items that can be split (AirPods with serial numbers, or Box/Ear Tips)
+    const splittableItems = checkInData.items.filter(item => {
+        // AirPods parts need serial numbers
+        if (['case', 'left', 'right'].includes(item.item_type)) {
+            return item.serial_number;
+        }
+        // Box and Ear Tips don't need serial numbers
+        if (['box', 'ear_tips'].includes(item.item_type)) {
+            return true;
+        }
+        return false;
+    });
     
     if (splittableItems.length === 0) {
         container.innerHTML = `
             <div class="detail-card">
                 <div class="split-warning">
                     <strong>⚠ No Items to Split</strong>
-                    <p>No items with serial numbers found. Only Case, Left AirPod, and Right AirPod can be split into products.</p>
+                    <p>No items found to add to inventory.</p>
                 </div>
             </div>
         `;
@@ -219,6 +227,10 @@ function displaySplitSection() {
             }
         }
         
+        const serialInfo = item.serial_number 
+            ? `<span style="color: #666; font-size: 0.9rem;">SN: ${escapeHtml(item.serial_number)}</span>`
+            : `<span style="color: #9ca3af; font-size: 0.85rem; font-style: italic;">No serial number</span>`;
+        
         return `
             <div class="item-select-card">
                 <label class="item-select-label">
@@ -226,7 +238,7 @@ function displaySplitSection() {
                     <div class="item-select-info">
                         <div class="item-select-header">
                             <strong>${itemName}</strong>
-                            <span style="color: #666; font-size: 0.9rem;">SN: ${escapeHtml(item.serial_number)}</span>
+                            ${serialInfo}
                         </div>
                         <div style="font-size: 0.85rem; color: #666; margin-top: 3px;">
                             Condition: ${formatCondition(item.condition, false)}
@@ -348,9 +360,16 @@ async function splitIntoProducts() {
         const data = await response.json();
         
         if (data.success) {
-            const unselectedCount = checkInData.items.filter(i => 
-                ['case', 'left', 'right'].includes(i.item_type) && i.serial_number
-            ).length - selectedItems.length;
+            const allSplittableCount = checkInData.items.filter(i => {
+                if (['case', 'left', 'right'].includes(i.item_type)) {
+                    return i.serial_number;
+                }
+                if (['box', 'ear_tips'].includes(i.item_type)) {
+                    return true;
+                }
+                return false;
+            }).length;
+            const unselectedCount = allSplittableCount - selectedItems.length;
             
             let message = `Success! Added ${data.products_created} item${data.products_created !== 1 ? 's' : ''} to products.`;
             if (unselectedCount > 0) {

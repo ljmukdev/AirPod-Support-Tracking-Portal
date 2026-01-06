@@ -2425,17 +2425,26 @@ app.post('/api/admin/check-in/:id/split', requireAuth, requireDB, async (req, re
         console.log('[SPLIT] Splitting check-in into products:', id);
         console.log('[SPLIT] Selected items:', selected_items);
         
-        // Create products for selected items only
+        // Create products for selected items
         const productsToCreate = [];
-        const itemsWithSerials = checkIn.items.filter(item => 
-            ['case', 'left', 'right'].includes(item.item_type) && 
-            item.serial_number &&
-            selected_items.includes(item.item_type)
-        );
+        const itemsToSplit = checkIn.items.filter(item => {
+            if (!selected_items.includes(item.item_type)) {
+                return false;
+            }
+            // AirPods parts need serial numbers
+            if (['case', 'left', 'right'].includes(item.item_type)) {
+                return item.serial_number;
+            }
+            // Box and Ear Tips don't need serial numbers
+            if (['box', 'ear_tips'].includes(item.item_type)) {
+                return true;
+            }
+            return false;
+        });
         
-        console.log('[SPLIT] Items to create products for:', itemsWithSerials.length);
+        console.log('[SPLIT] Items to create products for:', itemsToSplit.length);
         
-        for (const item of itemsWithSerials) {
+        for (const item of itemsToSplit) {
             const productName = `AirPods ${purchase.generation || 'Unknown'} - ${getItemDisplayName(item.item_type)}`;
             
             // Determine status based on issues
@@ -2455,7 +2464,7 @@ app.post('/api/admin/check-in/:id/split', requireAuth, requireDB, async (req, re
             }
             
             const product = {
-                serial_number: item.serial_number,
+                serial_number: item.serial_number || null,
                 security_number: null,
                 product_name: productName,
                 part_number: null,
@@ -2467,7 +2476,7 @@ app.post('/api/admin/check-in/:id/split', requireAuth, requireDB, async (req, re
                 tracking_number: purchase.tracking_number || null,
                 visual_condition: item.condition,
                 audible_condition: item.audible_condition || null,
-                connectivity_status: item.connects_correctly ? 'working' : 'faulty',
+                connectivity_status: item.connects_correctly !== null ? (item.connects_correctly ? 'working' : 'faulty') : null,
                 is_genuine: item.is_genuine,
                 photos_uploaded: false,
                 status: status,
@@ -2475,7 +2484,7 @@ app.post('/api/admin/check-in/:id/split', requireAuth, requireDB, async (req, re
                 date_added: new Date(),
                 purchase_id: purchase._id,
                 check_in_id: checkIn._id,
-                purchase_price: purchase.purchase_price ? (purchase.purchase_price / itemsWithSerials.length) : null,
+                purchase_price: purchase.purchase_price ? (purchase.purchase_price / itemsToSplit.length) : null,
                 platform: purchase.platform || null,
                 seller_name: purchase.seller_name || null,
                 created_by: req.user.email
@@ -2485,7 +2494,7 @@ app.post('/api/admin/check-in/:id/split', requireAuth, requireDB, async (req, re
         }
         
         if (productsToCreate.length === 0) {
-            return res.status(400).json({ error: 'No items with serial numbers found to create products' });
+            return res.status(400).json({ error: 'No valid items found to create products' });
         }
         
         // Insert products
@@ -2493,10 +2502,16 @@ app.post('/api/admin/check-in/:id/split', requireAuth, requireDB, async (req, re
         const result = await db.collection('products').insertMany(productsToCreate);
         
         // Mark check-in as split
-        const allItems = checkIn.items.filter(item => 
-            ['case', 'left', 'right'].includes(item.item_type) && item.serial_number
-        );
-        const unsplitItems = allItems.filter(item => !selected_items.includes(item.item_type));
+        const allSplittableItems = checkIn.items.filter(item => {
+            if (['case', 'left', 'right'].includes(item.item_type)) {
+                return item.serial_number;
+            }
+            if (['box', 'ear_tips'].includes(item.item_type)) {
+                return true;
+            }
+            return false;
+        });
+        const unsplitItems = allSplittableItems.filter(item => !selected_items.includes(item.item_type));
         
         await db.collection('check_ins').updateOne(
             { _id: new ObjectId(id) },
