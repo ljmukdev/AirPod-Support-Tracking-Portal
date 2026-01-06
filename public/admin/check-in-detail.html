@@ -175,14 +175,18 @@
         }
         .item-select-card {
             background: white;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            margin-bottom: 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            margin-bottom: 10px;
             transition: all 0.2s;
+        }
+        .item-select-card:hover {
+            border-color: #d1d5db;
         }
         .item-select-card:has(input:checked) {
             border-color: #10b981;
             background: #f0fdf4;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
         }
         .item-select-label {
             display: flex;
