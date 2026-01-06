@@ -1,11 +1,11 @@
 // Purchases Management - Frontend Logic
-console.log('[PURCHASES] Script loaded');
+console.log('[PURCHASES] Script loaded - v1.0.6');
 
+// Use window.API_BASE directly to avoid conflicts
 if (typeof window.API_BASE === 'undefined') {
     window.API_BASE = '';
 }
-var API_BASE = window.API_BASE;
-console.log('[PURCHASES] API_BASE:', API_BASE);
+console.log('[PURCHASES] API_BASE:', window.API_BASE);
 
 let allPurchases = [];
 
@@ -43,7 +43,7 @@ if (document.readyState === 'loading') {
 async function loadPurchases() {
     console.log('[PURCHASES] Loading purchases from API...');
     try {
-        const response = await authenticatedFetch(`${API_BASE}/api/admin/purchases`, {
+        const response = await authenticatedFetch(`${window.API_BASE}/api/admin/purchases`, {
             credentials: 'include'
         });
         
@@ -261,7 +261,7 @@ async function deletePurchase(id) {
     }
     
     try {
-        const response = await authenticatedFetch(`${API_BASE}/api/admin/purchases/${encodeURIComponent(id)}`, {
+        const response = await authenticatedFetch(`${window.API_BASE}/api/admin/purchases/${encodeURIComponent(id)}`, {
             method: 'DELETE',
             credentials: 'include'
         });
