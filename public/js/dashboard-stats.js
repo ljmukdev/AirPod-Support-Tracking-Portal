@@ -30,6 +30,10 @@ async function loadDashboardStats() {
         // Fetch products to calculate stats
         console.log('[Dashboard] Fetching products...');
         const response = await authenticatedFetch(`${window.API_BASE}/api/admin/products?limit=10000`);
+        
+        // Also fetch purchases
+        console.log('[Dashboard] Fetching purchases...');
+        const purchasesResponse = await authenticatedFetch(`${window.API_BASE}/api/admin/purchases`);
 
         console.log('[Dashboard] Response status:', response.status);
 
@@ -97,6 +101,65 @@ async function loadDashboardStats() {
         } else {
             console.error('Failed to load products:', data);
             showError('Failed to load statistics: ' + (data.error || 'Unknown error'));
+        }
+        
+        // Process purchase data
+        console.log('[Dashboard] Processing purchases data...');
+        if (purchasesResponse.ok) {
+            const purchasesData = await purchasesResponse.json();
+            console.log('[Dashboard] Received purchases:', purchasesData?.purchases?.length);
+            
+            if (purchasesData.purchases) {
+                const purchases = purchasesData.purchases;
+                const purchaseStats = {
+                    totalPurchases: purchases.length,
+                    totalSpent: 0,
+                    byStatus: {},
+                    byPlatform: {},
+                    awaitingDelivery: 0,
+                    checkedIn: 0,
+                    recentPurchases: []
+                };
+                
+                const now = new Date();
+                const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                
+                purchases.forEach(purchase => {
+                    // Calculate total spent
+                    purchaseStats.totalSpent += (parseFloat(purchase.purchase_price) || 0) * (parseInt(purchase.quantity) || 1);
+                    
+                    // Count by status
+                    const status = purchase.status || 'unknown';
+                    purchaseStats.byStatus[status] = (purchaseStats.byStatus[status] || 0) + 1;
+                    
+                    // Count by platform
+                    const platform = purchase.platform || 'unknown';
+                    purchaseStats.byPlatform[platform] = (purchaseStats.byPlatform[platform] || 0) + 1;
+                    
+                    // Count awaiting delivery
+                    if (status === 'awaiting_delivery' || status === 'awaiting_despatch') {
+                        purchaseStats.awaitingDelivery++;
+                    }
+                    
+                    // Count checked in
+                    if (purchase.checked_in === true) {
+                        purchaseStats.checkedIn++;
+                    }
+                    
+                    // Collect recent purchases
+                    if (purchase.purchase_date) {
+                        const purchaseDate = new Date(purchase.purchase_date);
+                        if (purchaseDate >= sevenDaysAgo) {
+                            purchaseStats.recentPurchases.push(purchase);
+                        }
+                    }
+                });
+                
+                // Display purchase stats
+                displayPurchaseStats(purchaseStats);
+            }
+        } else {
+            console.warn('[Dashboard] Failed to load purchases:', purchasesResponse.status);
         }
     } catch (error) {
         console.error('Error loading stats:', error);
@@ -188,6 +251,125 @@ function displayStats(stats) {
             });
         }
     }
+}
+
+function displayPurchaseStats(stats) {
+    // Update total purchases
+    const totalPurchasesEl = document.getElementById('statTotalPurchases');
+    if (totalPurchasesEl) {
+        totalPurchasesEl.textContent = stats.totalPurchases.toLocaleString();
+    }
+    
+    // Update total spent
+    const totalSpentEl = document.getElementById('statTotalSpent');
+    if (totalSpentEl) {
+        totalSpentEl.textContent = '£' + stats.totalSpent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    
+    // Update awaiting delivery
+    const awaitingDeliveryEl = document.getElementById('statAwaitingDelivery');
+    if (awaitingDeliveryEl) {
+        awaitingDeliveryEl.textContent = stats.awaitingDelivery.toLocaleString();
+    }
+    
+    // Update checked in
+    const checkedInEl = document.getElementById('statCheckedIn');
+    if (checkedInEl) {
+        checkedInEl.textContent = stats.checkedIn.toLocaleString();
+    }
+    
+    // Display purchase status breakdown
+    const statusContainer = document.getElementById('purchaseStatusBreakdown');
+    if (statusContainer) {
+        statusContainer.innerHTML = '';
+        const statuses = Object.entries(stats.byStatus).sort((a, b) => b[1] - a[1]);
+        if (statuses.length === 0) {
+            statusContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #6b7280;">No data available</div>';
+        } else {
+            statuses.forEach(([status, count]) => {
+                const item = document.createElement('div');
+                item.className = 'stat-item';
+                item.innerHTML = `
+                    <span class="stat-label">${formatPurchaseStatus(status)}</span>
+                    <span class="stat-value">${count.toLocaleString()}</span>
+                `;
+                statusContainer.appendChild(item);
+            });
+        }
+    }
+    
+    // Display platform breakdown
+    const platformContainer = document.getElementById('purchasePlatformBreakdown');
+    if (platformContainer) {
+        platformContainer.innerHTML = '';
+        const platforms = Object.entries(stats.byPlatform).sort((a, b) => b[1] - a[1]);
+        if (platforms.length === 0) {
+            platformContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #6b7280;">No data available</div>';
+        } else {
+            platforms.forEach(([platform, count]) => {
+                const item = document.createElement('div');
+                item.className = 'stat-item';
+                item.innerHTML = `
+                    <span class="stat-label">${formatPlatform(platform)}</span>
+                    <span class="stat-value">${count.toLocaleString()}</span>
+                `;
+                platformContainer.appendChild(item);
+            });
+        }
+    }
+    
+    // Display recent purchases
+    const recentPurchasesContainer = document.getElementById('recentPurchasesList');
+    if (recentPurchasesContainer) {
+        recentPurchasesContainer.innerHTML = '';
+        if (stats.recentPurchases.length === 0) {
+            recentPurchasesContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #6b7280;">No recent purchases</div>';
+        } else {
+            stats.recentPurchases.slice(0, 5).forEach(purchase => {
+                const purchaseDate = new Date(purchase.purchase_date).toLocaleDateString('en-GB', { 
+                    day: 'numeric', month: 'short' 
+                });
+                const item = document.createElement('div');
+                item.className = 'stat-item';
+                item.innerHTML = `
+                    <span class="stat-label">${escapeHtml(purchase.generation)} - £${parseFloat(purchase.purchase_price).toFixed(2)}</span>
+                    <span class="stat-value" style="font-size: 0.85rem; color: #6b7280;">${purchaseDate}</span>
+                `;
+                recentPurchasesContainer.appendChild(item);
+            });
+        }
+    }
+}
+
+function formatPurchaseStatus(status) {
+    const statusMap = {
+        'paid': 'Paid',
+        'awaiting_despatch': 'Awaiting Despatch',
+        'awaiting_delivery': 'Awaiting Delivery',
+        'delivered': 'Delivered',
+        'awaiting_return': 'Awaiting Return',
+        'returned': 'Returned',
+        'refunded': 'Refunded',
+        'unknown': 'Unknown'
+    };
+    return statusMap[status] || status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ');
+}
+
+function formatPlatform(platform) {
+    const platformMap = {
+        'ebay': 'eBay',
+        'vinted': 'Vinted',
+        'facebook': 'Facebook Marketplace',
+        'other': 'Other',
+        'unknown': 'Unknown'
+    };
+    return platformMap[platform] || platform.charAt(0).toUpperCase() + platform.slice(1);
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 function formatStatus(status) {
