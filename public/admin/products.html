@@ -348,9 +348,9 @@
                             <option value="paid">Paid</option>
                         </select>
                         <select id="filterTracking" class="sidebar-select">
-                            <option value="">Tracking</option>
-                            <option value="tracked">Tracked</option>
-                            <option value="not_tracked">Not Tracked</option>
+                            <option value="">Tracking Status</option>
+                            <option value="tracked">Has Tracking</option>
+                            <option value="not_tracked">No Tracking</option>
                         </select>
                     </div>
 
@@ -367,19 +367,24 @@
                         <table class="products-table">
                             <thead>
                                 <tr>
-                                    <th>Product</th>
-                                    <th>Serial</th>
-                                    <th>Order</th>
+                                    <th>Serial Number</th>
+                                    <th>Security Number</th>
+                                    <th>Product Name</th>
+                                    <th>Part Number</th>
+                                    <th>Product Type</th>
+                                    <th>eBay Order Number</th>
+                                    <th>Photos Uploaded</th>
+                                    <th>Date Added</th>
+                                    <th>Tracking Status</th>
                                     <th>Status</th>
-                                    <th>Warranty</th>
-                                    <th>Tracking</th>
-                                    <th>Added</th>
+                                    <th>Warranty Status</th>
+                                    <th>Warranty Days Remaining</th>
                                     <th></th>
                                 </tr>
                             </thead>
                             <tbody id="productsTable">
                                 <tr>
-                                    <td colspan="8" class="table-loading">Loading products...</td>
+                                    <td colspan="13" class="table-loading">Loading products...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -393,7 +398,7 @@
     <div id="trackingModal" class="modal" style="display: none;">
         <div class="modal-content" style="max-width: 600px;">
             <div class="modal-header">
-                <h2>Track Product</h2>
+                <h2>Add Tracking Number</h2>
                 <span class="modal-close" id="closeTrackingModal">&times;</span>
             </div>
             <div class="modal-body" id="trackingModalBody">
@@ -402,9 +407,9 @@
                 </div>
                 
                 <div class="form-group">
-                    <label for="trackingNumber">Tracking Number / Barcode</label>
+                    <label for="trackingNumber">Tracking Number</label>
                     <p style="font-size: 0.85rem; color: #666; margin-bottom: 10px;">
-                        You can type, paste (Ctrl+V / Cmd+V), or scan a tracking number
+                        You can type, paste (Ctrl+V / Cmd+V), or scan a shipping tracking number
                     </p>
                     <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                         <input 

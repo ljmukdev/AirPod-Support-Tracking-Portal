@@ -1950,6 +1950,38 @@ app.put('/api/admin/product/:id/tracking', requireAuth, requireDB, async (req, r
     }
 });
 
+// Update eBay order number (Admin only)
+app.put('/api/admin/product/:id/ebay-order', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid product ID' });
+    }
+    
+    const ebay_order_number = req.body.ebay_order_number ? req.body.ebay_order_number.trim() : null;
+    
+    try {
+        const updateData = {
+            ebay_order_number: ebay_order_number
+        };
+        
+        const result = await db.collection('products').updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updateData }
+        );
+        
+        if (result.matchedCount === 0) {
+            res.status(404).json({ error: 'Product not found' });
+        } else {
+            console.log('eBay order number updated successfully, ID:', id, 'Order:', ebay_order_number);
+            res.json({ success: true, message: 'eBay order number updated successfully' });
+        }
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // Mark product as returned/refunded (Admin only)
 app.put('/api/admin/product/:id/return', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;

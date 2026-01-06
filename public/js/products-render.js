@@ -71,10 +71,10 @@ async function renderProductsTable(products) {
             }
         }
 
-        // Tracking
-        const hasTracking = product.tracking_number && product.tracking_number.trim();
-        const trackingIcon = hasTracking ? '✓' : '✗';
-        const trackingClass = hasTracking ? 'has-tracking' : 'no-tracking';
+        // eBay Order Number (editable)
+        const ebayOrderNumber = product.ebay_order_number || '';
+        const hasEbayOrder = ebayOrderNumber && ebayOrderNumber.trim();
+        const ebayOrderClass = hasEbayOrder ? 'has-ebay-order' : 'no-ebay-order';
 
         // Date
         const date = new Date(product.date_added);
@@ -113,7 +113,14 @@ async function renderProductsTable(products) {
                     <span class="warranty-badge ${warrantyClass}">${warrantyText}</span>
                 </td>
                 <td>
-                    <span class="tracking-icon ${trackingClass}">${trackingIcon}</span>
+                    <input 
+                        type="text" 
+                        class="ebay-order-input ${ebayOrderClass}" 
+                        data-product-id="${escapeHtml(String(product.id))}" 
+                        value="${escapeHtml(ebayOrderNumber)}"
+                        placeholder="Paste order number"
+                        style="width: 100%; padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem;"
+                    >
                 </td>
                 <td>
                     <span class="date-text">${dateText}</span>
@@ -179,6 +186,75 @@ document.addEventListener('click', function(event) {
 
 // Attach event listeners to product elements
 function attachProductEventListeners(tableBody) {
+    // eBay order number input listeners
+    tableBody.querySelectorAll('.ebay-order-input').forEach(input => {
+        let saveTimeout = null;
+        
+        input.addEventListener('input', function(e) {
+            // Clear previous timeout
+            if (saveTimeout) clearTimeout(saveTimeout);
+            
+            // Set a new timeout to save after user stops typing
+            saveTimeout = setTimeout(async () => {
+                const productId = this.getAttribute('data-product-id');
+                const newEbayOrder = this.value.trim();
+                
+                if (!productId) return;
+                
+                // Visual feedback
+                this.style.backgroundColor = '#fff3cd';
+                this.disabled = true;
+                
+                try {
+                    const response = await authenticatedFetch(`${window.API_BASE}/api/admin/product/${encodeURIComponent(productId)}/ebay-order`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ebay_order_number: newEbayOrder })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (response.ok && data.success) {
+                        // Success feedback
+                        this.style.backgroundColor = '#d4edda';
+                        setTimeout(() => {
+                            this.style.backgroundColor = '';
+                        }, 1000);
+                        
+                        // Update local data
+                        if (typeof loadProducts === 'function') {
+                            loadProducts();
+                        }
+                    } else {
+                        // Error feedback
+                        this.style.backgroundColor = '#f8d7da';
+                        alert(data.error || 'Failed to update eBay order number');
+                        setTimeout(() => {
+                            this.style.backgroundColor = '';
+                        }, 2000);
+                    }
+                } catch (error) {
+                    console.error('eBay order update error:', error);
+                    this.style.backgroundColor = '#f8d7da';
+                    alert('Network error. Please try again.');
+                    setTimeout(() => {
+                        this.style.backgroundColor = '';
+                    }, 2000);
+                } finally {
+                    this.disabled = false;
+                }
+            }, 800); // Wait 800ms after user stops typing
+        });
+        
+        // Also handle paste events for immediate saving
+        input.addEventListener('paste', function(e) {
+            // Clear any existing timeout
+            if (saveTimeout) clearTimeout(saveTimeout);
+            
+            // The timeout will handle the save after paste
+        });
+    });
+    
     // Status select listeners
     tableBody.querySelectorAll('.status-select').forEach(select => {
         select.addEventListener('change', async function(e) {
