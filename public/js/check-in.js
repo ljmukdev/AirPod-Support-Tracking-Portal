@@ -38,6 +38,9 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelector('.admin-sidebar').classList.remove('sidebar-open');
         this.classList.remove('active');
     });
+    
+    // Load checked-in items
+    loadCheckedInItems();
 });
 
 async function searchByTracking() {
@@ -385,7 +388,86 @@ function resetForm() {
     document.getElementById('itemsCheckSection').innerHTML = '';
 }
 
+async function loadCheckedInItems() {
+    try {
+        const response = await authenticatedFetch(`${window.API_BASE}/api/admin/check-ins`);
+        
+        if (!response.ok) {
+            throw new Error('Failed to load checked-in items');
+        }
+        
+        const data = await response.json();
+        displayCheckedInItems(data.check_ins || []);
+    } catch (error) {
+        console.error('[CHECK-IN] Error loading checked-in items:', error);
+        document.getElementById('checkedInList').innerHTML = '<div style="text-align: center; padding: 20px; color: #dc3545;">Failed to load checked-in items</div>';
+    }
+}
+
+function displayCheckedInItems(checkIns) {
+    const container = document.getElementById('checkedInList');
+    
+    if (checkIns.length === 0) {
+        container.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">No items checked in yet</div>';
+        return;
+    }
+    
+    container.innerHTML = checkIns.map(checkIn => {
+        const checkedInDate = new Date(checkIn.checked_in_at).toLocaleString('en-GB', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        const hasIssues = checkIn.has_issues || (checkIn.issues_detected && checkIn.issues_detected.length > 0);
+        const issueCount = checkIn.issues_detected ? checkIn.issues_detected.length : 0;
+        
+        let issuesHtml = '';
+        if (hasIssues && checkIn.issues_detected) {
+            issuesHtml = '<div style="margin-top: 10px;">';
+            checkIn.issues_detected.forEach(item => {
+                issuesHtml += `<strong style="color: #666;">${escapeHtml(item.item_name)}:</strong> `;
+                item.issues.forEach(issue => {
+                    const badgeClass = issue.severity === 'critical' ? 'issue-critical' : 
+                                      issue.severity === 'high' ? 'issue-high' : 'issue-medium';
+                    issuesHtml += `<span class="issue-badge ${badgeClass}">${escapeHtml(issue.description)}</span>`;
+                });
+                issuesHtml += '<br>';
+            });
+            issuesHtml += '</div>';
+        } else {
+            issuesHtml = '<div style="margin-top: 10px;"><span class="issue-badge no-issues">✓ No Issues Detected</span></div>';
+        }
+        
+        return `
+            <div class="check-in-item">
+                <div class="check-in-header">
+                    <div>
+                        <strong style="font-size: 1.1rem;">Tracking: ${escapeHtml(checkIn.tracking_number || 'N/A')}</strong>
+                    </div>
+                    <div class="check-in-date">${checkedInDate}</div>
+                </div>
+                <div class="check-in-details">
+                    <div class="check-in-detail">
+                        <strong>Items Checked:</strong> ${checkIn.items ? checkIn.items.length : 0}
+                    </div>
+                    <div class="check-in-detail">
+                        <strong>Checked By:</strong> ${escapeHtml(checkIn.checked_in_by || 'N/A')}
+                    </div>
+                    <div class="check-in-detail">
+                        <strong>Status:</strong> ${hasIssues ? '<span style="color: #dc3545;">Issues Found (' + issueCount + ')</span>' : '<span style="color: #28a745;">All Good</span>'}
+                    </div>
+                </div>
+                ${issuesHtml}
+            </div>
+        `;
+    }).join('');
+}
+
 function escapeHtml(text) {
+    if (!text) return '';
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;

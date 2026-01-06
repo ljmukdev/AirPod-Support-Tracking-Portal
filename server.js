@@ -2350,6 +2350,25 @@ app.post('/api/admin/check-in', requireAuth, requireDB, async (req, res) => {
     }
 });
 
+// Get all check-ins (Admin only)
+app.get('/api/admin/check-ins', requireAuth, requireDB, async (req, res) => {
+    try {
+        const checkIns = await db.collection('check_ins')
+            .find({})
+            .sort({ checked_in_at: -1 })
+            .limit(50)
+            .toArray();
+        
+        res.json({
+            success: true,
+            check_ins: checkIns
+        });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // Get check-in details with generated email (Admin only)
 app.get('/api/admin/check-in/:id', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;

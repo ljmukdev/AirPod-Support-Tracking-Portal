@@ -147,6 +147,64 @@
             font-size: 0.85rem;
             font-weight: 500;
         }
+        .check-in-item {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            transition: box-shadow 0.2s;
+        }
+        .check-in-item:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .check-in-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 10px;
+        }
+        .check-in-date {
+            font-size: 0.85rem;
+            color: #666;
+        }
+        .check-in-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .check-in-detail {
+            font-size: 0.9rem;
+        }
+        .check-in-detail strong {
+            color: #666;
+            font-weight: 600;
+        }
+        .issue-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin: 2px;
+        }
+        .issue-critical {
+            background: #fee;
+            color: #c00;
+        }
+        .issue-high {
+            background: #ffd;
+            color: #c60;
+        }
+        .issue-medium {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .no-issues {
+            background: #d4edda;
+            color: #155724;
+        }
     </style>
 </head>
 <body class="admin-panel">
@@ -256,6 +314,14 @@
                     </div>
                 </div>
 
+                <!-- Checked-In Items List -->
+                <div class="search-section" style="margin-top: 30px;">
+                    <h2 style="margin-top: 0;">Checked-In Items</h2>
+                    <div id="checkedInList" style="margin-top: 20px;">
+                        <div style="text-align: center; padding: 20px; color: #6b7280;">Loading...</div>
+                    </div>
+                </div>
+
                 <!-- Check-In Form (hidden until search) -->
                 <div class="check-in-form" id="checkInForm">
                     <h2>Check-In Details</h2>
@@ -284,6 +350,6 @@
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
     <script src="../js/admin.js"></script>
-    <script src="../js/check-in.js?v=1.0.3"></script>
+    <script src="../js/check-in.js?v=1.0.4"></script>
 </body>
 </html>
