@@ -2263,11 +2263,15 @@ function generateSellerEmail(purchase, checkIn) {
         emailBody += issues.length === 1 ? 'it' : 'these issues';
         emailBody += ', as our preference is always to get items fully working. However, if this proves unsuccessful, we would like to propose one of the following options:\n\n';
         
-        // Calculate partial refund amount
+        // Calculate partial refund amount (only count actual AirPod parts, not accessories)
         const totalPrice = parseFloat(purchase.purchase_price) || 0;
-        const itemCount = purchase.items_purchased ? purchase.items_purchased.length : 3;
+        
+        // Count only AirPod parts (case, left, right) from items_purchased
+        const airpodParts = purchase.items_purchased ? 
+            purchase.items_purchased.filter(item => ['case', 'left', 'right'].includes(item)).length : 3;
+        
         const affectedItemCount = issues.length;
-        const partialRefundAmount = (totalPrice * affectedItemCount / itemCount).toFixed(2);
+        const partialRefundAmount = (totalPrice * affectedItemCount / airpodParts).toFixed(2);
         
         emailBody += `• Return the full set for a full refund\n`;
         emailBody += `• Keep the `;
