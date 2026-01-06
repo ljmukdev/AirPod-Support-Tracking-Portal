@@ -337,6 +337,95 @@
             font-size: 0.85rem;
             font-weight: 600;
         }
+        
+        /* Workflow Section */
+        .workflow-section {
+            background: #fffbeb;
+            border: 1px solid #fbbf24;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .workflow-section h3 {
+            margin-top: 0;
+            color: #92400e;
+            font-size: 1.125rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .workflow-steps {
+            margin-top: 16px;
+        }
+        .workflow-step {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-left: 4px solid #d1d5db;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 12px;
+            transition: all 0.2s;
+        }
+        .workflow-step.completed {
+            border-left-color: #10b981;
+            background: #f0fdf4;
+        }
+        .workflow-step.pending {
+            border-left-color: #fbbf24;
+            background: #fffbeb;
+        }
+        .workflow-step.overdue {
+            border-left-color: #ef4444;
+            background: #fef2f2;
+        }
+        .workflow-step-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .workflow-step-title {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: #111827;
+        }
+        .workflow-step-status {
+            font-size: 0.8rem;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+        .status-completed {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .status-overdue {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .workflow-step-description {
+            color: #6b7280;
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+        }
+        .workflow-step-action {
+            margin-top: 12px;
+            display: flex;
+            gap: 8px;
+        }
+        .workflow-due-date {
+            font-size: 0.85rem;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+        .workflow-due-date.overdue {
+            color: #dc2626;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -462,6 +551,6 @@
     </div>
 
     <script src="../js/admin.js"></script>
-    <script src="../js/check-in-detail.js?v=1.0.5"></script>
+    <script src="../js/check-in-detail.js?v=1.1.0"></script>
 </body>
 </html>

@@ -2740,6 +2740,121 @@ app.put('/api/admin/check-in/:id', requireAuth, requireDB, async (req, res) => {
     }
 });
 
+// Mark follow-up email as sent (Admin only)
+app.post('/api/admin/check-in/:id/mark-follow-up-sent', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid check-in ID' });
+    }
+    
+    try {
+        const result = await db.collection('check_ins').updateOne(
+            { _id: new ObjectId(id) },
+            { 
+                $set: { 
+                    'resolution_workflow.follow_up_sent_at': new Date(),
+                    'resolution_workflow.follow_up_sent_by': req.user.email
+                }
+            }
+        );
+        
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ error: 'Check-in not found' });
+        }
+        
+        console.log('[WORKFLOW] Follow-up marked as sent for check-in:', id);
+        
+        res.json({
+            success: true,
+            message: 'Follow-up marked as sent'
+        });
+    } catch (err) {
+        console.error('[WORKFLOW] Error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Mark eBay case as opened (Admin only)
+app.post('/api/admin/check-in/:id/mark-case-opened', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    const { case_number } = req.body;
+    
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid check-in ID' });
+    }
+    
+    try {
+        const result = await db.collection('check_ins').updateOne(
+            { _id: new ObjectId(id) },
+            { 
+                $set: { 
+                    'resolution_workflow.case_opened_at': new Date(),
+                    'resolution_workflow.case_opened_by': req.user.email,
+                    'resolution_workflow.case_number': case_number || null
+                }
+            }
+        );
+        
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ error: 'Check-in not found' });
+        }
+        
+        console.log('[WORKFLOW] eBay case marked as opened for check-in:', id);
+        
+        res.json({
+            success: true,
+            message: 'eBay case marked as opened'
+        });
+    } catch (err) {
+        console.error('[WORKFLOW] Error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Mark issue as resolved (Admin only)
+app.post('/api/admin/check-in/:id/mark-resolved', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    const { resolution_type } = req.body;
+    
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid check-in ID' });
+    }
+    
+    try {
+        const result = await db.collection('check_ins').updateOne(
+            { _id: new ObjectId(id) },
+            { 
+                $set: { 
+                    'resolution_workflow.resolved_at': new Date(),
+                    'resolution_workflow.resolved_by': req.user.email,
+                    'resolution_workflow.resolution_type': resolution_type || 'Resolved'
+                }
+            }
+        );
+        
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ error: 'Check-in not found' });
+        }
+        
+        // Also update purchase status if not already resolved
+        await db.collection('purchases').updateOne(
+            { _id: new ObjectId((await db.collection('check_ins').findOne({ _id: new ObjectId(id) })).purchase_id) },
+            { $set: { status: 'resolved' } }
+        );
+        
+        console.log('[WORKFLOW] Issue marked as resolved for check-in:', id);
+        
+        res.json({
+            success: true,
+            message: 'Issue marked as resolved'
+        });
+    } catch (err) {
+        console.error('[WORKFLOW] Error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // Mark check-in email as sent (Admin only)
 app.post('/api/admin/check-in/:id/mark-email-sent', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;

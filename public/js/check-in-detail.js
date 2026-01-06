@@ -197,6 +197,7 @@ function displaySplitSection() {
     
     let warningHtml = '';
     let emailButtonHtml = '';
+    let workflowHtml = '';
     
     if (hasIssues) {
         // Show email sent badge or generate email button
@@ -219,6 +220,9 @@ function displaySplitSection() {
                     </button>
                 </div>
             `;
+            
+            // Show workflow tracking
+            workflowHtml = generateWorkflowHtml();
         } else {
             emailButtonHtml = `
                 <div style="margin-bottom: 16px;">
@@ -296,6 +300,8 @@ function displaySplitSection() {
             ${warningHtml}
             
             ${emailButtonHtml}
+            
+            ${workflowHtml}
             
             <div class="items-select-list">
                 ${itemsListHtml}
@@ -475,6 +481,168 @@ function showError(message) {
     document.getElementById('errorMessage').textContent = message;
 }
 
+function generateWorkflowHtml() {
+    if (!checkInData.email_sent_at) {
+        return '';
+    }
+    
+    const now = new Date();
+    const emailSentDate = new Date(checkInData.email_sent_at);
+    const hoursSinceEmail = (now - emailSentDate) / (1000 * 60 * 60);
+    const daysSinceEmail = Math.floor(hoursSinceEmail / 24);
+    
+    // Calculate due dates
+    const followUpDue = new Date(emailSentDate.getTime() + (2 * 24 * 60 * 60 * 1000)); // 2 days
+    const caseOpenDue = new Date(emailSentDate.getTime() + (3 * 24 * 60 * 60 * 1000)); // 3 days
+    
+    const workflow = checkInData.resolution_workflow || {};
+    
+    // Step 1: Initial email sent (always completed if we're here)
+    const step1Status = 'completed';
+    
+    // Step 2: Follow-up (due after 2 days if no response)
+    let step2Status = 'pending';
+    if (workflow.follow_up_sent_at) {
+        step2Status = 'completed';
+    } else if (now > followUpDue) {
+        step2Status = 'overdue';
+    }
+    
+    // Step 3: Open case (due after 3 days if no resolution)
+    let step3Status = 'pending';
+    if (workflow.case_opened_at) {
+        step3Status = 'completed';
+    } else if (now > caseOpenDue && !workflow.resolved_at) {
+        step3Status = 'overdue';
+    }
+    
+    // Step 4: Resolution
+    const step4Status = workflow.resolved_at ? 'completed' : 'pending';
+    
+    const formatDueDate = (date) => {
+        return date.toLocaleString('en-GB', {
+            day: 'numeric',
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    };
+    
+    const isOverdue = (dueDate) => now > dueDate;
+    
+    return `
+        <div class="workflow-section">
+            <h3>📋 Resolution Workflow</h3>
+            <p style="margin: 8px 0 16px 0; font-size: 0.9rem; color: #6b7280;">
+                Follow this timeline for professional seller communication
+            </p>
+            
+            <div class="workflow-steps">
+                <!-- Step 1: Initial Email -->
+                <div class="workflow-step ${step1Status}">
+                    <div class="workflow-step-header">
+                        <span class="workflow-step-title">✓ Step 1: Initial Email Sent</span>
+                        <span class="workflow-step-status status-${step1Status}">Completed</span>
+                    </div>
+                    <div class="workflow-step-description">
+                        Professional email sent explaining issues and proposing resolutions
+                    </div>
+                    <div class="workflow-due-date">
+                        Sent: ${formatDueDate(emailSentDate)}
+                    </div>
+                </div>
+                
+                <!-- Step 2: Follow-up -->
+                <div class="workflow-step ${step2Status}">
+                    <div class="workflow-step-header">
+                        <span class="workflow-step-title">Step 2: Send Follow-Up (if no response)</span>
+                        <span class="workflow-step-status status-${step2Status}">
+                            ${workflow.follow_up_sent_at ? 'Completed' : (step2Status === 'overdue' ? 'Action Needed' : 'Due Soon')}
+                        </span>
+                    </div>
+                    <div class="workflow-step-description">
+                        Brief, polite follow-up message to check if seller saw your initial email
+                    </div>
+                    ${workflow.follow_up_sent_at ? `
+                        <div class="workflow-due-date">
+                            Sent: ${formatDueDate(new Date(workflow.follow_up_sent_at))}
+                        </div>
+                    ` : `
+                        <div class="workflow-due-date ${isOverdue(followUpDue) ? 'overdue' : ''}">
+                            ${isOverdue(followUpDue) ? '⚠️ Overdue since' : 'Due after'}: ${formatDueDate(followUpDue)}
+                        </div>
+                        ${!workflow.follow_up_sent_at ? `
+                            <div class="workflow-step-action">
+                                <button onclick="viewFollowUpEmail()" class="button button-secondary" style="padding: 6px 12px; font-size: 0.85rem;">
+                                    View Follow-Up Message
+                                </button>
+                                <button onclick="markFollowUpSent()" class="button" style="background: #10b981; color: white; padding: 6px 12px; font-size: 0.85rem;">
+                                    Mark as Sent
+                                </button>
+                            </div>
+                        ` : ''}
+                    `}
+                </div>
+                
+                <!-- Step 3: Open eBay Case -->
+                <div class="workflow-step ${step3Status}">
+                    <div class="workflow-step-header">
+                        <span class="workflow-step-title">Step 3: Open eBay Case (if no agreement)</span>
+                        <span class="workflow-step-status status-${step3Status}">
+                            ${workflow.case_opened_at ? 'Completed' : (step3Status === 'overdue' ? 'Action Needed' : 'Waiting')}
+                        </span>
+                    </div>
+                    <div class="workflow-step-description">
+                        Open "Item not as described" case after 3 days with no response/resolution
+                    </div>
+                    ${workflow.case_opened_at ? `
+                        <div class="workflow-due-date">
+                            Case opened: ${formatDueDate(new Date(workflow.case_opened_at))}
+                            ${workflow.case_number ? `<br>Case #: ${workflow.case_number}` : ''}
+                        </div>
+                    ` : `
+                        <div class="workflow-due-date ${isOverdue(caseOpenDue) ? 'overdue' : ''}">
+                            ${isOverdue(caseOpenDue) ? '⚠️ Can open case now' : 'Can open after'}: ${formatDueDate(caseOpenDue)}
+                        </div>
+                        ${isOverdue(caseOpenDue) && !workflow.case_opened_at ? `
+                            <div class="workflow-step-action">
+                                <button onclick="markCaseOpened()" class="button" style="background: #ef4444; color: white; padding: 6px 12px; font-size: 0.85rem;">
+                                    I've Opened eBay Case
+                                </button>
+                            </div>
+                        ` : ''}
+                    `}
+                </div>
+                
+                <!-- Step 4: Resolution -->
+                <div class="workflow-step ${step4Status}">
+                    <div class="workflow-step-header">
+                        <span class="workflow-step-title">Step 4: Resolution</span>
+                        <span class="workflow-step-status status-${step4Status}">
+                            ${workflow.resolved_at ? 'Completed' : 'Pending'}
+                        </span>
+                    </div>
+                    <div class="workflow-step-description">
+                        Issue resolved (refund received, replacement sent, or case closed)
+                    </div>
+                    ${workflow.resolved_at ? `
+                        <div class="workflow-due-date">
+                            Resolved: ${formatDueDate(new Date(workflow.resolved_at))}
+                            ${workflow.resolution_type ? `<br>Resolution: ${workflow.resolution_type}` : ''}
+                        </div>
+                    ` : `
+                        <div class="workflow-step-action">
+                            <button onclick="markResolved()" class="button" style="background: #6b7280; color: white; padding: 6px 12px; font-size: 0.85rem;">
+                                Mark as Resolved
+                            </button>
+                        </div>
+                    `}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
 function openEmailModal() {
     if (!emailTemplate) {
         alert('Email template not available');
@@ -552,6 +720,124 @@ document.addEventListener('keydown', function(e) {
         closeEmailModal();
     }
 });
+
+function viewFollowUpEmail() {
+    const followUpMessage = `Hi,\n\nJust checking you've seen the message below regarding the issue with the item.\n\nHappy to resolve this amicably.\n\nKind regards,\nLJMUK`;
+    
+    document.getElementById('emailContent').value = followUpMessage;
+    document.getElementById('emailModal').classList.add('active');
+}
+
+async function markFollowUpSent() {
+    if (!confirm('Have you sent the follow-up message to the seller?')) {
+        return;
+    }
+    
+    try {
+        const response = await authenticatedFetch(`${window.API_BASE}/api/admin/check-in/${checkInId}/mark-follow-up-sent`, {
+            method: 'POST'
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to update workflow');
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('Follow-up marked as sent!');
+            window.location.reload();
+        } else {
+            throw new Error(data.error || 'Failed to update workflow');
+        }
+    } catch (error) {
+        console.error('[WORKFLOW] Error:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+async function markCaseOpened() {
+    const caseNumber = prompt('Enter the eBay case number (optional):');
+    
+    if (caseNumber === null) {
+        return; // User cancelled
+    }
+    
+    try {
+        const response = await authenticatedFetch(`${window.API_BASE}/api/admin/check-in/${checkInId}/mark-case-opened`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                case_number: caseNumber || null
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to update workflow');
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('eBay case marked as opened!');
+            window.location.reload();
+        } else {
+            throw new Error(data.error || 'Failed to update workflow');
+        }
+    } catch (error) {
+        console.error('[WORKFLOW] Error:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+async function markResolved() {
+    const resolutionTypes = [
+        'Full refund received',
+        'Partial refund received',
+        'Replacement sent',
+        'Seller resolved issue',
+        'eBay case closed in our favor',
+        'Other'
+    ];
+    
+    const resolutionType = prompt('How was this resolved?\n\n' + resolutionTypes.map((type, i) => `${i + 1}. ${type}`).join('\n') + '\n\nEnter 1-6:');
+    
+    if (!resolutionType) {
+        return;
+    }
+    
+    const selectedType = resolutionTypes[parseInt(resolutionType) - 1] || 'Resolved';
+    
+    try {
+        const response = await authenticatedFetch(`${window.API_BASE}/api/admin/check-in/${checkInId}/mark-resolved`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                resolution_type: selectedType
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to update workflow');
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('Marked as resolved!');
+            window.location.reload();
+        } else {
+            throw new Error(data.error || 'Failed to update workflow');
+        }
+    } catch (error) {
+        console.error('[WORKFLOW] Error:', error);
+        alert('Error: ' + error.message);
+    }
+}
 
 function escapeHtml(text) {
     if (!text) return '';
