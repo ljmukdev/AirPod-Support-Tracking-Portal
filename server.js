@@ -2125,7 +2125,7 @@ function generateSellerEmail(purchase, checkIn) {
         return null;
     }
     
-    // Determine overall assessment
+    // Analyze issue types
     const hasCriticalIssues = issues.some(item => 
         item.issues.some(issue => issue.severity === 'critical')
     );
@@ -2134,84 +2134,154 @@ function generateSellerEmail(purchase, checkIn) {
         item.issues.some(issue => issue.type === 'authenticity')
     );
     
-    // Build email content
-    let emailBody = 'Hi,\n\n';
-    emailBody += 'Thank you for sending these over. ';
-    
-    // Check if any items are in good visual condition
-    const hasGoodVisualCondition = checkIn.items.some(item => 
-        ['new', 'like_new', 'excellent', 'good'].includes(item.condition)
+    const hasAudibleIssues = issues.some(item =>
+        item.issues.some(issue => issue.type === 'audible')
     );
     
-    if (hasGoodVisualCondition) {
-        emailBody += 'Visually, they are in ';
-        const allGoodCondition = checkIn.items.every(item =>
-            ['new', 'like_new', 'excellent'].includes(item.condition)
-        );
-        emailBody += allGoodCondition ? 'immaculate condition. ' : 'good condition. ';
-    }
-    
-    emailBody += 'Unfortunately, we are experiencing ';
-    emailBody += issues.length === 1 ? 'an issue' : 'some issues';
-    emailBody += ' with the following:\n\n';
-    
-    // List specific issues
-    issues.forEach(item => {
-        emailBody += `**${item.item_name}:**\n`;
-        item.issues.forEach(issue => {
-            if (issue.type === 'audible') {
-                if (issue.severity === 'critical') {
-                    emailBody += `- Although it shows as connected, there is no audible sound coming from it.\n`;
-                } else {
-                    emailBody += `- ${issue.description}\n`;
-                }
-            } else if (issue.type === 'connectivity') {
-                emailBody += `- The item has connectivity/pairing issues.\n`;
-            } else if (issue.type === 'authenticity') {
-                emailBody += `- Based on our inspection, there are concerns about authenticity.\n`;
-            } else if (issue.type === 'condition') {
-                emailBody += `- Visual condition is worse than described (${issue.description}).\n`;
-            }
-        });
-        emailBody += '\n';
-    });
-    
-    emailBody += 'We have carried out a full reset in line with Apple\'s guidance';
-    
-    // Check for pairing animation issues (indicator of fakes)
     const hasConnectivityIssues = issues.some(item =>
         item.issues.some(issue => issue.type === 'connectivity')
     );
     
-    if (hasConnectivityIssues && !hasAuthenticityIssues) {
-        emailBody += ', however this has not resolved the issue. We have also noticed that the Apple pairing animation does not always appear, which can sometimes be an indicator of counterfeit items. That said, based on our visual inspection and experience, we are confident these are genuine and believe this may instead be a software-related issue.\n\n';
-    } else {
-        emailBody += ', however this has not resolved the issue.\n\n';
+    const hasConditionIssues = issues.some(item =>
+        item.issues.some(issue => issue.type === 'condition')
+    );
+    
+    // Build email content
+    let emailBody = 'Hi,\n\n';
+    emailBody += 'Thank you for sending ';
+    emailBody += issues.length === 1 ? 'this' : 'these';
+    emailBody += ' over. ';
+    
+    // Visual condition assessment
+    const hasGoodVisualCondition = checkIn.items.some(item => 
+        ['new', 'like_new', 'excellent', 'good'].includes(item.condition)
+    );
+    
+    if (hasGoodVisualCondition && !hasConditionIssues) {
+        emailBody += 'Visually, ';
+        const allGoodCondition = checkIn.items.every(item =>
+            ['new', 'like_new', 'excellent'].includes(item.condition)
+        );
+        if (issues.length === 1) {
+            emailBody += 'it is in ' + (allGoodCondition ? 'immaculate' : 'good') + ' condition. ';
+        } else {
+            emailBody += 'they are in ' + (allGoodCondition ? 'immaculate' : 'good') + ' condition. ';
+        }
     }
     
-    emailBody += 'To be completely open, we purchase AirPods for resale and have extensive experience diagnosing faults. ';
-    
-    if (hasCriticalIssues) {
-        emailBody += 'In all honesty, this is ';
-        const multipleIssues = issues.length > 1 || issues[0].issues.length > 1;
-        emailBody += multipleIssues ? 'a significant issue' : 'the first time we have encountered this particular issue';
-        emailBody += '.\n\n';
+    // Main issue statement - make it specific to the item(s)
+    if (issues.length === 1) {
+        const item = issues[0];
+        const itemType = item.item_type;
+        emailBody += `Unfortunately, we are experiencing an issue with the ${item.item_name.toLowerCase()}. `;
+        
+        // Describe specific issue contextually
+        const issue = item.issues[0];
+        
+        if (issue.type === 'audible' && issue.severity === 'critical') {
+            if (itemType === 'case') {
+                emailBody += 'The charging case is not functioning correctly.\n\n';
+            } else {
+                emailBody += 'Although it shows as connected, there is no audible sound coming from it.\n\n';
+            }
+        } else if (issue.type === 'audible') {
+            emailBody += `The sound quality is ${issue.description.includes('poor') ? 'poor' : 'not as expected'}.\n\n`;
+        } else if (issue.type === 'connectivity') {
+            if (itemType === 'case') {
+                emailBody += 'The case is not pairing or connecting correctly to devices.\n\n';
+            } else {
+                emailBody += `The ${item.item_name.toLowerCase()} has connectivity issues and won't pair correctly.\n\n`;
+            }
+        } else if (issue.type === 'authenticity') {
+            emailBody += 'Based on our detailed inspection, we have concerns about the authenticity of this item.\n\n';
+        } else if (issue.type === 'condition') {
+            emailBody += `The visual condition is worse than described in the listing (${issue.description.toLowerCase()}).\n\n`;
+        }
     } else {
+        // Multiple items with issues
+        emailBody += 'Unfortunately, we are experiencing issues with the following items:\n\n';
+        
+        issues.forEach(item => {
+            emailBody += `• **${item.item_name}**: `;
+            
+            const descriptions = item.issues.map(issue => {
+                if (issue.type === 'audible' && issue.severity === 'critical') {
+                    return 'no audible sound';
+                } else if (issue.type === 'audible') {
+                    return 'poor sound quality';
+                } else if (issue.type === 'connectivity') {
+                    return 'connectivity/pairing problems';
+                } else if (issue.type === 'authenticity') {
+                    return 'authenticity concerns';
+                } else if (issue.type === 'condition') {
+                    return 'condition worse than described';
+                }
+                return issue.description;
+            });
+            
+            emailBody += descriptions.join(', ');
+            emailBody += '\n';
+        });
+        emailBody += '\n';
+    }
+    
+    // Troubleshooting steps taken
+    if (hasAudibleIssues || hasConnectivityIssues) {
+        emailBody += 'We have carried out a full reset in line with Apple\'s guidance';
+        
+        if (hasConnectivityIssues && !hasAuthenticityIssues) {
+            emailBody += ', however this has not resolved the issue. We have also noticed that the Apple pairing animation does not always appear, which can sometimes be an indicator of counterfeit items. That said, based on our visual inspection and experience, we are confident these are genuine and believe this may instead be a software-related issue.\n\n';
+        } else {
+            emailBody += ', however this has not resolved the ';
+            emailBody += issues.length === 1 ? 'issue' : 'issues';
+            emailBody += '.\n\n';
+        }
+    }
+    
+    // Expertise statement
+    if (hasAuthenticityIssues) {
+        emailBody += 'To be completely transparent, we purchase AirPods for resale and have extensive experience with genuine Apple products. We have carried out a thorough inspection and unfortunately have significant concerns about authenticity.\n\n';
+    } else {
+        emailBody += 'To be completely open, we purchase AirPods for resale and have extensive experience diagnosing faults. ';
+        
+        if (hasCriticalIssues) {
+            emailBody += 'In all honesty, this ';
+            emailBody += issues.length > 1 ? 'combination of issues is' : 'particular issue is';
+            emailBody += ' something we rarely encounter';
+            emailBody += issues.length === 1 ? ' and is the first time we\'ve seen this specific problem' : '';
+            emailBody += '.\n\n';
+        } else {
+            emailBody += '\n\n';
+        }
+    }
+    
+    // Resolution options
+    if (hasAuthenticityIssues) {
+        emailBody += 'Given the authenticity concerns, we would need to return the item for a full refund.\n\n';
+    } else {
+        emailBody += 'We will continue to try to resolve ';
+        emailBody += issues.length === 1 ? 'it' : 'these issues';
+        emailBody += ', as our preference is always to get items fully working. However, if this proves unsuccessful, we would like to propose one of the following options:\n\n';
+        
+        // Calculate partial refund amount
+        const totalPrice = parseFloat(purchase.purchase_price) || 0;
+        const itemCount = purchase.items_purchased ? purchase.items_purchased.length : 3;
+        const affectedItemCount = issues.length;
+        const partialRefundAmount = (totalPrice * affectedItemCount / itemCount).toFixed(2);
+        
+        emailBody += `• Return the full set for a full refund\n`;
+        emailBody += `• Keep the `;
+        emailBody += issues.length === 1 ? 'item' : 'items';
+        emailBody += ` and receive a partial refund of £${partialRefundAmount}, reflecting the `;
+        
+        if (affectedItemCount === 1) {
+            const itemName = issues[0].item_name.toLowerCase();
+            emailBody += `non-functioning ${itemName}`;
+        } else {
+            emailBody += affectedItemCount + ' non-functioning items';
+        }
         emailBody += '\n\n';
     }
-    
-    emailBody += 'We will continue to try to resolve it, as our preference is always to get items fully working. However, if this proves unsuccessful, we would like to propose one of the following options:\n\n';
-    
-    // Calculate partial refund amount
-    const totalPrice = parseFloat(purchase.purchase_price) || 0;
-    const itemCount = purchase.items_purchased ? purchase.items_purchased.length : 3;
-    const affectedItemCount = issues.length;
-    const partialRefundAmount = (totalPrice * affectedItemCount / itemCount).toFixed(2);
-    
-    emailBody += `1. Return the full set for a full refund\n`;
-    emailBody += `2. Keep the item and receive a partial refund of £${partialRefundAmount}, reflecting the `;
-    emailBody += affectedItemCount > 1 ? 'non-functioning items' : 'non-functioning item';
-    emailBody += '\n\n';
     
     emailBody += 'Please let us know how you would like to proceed.\n\n';
     emailBody += 'Kind regards,\n';
