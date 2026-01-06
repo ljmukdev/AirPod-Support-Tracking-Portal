@@ -2005,6 +2005,7 @@ app.post('/api/admin/purchases', requireAuth, requireDB, async (req, res) => {
             purchase_date,
             generation,
             connector_type,
+            anc_type,
             items_purchased,
             quantity,
             purchase_price,
@@ -2030,6 +2031,7 @@ app.post('/api/admin/purchases', requireAuth, requireDB, async (req, res) => {
             purchase_date: new Date(purchase_date),
             generation,
             connector_type: connector_type || null, // usb-c or lightning (for Pro 2nd Gen)
+            anc_type: anc_type || null, // anc or non-anc (for 4th Gen)
             items_purchased: items_purchased, // Array of items: case, left, right, box, ear_tips, cable, protective_case
             quantity: parseInt(quantity),
             purchase_price: parseFloat(purchase_price),
@@ -2092,6 +2094,7 @@ app.put('/api/admin/purchases/:id', requireAuth, requireDB, async (req, res) => 
             purchase_date,
             generation,
             connector_type,
+            anc_type,
             items_purchased,
             quantity,
             purchase_price,
@@ -2117,6 +2120,7 @@ app.put('/api/admin/purchases/:id', requireAuth, requireDB, async (req, res) => 
             purchase_date: new Date(purchase_date),
             generation,
             connector_type: connector_type || null, // usb-c or lightning (for Pro 2nd Gen)
+            anc_type: anc_type || null, // anc or non-anc (for 4th Gen)
             items_purchased,
             quantity: parseInt(quantity),
             purchase_price: parseFloat(purchase_price),

@@ -181,11 +181,14 @@ function renderPurchases(purchases) {
             return `<span style="display: inline-block; padding: 3px 6px; background-color: #6c757d; color: white; border-radius: 3px; font-size: 0.75rem; margin: 2px;">${escapeHtml(label)}</span>`;
         }).join('');
         
-        // Generation display with connector type for Pro 2nd Gen
+        // Generation display with connector type for Pro 2nd Gen or ANC type for 4th Gen
         let generationDisplay = escapeHtml(shortenProductName(purchase.generation));
         if (purchase.generation === 'AirPods Pro (2nd Gen)' && purchase.connector_type) {
             const connectorLabel = purchase.connector_type === 'usb-c' ? 'USB-C' : 'Lightning';
             generationDisplay += `<br><span style="font-size: 0.8rem; color: #666;">(${connectorLabel})</span>`;
+        } else if (purchase.generation === 'AirPods (4th Gen)' && purchase.anc_type) {
+            const ancLabel = purchase.anc_type === 'anc' ? 'ANC' : 'Non-ANC';
+            generationDisplay += `<br><span style="font-size: 0.8rem; color: #666;">(${ancLabel})</span>`;
         }
         
         return `
