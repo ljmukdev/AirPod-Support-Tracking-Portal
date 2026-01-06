@@ -1,9 +1,11 @@
 // Purchases Management - Frontend Logic
+console.log('[PURCHASES] Script loaded');
 
 if (typeof window.API_BASE === 'undefined') {
     window.API_BASE = '';
 }
 const API_BASE = window.API_BASE;
+console.log('[PURCHASES] API_BASE:', API_BASE);
 
 let allPurchases = [];
 
