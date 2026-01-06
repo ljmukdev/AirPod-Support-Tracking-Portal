@@ -4,6 +4,7 @@ const checkInId = urlParams.get('id');
 
 let checkInData = null;
 let purchaseData = null;
+let emailTemplate = null;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
@@ -41,6 +42,7 @@ async function loadCheckInDetails() {
         if (data.success) {
             checkInData = data.check_in;
             purchaseData = data.purchase;
+            emailTemplate = data.email_template || null;
             displayCheckInDetails();
         } else {
             showError(data.error || 'Failed to load check-in');
@@ -194,7 +196,42 @@ function displaySplitSection() {
     }
     
     let warningHtml = '';
+    let emailButtonHtml = '';
+    
     if (hasIssues) {
+        // Show email sent badge or generate email button
+        if (checkInData.email_sent_at) {
+            const sentDate = new Date(checkInData.email_sent_at).toLocaleString('en-GB', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            emailButtonHtml = `
+                <div style="margin-bottom: 16px;">
+                    <span class="email-sent-badge">
+                        ✓ Email Sent to Seller
+                        <span style="opacity: 0.7;">• ${sentDate}</span>
+                    </span>
+                    <button onclick="openEmailModal()" class="button button-secondary" style="margin-left: 10px; padding: 6px 12px; font-size: 0.85rem;">
+                        View Email
+                    </button>
+                </div>
+            `;
+        } else {
+            emailButtonHtml = `
+                <div style="margin-bottom: 16px;">
+                    <button onclick="openEmailModal()" class="button" style="background: #f59e0b; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-size: 0.95rem; font-weight: 500; cursor: pointer;">
+                        📧 Generate Email to Seller
+                    </button>
+                    <p style="margin: 8px 0 0 0; font-size: 0.85rem; color: #6b7280;">
+                        Generate a professional email explaining the issues found during inspection
+                    </p>
+                </div>
+            `;
+        }
+        
         warningHtml = `
             <div class="split-warning">
                 <strong>⚠ Issues Detected</strong>
@@ -257,6 +294,8 @@ function displaySplitSection() {
             <p>Select which items to add to your inventory. Unchecked items can be kept for spares/repairs or handled separately.</p>
             
             ${warningHtml}
+            
+            ${emailButtonHtml}
             
             <div class="items-select-list">
                 ${itemsListHtml}
@@ -435,6 +474,84 @@ function showError(message) {
     document.getElementById('errorMessage').style.display = 'block';
     document.getElementById('errorMessage').textContent = message;
 }
+
+function openEmailModal() {
+    if (!emailTemplate) {
+        alert('Email template not available');
+        return;
+    }
+    
+    document.getElementById('emailContent').value = emailTemplate;
+    document.getElementById('emailModal').classList.add('active');
+}
+
+function closeEmailModal() {
+    document.getElementById('emailModal').classList.remove('active');
+}
+
+async function copyEmail() {
+    const emailContent = document.getElementById('emailContent').value;
+    const button = document.getElementById('copyEmailButton');
+    
+    try {
+        await navigator.clipboard.writeText(emailContent);
+        button.textContent = '✓ Copied!';
+        button.classList.add('copied');
+        
+        setTimeout(() => {
+            button.textContent = 'Copy Email';
+            button.classList.remove('copied');
+        }, 2000);
+    } catch (error) {
+        console.error('[EMAIL] Error copying:', error);
+        alert('Failed to copy email. Please select and copy manually.');
+    }
+}
+
+async function confirmEmailSent() {
+    if (!confirm('Have you sent this email to the seller?\n\nThis will mark the email as sent and record the timestamp.')) {
+        return;
+    }
+    
+    try {
+        const response = await authenticatedFetch(`${window.API_BASE}/api/admin/check-in/${checkInId}/mark-email-sent`, {
+            method: 'POST'
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to mark email as sent');
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('Email marked as sent!');
+            closeEmailModal();
+            // Reload the page to show the updated status
+            window.location.reload();
+        } else {
+            throw new Error(data.error || 'Failed to mark email as sent');
+        }
+    } catch (error) {
+        console.error('[EMAIL] Error marking as sent:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+// Close modal when clicking outside
+document.addEventListener('click', function(e) {
+    const modal = document.getElementById('emailModal');
+    if (e.target === modal) {
+        closeEmailModal();
+    }
+});
+
+// Close modal with Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeEmailModal();
+    }
+});
 
 function escapeHtml(text) {
     if (!text) return '';

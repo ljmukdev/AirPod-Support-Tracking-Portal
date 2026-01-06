@@ -2666,6 +2666,41 @@ app.put('/api/admin/check-in/:id', requireAuth, requireDB, async (req, res) => {
     }
 });
 
+// Mark check-in email as sent (Admin only)
+app.post('/api/admin/check-in/:id/mark-email-sent', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid check-in ID' });
+    }
+    
+    try {
+        const result = await db.collection('check_ins').updateOne(
+            { _id: new ObjectId(id) },
+            { 
+                $set: { 
+                    email_sent_at: new Date(),
+                    email_sent_by: req.user.email
+                }
+            }
+        );
+        
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ error: 'Check-in not found' });
+        }
+        
+        console.log('[CHECK-IN] Email marked as sent for check-in:', id);
+        
+        res.json({
+            success: true,
+            message: 'Email marked as sent'
+        });
+    } catch (err) {
+        console.error('[CHECK-IN] Error marking email as sent:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // Get check-in details with generated email (Admin only)
 app.get('/api/admin/check-in/:id', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;
