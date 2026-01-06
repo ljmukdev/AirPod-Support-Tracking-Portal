@@ -2103,6 +2103,123 @@ app.get('/api/admin/purchases/by-tracking/:trackingNumber', requireAuth, require
     }
 });
 
+// Helper function to get display name for item type
+function getItemDisplayName(itemType) {
+    const names = {
+        'case': 'Case',
+        'left': 'Left AirPod',
+        'right': 'Right AirPod',
+        'box': 'Box',
+        'ear_tips': 'Ear Tips',
+        'cable': 'Cable',
+        'protective_case': 'Protective Case'
+    };
+    return names[itemType] || itemType;
+}
+
+// Generate email template for seller contact
+function generateSellerEmail(purchase, checkIn) {
+    const issues = checkIn.issues_detected || [];
+    
+    if (issues.length === 0) {
+        return null;
+    }
+    
+    // Determine overall assessment
+    const hasCriticalIssues = issues.some(item => 
+        item.issues.some(issue => issue.severity === 'critical')
+    );
+    
+    const hasAuthenticityIssues = issues.some(item =>
+        item.issues.some(issue => issue.type === 'authenticity')
+    );
+    
+    // Build email content
+    let emailBody = 'Hi,\n\n';
+    emailBody += 'Thank you for sending these over. ';
+    
+    // Check if any items are in good visual condition
+    const hasGoodVisualCondition = checkIn.items.some(item => 
+        ['new', 'like_new', 'excellent', 'good'].includes(item.condition)
+    );
+    
+    if (hasGoodVisualCondition) {
+        emailBody += 'Visually, they are in ';
+        const allGoodCondition = checkIn.items.every(item =>
+            ['new', 'like_new', 'excellent'].includes(item.condition)
+        );
+        emailBody += allGoodCondition ? 'immaculate condition. ' : 'good condition. ';
+    }
+    
+    emailBody += 'Unfortunately, we are experiencing ';
+    emailBody += issues.length === 1 ? 'an issue' : 'some issues';
+    emailBody += ' with the following:\n\n';
+    
+    // List specific issues
+    issues.forEach(item => {
+        emailBody += `**${item.item_name}:**\n`;
+        item.issues.forEach(issue => {
+            if (issue.type === 'audible') {
+                if (issue.severity === 'critical') {
+                    emailBody += `- Although it shows as connected, there is no audible sound coming from it.\n`;
+                } else {
+                    emailBody += `- ${issue.description}\n`;
+                }
+            } else if (issue.type === 'connectivity') {
+                emailBody += `- The item has connectivity/pairing issues.\n`;
+            } else if (issue.type === 'authenticity') {
+                emailBody += `- Based on our inspection, there are concerns about authenticity.\n`;
+            } else if (issue.type === 'condition') {
+                emailBody += `- Visual condition is worse than described (${issue.description}).\n`;
+            }
+        });
+        emailBody += '\n';
+    });
+    
+    emailBody += 'We have carried out a full reset in line with Apple\'s guidance';
+    
+    // Check for pairing animation issues (indicator of fakes)
+    const hasConnectivityIssues = issues.some(item =>
+        item.issues.some(issue => issue.type === 'connectivity')
+    );
+    
+    if (hasConnectivityIssues && !hasAuthenticityIssues) {
+        emailBody += ', however this has not resolved the issue. We have also noticed that the Apple pairing animation does not always appear, which can sometimes be an indicator of counterfeit items. That said, based on our visual inspection and experience, we are confident these are genuine and believe this may instead be a software-related issue.\n\n';
+    } else {
+        emailBody += ', however this has not resolved the issue.\n\n';
+    }
+    
+    emailBody += 'To be completely open, we purchase AirPods for resale and have extensive experience diagnosing faults. ';
+    
+    if (hasCriticalIssues) {
+        emailBody += 'In all honesty, this is ';
+        const multipleIssues = issues.length > 1 || issues[0].issues.length > 1;
+        emailBody += multipleIssues ? 'a significant issue' : 'the first time we have encountered this particular issue';
+        emailBody += '.\n\n';
+    } else {
+        emailBody += '\n\n';
+    }
+    
+    emailBody += 'We will continue to try to resolve it, as our preference is always to get items fully working. However, if this proves unsuccessful, we would like to propose one of the following options:\n\n';
+    
+    // Calculate partial refund amount
+    const totalPrice = parseFloat(purchase.purchase_price) || 0;
+    const itemCount = purchase.items_purchased ? purchase.items_purchased.length : 3;
+    const affectedItemCount = issues.length;
+    const partialRefundAmount = (totalPrice * affectedItemCount / itemCount).toFixed(2);
+    
+    emailBody += `1. Return the full set for a full refund\n`;
+    emailBody += `2. Keep the item and receive a partial refund of £${partialRefundAmount}, reflecting the `;
+    emailBody += affectedItemCount > 1 ? 'non-functioning items' : 'non-functioning item';
+    emailBody += '\n\n';
+    
+    emailBody += 'Please let us know how you would like to proceed.\n\n';
+    emailBody += 'Kind regards,\n';
+    emailBody += 'LJMUK';
+    
+    return emailBody;
+}
+
 // Check-in a purchase (Admin only)
 app.post('/api/admin/check-in', requireAuth, requireDB, async (req, res) => {
     try {
@@ -2121,6 +2238,66 @@ app.post('/api/admin/check-in', requireAuth, requireDB, async (req, res) => {
             return res.status(400).json({ error: 'Invalid purchase ID' });
         }
         
+        // Analyze items for issues
+        const issues = [];
+        items.forEach(item => {
+            const itemIssues = [];
+            
+            // Check if not genuine
+            if (item.is_genuine === false) {
+                itemIssues.push({
+                    type: 'authenticity',
+                    severity: 'critical',
+                    description: 'Item appears to be counterfeit or not genuine'
+                });
+            }
+            
+            // Check visual condition issues (fair or poor)
+            if (['fair', 'poor'].includes(item.condition)) {
+                itemIssues.push({
+                    type: 'condition',
+                    severity: item.condition === 'poor' ? 'high' : 'medium',
+                    description: `Visual condition is ${item.condition}`
+                });
+            }
+            
+            // Check audible condition issues (only for left/right AirPods)
+            if (['left', 'right'].includes(item.item_type) && item.audible_condition) {
+                if (['poor', 'not_working'].includes(item.audible_condition)) {
+                    itemIssues.push({
+                        type: 'audible',
+                        severity: item.audible_condition === 'not_working' ? 'critical' : 'high',
+                        description: item.audible_condition === 'not_working' 
+                            ? 'No audible sound - item not working'
+                            : `Poor sound quality - audible condition is ${item.audible_condition}`
+                    });
+                } else if (item.audible_condition === 'fair') {
+                    itemIssues.push({
+                        type: 'audible',
+                        severity: 'medium',
+                        description: 'Fair sound quality - audible condition is fair'
+                    });
+                }
+            }
+            
+            // Check connectivity issues
+            if (item.connects_correctly === false) {
+                itemIssues.push({
+                    type: 'connectivity',
+                    severity: 'high',
+                    description: 'Item has connectivity/pairing issues'
+                });
+            }
+            
+            if (itemIssues.length > 0) {
+                issues.push({
+                    item_type: item.item_type,
+                    item_name: getItemDisplayName(item.item_type),
+                    issues: itemIssues
+                });
+            }
+        });
+        
         const checkInRecord = {
             purchase_id: new ObjectId(purchase_id),
             tracking_number: tracking_number || null,
@@ -2132,26 +2309,79 @@ app.post('/api/admin/check-in', requireAuth, requireDB, async (req, res) => {
                 audible_condition: item.audible_condition || null,
                 connects_correctly: item.connects_correctly !== undefined ? item.connects_correctly : null
             })),
+            issues_detected: issues,
+            has_issues: issues.length > 0,
             checked_in_by: req.user.email,
             checked_in_at: new Date()
         };
         
         const result = await db.collection('check_ins').insertOne(checkInRecord);
         
-        // Update purchase status to 'delivered' if not already
+        // Update purchase status based on issues
+        const purchaseUpdate = {
+            checked_in: true,
+            checked_in_date: new Date()
+        };
+        
+        if (issues.length > 0) {
+            // Set to on_hold if issues detected
+            purchaseUpdate.status = 'on_hold';
+            purchaseUpdate.requires_seller_contact = true;
+        } else {
+            // Set to delivered if no issues
+            purchaseUpdate.status = 'delivered';
+        }
+        
         await db.collection('purchases').updateOne(
             { _id: new ObjectId(purchase_id) },
-            { 
-                $set: { 
-                    status: 'delivered',
-                    checked_in: true,
-                    checked_in_date: new Date()
-                } 
-            }
+            { $set: purchaseUpdate }
         );
         
-        console.log('Check-in completed successfully, ID:', result.insertedId);
-        res.json({ success: true, message: 'Check-in completed successfully', id: result.insertedId });
+        console.log('Check-in completed successfully, ID:', result.insertedId, 'Issues found:', issues.length);
+        res.json({ 
+            success: true, 
+            message: 'Check-in completed successfully', 
+            id: result.insertedId,
+            issues_found: issues
+        });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Get check-in details with generated email (Admin only)
+app.get('/api/admin/check-in/:id', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid check-in ID' });
+    }
+    
+    try {
+        const checkIn = await db.collection('check_ins').findOne({ _id: new ObjectId(id) });
+        
+        if (!checkIn) {
+            return res.status(404).json({ error: 'Check-in not found' });
+        }
+        
+        const purchase = await db.collection('purchases').findOne({ 
+            _id: new ObjectId(checkIn.purchase_id) 
+        });
+        
+        if (!purchase) {
+            return res.status(404).json({ error: 'Purchase not found' });
+        }
+        
+        // Generate email template
+        const emailContent = generateSellerEmail(purchase, checkIn);
+        
+        res.json({
+            success: true,
+            check_in: checkIn,
+            purchase: purchase,
+            email_template: emailContent
+        });
     } catch (err) {
         console.error('Database error:', err);
         res.status(500).json({ error: 'Database error: ' + err.message });
