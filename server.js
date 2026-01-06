@@ -2128,7 +2128,9 @@ app.post('/api/admin/check-in', requireAuth, requireDB, async (req, res) => {
                 item_type: item.item_type,
                 is_genuine: item.is_genuine === true,
                 condition: item.condition,
-                serial_number: item.serial_number || null
+                serial_number: item.serial_number || null,
+                audible_condition: item.audible_condition || null,
+                connects_correctly: item.connects_correctly !== undefined ? item.connects_correctly : null
             })),
             checked_in_by: req.user.email,
             checked_in_at: new Date()

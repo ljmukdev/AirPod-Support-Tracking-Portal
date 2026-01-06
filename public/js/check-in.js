@@ -210,6 +210,48 @@ function displayCheckInForm(purchase) {
                            placeholder="Enter serial number" 
                            style="width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ddd; border-radius: 4px;">
                 </div>
+                
+                <!-- Audible Condition -->
+                <div class="form-group" style="margin-top: 15px;">
+                    <label style="font-weight: 600; display: block; margin-bottom: 8px;">Audible Condition:</label>
+                    <div class="condition-rating">
+                        <label>
+                            <input type="radio" name="audible_${item}" value="excellent" required>
+                            <span>Excellent</span>
+                        </label>
+                        <label>
+                            <input type="radio" name="audible_${item}" value="good" required>
+                            <span>Good</span>
+                        </label>
+                        <label>
+                            <input type="radio" name="audible_${item}" value="fair" required>
+                            <span>Fair</span>
+                        </label>
+                        <label>
+                            <input type="radio" name="audible_${item}" value="poor" required>
+                            <span>Poor</span>
+                        </label>
+                        <label>
+                            <input type="radio" name="audible_${item}" value="not_working" required>
+                            <span>Not Working</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Connectivity Check -->
+                <div class="form-group" style="margin-top: 15px;">
+                    <label style="font-weight: 600; display: block; margin-bottom: 8px;">Does it connect correctly?</label>
+                    <div style="display: flex; gap: 20px;">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="radio" name="connectivity_${item}" value="yes" style="margin-right: 8px;" required>
+                            <span>Yes - Connects Fine</span>
+                        </label>
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="radio" name="connectivity_${item}" value="no" style="margin-right: 8px;" required>
+                            <span>No - Connection Issues</span>
+                        </label>
+                    </div>
+                </div>
                 ` : ''}
             </div>
         `;
@@ -259,11 +301,23 @@ async function submitCheckIn() {
             condition: conditionRadio.value
         };
         
-        // Add serial number if applicable
+        // Add serial number, audible condition, and connectivity if applicable
         if (['case', 'left', 'right'].includes(item)) {
             const serialInput = document.getElementById(`serial_${item}`);
             if (serialInput && serialInput.value.trim()) {
                 itemData.serial_number = serialInput.value.trim();
+            }
+            
+            // Audible condition
+            const audibleRadio = document.querySelector(`input[name="audible_${item}"]:checked`);
+            if (audibleRadio) {
+                itemData.audible_condition = audibleRadio.value;
+            }
+            
+            // Connectivity
+            const connectivityRadio = document.querySelector(`input[name="connectivity_${item}"]:checked`);
+            if (connectivityRadio) {
+                itemData.connects_correctly = connectivityRadio.value === 'yes';
             }
         }
         
