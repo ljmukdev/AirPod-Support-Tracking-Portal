@@ -104,7 +104,7 @@ function renderPurchases(purchases) {
                 <td>${platformBadge}</td>
                 <td>${escapeHtml(purchase.order_number)}</td>
                 <td>${escapeHtml(purchase.seller_name)}</td>
-                <td>${escapeHtml(purchase.generation)}</td>
+                <td>${escapeHtml(shortenProductName(purchase.generation))}</td>
                 <td style="line-height: 1.6;">${itemsBadges || '<span style="color: #999;">—</span>'}</td>
                 <td style="text-align: center;">${escapeHtml(String(purchase.quantity))}</td>
                 <td style="font-weight: 600; color: var(--accent-teal);">£${parseFloat(purchase.purchase_price).toFixed(2)}</td>
@@ -257,6 +257,41 @@ function debounce(func, wait) {
         clearTimeout(timeout);
         timeout = setTimeout(later, wait);
     };
+}
+
+// Helper function to shorten product names for table display
+function shortenProductName(generation) {
+    if (!generation) return '';
+    
+    let shortened = generation;
+    
+    // Remove "AirPods" and extra parentheses
+    shortened = shortened.replace(/AirPods\s*/gi, '');
+    shortened = shortened.replace(/^\(|\)$/g, '');
+    
+    // Handle Pro models
+    if (shortened.includes('Pro')) {
+        // "Pro (1st Gen)" → "Pro Gen1"
+        shortened = shortened.replace(/Pro\s*\((\d+)(?:st|nd|rd|th)\s*Gen\)/i, 'Pro Gen$1');
+    } else {
+        // Regular AirPods - abbreviate generation
+        // "(1st Gen)" → "Gen1"
+        shortened = shortened.replace(/\((\d+)(?:st|nd|rd|th)\s*Gen\)/i, 'Gen$1');
+        // "1st Gen" → "Gen1"
+        shortened = shortened.replace(/(\d+)(?:st|nd|rd|th)\s*Gen/i, 'Gen$1');
+    }
+    
+    // Handle 4th Gen special cases
+    // "standard line (ANC version)" → "ANC"
+    shortened = shortened.replace(/standard line\s*\(ANC version\)/i, 'ANC');
+    // "standard line (non-Pro)" → remove it (no need to mention)
+    shortened = shortened.replace(/standard line\s*\(non-Pro\)/i, '');
+    
+    // Clean up extra spaces and parentheses
+    shortened = shortened.replace(/\s+/g, ' ').trim();
+    shortened = shortened.replace(/^\(|\)$/g, '').trim();
+    
+    return shortened;
 }
 
 function escapeHtml(text) {
