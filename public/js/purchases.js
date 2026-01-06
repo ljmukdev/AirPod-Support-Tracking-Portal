@@ -181,12 +181,19 @@ function renderPurchases(purchases) {
             return `<span style="display: inline-block; padding: 3px 6px; background-color: #6c757d; color: white; border-radius: 3px; font-size: 0.75rem; margin: 2px;">${escapeHtml(label)}</span>`;
         }).join('');
         
+        // Generation display with connector type for Pro 2nd Gen
+        let generationDisplay = escapeHtml(shortenProductName(purchase.generation));
+        if (purchase.generation === 'AirPods Pro (2nd Gen)' && purchase.connector_type) {
+            const connectorLabel = purchase.connector_type === 'usb-c' ? 'USB-C' : 'Lightning';
+            generationDisplay += `<br><span style="font-size: 0.8rem; color: #666;">(${connectorLabel})</span>`;
+        }
+        
         return `
             <tr data-purchase-id="${escapeHtml(String(purchase._id || purchase.id))}">
                 <td>${platformBadge}</td>
                 <td>${escapeHtml(purchase.order_number)}</td>
                 <td>${escapeHtml(purchase.seller_name)}</td>
-                <td>${escapeHtml(shortenProductName(purchase.generation))}</td>
+                <td>${generationDisplay}</td>
                 <td style="line-height: 1.6;">${itemsBadges || '<span style="color: #999;">—</span>'}</td>
                 <td style="text-align: center;">${escapeHtml(String(purchase.quantity))}</td>
                 <td style="font-weight: 600; color: var(--accent-teal);">£${parseFloat(purchase.purchase_price).toFixed(2)}</td>

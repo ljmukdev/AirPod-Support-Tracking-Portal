@@ -194,6 +194,22 @@
                             </select>
                         </div>
 
+                        <!-- Connector Type (conditional for Pro 2nd Gen) -->
+                        <div class="form-group" id="connectorTypeGroup" style="display: none;">
+                            <label>Connector Type *</label>
+                            <div style="display: flex; gap: 20px; margin-top: 10px;">
+                                <label style="display: flex; align-items: center; cursor: pointer;">
+                                    <input type="radio" name="connectorType" value="usb-c" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
+                                    <span>USB-C</span>
+                                </label>
+                                <label style="display: flex; align-items: center; cursor: pointer;">
+                                    <input type="radio" name="connectorType" value="lightning" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
+                                    <span>Lightning</span>
+                                </label>
+                            </div>
+                            <div id="connectorTypeError" style="color: #dc3545; font-size: 0.85rem; margin-top: 8px; display: none;">Please select a connector type</div>
+                        </div>
+
                         <!-- What was purchased - Checkboxes -->
                         <div class="form-group form-group-full">
                             <label>What was purchased? * <span style="font-size: 0.85rem; color: #666; font-weight: normal;">(Select all that apply)</span></label>
@@ -376,6 +392,16 @@
                 document.getElementById('sellerName').value = purchase.seller_name || '';
                 document.getElementById('purchaseDate').value = purchase.purchase_date ? new Date(purchase.purchase_date).toISOString().split('T')[0] : '';
                 document.getElementById('generation').value = purchase.generation || '';
+                
+                // Show connector type if Pro 2nd Gen and set value
+                if (purchase.generation === 'AirPods Pro (2nd Gen)') {
+                    document.getElementById('connectorTypeGroup').style.display = 'block';
+                    if (purchase.connector_type) {
+                        const connectorRadio = document.querySelector(`input[name="connectorType"][value="${purchase.connector_type}"]`);
+                        if (connectorRadio) connectorRadio.checked = true;
+                    }
+                }
+                
                 document.getElementById('quantity').value = purchase.quantity || 1;
                 document.getElementById('purchasePrice').value = purchase.purchase_price || '';
                 document.getElementById('condition').value = purchase.condition || '';
@@ -408,6 +434,27 @@
                 window.location.href = 'purchases.html';
             }
         }
+        
+        // Generation change handler - show/hide connector type
+        document.getElementById('generation').addEventListener('change', function() {
+            const connectorTypeGroup = document.getElementById('connectorTypeGroup');
+            const connectorTypeError = document.getElementById('connectorTypeError');
+            const connectorRadios = document.querySelectorAll('input[name="connectorType"]');
+            
+            if (this.value === 'AirPods Pro (2nd Gen)') {
+                connectorTypeGroup.style.display = 'block';
+                // Make connector type required
+                connectorRadios.forEach(radio => radio.required = true);
+            } else {
+                connectorTypeGroup.style.display = 'none';
+                connectorTypeError.style.display = 'none';
+                // Clear selection and make not required
+                connectorRadios.forEach(radio => {
+                    radio.checked = false;
+                    radio.required = false;
+                });
+            }
+        });
         
         // Checkbox hover effects
         document.addEventListener('DOMContentLoaded', function() {
@@ -452,11 +499,13 @@
             const successBanner = document.getElementById('successBanner');
             const errorBanner = document.getElementById('errorBanner');
             const itemsError = document.getElementById('itemsError');
+            const connectorTypeError = document.getElementById('connectorTypeError');
             
             // Hide previous messages
             successBanner.style.display = 'none';
             errorBanner.style.display = 'none';
             itemsError.style.display = 'none';
+            connectorTypeError.style.display = 'none';
             
             // Get checked items
             const checkedItems = Array.from(document.querySelectorAll('input[name="items_purchased"]:checked'))
@@ -469,11 +518,26 @@
                 return;
             }
             
+            // Validate connector type if Pro 2nd Gen is selected
+            const generation = document.getElementById('generation').value;
+            if (generation === 'AirPods Pro (2nd Gen)') {
+                const connectorType = document.querySelector('input[name="connectorType"]:checked');
+                if (!connectorType) {
+                    connectorTypeError.style.display = 'block';
+                    connectorTypeError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    return;
+                }
+            }
+            
             submitButton.disabled = true;
             submitButton.textContent = 'Updating...';
             
             try {
                 const formData = new FormData(this);
+                
+                // Get connector type if applicable
+                const connectorTypeRadio = document.querySelector('input[name="connectorType"]:checked');
+                const connectorType = connectorTypeRadio ? connectorTypeRadio.value : null;
                 
                 const purchaseData = {
                     platform: formData.get('platform'),
@@ -481,6 +545,7 @@
                     seller_name: formData.get('sellerName'),
                     purchase_date: formData.get('purchaseDate'),
                     generation: formData.get('generation'),
+                    connector_type: connectorType,
                     items_purchased: checkedItems,
                     quantity: parseInt(formData.get('quantity')),
                     purchase_price: parseFloat(formData.get('purchasePrice')),
