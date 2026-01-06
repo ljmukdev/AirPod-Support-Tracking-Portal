@@ -2004,7 +2004,7 @@ app.post('/api/admin/purchases', requireAuth, requireDB, async (req, res) => {
             seller_name,
             purchase_date,
             generation,
-            part_type,
+            items_purchased,
             quantity,
             purchase_price,
             condition,
@@ -2014,7 +2014,7 @@ app.post('/api/admin/purchases', requireAuth, requireDB, async (req, res) => {
         } = req.body;
         
         // Validation
-        if (!platform || !order_number || !seller_name || !purchase_date || !generation || !part_type || !quantity || purchase_price === undefined) {
+        if (!platform || !order_number || !seller_name || !purchase_date || !generation || !items_purchased || !Array.isArray(items_purchased) || items_purchased.length === 0 || !quantity || purchase_price === undefined) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
         
@@ -2024,7 +2024,7 @@ app.post('/api/admin/purchases', requireAuth, requireDB, async (req, res) => {
             seller_name,
             purchase_date: new Date(purchase_date),
             generation,
-            part_type,
+            items_purchased: items_purchased, // Array of items: case, left, right, box, ear_tips, cable, protective_case
             quantity: parseInt(quantity),
             purchase_price: parseFloat(purchase_price),
             condition: condition || 'good',

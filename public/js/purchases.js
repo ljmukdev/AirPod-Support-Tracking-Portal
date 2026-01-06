@@ -35,7 +35,7 @@ async function loadPurchases() {
     } catch (error) {
         console.error('Error loading purchases:', error);
         document.getElementById('purchasesTable').innerHTML = 
-            '<tr><td colspan="9" style="text-align: center; padding: 20px; color: #dc3545;">Failed to load purchases. Please refresh the page.</td></tr>';
+            '<tr><td colspan="10" style="text-align: center; padding: 20px; color: #dc3545;">Failed to load purchases. Please refresh the page.</td></tr>';
     }
 }
 
@@ -43,7 +43,7 @@ function renderPurchases(purchases) {
     const tableBody = document.getElementById('purchasesTable');
     
     if (purchases.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 40px; color: #666;">No purchases found. <a href="add-purchase.html">Add your first purchase</a></td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 40px; color: #666;">No purchases found. <a href="add-purchase.html">Add your first purchase</a></td></tr>';
         return;
     }
     
@@ -82,12 +82,30 @@ function renderPurchases(purchases) {
         const conditionLabel = conditionLabels[purchase.condition] || purchase.condition;
         const conditionBadge = `<span style="display: inline-block; padding: 4px 8px; background-color: ${conditionColor}; color: white; border-radius: 4px; font-size: 0.85rem;">${escapeHtml(conditionLabel)}</span>`;
         
+        // Items purchased badges
+        const itemLabels = {
+            'case': 'Case',
+            'left': 'Left',
+            'right': 'Right',
+            'box': 'Box',
+            'ear_tips': 'Ear Tips',
+            'cable': 'Cable',
+            'protective_case': 'Protective Case'
+        };
+        
+        const itemsPurchased = purchase.items_purchased || [];
+        const itemsBadges = itemsPurchased.map(item => {
+            const label = itemLabels[item] || item;
+            return `<span style="display: inline-block; padding: 3px 6px; background-color: #6c757d; color: white; border-radius: 3px; font-size: 0.75rem; margin: 2px;">${escapeHtml(label)}</span>`;
+        }).join('');
+        
         return `
             <tr data-purchase-id="${escapeHtml(String(purchase._id || purchase.id))}">
                 <td>${platformBadge}</td>
                 <td>${escapeHtml(purchase.order_number)}</td>
                 <td>${escapeHtml(purchase.seller_name)}</td>
                 <td>${escapeHtml(purchase.generation)}</td>
+                <td style="line-height: 1.6;">${itemsBadges || '<span style="color: #999;">—</span>'}</td>
                 <td style="text-align: center;">${escapeHtml(String(purchase.quantity))}</td>
                 <td style="font-weight: 600; color: var(--accent-teal);">£${parseFloat(purchase.purchase_price).toFixed(2)}</td>
                 <td>${conditionBadge}</td>

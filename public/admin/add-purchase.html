@@ -194,17 +194,40 @@
                             </select>
                         </div>
 
-                        <!-- Part Type -->
-                        <div class="form-group">
-                            <label for="partType">What was purchased? *</label>
-                            <select id="partType" name="partType" required>
-                                <option value="">Select type</option>
-                                <option value="complete_set">Complete Set (Both + Case)</option>
-                                <option value="left">Left AirPod Only</option>
-                                <option value="right">Right AirPod Only</option>
-                                <option value="case">Case Only</option>
-                                <option value="pair_no_case">Pair (No Case)</option>
-                            </select>
+                        <!-- What was purchased - Checkboxes -->
+                        <div class="form-group form-group-full">
+                            <label>What was purchased? * <span style="font-size: 0.85rem; color: #666; font-weight: normal;">(Select all that apply)</span></label>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 10px;">
+                                <label style="display: flex; align-items: center; cursor: pointer; padding: 8px; border: 1px solid #ddd; border-radius: 4px; transition: all 0.2s;" class="checkbox-label">
+                                    <input type="checkbox" name="items_purchased" value="case" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
+                                    <span>Case</span>
+                                </label>
+                                <label style="display: flex; align-items: center; cursor: pointer; padding: 8px; border: 1px solid #ddd; border-radius: 4px; transition: all 0.2s;" class="checkbox-label">
+                                    <input type="checkbox" name="items_purchased" value="left" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
+                                    <span>Left AirPod</span>
+                                </label>
+                                <label style="display: flex; align-items: center; cursor: pointer; padding: 8px; border: 1px solid #ddd; border-radius: 4px; transition: all 0.2s;" class="checkbox-label">
+                                    <input type="checkbox" name="items_purchased" value="right" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
+                                    <span>Right AirPod</span>
+                                </label>
+                                <label style="display: flex; align-items: center; cursor: pointer; padding: 8px; border: 1px solid #ddd; border-radius: 4px; transition: all 0.2s;" class="checkbox-label">
+                                    <input type="checkbox" name="items_purchased" value="box" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
+                                    <span>Box</span>
+                                </label>
+                                <label style="display: flex; align-items: center; cursor: pointer; padding: 8px; border: 1px solid #ddd; border-radius: 4px; transition: all 0.2s;" class="checkbox-label">
+                                    <input type="checkbox" name="items_purchased" value="ear_tips" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
+                                    <span>Ear Tips</span>
+                                </label>
+                                <label style="display: flex; align-items: center; cursor: pointer; padding: 8px; border: 1px solid #ddd; border-radius: 4px; transition: all 0.2s;" class="checkbox-label">
+                                    <input type="checkbox" name="items_purchased" value="cable" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
+                                    <span>Cable</span>
+                                </label>
+                                <label style="display: flex; align-items: center; cursor: pointer; padding: 8px; border: 1px solid #ddd; border-radius: 4px; transition: all 0.2s;" class="checkbox-label">
+                                    <input type="checkbox" name="items_purchased" value="protective_case" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
+                                    <span>Protective Case</span>
+                                </label>
+                            </div>
+                            <div id="itemsError" style="color: #dc3545; font-size: 0.85rem; margin-top: 8px; display: none;">Please select at least one item</div>
                         </div>
 
                         <!-- Quantity -->
@@ -279,6 +302,38 @@
 
     <script src="../js/admin.js"></script>
     <script>
+        // Checkbox hover effects
+        document.addEventListener('DOMContentLoaded', function() {
+            const checkboxLabels = document.querySelectorAll('.checkbox-label');
+            checkboxLabels.forEach(label => {
+                const checkbox = label.querySelector('input[type="checkbox"]');
+                
+                // Update label style when checked
+                checkbox.addEventListener('change', function() {
+                    if (this.checked) {
+                        label.style.backgroundColor = '#e8f4f8';
+                        label.style.borderColor = 'var(--accent-teal)';
+                    } else {
+                        label.style.backgroundColor = '';
+                        label.style.borderColor = '#ddd';
+                    }
+                });
+                
+                // Hover effect
+                label.addEventListener('mouseenter', function() {
+                    if (!checkbox.checked) {
+                        label.style.backgroundColor = '#f8f9fa';
+                    }
+                });
+                
+                label.addEventListener('mouseleave', function() {
+                    if (!checkbox.checked) {
+                        label.style.backgroundColor = '';
+                    }
+                });
+            });
+        });
+        
         // Form submission
         document.getElementById('addPurchaseForm').addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -286,13 +341,26 @@
             const submitButton = document.getElementById('submitButton');
             const successBanner = document.getElementById('successBanner');
             const errorBanner = document.getElementById('errorBanner');
-            
-            submitButton.disabled = true;
-            submitButton.textContent = 'Saving...';
+            const itemsError = document.getElementById('itemsError');
             
             // Hide previous messages
             successBanner.style.display = 'none';
             errorBanner.style.display = 'none';
+            itemsError.style.display = 'none';
+            
+            // Get checked items
+            const checkedItems = Array.from(document.querySelectorAll('input[name="items_purchased"]:checked'))
+                .map(cb => cb.value);
+            
+            // Validate at least one item is selected
+            if (checkedItems.length === 0) {
+                itemsError.style.display = 'block';
+                itemsError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return;
+            }
+            
+            submitButton.disabled = true;
+            submitButton.textContent = 'Saving...';
             
             try {
                 const formData = new FormData(this);
@@ -303,7 +371,7 @@
                     seller_name: formData.get('sellerName'),
                     purchase_date: formData.get('purchaseDate'),
                     generation: formData.get('generation'),
-                    part_type: formData.get('partType'),
+                    items_purchased: checkedItems,
                     quantity: parseInt(formData.get('quantity')),
                     purchase_price: parseFloat(formData.get('purchasePrice')),
                     condition: formData.get('condition'),
