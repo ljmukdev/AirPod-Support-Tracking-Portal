@@ -1417,15 +1417,44 @@ body.add-product-page .form-fields-card {
     border-bottom: none;
 }
 
+/* Action Buttons Container */
+.action-buttons {
+    display: flex;
+    gap: 6px;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+/* Track Button */
+.track-button {
+    background-color: white;
+    color: var(--text-dark);
+    border: 1px solid #ddd;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.track-button:hover {
+    background-color: #f8f9fa;
+    border-color: #999;
+}
+
+/* Edit Button */
 .edit-button {
     background-color: var(--accent-teal);
     color: white;
     border: none;
-    padding: 6px 12px;
+    padding: 5px 10px;
     border-radius: 4px;
     cursor: pointer;
-    font-size: 0.9rem;
-    transition: background-color 0.2s;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+    white-space: nowrap;
 }
 
 .edit-button:hover {
@@ -1470,15 +1499,17 @@ body.add-product-page .form-fields-card {
     background-color: #e2e3e5;
 }
 
+/* Delete Button */
 .delete-button {
     background-color: #dc3545;
     color: var(--background-white);
     border: none;
-    padding: 6px 12px;
+    padding: 5px 10px;
     border-radius: 4px;
     cursor: pointer;
-    font-size: 0.9rem;
-    transition: background-color 0.3s ease;
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+    white-space: nowrap;
 }
 
 /* Modal Styles */

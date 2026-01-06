@@ -1982,6 +1982,92 @@ app.put('/api/admin/product/:id/ebay-order', requireAuth, requireDB, async (req,
     }
 });
 
+// ===== PURCHASES MANAGEMENT API ENDPOINTS =====
+
+// Get all purchases (Admin only)
+app.get('/api/admin/purchases', requireAuth, requireDB, async (req, res) => {
+    try {
+        const purchases = await db.collection('purchases').find({}).sort({ purchase_date: -1 }).toArray();
+        res.json({ success: true, purchases });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Add new purchase (Admin only)
+app.post('/api/admin/purchases', requireAuth, requireDB, async (req, res) => {
+    try {
+        const {
+            platform,
+            order_number,
+            seller_name,
+            purchase_date,
+            generation,
+            part_type,
+            quantity,
+            purchase_price,
+            condition,
+            expected_delivery,
+            serial_numbers,
+            notes
+        } = req.body;
+        
+        // Validation
+        if (!platform || !order_number || !seller_name || !purchase_date || !generation || !part_type || !quantity || purchase_price === undefined) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+        
+        const purchase = {
+            platform,
+            order_number,
+            seller_name,
+            purchase_date: new Date(purchase_date),
+            generation,
+            part_type,
+            quantity: parseInt(quantity),
+            purchase_price: parseFloat(purchase_price),
+            condition: condition || 'good',
+            expected_delivery: expected_delivery ? new Date(expected_delivery) : null,
+            serial_numbers: serial_numbers || [],
+            notes: notes || '',
+            date_added: new Date(),
+            status: 'pending' // pending, received, processed
+        };
+        
+        const result = await db.collection('purchases').insertOne(purchase);
+        
+        console.log('Purchase added successfully, ID:', result.insertedId);
+        res.json({ success: true, message: 'Purchase added successfully', id: result.insertedId });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Delete purchase (Admin only)
+app.delete('/api/admin/purchases/:id', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid purchase ID' });
+    }
+    
+    try {
+        const result = await db.collection('purchases').deleteOne({ _id: new ObjectId(id) });
+        
+        if (result.deletedCount === 0) {
+            res.status(404).json({ error: 'Purchase not found' });
+        } else {
+            console.log('Purchase deleted successfully, ID:', id);
+            res.json({ success: true, message: 'Purchase deleted successfully' });
+        }
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // Mark product as returned/refunded (Admin only)
 app.put('/api/admin/product/:id/return', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;

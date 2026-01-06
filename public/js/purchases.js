@@ -1,0 +1,248 @@
+// Purchases Management - Frontend Logic
+
+if (typeof window.API_BASE === 'undefined') {
+    window.API_BASE = '';
+}
+const API_BASE = window.API_BASE;
+
+let allPurchases = [];
+
+// Load purchases on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadPurchases();
+    attachEventListeners();
+});
+
+async function loadPurchases() {
+    try {
+        const response = await authenticatedFetch(`${API_BASE}/api/admin/purchases`, {
+            credentials: 'include'
+        });
+        
+        if (!response.ok) {
+            if (response.status === 401) {
+                window.location.href = 'login.html';
+                return;
+            }
+            throw new Error('Failed to load purchases');
+        }
+        
+        const data = await response.json();
+        allPurchases = data.purchases || [];
+        
+        renderPurchases(allPurchases);
+        updateStats();
+    } catch (error) {
+        console.error('Error loading purchases:', error);
+        document.getElementById('purchasesTable').innerHTML = 
+            '<tr><td colspan="9" style="text-align: center; padding: 20px; color: #dc3545;">Failed to load purchases. Please refresh the page.</td></tr>';
+    }
+}
+
+function renderPurchases(purchases) {
+    const tableBody = document.getElementById('purchasesTable');
+    
+    if (purchases.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 40px; color: #666;">No purchases found. <a href="add-purchase.html">Add your first purchase</a></td></tr>';
+        return;
+    }
+    
+    tableBody.innerHTML = purchases.map(purchase => {
+        const purchaseDate = new Date(purchase.purchase_date);
+        const formattedDate = purchaseDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+        
+        // Platform badge
+        const platformColors = {
+            'ebay': '#0064D2',
+            'vinted': '#09B1BA',
+            'facebook': '#1877F2',
+            'other': '#666'
+        };
+        const platformColor = platformColors[purchase.platform] || platformColors.other;
+        const platformBadge = `<span style="display: inline-block; padding: 4px 8px; background-color: ${platformColor}; color: white; border-radius: 4px; font-size: 0.85rem; font-weight: 500; text-transform: uppercase;">${escapeHtml(purchase.platform)}</span>`;
+        
+        // Condition badge
+        const conditionColors = {
+            'new': '#28a745',
+            'like_new': '#17a2b8',
+            'excellent': '#20c997',
+            'good': '#ffc107',
+            'fair': '#fd7e14',
+            'for_parts': '#dc3545'
+        };
+        const conditionLabels = {
+            'new': 'New',
+            'like_new': 'Like New',
+            'excellent': 'Excellent',
+            'good': 'Good',
+            'fair': 'Fair',
+            'for_parts': 'For Parts'
+        };
+        const conditionColor = conditionColors[purchase.condition] || '#666';
+        const conditionLabel = conditionLabels[purchase.condition] || purchase.condition;
+        const conditionBadge = `<span style="display: inline-block; padding: 4px 8px; background-color: ${conditionColor}; color: white; border-radius: 4px; font-size: 0.85rem;">${escapeHtml(conditionLabel)}</span>`;
+        
+        return `
+            <tr data-purchase-id="${escapeHtml(String(purchase._id || purchase.id))}">
+                <td>${platformBadge}</td>
+                <td>${escapeHtml(purchase.order_number)}</td>
+                <td>${escapeHtml(purchase.seller_name)}</td>
+                <td>${escapeHtml(purchase.generation)}</td>
+                <td style="text-align: center;">${escapeHtml(String(purchase.quantity))}</td>
+                <td style="font-weight: 600; color: var(--accent-teal);">£${parseFloat(purchase.purchase_price).toFixed(2)}</td>
+                <td>${conditionBadge}</td>
+                <td>${formattedDate}</td>
+                <td>
+                    <div class="action-buttons">
+                        <button class="edit-button" onclick="editPurchase('${escapeHtml(String(purchase._id || purchase.id))}')">
+                            Edit
+                        </button>
+                        <button class="delete-button" onclick="deletePurchase('${escapeHtml(String(purchase._id || purchase.id))}')">
+                            Delete
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function updateStats() {
+    // Update count
+    const count = allPurchases.length;
+    document.getElementById('purchasesCount').textContent = `${count} purchase${count !== 1 ? 's' : ''}`;
+    
+    // Calculate total spent
+    const totalSpent = allPurchases.reduce((sum, purchase) => {
+        return sum + (parseFloat(purchase.purchase_price) * parseInt(purchase.quantity));
+    }, 0);
+    
+    document.getElementById('totalSpent').textContent = `£${totalSpent.toFixed(2)}`;
+}
+
+function attachEventListeners() {
+    // Search
+    const searchInput = document.getElementById('searchPurchases');
+    if (searchInput) {
+        searchInput.addEventListener('input', debounce(function() {
+            filterPurchases();
+        }, 300));
+    }
+    
+    // Filters
+    const filterPlatform = document.getElementById('filterPlatform');
+    const filterGeneration = document.getElementById('filterGeneration');
+    
+    if (filterPlatform) {
+        filterPlatform.addEventListener('change', filterPurchases);
+    }
+    if (filterGeneration) {
+        filterGeneration.addEventListener('change', filterPurchases);
+    }
+    
+    // Clear filters
+    const clearFiltersBtn = document.getElementById('clearFilters');
+    if (clearFiltersBtn) {
+        clearFiltersBtn.addEventListener('click', function() {
+            if (searchInput) searchInput.value = '';
+            if (filterPlatform) filterPlatform.value = '';
+            if (filterGeneration) filterGeneration.value = '';
+            renderPurchases(allPurchases);
+            updateStats();
+        });
+    }
+}
+
+function filterPurchases() {
+    const searchTerm = document.getElementById('searchPurchases')?.value.toLowerCase() || '';
+    const platformFilter = document.getElementById('filterPlatform')?.value || '';
+    const generationFilter = document.getElementById('filterGeneration')?.value || '';
+    
+    const filtered = allPurchases.filter(purchase => {
+        // Search filter
+        if (searchTerm) {
+            const searchText = (
+                (purchase.order_number || '') + ' ' +
+                (purchase.seller_name || '') + ' ' +
+                (purchase.generation || '')
+            ).toLowerCase();
+            
+            if (!searchText.includes(searchTerm)) {
+                return false;
+            }
+        }
+        
+        // Platform filter
+        if (platformFilter && purchase.platform !== platformFilter) {
+            return false;
+        }
+        
+        // Generation filter
+        if (generationFilter && purchase.generation !== generationFilter) {
+            return false;
+        }
+        
+        return true;
+    });
+    
+    renderPurchases(filtered);
+    
+    // Update count with filtered results
+    const count = filtered.length;
+    document.getElementById('purchasesCount').textContent = `${count} purchase${count !== 1 ? 's' : ''}`;
+    
+    // Calculate total for filtered results
+    const totalSpent = filtered.reduce((sum, purchase) => {
+        return sum + (parseFloat(purchase.purchase_price) * parseInt(purchase.quantity));
+    }, 0);
+    document.getElementById('totalSpent').textContent = `£${totalSpent.toFixed(2)}`;
+}
+
+async function editPurchase(id) {
+    // For now, just redirect to a future edit page
+    // You can implement this later similar to editing products
+    alert('Edit functionality coming soon! Purchase ID: ' + id);
+}
+
+async function deletePurchase(id) {
+    if (!confirm('Are you sure you want to delete this purchase? This action cannot be undone.')) {
+        return;
+    }
+    
+    try {
+        const response = await authenticatedFetch(`${API_BASE}/api/admin/purchases/${encodeURIComponent(id)}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            // Reload purchases
+            await loadPurchases();
+        } else {
+            alert(data.error || 'Failed to delete purchase');
+        }
+    } catch (error) {
+        console.error('Delete error:', error);
+        alert('Network error. Please try again.');
+    }
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}

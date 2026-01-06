@@ -3,56 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard | LJM AirPod Support</title>
-    <link rel="stylesheet" href="../css/styles.css?v=1.2.5.031">
-
-    <script>
-        // Inline version display - fetches from API to always show current version
-        (function() {
-            var API_BASE = window.API_BASE || '';
-            function showVersion(versionData) {
-                var el = document.getElementById('version-display');
-                if (!el) {
-                    el = document.createElement('div');
-                    el.id = 'version-display';
-                    el.style.cssText = 'position:fixed;top:10px;right:10px;font-size:0.7rem;color:rgba(0,0,0,0.7);font-family:"Courier New",monospace;z-index:99999;padding:4px 8px;background:rgba(255,255,255,0.9);border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.2);pointer-events:none;';
-                    if (document.body) {
-                        document.body.appendChild(el);
-                    } else {
-                        setTimeout(function() {
-                            if (document.body) document.body.appendChild(el);
-                        }, 100);
-                    }
-                }
-                if (versionData) {
-                    var versionText = 'v' + versionData.version + '.' + versionData.revision;
-                    el.textContent = versionText;
-                    el.title = 'Version ' + versionData.version + ' (Revision ' + versionData.revision + ')';
-                } else {
-                    el.textContent = 'v1.2.5.031';
-                    el.title = 'Version 1.2.5 (Revision 031)';
-                }
-            }
-            
-            // Fetch version from API
-            fetch(API_BASE + '/api/version')
-                .then(function(res) { return res.json(); })
-                .then(function(data) {
-                    showVersion(data);
-                })
-                .catch(function(err) {
-                    console.log('Version fetch failed, using default');
-                    showVersion(null);
-                });
-            
-            // Also show immediately with default
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', function() { showVersion(null); });
-            } else {
-                showVersion(null);
-            }
-        })();
-    </script>
+    <title>Purchases | LJM Admin</title>
+    <link rel="stylesheet" href="../css/styles.css?v=1.2.5.032">
 </head>
 <body class="admin-panel">
     <!-- Sidebar Navigation -->
@@ -113,7 +65,7 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="purchases.html" class="nav-link" data-page="purchases">
+                        <a href="purchases.html" class="nav-link active" data-page="purchases">
                             <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M3 5L10 2L17 5M3 5L3 15L10 18M3 5L10 8M17 5L17 15L10 18M17 5L10 8M10 8L10 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                             </svg>
@@ -241,29 +193,15 @@
                         <path d="M3 5H17M3 10H17M3 15H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                     </svg>
                 </button>
-                <form class="topbar-search-form" action="search-product.html" method="get" onsubmit="return handleQuickSearch(event)">
-                    <input 
-                        type="text" 
-                        name="security_barcode" 
-                        class="topbar-search-input" 
-                        placeholder="Search products..."
-                        autocomplete="off"
-                    >
-                    <button type="submit" class="topbar-search-button" aria-label="Search">
-                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M8.33333 13.6667C11.2789 13.6667 13.6667 11.2789 13.6667 8.33333C13.6667 5.38781 11.2789 3 8.33333 3C5.38781 3 3 5.38781 3 8.33333C3 11.2789 5.38781 13.6667 8.33333 13.6667Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                            <path d="M15 15L12.1 12.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                    </button>
-                </form>
-                <a href="add-product.html" class="topbar-add-button" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; background-color: var(--accent-teal); color: white; text-decoration: none; border-radius: 6px; font-size: 0.85rem; font-weight: 500; transition: background-color 0.2s ease; white-space: nowrap;">
+                <h2 style="margin: 0; font-size: 1.25rem; color: var(--text-dark);">Purchases</h2>
+            </div>
+            <div class="topbar-right">
+                <a href="add-purchase.html" class="topbar-add-button">
                     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M8 3V13M3 8H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                     </svg>
-                    Add Products
+                    Add Purchase
                 </a>
-            </div>
-            <div class="topbar-right">
                 <div class="topbar-user">
                     <span class="topbar-user-name">Admin</span>
                 </div>
@@ -272,177 +210,97 @@
         
         <!-- Page Content -->
         <div class="admin-content">
-            <div class="admin-container">
-                <h1 style="margin-top: 0; margin-bottom: 24px;">Dashboard Overview</h1>
-                
-                <!-- Stats Cards -->
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-card-header">
-                            <h3 class="stat-card-title">Total Products</h3>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="stat-icon" style="color: #3b82f6;">
-                                <path d="M20 7L12 3L4 7M20 7L12 11M20 7V17L12 21M12 11L4 7M12 11V21M4 7V17L12 21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                        </div>
-                        <div class="stat-card-value" id="statTotalProducts">-</div>
-                    </div>
-                    
-                    <div class="stat-card">
-                        <div class="stat-card-header">
-                            <h3 class="stat-card-title">Recent (7 days)</h3>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="stat-icon" style="color: #10b981;">
-                                <path d="M12 2V6M12 18V22M6 12H2M22 12H18M19.07 19.07L16.24 16.24M19.07 4.93L16.24 7.76M4.93 19.07L7.76 16.24M4.93 4.93L7.76 7.76" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                        </div>
-                        <div class="stat-card-value" id="statRecentProducts">-</div>
-                    </div>
-                    
-                    <div class="stat-card">
-                        <div class="stat-card-header">
-                            <h3 class="stat-card-title">With Warranty</h3>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="stat-icon" style="color: #f59e0b;">
-                                <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                        </div>
-                        <div class="stat-card-value" id="statWithWarranty">-</div>
-                    </div>
-                    
-                    <div class="stat-card">
-                        <div class="stat-card-header">
-                            <h3 class="stat-card-title">With Tracking</h3>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="stat-icon" style="color: #8b5cf6;">
-                                <path d="M5 12H19M5 12L2 9M5 12L2 15M19 12L22 9M19 12L22 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                        </div>
-                        <div class="stat-card-value" id="statWithTracking">-</div>
-                    </div>
-                </div>
-                
-                <!-- Breakdown Sections -->
-                <div class="breakdown-grid">
-                    <div class="card breakdown-card">
-                        <h2 class="breakdown-title">Status Breakdown</h2>
-                        <div id="statusBreakdown" class="breakdown-content">
-                            <div style="text-align: center; padding: 20px; color: #6b7280;">Loading...</div>
-                        </div>
-                    </div>
-                    
-                    <div class="card breakdown-card">
-                        <h2 class="breakdown-title">Part Type Breakdown</h2>
-                        <div id="partTypeBreakdown" class="breakdown-content">
-                            <div style="text-align: center; padding: 20px; color: #6b7280;">Loading...</div>
-                        </div>
-                    </div>
-                    
-                    <div class="card breakdown-card">
-                        <h2 class="breakdown-title">Generation Breakdown</h2>
-                        <div id="generationBreakdown" class="breakdown-content">
-                            <div style="text-align: center; padding: 20px; color: #6b7280;">Loading...</div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div id="statsError" class="error-message" style="display: none; margin-top: 20px;"></div>
-                </div>
-        </div>
-        </div>
-
-    <!-- Tracking Modal -->
-    <div id="trackingModal" class="modal" style="display: none;">
-        <div class="modal-content" style="max-width: 600px;">
-            <div class="modal-header">
-                <h2>Track Product</h2>
-                <span class="modal-close" id="closeTrackingModal">&times;</span>
-            </div>
-            <div class="modal-body" id="trackingModalBody">
-                <div id="trackingProductInfo" style="margin-bottom: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 8px;">
-                    <p><strong>Loading product details...</strong></p>
-                </div>
-                
-                <div class="form-group">
-                    <label for="trackingNumber">Tracking Number / Barcode</label>
-                    <p style="font-size: 0.85rem; color: #666; margin-bottom: 10px;">
-                        You can type, paste (Ctrl+V / Cmd+V), or scan a tracking number
-                    </p>
-                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                        <input 
-                            type="text" 
-                            id="trackingNumber" 
-                            name="trackingNumber" 
-                            placeholder="Paste or enter tracking number here"
-                            style="flex: 1; padding: 12px; font-size: 1rem;"
+            <!-- Purchases Header -->
+            <div class="products-header">
+                <h1 class="products-title">Purchase History</h1>
+                <div class="products-header-actions">
+                    <div class="search-box">
+                        <input
+                            type="text"
+                            id="searchPurchases"
+                            class="search-input"
+                            placeholder="Search order number / seller..."
                             autocomplete="off"
                         >
-                        <button type="button" class="button button-secondary" id="scanTrackingBarcode" style="min-width: 120px;">
-                            📷 Scan
-                        </button>
                     </div>
-                    <div id="trackingBarcodeScanner" style="display: none; margin-top: 15px;">
-                        <video id="trackingBarcodeVideo" width="100%" style="border-radius: 8px; display: none; max-width: 100%;"></video>
-                        <canvas id="trackingBarcodeCanvas" style="display: none;"></canvas>
-                        <button type="button" class="button button-secondary" id="stopTrackingScan" style="margin-top: 10px;">
-                            Stop Scanning
-                        </button>
-                    </div>
+                    <a href="add-purchase.html" class="btn-primary">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M8 3V13M3 8H13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        Add Purchase
+                    </a>
                 </div>
-                
-                <div id="trackingCurrentInfo" style="margin-top: 20px; padding: 15px; background-color: #e8f4f8; border-radius: 8px; display: none;">
-                    <p style="margin: 0; color: #666;"><strong>Current Tracking:</strong> <span id="currentTrackingNumber"></span></p>
-                    <p style="margin: 5px 0 0 0; color: #666; font-size: 0.9rem;">Added: <span id="currentTrackingDate"></span></p>
-                </div>
-                
-                <div id="trackingError" class="error-message" style="display: none; margin-top: 15px;"></div>
-                <div id="trackingSuccess" class="success-message" style="display: none; margin-top: 15px;"></div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="button button-secondary" id="cancelTracking">
-                    Cancel
-                </button>
-                <button type="button" class="button" id="saveTracking">
-                    Save Tracking
-                </button>
+
+            <!-- Purchases Table -->
+            <div class="products-layout">
+                <aside class="products-sidebar">
+                    <div class="sidebar-section">
+                        <h3 class="sidebar-heading">Filter</h3>
+                        <select id="filterPlatform" class="sidebar-select">
+                            <option value="">All Platforms</option>
+                            <option value="ebay">eBay</option>
+                            <option value="vinted">Vinted</option>
+                            <option value="other">Other</option>
+                        </select>
+                        <select id="filterGeneration" class="sidebar-select">
+                            <option value="">Generation</option>
+                            <option value="AirPods (1st Gen)">1st Gen</option>
+                            <option value="AirPods (2nd Gen)">2nd Gen</option>
+                            <option value="AirPods (3rd Gen)">3rd Gen</option>
+                            <option value="AirPods (4th Gen)">4th Gen</option>
+                            <option value="AirPods Pro (1st Gen)">Pro (1st Gen)</option>
+                            <option value="AirPods Pro (2nd Gen)">Pro (2nd Gen)</option>
+                        </select>
+                    </div>
+
+                    <button id="clearFilters" class="sidebar-btn">Clear filters</button>
+
+                    <div class="sidebar-count">
+                        <span id="purchasesCount">0 purchases</span>
+                    </div>
+
+                    <div class="sidebar-section" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">
+                        <h3 class="sidebar-heading">Total Spent</h3>
+                        <div style="font-size: 1.5rem; font-weight: 600; color: var(--accent-teal);" id="totalSpent">
+                            £0.00
+                        </div>
+                    </div>
+                </aside>
+
+                <main class="products-main">
+                    <div class="products-table-wrapper">
+                        <table class="products-table">
+                            <thead>
+                                <tr>
+                                    <th>Platform</th>
+                                    <th>Order Number</th>
+                                    <th>Seller</th>
+                                    <th>Generation</th>
+                                    <th>Quantity</th>
+                                    <th>Price</th>
+                                    <th>Condition</th>
+                                    <th>Purchase Date</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="purchasesTable">
+                                <tr>
+                                    <td colspan="9" class="table-loading">Loading purchases...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </main>
             </div>
         </div>
     </div>
 
-    <!-- OCR and Barcode Scanning Libraries -->
-    <script>
-        // Ensure Tesseract loads before other scripts
-        window.tesseractLoaded = false;
-        window.tesseractError = null;
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.4/dist/tesseract.min.js" 
-            onerror="window.tesseractError = new Error('Failed to load Tesseract.js'); console.error('Failed to load Tesseract.js')"
-            onload="window.tesseractLoaded = true; console.log('Tesseract.js loaded successfully')"></script>
-    <script src="https://unpkg.com/quagga@0.12.1/dist/quagga.min.js"
-            onerror="console.error('Failed to load QuaggaJS')"
-            onload="console.log('QuaggaJS loaded successfully')"></script>
-    
-    <script src="../js/admin.js?v=1.2.5.031"></script>
-    <script src="../js/dashboard-stats.js?v=1.2.5.031"></script>
-    <script src="../js/version.js?v=1.2.5.031"></script>
-    <script>
-        // Quick search handler
-        function handleQuickSearch(event) {
-            const form = event.target;
-            const input = form.querySelector('input[name="security_barcode"]');
-            const value = input.value.trim();
-            
-            if (!value) {
-                event.preventDefault();
-                // If empty, go to search page without query
-                window.location.href = 'search-product.html';
-                return false;
-            }
-            
-            // Let form submit naturally with query parameter
-            return true;
-        }
-    </script>
-    
     <!-- Sidebar Overlay for Mobile -->
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
     
+    <script src="../js/admin.js"></script>
+    <script src="../js/purchases.js"></script>
     <script>
         // Sidebar toggle functionality
         (function() {
@@ -466,7 +324,7 @@
                 }
             }
             
-            // Set active nav item based on current page
+            // Set active nav item
             const currentPage = window.location.pathname.split('/').pop() || 'dashboard.html';
             const navLinks = document.querySelectorAll('.nav-link, .sidebar-footer-link');
             navLinks.forEach(link => {

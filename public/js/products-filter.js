@@ -439,15 +439,17 @@ async function renderProducts(products) {
                 <td>${warrantyStatus}</td>
                 <td>${daysRemaining}</td>
                 <td>
-                    <button class="track-button" data-action="track" data-product-id="${escapeHtml(String(product.id))}" style="margin-right: 5px;">
-                        Track
-                    </button>
-                    <button class="edit-button" data-action="edit" data-product-id="${escapeHtml(String(product.id))}" style="margin-right: 5px;">
-                        Edit
-                    </button>
-                    <button class="delete-button" data-action="delete" data-product-id="${escapeHtml(String(product.id))}">
-                        Delete
-                    </button>
+                    <div class="action-buttons">
+                        <button class="track-button" data-action="track" data-product-id="${escapeHtml(String(product.id))}">
+                            Track
+                        </button>
+                        <button class="edit-button" data-action="edit" data-product-id="${escapeHtml(String(product.id))}">
+                            Edit
+                        </button>
+                        <button class="delete-button" data-action="delete" data-product-id="${escapeHtml(String(product.id))}">
+                            Delete
+                        </button>
+                    </div>
                 </td>
             </tr>
         `;
