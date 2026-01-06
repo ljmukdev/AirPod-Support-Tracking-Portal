@@ -148,6 +148,7 @@ function displayCheckInForm(purchase) {
     itemsSection.innerHTML = items.map(item => {
         const itemName = itemLabels[item] || item;
         const needsSerial = ['case', 'left', 'right'].includes(item);
+        const needsAudible = ['left', 'right'].includes(item); // Only left and right need audible check
         
         return `
             <div class="item-check-section" data-item="${item}">
@@ -210,7 +211,9 @@ function displayCheckInForm(purchase) {
                            placeholder="Enter serial number" 
                            style="width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ddd; border-radius: 4px;">
                 </div>
+                ` : ''}
                 
+                ${needsAudible ? `
                 <!-- Audible Condition -->
                 <div class="form-group" style="margin-top: 15px;">
                     <label style="font-weight: 600; display: block; margin-bottom: 8px;">Audible Condition:</label>
@@ -237,7 +240,9 @@ function displayCheckInForm(purchase) {
                         </label>
                     </div>
                 </div>
+                ` : ''}
                 
+                ${needsSerial ? `
                 <!-- Connectivity Check -->
                 <div class="form-group" style="margin-top: 15px;">
                     <label style="font-weight: 600; display: block; margin-bottom: 8px;">Does it connect correctly?</label>
@@ -301,23 +306,25 @@ async function submitCheckIn() {
             condition: conditionRadio.value
         };
         
-        // Add serial number, audible condition, and connectivity if applicable
+        // Add serial number and connectivity if applicable (case, left, right)
         if (['case', 'left', 'right'].includes(item)) {
             const serialInput = document.getElementById(`serial_${item}`);
             if (serialInput && serialInput.value.trim()) {
                 itemData.serial_number = serialInput.value.trim();
             }
             
-            // Audible condition
-            const audibleRadio = document.querySelector(`input[name="audible_${item}"]:checked`);
-            if (audibleRadio) {
-                itemData.audible_condition = audibleRadio.value;
-            }
-            
-            // Connectivity
+            // Connectivity (all three items that connect)
             const connectivityRadio = document.querySelector(`input[name="connectivity_${item}"]:checked`);
             if (connectivityRadio) {
                 itemData.connects_correctly = connectivityRadio.value === 'yes';
+            }
+        }
+        
+        // Add audible condition only for left and right AirPods (not case)
+        if (['left', 'right'].includes(item)) {
+            const audibleRadio = document.querySelector(`input[name="audible_${item}"]:checked`);
+            if (audibleRadio) {
+                itemData.audible_condition = audibleRadio.value;
             }
         }
         
