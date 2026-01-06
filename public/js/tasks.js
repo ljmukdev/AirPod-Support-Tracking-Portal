@@ -117,31 +117,19 @@ function displayTasks(tasks) {
     });
     
     container.innerHTML = `
-        <div class="tasks-table">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Task</th>
-                        <th>Due Date</th>
-                        <th>Tracking</th>
-                        <th>Seller</th>
-                        <th>Priority</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${tasks.map(task => renderTaskRow(task)).join('')}
-                </tbody>
-            </table>
+        <div class="tasks-grid">
+            ${tasks.map(task => renderTaskCard(task)).join('')}
         </div>
     `;
 }
 
-function renderTaskRow(task) {
+function renderTaskCard(task) {
+    const cardClass = task.is_overdue ? 'overdue' : (task.due_soon ? 'due-soon' : '');
     const priorityClass = task.is_overdue ? 'overdue' : (task.due_soon ? 'due-soon' : 'normal');
-    const priorityLabel = task.is_overdue ? 'Overdue' : (task.due_soon ? 'Due Soon' : 'Normal');
+    const priorityLabel = task.is_overdue ? '⚠️ Overdue' : (task.due_soon ? '⏰ Due Soon' : '✓ Normal');
     
     const dueDate = new Date(task.due_date).toLocaleString('en-GB', {
+        weekday: 'short',
         day: 'numeric',
         month: 'short',
         hour: '2-digit',
@@ -152,42 +140,66 @@ function renderTaskRow(task) {
     
     if (task.type.includes('workflow')) {
         actionButtons = `
-            <button onclick="viewTaskEmail('${task.id}', '${task.type}')" class="button button-secondary" style="padding: 6px 12px; font-size: 0.85rem;">
-                View Email
+            <button onclick="viewTaskEmail('${task.id}', '${task.type}')" class="button button-secondary" style="padding: 10px 16px; font-size: 0.9rem;">
+                📧 View Email
             </button>
-            <button onclick="markTaskComplete('${task.id}', '${task.type}')" class="button button-primary" style="padding: 6px 12px; font-size: 0.85rem;">
-                Mark Done
+            <button onclick="markTaskComplete('${task.id}', '${task.type}')" class="button button-primary" style="padding: 10px 16px; font-size: 0.9rem;">
+                ✓ Mark Done
             </button>
         `;
     } else if (task.type === 'delivery_overdue') {
         actionButtons = `
-            <button onclick="viewTaskEmail('${task.id}', '${task.type}')" class="button button-secondary" style="padding: 6px 12px; font-size: 0.85rem;">
-                View Email
+            <button onclick="viewTaskEmail('${task.id}', '${task.type}')" class="button button-secondary" style="padding: 10px 16px; font-size: 0.9rem;">
+                📧 View Email
             </button>
-            <button onclick="viewPurchase('${task.purchase_id}')" class="button" style="background: #6b7280; color: white; padding: 6px 12px; font-size: 0.85rem;">
-                View Purchase
+            <button onclick="viewPurchase('${task.purchase_id}')" class="button" style="background: #6b7280; color: white; padding: 10px 16px; font-size: 0.9rem;">
+                📦 View Purchase
             </button>
         `;
     }
     
     return `
-        <tr>
-            <td>
-                <div class="task-title-cell">${escapeHtml(task.title)}</div>
-                <div class="task-description-cell">${escapeHtml(task.description)}</div>
-            </td>
-            <td style="white-space: nowrap;">${dueDate}</td>
-            <td>${task.tracking_number || '-'}</td>
-            <td>${escapeHtml(task.seller || '-')}</td>
-            <td>
-                <span class="priority-badge priority-${priorityClass}">${priorityLabel}</span>
-            </td>
-            <td>
-                <div class="task-actions">
-                    ${actionButtons}
+        <div class="task-card ${cardClass}">
+            <div class="task-header">
+                <div style="flex: 1;">
+                    <div class="task-title">${escapeHtml(task.title)}</div>
                 </div>
-            </td>
-        </tr>
+                <span class="priority-badge priority-${priorityClass}">${priorityLabel}</span>
+            </div>
+            
+            <div class="task-description">
+                ${escapeHtml(task.description)}
+            </div>
+            
+            <div class="task-meta">
+                <div class="task-meta-row">
+                    <svg class="task-meta-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    <strong>Due:</strong> ${dueDate}
+                </div>
+                ${task.tracking_number ? `
+                    <div class="task-meta-row">
+                        <svg class="task-meta-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                        </svg>
+                        <strong>Tracking:</strong> ${escapeHtml(task.tracking_number)}
+                    </div>
+                ` : ''}
+                ${task.seller ? `
+                    <div class="task-meta-row">
+                        <svg class="task-meta-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                        </svg>
+                        <strong>Seller:</strong> ${escapeHtml(task.seller)}
+                    </div>
+                ` : ''}
+            </div>
+            
+            <div class="task-actions">
+                ${actionButtons}
+            </div>
+        </div>
     `;
 }
 
