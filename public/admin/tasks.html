@@ -7,15 +7,6 @@
     <link rel="stylesheet" href="../css/styles.css">
     <link rel="stylesheet" href="../css/global-header.css">
     <style>
-        .admin-main {
-            background-color: #f5f6fa;
-        }
-        .tasks-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 24px;
-        }
         .tasks-summary {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -25,7 +16,8 @@
         .summary-card {
             background: white;
             border-radius: 8px;
-            padding: 16px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
             border-left: 4px solid #6b7280;
         }
         .summary-card.urgent {
@@ -46,75 +38,6 @@
             font-size: 0.85rem;
             color: #6b7280;
             margin-top: 4px;
-        }
-        .task-card {
-            background: white;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 16px;
-            border-left: 4px solid #d1d5db;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-            transition: all 0.2s;
-        }
-        .task-card:hover {
-            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
-        }
-        .task-card.overdue {
-            border-left-color: #ef4444;
-            background: #fef2f2;
-        }
-        .task-card.due-soon {
-            border-left-color: #f59e0b;
-            background: #fffbeb;
-        }
-        .task-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: start;
-            margin-bottom: 12px;
-        }
-        .task-title {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: #111827;
-            margin-bottom: 4px;
-        }
-        .task-priority {
-            padding: 4px 10px;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            font-weight: 700;
-            text-transform: uppercase;
-        }
-        .priority-high {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-        .priority-medium {
-            background: #fef3c7;
-            color: #92400e;
-        }
-        .priority-low {
-            background: #dbeafe;
-            color: #1e40af;
-        }
-        .task-description {
-            color: #6b7280;
-            font-size: 0.95rem;
-            margin-bottom: 12px;
-            line-height: 1.5;
-        }
-        .task-meta {
-            display: flex;
-            gap: 16px;
-            font-size: 0.85rem;
-            color: #6b7280;
-            margin-bottom: 16px;
-        }
-        .task-actions {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
         }
         .filter-tabs {
             display: flex;
@@ -141,10 +64,77 @@
             color: #3b82f6;
             border-bottom-color: #3b82f6;
         }
+        .tasks-table {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .tasks-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .tasks-table th {
+            background: #f9fafb;
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #6b7280;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .tasks-table td {
+            padding: 16px;
+            border-bottom: 1px solid #f3f4f6;
+            font-size: 0.9rem;
+        }
+        .tasks-table tr:last-child td {
+            border-bottom: none;
+        }
+        .tasks-table tr:hover {
+            background: #f9fafb;
+        }
+        .task-title-cell {
+            font-weight: 600;
+            color: #111827;
+        }
+        .task-description-cell {
+            color: #6b7280;
+            font-size: 0.85rem;
+            margin-top: 4px;
+        }
+        .priority-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .priority-overdue {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .priority-due-soon {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .priority-normal {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        .task-actions {
+            display: flex;
+            gap: 6px;
+        }
         .empty-state {
             text-align: center;
-            padding: 60px 20px;
+            padding: 80px 20px;
             color: #9ca3af;
+            background: white;
+            border-radius: 8px;
         }
         .empty-state-icon {
             font-size: 4rem;
@@ -269,6 +259,6 @@
     </div>
 
     <script src="../js/admin.js"></script>
-    <script src="../js/tasks.js?v=1.0.0"></script>
+    <script src="../js/tasks.js?v=1.0.1"></script>
 </body>
 </html>

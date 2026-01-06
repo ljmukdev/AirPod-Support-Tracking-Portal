@@ -116,12 +116,29 @@ function displayTasks(tasks) {
         return new Date(a.due_date) - new Date(b.due_date);
     });
     
-    container.innerHTML = tasks.map(task => renderTaskCard(task)).join('');
+    container.innerHTML = `
+        <div class="tasks-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Task</th>
+                        <th>Due Date</th>
+                        <th>Tracking</th>
+                        <th>Seller</th>
+                        <th>Priority</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${tasks.map(task => renderTaskRow(task)).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
 }
 
-function renderTaskCard(task) {
-    const cardClass = task.is_overdue ? 'overdue' : (task.due_soon ? 'due-soon' : '');
-    const priority = task.is_overdue ? 'high' : (task.due_soon ? 'medium' : 'low');
+function renderTaskRow(task) {
+    const priorityClass = task.is_overdue ? 'overdue' : (task.due_soon ? 'due-soon' : 'normal');
     const priorityLabel = task.is_overdue ? 'Overdue' : (task.due_soon ? 'Due Soon' : 'Normal');
     
     const dueDate = new Date(task.due_date).toLocaleString('en-GB', {
@@ -135,42 +152,42 @@ function renderTaskCard(task) {
     
     if (task.type.includes('workflow')) {
         actionButtons = `
-            <button onclick="viewTaskEmail('${task.id}', '${task.type}')" class="button button-secondary" style="padding: 8px 16px; font-size: 0.9rem;">
-                View Email Template
+            <button onclick="viewTaskEmail('${task.id}', '${task.type}')" class="button button-secondary" style="padding: 6px 12px; font-size: 0.85rem;">
+                View Email
             </button>
-            <button onclick="markTaskComplete('${task.id}', '${task.type}')" class="button button-primary" style="padding: 8px 16px; font-size: 0.9rem;">
-                Mark as Complete
+            <button onclick="markTaskComplete('${task.id}', '${task.type}')" class="button button-primary" style="padding: 6px 12px; font-size: 0.85rem;">
+                Mark Done
             </button>
         `;
     } else if (task.type === 'delivery_overdue') {
         actionButtons = `
-            <button onclick="viewTaskEmail('${task.id}', '${task.type}')" class="button button-secondary" style="padding: 8px 16px; font-size: 0.9rem;">
-                View Chase-Up Email
+            <button onclick="viewTaskEmail('${task.id}', '${task.type}')" class="button button-secondary" style="padding: 6px 12px; font-size: 0.85rem;">
+                View Email
             </button>
-            <button onclick="viewPurchase('${task.purchase_id}')" class="button" style="background: #6b7280; color: white; padding: 8px 16px; font-size: 0.9rem;">
+            <button onclick="viewPurchase('${task.purchase_id}')" class="button" style="background: #6b7280; color: white; padding: 6px 12px; font-size: 0.85rem;">
                 View Purchase
             </button>
         `;
     }
     
     return `
-        <div class="task-card ${cardClass}">
-            <div class="task-header">
-                <div>
-                    <div class="task-title">${escapeHtml(task.title)}</div>
-                    <div class="task-description">${escapeHtml(task.description)}</div>
+        <tr>
+            <td>
+                <div class="task-title-cell">${escapeHtml(task.title)}</div>
+                <div class="task-description-cell">${escapeHtml(task.description)}</div>
+            </td>
+            <td style="white-space: nowrap;">${dueDate}</td>
+            <td>${task.tracking_number || '-'}</td>
+            <td>${escapeHtml(task.seller || '-')}</td>
+            <td>
+                <span class="priority-badge priority-${priorityClass}">${priorityLabel}</span>
+            </td>
+            <td>
+                <div class="task-actions">
+                    ${actionButtons}
                 </div>
-                <span class="task-priority priority-${priority}">${priorityLabel}</span>
-            </div>
-            <div class="task-meta">
-                <span>📅 Due: ${dueDate}</span>
-                ${task.tracking_number ? `<span>📦 Tracking: ${task.tracking_number}</span>` : ''}
-                ${task.seller ? `<span>👤 Seller: ${task.seller}</span>` : ''}
-            </div>
-            <div class="task-actions">
-                ${actionButtons}
-            </div>
-        </div>
+            </td>
+        </tr>
     `;
 }
 
