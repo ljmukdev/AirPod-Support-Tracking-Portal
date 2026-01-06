@@ -2387,6 +2387,139 @@ app.get('/api/admin/check-ins', requireAuth, requireDB, async (req, res) => {
     }
 });
 
+// Split check-in into products (Admin only)
+app.post('/api/admin/check-in/:id/split', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid check-in ID' });
+    }
+    
+    try {
+        // Load check-in
+        const checkIn = await db.collection('check_ins').findOne({ _id: new ObjectId(id) });
+        
+        if (!checkIn) {
+            return res.status(404).json({ error: 'Check-in not found' });
+        }
+        
+        // Check if already split
+        if (checkIn.split_into_products) {
+            return res.status(400).json({ error: 'This check-in has already been split into products' });
+        }
+        
+        // Load associated purchase
+        const purchase = await db.collection('purchases').findOne({ 
+            _id: new ObjectId(checkIn.purchase_id) 
+        });
+        
+        if (!purchase) {
+            return res.status(404).json({ error: 'Associated purchase not found' });
+        }
+        
+        console.log('[SPLIT] Splitting check-in into products:', id);
+        console.log('[SPLIT] Items to split:', checkIn.items.length);
+        
+        // Create products for each item
+        const productsToCreate = [];
+        const itemsWithSerials = checkIn.items.filter(item => 
+            ['case', 'left', 'right'].includes(item.item_type) && item.serial_number
+        );
+        
+        for (const item of itemsWithSerials) {
+            const productName = `AirPods ${purchase.generation || 'Unknown'} - ${getItemDisplayName(item.item_type)}`;
+            
+            // Determine status based on issues
+            let status = 'in_stock';
+            let notes = [];
+            
+            // Check if this item has issues
+            if (checkIn.issues_detected) {
+                const itemIssues = checkIn.issues_detected.find(i => i.item_type === item.item_type);
+                if (itemIssues) {
+                    status = 'faulty';
+                    notes.push('Issues found during check-in:');
+                    itemIssues.issues.forEach(issue => {
+                        notes.push(`- ${issue.description}`);
+                    });
+                }
+            }
+            
+            const product = {
+                serial_number: item.serial_number,
+                security_number: null,
+                product_name: productName,
+                part_number: null,
+                product_type: item.item_type,
+                generation: purchase.generation || 'Unknown',
+                connector_type: purchase.connector_type || null,
+                anc_type: purchase.anc_type || null,
+                ebay_order_number: purchase.order_number || null,
+                tracking_number: purchase.tracking_number || null,
+                visual_condition: item.condition,
+                audible_condition: item.audible_condition || null,
+                connectivity_status: item.connects_correctly ? 'working' : 'faulty',
+                is_genuine: item.is_genuine,
+                photos_uploaded: false,
+                status: status,
+                notes: notes.join('\n'),
+                date_added: new Date(),
+                purchase_id: purchase._id,
+                check_in_id: checkIn._id,
+                purchase_price: purchase.purchase_price ? (purchase.purchase_price / itemsWithSerials.length) : null,
+                platform: purchase.platform || null,
+                seller_name: purchase.seller_name || null,
+                created_by: req.user.email
+            };
+            
+            productsToCreate.push(product);
+        }
+        
+        if (productsToCreate.length === 0) {
+            return res.status(400).json({ error: 'No items with serial numbers found to create products' });
+        }
+        
+        // Insert products
+        console.log(`[SPLIT] Creating ${productsToCreate.length} products`);
+        const result = await db.collection('products').insertMany(productsToCreate);
+        
+        // Mark check-in as split
+        await db.collection('check_ins').updateOne(
+            { _id: new ObjectId(id) },
+            { 
+                $set: { 
+                    split_into_products: true,
+                    split_date: new Date(),
+                    split_by: req.user.email,
+                    products_created: result.insertedCount
+                }
+            }
+        );
+        
+        // Update purchase status
+        await db.collection('purchases').updateOne(
+            { _id: new ObjectId(checkIn.purchase_id) },
+            { 
+                $set: { 
+                    status: 'completed',
+                    completed_date: new Date()
+                }
+            }
+        );
+        
+        console.log(`[SPLIT] Successfully created ${result.insertedCount} products`);
+        
+        res.json({
+            success: true,
+            products_created: result.insertedCount,
+            product_ids: Object.values(result.insertedIds)
+        });
+    } catch (err) {
+        console.error('[SPLIT] Error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // Get check-in details with generated email (Admin only)
 app.get('/api/admin/check-in/:id', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;

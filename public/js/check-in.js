@@ -473,21 +473,7 @@ function displayCheckedInItems(checkIns) {
 
 function viewCheckInDetails(checkInId) {
     console.log('[CHECK-IN] Viewing check-in details:', checkInId);
-    // For now, we could show a modal or navigate to a detail page
-    // Let's create a simple alert showing the details
-    authenticatedFetch(`${window.API_BASE}/api/admin/check-in/${checkInId}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                console.log('[CHECK-IN] Check-in details:', data);
-                alert('Check-in details loaded. Check console for full data.\n\nTracking: ' + (data.check_in.tracking_number || 'N/A') + '\nIssues: ' + (data.check_in.has_issues ? 'Yes' : 'No'));
-                // TODO: Create a proper modal or detail page
-            }
-        })
-        .catch(error => {
-            console.error('[CHECK-IN] Error loading details:', error);
-            alert('Error loading check-in details');
-        });
+    window.location.href = `check-in-detail.html?id=${checkInId}`;
 }
 
 function escapeHtml(text) {
