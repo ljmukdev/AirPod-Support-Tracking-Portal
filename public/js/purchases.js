@@ -76,7 +76,7 @@ function renderPurchases(purchases) {
     const tableBody = document.getElementById('purchasesTable');
     
     if (purchases.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="12" style="text-align: center; padding: 40px; color: #666;">No purchases found. <a href="add-purchase.html">Add your first purchase</a></td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="13" style="text-align: center; padding: 40px; color: #666;">No purchases found. <a href="add-purchase.html">Add your first purchase</a></td></tr>';
         return;
     }
     
@@ -143,6 +143,27 @@ function renderPurchases(purchases) {
             ? '<span style="color: #28a745; font-size: 1.2rem; display: inline-block;" title="Feedback left">✓</span>'
             : '<span style="color: #ccc; font-size: 1rem; display: inline-block;" title="No feedback">—</span>';
         
+        // Tracking information
+        const trackingProviderLabels = {
+            'royal_mail': 'Royal Mail',
+            'dpd': 'DPD',
+            'evri': 'Evri',
+            'ups': 'UPS',
+            'fedex': 'FedEx',
+            'dhl': 'DHL',
+            'yodel': 'Yodel',
+            'amazon_logistics': 'Amazon',
+            'other': 'Other'
+        };
+        
+        let trackingDisplay = '<span style="color: #999;">—</span>';
+        if (purchase.tracking_number && purchase.tracking_provider) {
+            const providerLabel = trackingProviderLabels[purchase.tracking_provider] || purchase.tracking_provider;
+            trackingDisplay = `<div style="font-size: 0.85rem;"><strong>${escapeHtml(providerLabel)}</strong><br><span style="color: #666;">${escapeHtml(purchase.tracking_number)}</span></div>`;
+        } else if (purchase.tracking_number) {
+            trackingDisplay = `<div style="font-size: 0.85rem;"><span style="color: #666;">${escapeHtml(purchase.tracking_number)}</span></div>`;
+        }
+        
         // Items purchased badges
         const itemLabels = {
             'case': 'Case',
@@ -171,6 +192,7 @@ function renderPurchases(purchases) {
                 <td style="font-weight: 600; color: var(--accent-teal);">£${parseFloat(purchase.purchase_price).toFixed(2)}</td>
                 <td>${conditionBadge}</td>
                 <td>${statusBadge}</td>
+                <td>${trackingDisplay}</td>
                 <td>${formattedDate}</td>
                 <td style="text-align: center;">${feedbackIcon}</td>
                 <td>

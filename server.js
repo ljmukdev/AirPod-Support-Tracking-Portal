@@ -2011,6 +2011,8 @@ app.post('/api/admin/purchases', requireAuth, requireDB, async (req, res) => {
             status,
             feedback_left,
             expected_delivery,
+            tracking_provider,
+            tracking_number,
             serial_numbers,
             notes
         } = req.body;
@@ -2033,6 +2035,8 @@ app.post('/api/admin/purchases', requireAuth, requireDB, async (req, res) => {
             status: status, // paid, awaiting_despatch, awaiting_delivery, delivered, awaiting_return, returned, refunded
             feedback_left: feedback_left === true,
             expected_delivery: expected_delivery ? new Date(expected_delivery) : null,
+            tracking_provider: tracking_provider || null,
+            tracking_number: tracking_number || null,
             serial_numbers: serial_numbers || [],
             notes: notes || '',
             date_added: new Date()
@@ -2092,6 +2096,8 @@ app.put('/api/admin/purchases/:id', requireAuth, requireDB, async (req, res) => 
             status,
             feedback_left,
             expected_delivery,
+            tracking_provider,
+            tracking_number,
             serial_numbers,
             notes
         } = req.body;
@@ -2114,6 +2120,8 @@ app.put('/api/admin/purchases/:id', requireAuth, requireDB, async (req, res) => 
             status: status, // paid, awaiting_despatch, awaiting_delivery, delivered, awaiting_return, returned, refunded
             feedback_left: feedback_left === true,
             expected_delivery: expected_delivery ? new Date(expected_delivery) : null,
+            tracking_provider: tracking_provider || null,
+            tracking_number: tracking_number || null,
             serial_numbers: serial_numbers || [],
             notes: notes || '',
             date_updated: new Date()

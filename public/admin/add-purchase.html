@@ -286,6 +286,29 @@
                             <input type="date" id="expectedDelivery" name="expectedDelivery">
                         </div>
 
+                        <!-- Tracking Provider -->
+                        <div class="form-group">
+                            <label for="trackingProvider">Tracking Provider</label>
+                            <select id="trackingProvider" name="trackingProvider">
+                                <option value="">Select provider</option>
+                                <option value="royal_mail">Royal Mail</option>
+                                <option value="dpd">DPD</option>
+                                <option value="evri">Evri (Hermes)</option>
+                                <option value="ups">UPS</option>
+                                <option value="fedex">FedEx</option>
+                                <option value="dhl">DHL</option>
+                                <option value="yodel">Yodel</option>
+                                <option value="amazon_logistics">Amazon Logistics</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+
+                        <!-- Tracking Number -->
+                        <div class="form-group">
+                            <label for="trackingNumber">Tracking Number</label>
+                            <input type="text" id="trackingNumber" name="trackingNumber" placeholder="Enter tracking number">
+                        </div>
+
                         <!-- Serial Numbers (Full width) -->
                         <div class="form-group form-group-full">
                             <label for="serialNumbers">Serial Numbers (if known)</label>
@@ -402,6 +425,8 @@
                     status: formData.get('status'),
                     feedback_left: document.getElementById('feedbackLeft').checked,
                     expected_delivery: formData.get('expectedDelivery') || null,
+                    tracking_provider: formData.get('trackingProvider') || null,
+                    tracking_number: formData.get('trackingNumber') || null,
                     serial_numbers: formData.get('serialNumbers') ? formData.get('serialNumbers').split('\n').filter(s => s.trim()) : [],
                     notes: formData.get('notes') || ''
                 };
