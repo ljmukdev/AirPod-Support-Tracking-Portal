@@ -7,35 +7,66 @@ const API_BASE = window.API_BASE;
 
 let allPurchases = [];
 
-// Load purchases on page load
-document.addEventListener('DOMContentLoaded', function() {
+// Initialize function
+function initializePurchases() {
+    console.log('[PURCHASES] Initializing purchases page...');
+    
+    // Check if authenticatedFetch is available
+    if (typeof authenticatedFetch !== 'function') {
+        console.error('[PURCHASES] authenticatedFetch is not available yet, retrying...');
+        // Retry after a short delay
+        setTimeout(initializePurchases, 100);
+        return;
+    }
+    
+    console.log('[PURCHASES] authenticatedFetch is available, loading purchases...');
     loadPurchases();
     attachEventListeners();
+}
+
+// Load purchases on page load
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('[PURCHASES] DOMContentLoaded fired');
+    initializePurchases();
 });
 
+// Also try to initialize immediately if DOM is already loaded
+if (document.readyState === 'loading') {
+    console.log('[PURCHASES] Document still loading, waiting for DOMContentLoaded...');
+} else {
+    console.log('[PURCHASES] Document already loaded, initializing immediately...');
+    initializePurchases();
+}
+
 async function loadPurchases() {
+    console.log('[PURCHASES] Loading purchases from API...');
     try {
         const response = await authenticatedFetch(`${API_BASE}/api/admin/purchases`, {
             credentials: 'include'
         });
         
+        console.log('[PURCHASES] Response status:', response.status);
+        
         if (!response.ok) {
             if (response.status === 401) {
+                console.error('[PURCHASES] Unauthorized - redirecting to login');
                 window.location.href = 'login.html';
                 return;
             }
-            throw new Error('Failed to load purchases');
+            throw new Error('Failed to load purchases - status: ' + response.status);
         }
         
         const data = await response.json();
+        console.log('[PURCHASES] Received data:', data);
         allPurchases = data.purchases || [];
+        console.log('[PURCHASES] Total purchases:', allPurchases.length);
         
         renderPurchases(allPurchases);
         updateStats();
     } catch (error) {
-        console.error('Error loading purchases:', error);
+        console.error('[PURCHASES] Error loading purchases:', error);
         document.getElementById('purchasesTable').innerHTML = 
-            '<tr><td colspan="10" style="text-align: center; padding: 20px; color: #dc3545;">Failed to load purchases. Please refresh the page.</td></tr>';
+            '<tr><td colspan="10" style="text-align: center; padding: 20px; color: #dc3545;">Failed to load purchases: ' + error.message + '</td></tr>';
     }
 }
 
