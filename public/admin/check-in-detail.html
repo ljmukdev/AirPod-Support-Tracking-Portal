@@ -7,24 +7,30 @@
     <link rel="stylesheet" href="../css/styles.css">
     <link rel="stylesheet" href="../css/global-header.css">
     <style>
+        .admin-main {
+            background-color: #f5f6fa;
+        }
         .detail-card {
             background: white;
-            border-radius: 12px;
-            padding: 25px;
+            border-radius: 8px;
+            padding: 24px;
             margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            border: 1px solid #e5e7eb;
         }
         .detail-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #e5e7eb;
         }
         .detail-header h2 {
             margin: 0;
-            color: #333;
+            color: #1f2937;
+            font-size: 1.25rem;
+            font-weight: 600;
         }
         .info-grid {
             display: grid;
@@ -38,25 +44,32 @@
             gap: 5px;
         }
         .info-label {
-            font-size: 0.85rem;
-            color: #666;
+            font-size: 0.75rem;
+            color: #6b7280;
             font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.05em;
+            margin-bottom: 4px;
         }
         .info-value {
-            font-size: 1rem;
-            color: #333;
+            font-size: 0.95rem;
+            color: #111827;
+            font-weight: 500;
         }
         .items-section {
             margin-top: 30px;
         }
         .item-card {
-            background: #f8f9fa;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 15px;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 12px;
+            transition: all 0.2s ease;
+        }
+        .item-card:hover {
+            border-color: #d1d5db;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
         .item-header {
             display: flex;
@@ -65,9 +78,9 @@
             margin-bottom: 15px;
         }
         .item-name {
-            font-size: 1.1rem;
+            font-size: 1rem;
             font-weight: 600;
-            color: #333;
+            color: #111827;
         }
         .issue-badge {
             display: inline-block;
@@ -94,15 +107,17 @@
             color: #155724;
         }
         .split-section {
-            background: #f0f9ff;
-            border: 2px solid #3b82f6;
-            border-radius: 12px;
-            padding: 25px;
-            margin-top: 30px;
+            background: #eff6ff;
+            border: 1px solid #3b82f6;
+            border-radius: 8px;
+            padding: 24px;
+            margin-top: 24px;
         }
         .split-section h3 {
             margin-top: 0;
             color: #1e40af;
+            font-size: 1.125rem;
+            font-weight: 600;
         }
         .split-warning {
             background: #fef3c7;
@@ -224,11 +239,13 @@
         <!-- Main Content -->
         <main class="admin-main">
             <div class="admin-header">
-                <button class="sidebar-toggle" id="sidebarToggle">☰</button>
-                <h1>Check-In Details</h1>
+                <div class="admin-header-left">
+                    <button class="sidebar-toggle" id="sidebarToggle">☰</button>
+                    <h1 class="admin-header-title">Check-In Details</h1>
+                </div>
                 <div class="header-actions">
-                    <button onclick="window.location.href='check-in.html'" class="button button-secondary">← Back to Check-In</button>
-                    <button onclick="editCheckIn()" class="button button-primary">Edit Check-In</button>
+                    <button onclick="window.location.href='check-in.html'" class="button button-secondary">← Back</button>
+                    <button onclick="editCheckIn()" class="button button-primary">Edit</button>
                 </div>
             </div>
 
