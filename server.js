@@ -2442,6 +2442,123 @@ app.post('/api/admin/check-in', requireAuth, requireDB, async (req, res) => {
     }
 });
 
+// Get all tasks/to-dos (Admin only)
+app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
+    try {
+        const tasks = [];
+        const now = new Date();
+        
+        // 1. Find check-ins with pending workflow steps
+        const checkInsWithIssues = await db.collection('check_ins').find({
+            has_issues: true,
+            email_sent_at: { $exists: true }
+        }).toArray();
+        
+        for (const checkIn of checkInsWithIssues) {
+            const workflow = checkIn.resolution_workflow || {};
+            const emailSentDate = new Date(checkIn.email_sent_at);
+            const hoursSinceEmail = (now - emailSentDate) / (1000 * 60 * 60);
+            
+            // Get purchase info
+            const purchase = await db.collection('purchases').findOne({
+                _id: new ObjectId(checkIn.purchase_id)
+            });
+            
+            if (!purchase) continue;
+            
+            // Task 1: Follow-up (due after 48 hours)
+            if (!workflow.follow_up_sent_at && !workflow.resolved_at) {
+                const followUpDue = new Date(emailSentDate.getTime() + (48 * 60 * 60 * 1000));
+                const isOverdue = now > followUpDue;
+                const dueSoon = hoursSinceEmail > 36 && hoursSinceEmail < 48;
+                
+                tasks.push({
+                    id: checkIn._id.toString(),
+                    check_in_id: checkIn._id.toString(),
+                    purchase_id: purchase._id.toString(),
+                    type: 'workflow_follow_up',
+                    title: 'Send Follow-Up Message',
+                    description: `Follow up with seller about ${purchase.generation || 'AirPods'} issue (Tracking: ${checkIn.tracking_number || purchase.tracking_number || 'N/A'})`,
+                    due_date: followUpDue,
+                    is_overdue: isOverdue,
+                    due_soon: dueSoon,
+                    tracking_number: checkIn.tracking_number || purchase.tracking_number,
+                    seller: purchase.seller_name,
+                    issue_summary: checkIn.issues_detected ? checkIn.issues_detected.map(i => i.item_name).join(', ') : 'Issues detected'
+                });
+            }
+            
+            // Task 2: Open case (due after 72 hours)
+            if (!workflow.case_opened_at && !workflow.resolved_at) {
+                const caseOpenDue = new Date(emailSentDate.getTime() + (72 * 60 * 60 * 1000));
+                const isOverdue = now > caseOpenDue;
+                const dueSoon = hoursSinceEmail > 60 && hoursSinceEmail < 72;
+                
+                tasks.push({
+                    id: checkIn._id.toString() + '_case',
+                    check_in_id: checkIn._id.toString(),
+                    purchase_id: purchase._id.toString(),
+                    type: 'workflow_case_open',
+                    title: 'Open eBay Case',
+                    description: `Ready to open "Item not as described" case for ${purchase.generation || 'AirPods'} (Tracking: ${checkIn.tracking_number || purchase.tracking_number || 'N/A'})`,
+                    due_date: caseOpenDue,
+                    is_overdue: isOverdue,
+                    due_soon: dueSoon,
+                    tracking_number: checkIn.tracking_number || purchase.tracking_number,
+                    seller: purchase.seller_name,
+                    follow_up_sent: !!workflow.follow_up_sent_at,
+                    issue_summary: checkIn.issues_detected ? checkIn.issues_detected.map(i => i.item_name).join(', ') : 'Issues detected'
+                });
+            }
+        }
+        
+        // 2. Find purchases with overdue deliveries
+        const purchasesAwaitingDelivery = await db.collection('purchases').find({
+            status: { $in: ['awaiting_delivery', 'dispatched'] },
+            expected_delivery: { $exists: true, $ne: null },
+            checked_in: { $ne: true }
+        }).toArray();
+        
+        for (const purchase of purchasesAwaitingDelivery) {
+            const expectedDelivery = new Date(purchase.expected_delivery);
+            const isOverdue = now > expectedDelivery;
+            
+            if (isOverdue) {
+                const daysOverdue = Math.floor((now - expectedDelivery) / (1000 * 60 * 60 * 24));
+                
+                tasks.push({
+                    id: purchase._id.toString() + '_delivery',
+                    purchase_id: purchase._id.toString(),
+                    type: 'delivery_overdue',
+                    title: 'Chase Overdue Delivery',
+                    description: `${purchase.generation || 'AirPods'} delivery overdue by ${daysOverdue} day${daysOverdue !== 1 ? 's' : ''} (Tracking: ${purchase.tracking_number || 'N/A'})`,
+                    due_date: expectedDelivery,
+                    is_overdue: true,
+                    due_soon: false,
+                    tracking_number: purchase.tracking_number,
+                    seller: purchase.seller_name,
+                    days_overdue: daysOverdue,
+                    expected_delivery_formatted: expectedDelivery.toLocaleDateString('en-GB', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric'
+                    })
+                });
+            }
+        }
+        
+        console.log(`[TASKS] Found ${tasks.length} tasks`);
+        
+        res.json({
+            success: true,
+            tasks: tasks
+        });
+    } catch (err) {
+        console.error('[TASKS] Error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // Get all check-ins (Admin only)
 app.get('/api/admin/check-ins', requireAuth, requireDB, async (req, res) => {
     try {

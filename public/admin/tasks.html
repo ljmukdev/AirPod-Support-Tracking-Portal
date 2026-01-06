@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tasks & To-Dos - LJM AirPod Support</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/global-header.css">
+    <style>
+        .admin-main {
+            background-color: #f5f6fa;
+        }
+        .tasks-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        .tasks-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .summary-card {
+            background: white;
+            border-radius: 8px;
+            padding: 16px;
+            border-left: 4px solid #6b7280;
+        }
+        .summary-card.urgent {
+            border-left-color: #ef4444;
+        }
+        .summary-card.warning {
+            border-left-color: #f59e0b;
+        }
+        .summary-card.info {
+            border-left-color: #3b82f6;
+        }
+        .summary-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #111827;
+        }
+        .summary-label {
+            font-size: 0.85rem;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+        .task-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 16px;
+            border-left: 4px solid #d1d5db;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            transition: all 0.2s;
+        }
+        .task-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        }
+        .task-card.overdue {
+            border-left-color: #ef4444;
+            background: #fef2f2;
+        }
+        .task-card.due-soon {
+            border-left-color: #f59e0b;
+            background: #fffbeb;
+        }
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 12px;
+        }
+        .task-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 4px;
+        }
+        .task-priority {
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .priority-high {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .priority-medium {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .priority-low {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        .task-description {
+            color: #6b7280;
+            font-size: 0.95rem;
+            margin-bottom: 12px;
+            line-height: 1.5;
+        }
+        .task-meta {
+            display: flex;
+            gap: 16px;
+            font-size: 0.85rem;
+            color: #6b7280;
+            margin-bottom: 16px;
+        }
+        .task-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .filter-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        .filter-tab {
+            padding: 12px 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #6b7280;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.2s;
+        }
+        .filter-tab:hover {
+            color: #111827;
+        }
+        .filter-tab.active {
+            color: #3b82f6;
+            border-bottom-color: #3b82f6;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #9ca3af;
+        }
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Sidebar -->
+        <aside class="admin-sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <div class="logo-circle">
+                        <span class="logo-text">LJM</span>
+                    </div>
+                    <div>
+                        <div class="sidebar-logo-text">LJM Admin</div>
+                        <div class="sidebar-subtitle">Tasks</div>
+                    </div>
+                </div>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-header">ADMIN</div>
+                    <ul class="nav-menu">
+                        <li class="nav-item">
+                            <a href="dashboard.html" class="nav-link">
+                                <span>Dashboard</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="products.html" class="nav-link">
+                                <span>Products</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="purchases.html" class="nav-link">
+                                <span>Purchases</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="check-in.html" class="nav-link">
+                                <span>Check-In</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="tasks.html" class="nav-link active">
+                                <span>Tasks</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="warranties.html" class="nav-link">
+                                <span>Warranties</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="analytics.html" class="nav-link">
+                                <span>Analytics</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="settings.html" class="nav-link">
+                                <span>Settings</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <button class="sidebar-footer-link" onclick="logout()">Logout</button>
+            </div>
+        </aside>
+
+        <div class="admin-overlay" id="sidebarOverlay"></div>
+
+        <!-- Main Content -->
+        <main class="admin-main">
+            <div class="admin-header">
+                <div class="admin-header-left">
+                    <button class="sidebar-toggle" id="sidebarToggle">☰</button>
+                    <h1 class="admin-header-title">Tasks & To-Dos</h1>
+                </div>
+            </div>
+
+            <!-- Summary Cards -->
+            <div class="tasks-summary" id="tasksSummary"></div>
+
+            <!-- Filter Tabs -->
+            <div class="filter-tabs">
+                <button class="filter-tab active" data-filter="all">All Tasks</button>
+                <button class="filter-tab" data-filter="overdue">Overdue</button>
+                <button class="filter-tab" data-filter="workflow">Follow-Ups</button>
+                <button class="filter-tab" data-filter="delivery">Delivery Issues</button>
+            </div>
+
+            <!-- Tasks List -->
+            <div id="tasksContainer">
+                <div style="text-align: center; padding: 40px; color: #666;">
+                    Loading tasks...
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Email Modal (same as check-in-detail) -->
+    <div class="email-modal" id="emailModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 10000; align-items: center; justify-content: center; padding: 20px;">
+        <div class="email-modal-content" style="background: white; border-radius: 12px; max-width: 700px; width: 100%; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+            <div class="email-modal-header" style="padding: 20px 24px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
+                <h2 style="margin: 0; font-size: 1.25rem; color: #111827;" id="emailModalTitle">Email Template</h2>
+                <button class="email-modal-close" onclick="closeEmailModal()" style="background: none; border: none; font-size: 1.5rem; color: #6b7280; cursor: pointer; padding: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 4px;">&times;</button>
+            </div>
+            <div class="email-modal-body" style="padding: 24px; overflow-y: auto; flex: 1;">
+                <textarea class="email-textarea" id="emailContent" style="width: 100%; min-height: 400px; padding: 16px; border: 1px solid #d1d5db; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 0.95rem; line-height: 1.6; resize: vertical;"></textarea>
+            </div>
+            <div class="email-modal-footer" style="padding: 16px 24px; border-top: 1px solid #e5e7eb; display: flex; gap: 12px; justify-content: flex-end;">
+                <button class="copy-button" id="copyEmailButton" onclick="copyEmail()" style="background: #6b7280; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-size: 0.95rem; font-weight: 500; cursor: pointer;">Copy Email</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/admin.js"></script>
+    <script src="../js/tasks.js?v=1.0.0"></script>
+</body>
+</html>
