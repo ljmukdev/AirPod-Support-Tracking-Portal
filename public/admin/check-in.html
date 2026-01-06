@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Check-In | LJM Admin</title>
+    <link rel="stylesheet" href="../css/styles.css?v=1.2.5.032">
+    <style>
+        .check-in-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .search-section {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        .search-input-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .search-input-group input {
+            flex: 1;
+            padding: 12px;
+            font-size: 1rem;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+        }
+        .search-input-group button {
+            padding: 12px 30px;
+            background: var(--accent-teal);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .search-input-group button:hover {
+            background: #138496;
+        }
+        .purchase-details {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .purchase-details h3 {
+            margin-top: 0;
+            color: var(--accent-teal);
+        }
+        .detail-row {
+            display: flex;
+            padding: 8px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        .detail-label {
+            font-weight: 600;
+            width: 150px;
+            color: #666;
+        }
+        .detail-value {
+            flex: 1;
+        }
+        .check-in-form {
+            display: none;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .item-check-section {
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background: #fafafa;
+        }
+        .item-check-section h4 {
+            margin-top: 0;
+            color: var(--accent-teal);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .condition-rating {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+        .condition-rating label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            padding: 6px 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+        .condition-rating label:hover {
+            background: #f0f0f0;
+        }
+        .condition-rating input:checked + span {
+            font-weight: 600;
+        }
+        .condition-rating label:has(input:checked) {
+            border-color: var(--accent-teal);
+            background: #e8f4f8;
+        }
+        .form-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #e0e0e0;
+        }
+        .success-banner {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .error-banner {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body class="admin-panel">
+    <!-- Sidebar Navigation -->
+    <aside class="admin-sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <div class="logo-circle">
+                    <span class="logo-text">LJM</span>
+                </div>
+                <div>
+                    <div class="sidebar-logo-text">LJM Admin</div>
+                    <div class="sidebar-subtitle">Dashboard</div>
+                </div>
+            </div>
+        </div>
+        
+        <nav class="sidebar-nav">
+            <div class="nav-section">
+                <div class="nav-section-header">ADMIN</div>
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="dashboard.html" class="nav-link">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 10L9 4L9 10L17 10M3 10L3 16M3 10L17 10M17 10L17 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="parts.html" class="nav-link">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <rect x="3" y="3" width="6" height="6" stroke="currentColor" stroke-width="1.5"/>
+                                <rect x="11" y="3" width="6" height="6" stroke="currentColor" stroke-width="1.5"/>
+                                <rect x="3" y="11" width="6" height="6" stroke="currentColor" stroke-width="1.5"/>
+                                <rect x="11" y="11" width="6" height="6" stroke="currentColor" stroke-width="1.5"/>
+                            </svg>
+                            <span>Manage Parts</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="products.html" class="nav-link">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M4 4H16V16H4V4Z" stroke="currentColor" stroke-width="1.5"/>
+                                <path d="M4 8H16" stroke="currentColor" stroke-width="1.5"/>
+                                <path d="M8 4V16" stroke="currentColor" stroke-width="1.5"/>
+                            </svg>
+                            <span>Products</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="purchases.html" class="nav-link">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 5L10 2L17 5M3 5L3 15L10 18M3 5L10 8M17 5L17 15L10 18M17 5L10 8M10 8L10 18" stroke="currentColor" stroke-width="1.5"/>
+                            </svg>
+                            <span>Purchases</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="check-in.html" class="nav-link active">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M7 10L9 12L13 8M18 10C18 14.4183 14.4183 18 10 18C5.58172 18 2 14.4183 2 10C2 5.58172 5.58172 2 10 2C14.4183 2 18 5.58172 18 10Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Check-In</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+        
+        <div class="sidebar-footer">
+            <button class="sidebar-footer-link sidebar-logout" id="logoutButton">
+                <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M13 15L17 10L13 5M17 10H7" stroke="currentColor" stroke-width="1.5"/>
+                    <path d="M7 3H4C3.44772 3 3 3.44772 3 4V16C3 16.5523 3.44772 17 4 17H7" stroke="currentColor" stroke-width="1.5"/>
+                </svg>
+                <span>Logout</span>
+            </button>
+        </div>
+    </aside>
+    
+    <!-- Main Content -->
+    <div class="admin-main">
+        <header class="admin-topbar">
+            <div class="topbar-left">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 5H17M3 10H17M3 15H17" stroke="currentColor" stroke-width="1.5"/>
+                    </svg>
+                </button>
+                <h2 style="margin: 0; font-size: 1.25rem;">Check-In Items</h2>
+            </div>
+        </header>
+        
+        <div class="admin-content">
+            <div class="check-in-container">
+                <div id="successBanner" class="success-banner"></div>
+                <div id="errorBanner" class="error-banner"></div>
+
+                <!-- Search Section -->
+                <div class="search-section">
+                    <h2 style="margin-top: 0;">Enter Tracking Number</h2>
+                    <p style="color: #666;">Search for a purchase by its tracking number to begin check-in</p>
+                    <div class="search-input-group">
+                        <input type="text" id="trackingNumberInput" placeholder="Enter tracking number..." autocomplete="off">
+                        <button type="button" id="searchButton">Search</button>
+                    </div>
+                </div>
+
+                <!-- Check-In Form (hidden until search) -->
+                <div class="check-in-form" id="checkInForm">
+                    <h2>Check-In Details</h2>
+                    
+                    <!-- Purchase Details -->
+                    <div class="purchase-details" id="purchaseDetails">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+
+                    <!-- Items Expected -->
+                    <h3>Items to Check-In</h3>
+                    <div id="itemsCheckSection">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+
+                    <!-- Form Actions -->
+                    <div class="form-actions">
+                        <button type="button" class="button button-secondary" id="cancelButton">Cancel</button>
+                        <button type="button" class="button" id="submitCheckIn">Complete Check-In</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <script src="../js/admin.js"></script>
+    <script src="../js/check-in.js?v=1.0.0"></script>
+</body>
+</html>

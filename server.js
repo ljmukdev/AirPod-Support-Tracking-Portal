@@ -2078,6 +2078,83 @@ app.get('/api/admin/purchases/:id', requireAuth, requireDB, async (req, res) => 
     }
 });
 
+// Get purchase by tracking number (Admin only)
+app.get('/api/admin/purchases/by-tracking/:trackingNumber', requireAuth, requireDB, async (req, res) => {
+    const trackingNumber = req.params.trackingNumber;
+    
+    if (!trackingNumber) {
+        return res.status(400).json({ error: 'Tracking number is required' });
+    }
+    
+    try {
+        const purchase = await db.collection('purchases').findOne({ 
+            tracking_number: trackingNumber.trim()
+        });
+        
+        if (!purchase) {
+            return res.status(404).json({ error: 'No purchase found with this tracking number' });
+        }
+        
+        res.json({ success: true, purchase });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Check-in a purchase (Admin only)
+app.post('/api/admin/check-in', requireAuth, requireDB, async (req, res) => {
+    try {
+        const {
+            purchase_id,
+            tracking_number,
+            items
+        } = req.body;
+        
+        // Validation
+        if (!purchase_id || !items || !Array.isArray(items) || items.length === 0) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+        
+        if (!ObjectId.isValid(purchase_id)) {
+            return res.status(400).json({ error: 'Invalid purchase ID' });
+        }
+        
+        const checkInRecord = {
+            purchase_id: new ObjectId(purchase_id),
+            tracking_number: tracking_number || null,
+            items: items.map(item => ({
+                item_type: item.item_type,
+                is_genuine: item.is_genuine === true,
+                condition: item.condition,
+                serial_number: item.serial_number || null
+            })),
+            checked_in_by: req.user.email,
+            checked_in_at: new Date()
+        };
+        
+        const result = await db.collection('check_ins').insertOne(checkInRecord);
+        
+        // Update purchase status to 'delivered' if not already
+        await db.collection('purchases').updateOne(
+            { _id: new ObjectId(purchase_id) },
+            { 
+                $set: { 
+                    status: 'delivered',
+                    checked_in: true,
+                    checked_in_date: new Date()
+                } 
+            }
+        );
+        
+        console.log('Check-in completed successfully, ID:', result.insertedId);
+        res.json({ success: true, message: 'Check-in completed successfully', id: result.insertedId });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // Update purchase (Admin only)
 app.put('/api/admin/purchases/:id', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;
