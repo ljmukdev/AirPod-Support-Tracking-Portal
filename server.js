@@ -2537,6 +2537,120 @@ app.post('/api/admin/check-in/:id/split', requireAuth, requireDB, async (req, re
     }
 });
 
+// Update check-in (Admin only)
+app.put('/api/admin/check-in/:id', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    const { items } = req.body;
+    
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid check-in ID' });
+    }
+    
+    if (!items || !Array.isArray(items)) {
+        return res.status(400).json({ error: 'Items array is required' });
+    }
+    
+    try {
+        console.log('[CHECK-IN UPDATE] Updating check-in:', id);
+        console.log('[CHECK-IN UPDATE] New items:', JSON.stringify(items, null, 2));
+        
+        // Re-analyze items for issues after update
+        const issues = [];
+        items.forEach(item => {
+            const itemIssues = [];
+            
+            // Check if not genuine
+            if (item.is_genuine === false) {
+                itemIssues.push({
+                    type: 'authenticity',
+                    severity: 'critical',
+                    description: 'Item appears to be counterfeit or not genuine'
+                });
+            }
+            
+            // Check visual condition issues
+            if (['fair', 'poor'].includes(item.condition)) {
+                itemIssues.push({
+                    type: 'condition',
+                    severity: item.condition === 'poor' ? 'high' : 'medium',
+                    description: `Visual condition is ${item.condition}`
+                });
+            }
+            
+            // Check audible condition issues
+            if (['left', 'right'].includes(item.item_type) && item.audible_condition) {
+                if (['poor', 'not_working'].includes(item.audible_condition)) {
+                    itemIssues.push({
+                        type: 'audible',
+                        severity: item.audible_condition === 'not_working' ? 'critical' : 'high',
+                        description: item.audible_condition === 'not_working' 
+                            ? 'No audible sound - item not working'
+                            : `Poor sound quality - audible condition is ${item.audible_condition}`
+                    });
+                } else if (item.audible_condition === 'fair') {
+                    itemIssues.push({
+                        type: 'audible',
+                        severity: 'medium',
+                        description: 'Fair sound quality - audible condition is fair'
+                    });
+                }
+            }
+            
+            // Check connectivity issues
+            if (item.connects_correctly === false) {
+                itemIssues.push({
+                    type: 'connectivity',
+                    severity: 'high',
+                    description: 'Item has connectivity/pairing issues'
+                });
+            }
+            
+            if (itemIssues.length > 0) {
+                issues.push({
+                    item_type: item.item_type,
+                    item_name: getItemDisplayName(item.item_type),
+                    issues: itemIssues
+                });
+            }
+        });
+        
+        const updateData = {
+            items: items.map(item => ({
+                item_type: item.item_type,
+                is_genuine: item.is_genuine === true,
+                condition: item.condition,
+                serial_number: item.serial_number || null,
+                audible_condition: item.audible_condition || null,
+                connects_correctly: item.connects_correctly !== undefined ? item.connects_correctly : null
+            })),
+            issues_detected: issues,
+            has_issues: issues.length > 0,
+            last_updated_by: req.user.email,
+            last_updated_at: new Date()
+        };
+        
+        const result = await db.collection('check_ins').updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updateData }
+        );
+        
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ error: 'Check-in not found' });
+        }
+        
+        console.log('[CHECK-IN UPDATE] Updated successfully, has_issues:', issues.length > 0);
+        
+        res.json({
+            success: true,
+            message: 'Check-in updated successfully',
+            has_issues: issues.length > 0
+        });
+    } catch (err) {
+        console.error('[CHECK-IN UPDATE] Error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // Get check-in details with generated email (Admin only)
 app.get('/api/admin/check-in/:id', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;

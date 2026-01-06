@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Check-In - LJM AirPod Support</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/global-header.css">
+    <style>
+        .form-section {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .form-section h2 {
+            margin-top: 0;
+            margin-bottom: 20px;
+            color: #333;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 10px;
+        }
+        .item-form {
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+        .item-form-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .item-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #333;
+        }
+        .remove-item-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        .remove-item-btn:hover {
+            background: #c82333;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .form-group label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #666;
+            font-size: 0.9rem;
+        }
+        .form-group input,
+        .form-group select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.95rem;
+        }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        .form-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end;
+            margin-top: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Sidebar -->
+        <aside class="admin-sidebar">
+            <div class="sidebar-header">
+                <img src="../images/ljm-logo.png" alt="LJM Logo" class="logo">
+                <h2>Admin Panel</h2>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="dashboard.html">📊 Dashboard</a>
+                <a href="products.html">📦 Products</a>
+                <a href="purchases.html">🛒 Purchases</a>
+                <a href="check-in.html" class="active">✅ Check-In</a>
+                <a href="warranties.html">🛡️ Warranties</a>
+                <a href="addon-sales.html">💰 Add-on Sales</a>
+                <a href="analytics.html">📈 Analytics</a>
+                <a href="settings.html">⚙️ Settings</a>
+            </nav>
+            <button class="logout-button" onclick="logout()">Logout</button>
+        </aside>
+
+        <div class="admin-overlay" id="sidebarOverlay"></div>
+
+        <!-- Main Content -->
+        <main class="admin-main">
+            <div class="admin-header">
+                <button class="sidebar-toggle" id="sidebarToggle">☰</button>
+                <h1>Edit Check-In</h1>
+                <div class="header-actions">
+                    <button onclick="goBack()" class="button button-secondary">← Back</button>
+                </div>
+            </div>
+
+            <div id="loadingMessage" style="text-align: center; padding: 40px; color: #666;">
+                Loading check-in...
+            </div>
+
+            <div id="errorMessage" style="display: none; background: #fee; color: #c00; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            </div>
+
+            <form id="editCheckInForm" style="display: none;">
+                <!-- Purchase Info (Read-only) -->
+                <div class="form-section">
+                    <h2>Purchase Information</h2>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Tracking Number</label>
+                            <input type="text" id="trackingNumber" readonly style="background: #f0f0f0;">
+                        </div>
+                        <div class="form-group">
+                            <label>Checked In Date</label>
+                            <input type="text" id="checkedInDate" readonly style="background: #f0f0f0;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Items -->
+                <div class="form-section">
+                    <h2>Inspected Items</h2>
+                    <div id="itemsContainer"></div>
+                </div>
+
+                <!-- Actions -->
+                <div class="form-actions">
+                    <button type="button" onclick="goBack()" class="button button-secondary">Cancel</button>
+                    <button type="submit" class="button button-primary">Save Changes</button>
+                </div>
+            </form>
+        </main>
+    </div>
+
+    <script src="../js/admin.js"></script>
+    <script src="../js/edit-check-in.js?v=1.0.0"></script>
+</body>
+</html>
