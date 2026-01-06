@@ -613,7 +613,7 @@ body.admin-panel {
 /* Sidebar Container */
 .admin-sidebar,
 aside.admin-sidebar {
-    width: 280px !important;
+    width: 220px !important;
     background-color: var(--sidebar-bg) !important;
     background: var(--sidebar-bg) !important;
     color: var(--sidebar-text) !important;
@@ -669,12 +669,12 @@ aside.admin-sidebar {
 .sidebar-logo {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
 }
 
 .sidebar-logo .logo-circle {
-    width: 44px;
-    height: 44px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     background-color: rgba(255, 255, 255, 0.15);
     border: 1px solid rgba(255, 255, 255, 0.2);
@@ -747,12 +747,12 @@ aside.admin-sidebar {
 .admin-sidebar .nav-link {
     display: flex !important;
     align-items: center !important;
-    gap: 12px !important;
+    gap: 10px !important;
     height: 40px !important;
-    padding: 8px 14px !important;
+    padding: 8px 12px !important;
     color: var(--sidebar-text) !important;
     text-decoration: none !important;
-    font-size: 14px !important;
+    font-size: 13.5px !important;
     font-weight: 500 !important;
     border-radius: 10px !important;
     transition: all 0.2s ease;
@@ -849,8 +849,8 @@ aside.admin-sidebar {
 }
 
 .nav-submenu .nav-link {
-    padding-left: 44px !important;
-    font-size: 13px !important;
+    padding-left: 40px !important;
+    font-size: 12.5px !important;
     height: 36px !important;
 }
 
@@ -917,7 +917,7 @@ aside.admin-sidebar {
 /* Admin Main Content Area */
 .admin-main {
     flex: 1;
-    margin-left: 280px;
+    margin-left: 220px;
     display: flex;
     flex-direction: column;
     min-height: 100vh;
