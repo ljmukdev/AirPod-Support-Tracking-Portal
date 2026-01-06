@@ -258,30 +258,32 @@
         <div class="admin-overlay" id="sidebarOverlay"></div>
 
         <!-- Main Content -->
-        <main class="admin-main">
-            <div class="admin-header">
-                <div class="admin-header-left">
-                    <button class="sidebar-toggle" id="sidebarToggle">☰</button>
-                    <h1 class="admin-header-title">Tasks & To-Dos</h1>
+        <main class="admin-main" style="background-color: #f5f7fa;">
+            <div class="admin-content">
+                <div class="admin-header">
+                    <div class="admin-header-left">
+                        <button class="sidebar-toggle" id="sidebarToggle">☰</button>
+                        <h1 class="admin-header-title">Tasks & To-Dos</h1>
+                    </div>
                 </div>
-            </div>
 
-            <!-- Summary Cards -->
-            <div class="tasks-summary" id="tasksSummary"></div>
+                <!-- Summary Cards -->
+                <div class="tasks-summary" id="tasksSummary"></div>
 
-            <!-- Filter Tabs -->
-            <div class="filter-tabs">
-                <button class="filter-tab active" data-filter="all">All Tasks</button>
-                <button class="filter-tab" data-filter="overdue">Overdue</button>
-                <button class="filter-tab" data-filter="workflow">Follow-Ups</button>
-                <button class="filter-tab" data-filter="delivery">Delivery Issues</button>
-            </div>
+                <!-- Filter Tabs -->
+                <div class="filter-tabs">
+                    <button class="filter-tab active" data-filter="all">All Tasks</button>
+                    <button class="filter-tab" data-filter="overdue">Overdue</button>
+                    <button class="filter-tab" data-filter="workflow">Follow-Ups</button>
+                    <button class="filter-tab" data-filter="delivery">Delivery Issues</button>
+                </div>
 
-            <!-- Tasks Grid -->
-            <div id="tasksContainer">
-                <div style="text-align: center; padding: 80px 20px; color: #9ca3af; background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
-                    <div style="font-size: 2rem; margin-bottom: 12px;">⏳</div>
-                    <div>Loading tasks...</div>
+                <!-- Tasks Grid -->
+                <div id="tasksContainer">
+                    <div style="text-align: center; padding: 80px 20px; color: #9ca3af; background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+                        <div style="font-size: 2rem; margin-bottom: 12px;">⏳</div>
+                        <div>Loading tasks...</div>
+                    </div>
                 </div>
             </div>
         </main>
