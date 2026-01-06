@@ -380,13 +380,12 @@
                     notes: formData.get('notes') || ''
                 };
                 
-                const response = await fetch(window.API_BASE + '/api/admin/purchases', {
+                const response = await authenticatedFetch(window.API_BASE + '/api/admin/purchases', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(purchaseData),
-                    credentials: 'include'
+                    body: JSON.stringify(purchaseData)
                 });
                 
                 const data = await response.json();
