@@ -2402,6 +2402,8 @@ app.get('/api/admin/check-in/:id', requireAuth, requireDB, async (req, res) => {
             return res.status(404).json({ error: 'Check-in not found' });
         }
         
+        console.log('[CHECK-IN] Retrieved check-in from DB:', JSON.stringify(checkIn, null, 2));
+        
         const purchase = await db.collection('purchases').findOne({ 
             _id: new ObjectId(checkIn.purchase_id) 
         });
