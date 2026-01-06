@@ -271,6 +271,15 @@
                             </select>
                         </div>
 
+                        <!-- Feedback Left -->
+                        <div class="form-group">
+                            <label style="display: flex; align-items: center; cursor: pointer; margin-top: 8px;">
+                                <input type="checkbox" id="feedbackLeft" name="feedbackLeft" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
+                                <span style="font-weight: 600;">Feedback Left</span>
+                            </label>
+                            <small style="color: #666; margin-top: 4px; display: block;">Check if you've left feedback for this seller</small>
+                        </div>
+
                         <!-- Expected Delivery -->
                         <div class="form-group">
                             <label for="expectedDelivery">Expected Delivery</label>
@@ -391,6 +400,7 @@
                     purchase_price: parseFloat(formData.get('purchasePrice')),
                     condition: formData.get('condition'),
                     status: formData.get('status'),
+                    feedback_left: document.getElementById('feedbackLeft').checked,
                     expected_delivery: formData.get('expectedDelivery') || null,
                     serial_numbers: formData.get('serialNumbers') ? formData.get('serialNumbers').split('\n').filter(s => s.trim()) : [],
                     notes: formData.get('notes') || ''

@@ -2009,6 +2009,7 @@ app.post('/api/admin/purchases', requireAuth, requireDB, async (req, res) => {
             purchase_price,
             condition,
             status,
+            feedback_left,
             expected_delivery,
             serial_numbers,
             notes
@@ -2030,6 +2031,7 @@ app.post('/api/admin/purchases', requireAuth, requireDB, async (req, res) => {
             purchase_price: parseFloat(purchase_price),
             condition: condition || 'good',
             status: status, // paid, awaiting_despatch, awaiting_delivery, delivered, awaiting_return, returned, refunded
+            feedback_left: feedback_left === true,
             expected_delivery: expected_delivery ? new Date(expected_delivery) : null,
             serial_numbers: serial_numbers || [],
             notes: notes || '',
@@ -2088,6 +2090,7 @@ app.put('/api/admin/purchases/:id', requireAuth, requireDB, async (req, res) => 
             purchase_price,
             condition,
             status,
+            feedback_left,
             expected_delivery,
             serial_numbers,
             notes
@@ -2109,6 +2112,7 @@ app.put('/api/admin/purchases/:id', requireAuth, requireDB, async (req, res) => 
             purchase_price: parseFloat(purchase_price),
             condition: condition || 'good',
             status: status, // paid, awaiting_despatch, awaiting_delivery, delivered, awaiting_return, returned, refunded
+            feedback_left: feedback_left === true,
             expected_delivery: expected_delivery ? new Date(expected_delivery) : null,
             serial_numbers: serial_numbers || [],
             notes: notes || '',

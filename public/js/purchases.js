@@ -76,7 +76,7 @@ function renderPurchases(purchases) {
     const tableBody = document.getElementById('purchasesTable');
     
     if (purchases.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="11" style="text-align: center; padding: 40px; color: #666;">No purchases found. <a href="add-purchase.html">Add your first purchase</a></td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="12" style="text-align: center; padding: 40px; color: #666;">No purchases found. <a href="add-purchase.html">Add your first purchase</a></td></tr>';
         return;
     }
     
@@ -138,6 +138,11 @@ function renderPurchases(purchases) {
         const statusLabel = statusLabels[purchase.status] || purchase.status || 'Unknown';
         const statusBadge = `<span style="display: inline-block; padding: 4px 8px; background-color: ${statusColor}; color: white; border-radius: 4px; font-size: 0.85rem;">${escapeHtml(statusLabel)}</span>`;
         
+        // Feedback left indicator
+        const feedbackIcon = purchase.feedback_left 
+            ? '<span style="color: #28a745; font-size: 1.2rem; display: inline-block;" title="Feedback left">✓</span>'
+            : '<span style="color: #ccc; font-size: 1rem; display: inline-block;" title="No feedback">—</span>';
+        
         // Items purchased badges
         const itemLabels = {
             'case': 'Case',
@@ -167,6 +172,7 @@ function renderPurchases(purchases) {
                 <td>${conditionBadge}</td>
                 <td>${statusBadge}</td>
                 <td>${formattedDate}</td>
+                <td style="text-align: center;">${feedbackIcon}</td>
                 <td>
                     <div class="action-buttons">
                         <button class="edit-button" onclick="editPurchase('${escapeHtml(String(purchase._id || purchase.id))}')">
