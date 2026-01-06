@@ -2390,9 +2390,14 @@ app.get('/api/admin/check-ins', requireAuth, requireDB, async (req, res) => {
 // Split check-in into products (Admin only)
 app.post('/api/admin/check-in/:id/split', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;
+    const { selected_items } = req.body;
     
     if (!ObjectId.isValid(id)) {
         return res.status(400).json({ error: 'Invalid check-in ID' });
+    }
+    
+    if (!selected_items || !Array.isArray(selected_items) || selected_items.length === 0) {
+        return res.status(400).json({ error: 'No items selected to split' });
     }
     
     try {
@@ -2418,13 +2423,17 @@ app.post('/api/admin/check-in/:id/split', requireAuth, requireDB, async (req, re
         }
         
         console.log('[SPLIT] Splitting check-in into products:', id);
-        console.log('[SPLIT] Items to split:', checkIn.items.length);
+        console.log('[SPLIT] Selected items:', selected_items);
         
-        // Create products for each item
+        // Create products for selected items only
         const productsToCreate = [];
         const itemsWithSerials = checkIn.items.filter(item => 
-            ['case', 'left', 'right'].includes(item.item_type) && item.serial_number
+            ['case', 'left', 'right'].includes(item.item_type) && 
+            item.serial_number &&
+            selected_items.includes(item.item_type)
         );
+        
+        console.log('[SPLIT] Items to create products for:', itemsWithSerials.length);
         
         for (const item of itemsWithSerials) {
             const productName = `AirPods ${purchase.generation || 'Unknown'} - ${getItemDisplayName(item.item_type)}`;
@@ -2484,6 +2493,11 @@ app.post('/api/admin/check-in/:id/split', requireAuth, requireDB, async (req, re
         const result = await db.collection('products').insertMany(productsToCreate);
         
         // Mark check-in as split
+        const allItems = checkIn.items.filter(item => 
+            ['case', 'left', 'right'].includes(item.item_type) && item.serial_number
+        );
+        const unsplitItems = allItems.filter(item => !selected_items.includes(item.item_type));
+        
         await db.collection('check_ins').updateOne(
             { _id: new ObjectId(id) },
             { 
@@ -2491,7 +2505,10 @@ app.post('/api/admin/check-in/:id/split', requireAuth, requireDB, async (req, re
                     split_into_products: true,
                     split_date: new Date(),
                     split_by: req.user.email,
-                    products_created: result.insertedCount
+                    products_created: result.insertedCount,
+                    items_split: selected_items,
+                    items_not_split: unsplitItems.map(i => i.item_type),
+                    items_not_split_reason: 'Kept for spares/repairs or partial refund'
                 }
             }
         );

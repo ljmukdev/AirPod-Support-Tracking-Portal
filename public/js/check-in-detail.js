@@ -161,6 +161,24 @@ function displaySplitSection() {
                 <div class="already-split">
                     <h3 style="margin-top: 0;">✓ Already Split into Products</h3>
                     <p>This check-in has already been split into individual products on ${new Date(checkInData.split_date).toLocaleString('en-GB')}.</p>
+                    ${checkInData.products_created ? `<p><strong>${checkInData.products_created}</strong> products were created.</p>` : ''}
+                </div>
+            </div>
+        `;
+        return;
+    }
+    
+    // Get items that can be split (have serial numbers)
+    const splittableItems = checkInData.items.filter(item => 
+        ['case', 'left', 'right'].includes(item.item_type) && item.serial_number
+    );
+    
+    if (splittableItems.length === 0) {
+        container.innerHTML = `
+            <div class="detail-card">
+                <div class="split-warning">
+                    <strong>⚠ No Items to Split</strong>
+                    <p>No items with serial numbers found. Only Case, Left AirPod, and Right AirPod can be split into products.</p>
                 </div>
             </div>
         `;
@@ -172,72 +190,184 @@ function displaySplitSection() {
         warningHtml = `
             <div class="split-warning">
                 <strong>⚠ Issues Detected</strong>
-                <p style="margin: 5px 0 0 0;">This check-in has issues that may need to be resolved before splitting into products. Review the issues above and ensure they are acceptable or resolved.</p>
+                <p style="margin: 5px 0 0 0;">Some items have issues. You can choose which items to add to inventory and which to keep for spares/repairs.</p>
             </div>
         `;
     }
     
+    // Build item selection list
+    const itemsListHtml = splittableItems.map((item, index) => {
+        const itemName = getItemDisplayName(item.item_type);
+        const hasItemIssues = checkInData.issues_detected && checkInData.issues_detected.some(i => i.item_type === item.item_type);
+        const itemIssues = hasItemIssues ? checkInData.issues_detected.find(i => i.item_type === item.item_type).issues : [];
+        
+        let issuesBadges = '';
+        let defaultChecked = true; // Check by default
+        
+        if (itemIssues.length > 0) {
+            issuesBadges = '<div style="margin-top: 5px;">';
+            itemIssues.forEach(issue => {
+                const badgeClass = issue.severity === 'critical' ? 'issue-critical' : 
+                                  issue.severity === 'high' ? 'issue-high' : 'issue-medium';
+                issuesBadges += `<span class="issue-badge ${badgeClass}">${escapeHtml(issue.description)}</span>`;
+            });
+            issuesBadges += '</div>';
+            
+            // Don't check items with critical issues by default
+            if (itemIssues.some(i => i.severity === 'critical')) {
+                defaultChecked = false;
+            }
+        }
+        
+        return `
+            <div class="item-select-card">
+                <label class="item-select-label">
+                    <input type="checkbox" class="item-select-checkbox" data-item-type="${item.item_type}" ${defaultChecked ? 'checked' : ''}>
+                    <div class="item-select-info">
+                        <div class="item-select-header">
+                            <strong>${itemName}</strong>
+                            <span style="color: #666; font-size: 0.9rem;">SN: ${escapeHtml(item.serial_number)}</span>
+                        </div>
+                        <div style="font-size: 0.85rem; color: #666; margin-top: 3px;">
+                            Condition: ${formatCondition(item.condition, false)}
+                            ${item.audible_condition ? ` | Audible: ${formatCondition(item.audible_condition, false)}` : ''}
+                        </div>
+                        ${issuesBadges}
+                    </div>
+                </label>
+            </div>
+        `;
+    }).join('');
+    
     container.innerHTML = `
         <div class="detail-card split-section">
             <h3>Split into Products</h3>
-            <p>This will create individual product entries for each item checked in. Each item will become a separate product in your inventory.</p>
+            <p>Select which items to add to your inventory. Unchecked items can be kept for spares/repairs or handled separately.</p>
             
             ${warningHtml}
             
-            <div class="split-actions">
+            <div class="items-select-list">
+                ${itemsListHtml}
+            </div>
+            
+            <div class="split-actions" style="margin-top: 20px;">
                 <label class="checkbox-label">
                     <input type="checkbox" id="confirmSplit">
-                    <span>I confirm that I have reviewed all items and am ready to split this check-in into products</span>
+                    <span>I confirm that I have reviewed the selected items and am ready to add them to inventory</span>
                 </label>
             </div>
             
             <div class="split-actions">
                 <button class="split-button" id="splitButton" disabled onclick="splitIntoProducts()">
-                    Split into Products
+                    <span id="splitButtonText">Add Selected Items to Products</span>
                 </button>
             </div>
         </div>
     `;
     
+    // Update button text based on selection
+    updateSplitButtonText();
+    
     // Enable/disable split button based on checkbox
     document.getElementById('confirmSplit').addEventListener('change', function() {
-        document.getElementById('splitButton').disabled = !this.checked;
+        updateSplitButton();
+    });
+    
+    // Update button when checkboxes change
+    document.querySelectorAll('.item-select-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            updateSplitButtonText();
+            updateSplitButton();
+        });
     });
 }
 
+function updateSplitButtonText() {
+    const selectedCount = document.querySelectorAll('.item-select-checkbox:checked').length;
+    const buttonText = document.getElementById('splitButtonText');
+    if (buttonText) {
+        if (selectedCount === 0) {
+            buttonText.textContent = 'No Items Selected';
+        } else if (selectedCount === 1) {
+            buttonText.textContent = 'Add 1 Item to Products';
+        } else {
+            buttonText.textContent = `Add ${selectedCount} Items to Products`;
+        }
+    }
+}
+
+function updateSplitButton() {
+    const confirmed = document.getElementById('confirmSplit').checked;
+    const selectedCount = document.querySelectorAll('.item-select-checkbox:checked').length;
+    const button = document.getElementById('splitButton');
+    if (button) {
+        button.disabled = !confirmed || selectedCount === 0;
+    }
+}
+
 async function splitIntoProducts() {
-    if (!confirm('Are you sure you want to split this check-in into individual products? This cannot be undone.')) {
+    // Get selected items
+    const selectedItems = Array.from(document.querySelectorAll('.item-select-checkbox:checked'))
+        .map(cb => cb.dataset.itemType);
+    
+    if (selectedItems.length === 0) {
+        alert('Please select at least one item to add to products.');
+        return;
+    }
+    
+    const confirmMsg = selectedItems.length === 1 
+        ? `Are you sure you want to add 1 item to products?\n\nThis cannot be undone.`
+        : `Are you sure you want to add ${selectedItems.length} items to products?\n\nThis cannot be undone.`;
+    
+    if (!confirm(confirmMsg)) {
         return;
     }
     
     const button = document.getElementById('splitButton');
-    const originalText = button.textContent;
+    const buttonText = document.getElementById('splitButtonText');
+    const originalText = buttonText.textContent;
     button.disabled = true;
-    button.textContent = 'Splitting...';
+    buttonText.textContent = 'Adding to Products...';
     
     try {
         const response = await authenticatedFetch(`${window.API_BASE}/api/admin/check-in/${checkInId}/split`, {
-            method: 'POST'
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                selected_items: selectedItems
+            })
         });
         
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.error || 'Failed to split into products');
+            throw new Error(error.error || 'Failed to add items to products');
         }
         
         const data = await response.json();
         
         if (data.success) {
-            alert(`Success! Created ${data.products_created} products.\n\nYou will now be redirected to the products page.`);
+            const unselectedCount = checkInData.items.filter(i => 
+                ['case', 'left', 'right'].includes(i.item_type) && i.serial_number
+            ).length - selectedItems.length;
+            
+            let message = `Success! Added ${data.products_created} item${data.products_created !== 1 ? 's' : ''} to products.`;
+            if (unselectedCount > 0) {
+                message += `\n\n${unselectedCount} item${unselectedCount !== 1 ? 's' : ''} not added (kept for spares/repairs).`;
+            }
+            message += '\n\nYou will now be redirected to the products page.';
+            
+            alert(message);
             window.location.href = 'products.html';
         } else {
-            throw new Error(data.error || 'Failed to split into products');
+            throw new Error(data.error || 'Failed to add items to products');
         }
     } catch (error) {
         console.error('[CHECK-IN-DETAIL] Error splitting:', error);
         alert('Error: ' + error.message);
         button.disabled = false;
-        button.textContent = originalText;
+        buttonText.textContent = originalText;
     }
 }
 
@@ -258,10 +388,14 @@ function getItemDisplayName(itemType) {
     return names[itemType] || itemType;
 }
 
-function formatCondition(condition) {
+function formatCondition(condition, includeHtml = true) {
     if (!condition) return 'N/A';
     
     const formatted = condition.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    
+    if (!includeHtml) {
+        return formatted;
+    }
     
     // Color code based on condition
     const colors = {

@@ -155,6 +155,45 @@
             border-radius: 4px;
             color: #155724;
         }
+        .items-select-list {
+            margin: 20px 0;
+        }
+        .item-select-card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            transition: all 0.2s;
+        }
+        .item-select-card:has(input:checked) {
+            border-color: #10b981;
+            background: #f0fdf4;
+        }
+        .item-select-label {
+            display: flex;
+            align-items: start;
+            gap: 12px;
+            padding: 15px;
+            cursor: pointer;
+            width: 100%;
+        }
+        .item-select-checkbox {
+            width: 22px;
+            height: 22px;
+            margin-top: 2px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .item-select-info {
+            flex: 1;
+        }
+        .item-select-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 5px;
+        }
     </style>
 </head>
 <body>
@@ -252,6 +291,6 @@
     </div>
 
     <script src="../js/admin.js"></script>
-    <script src="../js/check-in-detail.js?v=1.0.0"></script>
+    <script src="../js/check-in-detail.js?v=1.0.1"></script>
 </body>
 </html>
