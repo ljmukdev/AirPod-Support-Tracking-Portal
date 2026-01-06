@@ -2448,7 +2448,7 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
         const tasks = [];
         const now = new Date();
         
-        // 1. Find check-ins with pending workflow steps
+        // 1. Find check-ins with pending and completed workflow steps
         const checkInsWithIssues = await db.collection('check_ins').find({
             has_issues: true,
             email_sent_at: { $exists: true }
@@ -2467,49 +2467,51 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
             if (!purchase) continue;
             
             // Task 1: Follow-up (due after 48 hours)
-            if (!workflow.follow_up_sent_at && !workflow.resolved_at) {
-                const followUpDue = new Date(emailSentDate.getTime() + (48 * 60 * 60 * 1000));
-                const isOverdue = now > followUpDue;
-                const dueSoon = hoursSinceEmail > 36 && hoursSinceEmail < 48;
-                
-                tasks.push({
-                    id: checkIn._id.toString(),
-                    check_in_id: checkIn._id.toString(),
-                    purchase_id: purchase._id.toString(),
-                    type: 'workflow_follow_up',
-                    title: 'Send Follow-Up Message',
-                    description: `Follow up with seller about ${purchase.generation || 'AirPods'} issue (Tracking: ${checkIn.tracking_number || purchase.tracking_number || 'N/A'})`,
-                    due_date: followUpDue,
-                    is_overdue: isOverdue,
-                    due_soon: dueSoon,
-                    tracking_number: checkIn.tracking_number || purchase.tracking_number,
-                    seller: purchase.seller_name,
-                    issue_summary: checkIn.issues_detected ? checkIn.issues_detected.map(i => i.item_name).join(', ') : 'Issues detected'
-                });
-            }
+            const followUpDue = new Date(emailSentDate.getTime() + (48 * 60 * 60 * 1000));
+            const followUpIsOverdue = now > followUpDue;
+            const followUpDueSoon = hoursSinceEmail > 36 && hoursSinceEmail < 48;
+            const followUpCompleted = !!workflow.follow_up_sent_at || !!workflow.resolved_at;
+            
+            tasks.push({
+                id: checkIn._id.toString(),
+                check_in_id: checkIn._id.toString(),
+                purchase_id: purchase._id.toString(),
+                type: 'workflow_follow_up',
+                title: 'Send Follow-Up Message',
+                description: `Follow up with seller about ${purchase.generation || 'AirPods'} issue (Tracking: ${checkIn.tracking_number || purchase.tracking_number || 'N/A'})`,
+                due_date: followUpDue,
+                is_overdue: followUpCompleted ? false : followUpIsOverdue,
+                due_soon: followUpCompleted ? false : followUpDueSoon,
+                tracking_number: checkIn.tracking_number || purchase.tracking_number,
+                seller: purchase.seller_name,
+                issue_summary: checkIn.issues_detected ? checkIn.issues_detected.map(i => i.item_name).join(', ') : 'Issues detected',
+                completed: followUpCompleted,
+                completed_at: workflow.follow_up_sent_at || workflow.resolved_at
+            });
             
             // Task 2: Open case (due after 72 hours)
-            if (!workflow.case_opened_at && !workflow.resolved_at) {
-                const caseOpenDue = new Date(emailSentDate.getTime() + (72 * 60 * 60 * 1000));
-                const isOverdue = now > caseOpenDue;
-                const dueSoon = hoursSinceEmail > 60 && hoursSinceEmail < 72;
-                
-                tasks.push({
-                    id: checkIn._id.toString() + '_case',
-                    check_in_id: checkIn._id.toString(),
-                    purchase_id: purchase._id.toString(),
-                    type: 'workflow_case_open',
-                    title: 'Open eBay Case',
-                    description: `Ready to open "Item not as described" case for ${purchase.generation || 'AirPods'} (Tracking: ${checkIn.tracking_number || purchase.tracking_number || 'N/A'})`,
-                    due_date: caseOpenDue,
-                    is_overdue: isOverdue,
-                    due_soon: dueSoon,
-                    tracking_number: checkIn.tracking_number || purchase.tracking_number,
-                    seller: purchase.seller_name,
-                    follow_up_sent: !!workflow.follow_up_sent_at,
-                    issue_summary: checkIn.issues_detected ? checkIn.issues_detected.map(i => i.item_name).join(', ') : 'Issues detected'
-                });
-            }
+            const caseOpenDue = new Date(emailSentDate.getTime() + (72 * 60 * 60 * 1000));
+            const caseIsOverdue = now > caseOpenDue;
+            const caseDueSoon = hoursSinceEmail > 60 && hoursSinceEmail < 72;
+            const caseCompleted = !!workflow.case_opened_at || !!workflow.resolved_at;
+            
+            tasks.push({
+                id: checkIn._id.toString() + '_case',
+                check_in_id: checkIn._id.toString(),
+                purchase_id: purchase._id.toString(),
+                type: 'workflow_case_open',
+                title: 'Open eBay Case',
+                description: `Ready to open "Item not as described" case for ${purchase.generation || 'AirPods'} (Tracking: ${checkIn.tracking_number || purchase.tracking_number || 'N/A'})`,
+                due_date: caseOpenDue,
+                is_overdue: caseCompleted ? false : caseIsOverdue,
+                due_soon: caseCompleted ? false : caseDueSoon,
+                tracking_number: checkIn.tracking_number || purchase.tracking_number,
+                seller: purchase.seller_name,
+                follow_up_sent: !!workflow.follow_up_sent_at,
+                issue_summary: checkIn.issues_detected ? checkIn.issues_detected.map(i => i.item_name).join(', ') : 'Issues detected',
+                completed: caseCompleted,
+                completed_at: workflow.case_opened_at || workflow.resolved_at
+            });
         }
         
         // 2. Find purchases with overdue deliveries

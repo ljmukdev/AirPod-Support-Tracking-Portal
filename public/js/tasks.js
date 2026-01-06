@@ -18,6 +18,14 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
+    // Search functionality
+    const searchInput = document.getElementById('taskSearchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            filterAndDisplayTasks();
+        });
+    }
+    
     // Sidebar toggle
     document.getElementById('sidebarToggle').addEventListener('click', function() {
         document.querySelector('.admin-sidebar').classList.toggle('sidebar-open');
@@ -59,37 +67,47 @@ async function loadTasks() {
 }
 
 function displaySummary() {
-    const overdueCount = allTasks.filter(t => t.is_overdue).length;
-    const dueSoonCount = allTasks.filter(t => t.due_soon && !t.is_overdue).length;
-    const totalCount = allTasks.length;
+    const overdueCount = allTasks.filter(t => t.is_overdue && !t.completed).length;
+    const dueSoonCount = allTasks.filter(t => t.due_soon && !t.is_overdue && !t.completed).length;
+    const totalCount = allTasks.filter(t => !t.completed).length;
+    const completedCount = allTasks.filter(t => t.completed).length;
     
-    const summaryHtml = `
-        <div class="summary-card urgent">
-            <div class="summary-number">${overdueCount}</div>
-            <div class="summary-label">Overdue Tasks</div>
-        </div>
-        <div class="summary-card warning">
-            <div class="summary-number">${dueSoonCount}</div>
-            <div class="summary-label">Due Soon</div>
-        </div>
-        <div class="summary-card info">
-            <div class="summary-number">${totalCount}</div>
-            <div class="summary-label">Total Tasks</div>
-        </div>
-    `;
+    // Update stat cards
+    const statTotalTasks = document.getElementById('statTotalTasks');
+    const statOverdueTasks = document.getElementById('statOverdueTasks');
+    const statDueSoonTasks = document.getElementById('statDueSoonTasks');
+    const statCompletedTasks = document.getElementById('statCompletedTasks');
     
-    document.getElementById('tasksSummary').innerHTML = summaryHtml;
+    if (statTotalTasks) statTotalTasks.textContent = totalCount;
+    if (statOverdueTasks) statOverdueTasks.textContent = overdueCount;
+    if (statDueSoonTasks) statDueSoonTasks.textContent = dueSoonCount;
+    if (statCompletedTasks) statCompletedTasks.textContent = completedCount;
 }
 
 function filterAndDisplayTasks() {
-    let filteredTasks = allTasks;
+    let filteredTasks = allTasks.filter(t => !t.completed);
     
+    // Apply filter tabs
     if (currentFilter === 'overdue') {
-        filteredTasks = allTasks.filter(t => t.is_overdue);
+        filteredTasks = filteredTasks.filter(t => t.is_overdue);
     } else if (currentFilter === 'workflow') {
-        filteredTasks = allTasks.filter(t => t.type.includes('workflow'));
+        filteredTasks = filteredTasks.filter(t => t.type.includes('workflow'));
     } else if (currentFilter === 'delivery') {
-        filteredTasks = allTasks.filter(t => t.type === 'delivery_overdue');
+        filteredTasks = filteredTasks.filter(t => t.type === 'delivery_overdue');
+    }
+    
+    // Apply search filter
+    const searchInput = document.getElementById('taskSearchInput');
+    if (searchInput && searchInput.value.trim()) {
+        const searchTerm = searchInput.value.trim().toLowerCase();
+        filteredTasks = filteredTasks.filter(task => {
+            return (
+                task.title.toLowerCase().includes(searchTerm) ||
+                task.description.toLowerCase().includes(searchTerm) ||
+                (task.tracking_number && task.tracking_number.toLowerCase().includes(searchTerm)) ||
+                (task.seller && task.seller.toLowerCase().includes(searchTerm))
+            );
+        });
     }
     
     displayTasks(filteredTasks);
