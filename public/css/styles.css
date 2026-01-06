@@ -606,6 +606,8 @@ body.admin-panel {
     padding: 0 !important;
     overflow-x: hidden;
     font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'San Francisco', 'Segoe UI', sans-serif;
+    width: 100%;
+    max-width: 100%;
 }
 
 /* Sidebar Container */
@@ -920,6 +922,8 @@ aside.admin-sidebar {
     flex-direction: column;
     min-height: 100vh;
     background-color: #f5f7fa;
+    width: 100%;
+    min-width: 0;
 }
 
 /* Top Utility Bar */
@@ -1057,6 +1061,8 @@ aside.admin-sidebar {
     flex: 1;
     padding: 24px;
     overflow-y: auto;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .admin-container {
@@ -1697,6 +1703,9 @@ select {
 /* Smooth scroll */
 html {
     scroll-behavior: smooth;
+    overflow-x: hidden;
+    width: 100%;
+    background-color: #f5f7fa;
 }
 
 /* Troubleshooting Accordion */
