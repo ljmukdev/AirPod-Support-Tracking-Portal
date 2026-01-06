@@ -2004,6 +2004,7 @@ app.post('/api/admin/purchases', requireAuth, requireDB, async (req, res) => {
             seller_name,
             purchase_date,
             generation,
+            connector_type,
             items_purchased,
             quantity,
             purchase_price,
