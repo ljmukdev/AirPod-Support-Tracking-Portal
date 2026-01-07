@@ -3572,6 +3572,19 @@ app.post('/api/admin/purchases/:id/generate-feedback', requireAuth, requireDB, a
         const hadCooperativeResolution = (hasIssues || hasIssueNotes || hasRefundNotes) &&
                                         (wasFormallyClosed || hasPositiveResolution);
 
+        // Debug logging
+        console.log('[FEEDBACK] Purchase:', purchase.order_number);
+        console.log('[FEEDBACK] Status:', status);
+        console.log('[FEEDBACK] Notes:', notes);
+        console.log('[FEEDBACK] Has check-in:', !!checkIn);
+        console.log('[FEEDBACK] Has issues:', hasIssues);
+        console.log('[FEEDBACK] Has issue notes:', hasIssueNotes);
+        console.log('[FEEDBACK] Has refund notes:', hasRefundNotes);
+        console.log('[FEEDBACK] Has positive resolution:', hasPositiveResolution);
+        console.log('[FEEDBACK] Was formally closed:', wasFormallyClosed);
+        console.log('[FEEDBACK] Had cooperative resolution:', hadCooperativeResolution);
+        console.log('[FEEDBACK] Is refunded:', isRefunded);
+
         // Generate personalized feedback based on purchase details
         const generation = purchase.generation || 'AirPods';
         const items = purchase.items_purchased || [];
