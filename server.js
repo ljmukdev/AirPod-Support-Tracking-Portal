@@ -2439,6 +2439,12 @@ app.post('/api/admin/check-in', requireAuth, requireDB, async (req, res) => {
         if (!ObjectId.isValid(purchase_id)) {
             return res.status(400).json({ error: 'Invalid purchase ID' });
         }
+
+        const purchase = await db.collection('purchases').findOne({ _id: new ObjectId(purchase_id) });
+
+        if (!purchase) {
+            return res.status(404).json({ error: 'Purchase not found' });
+        }
         
         // Analyze items for issues
         console.log('[CHECK-IN] Analyzing items for issues:', JSON.stringify(items, null, 2));
@@ -2520,6 +2526,9 @@ app.post('/api/admin/check-in', requireAuth, requireDB, async (req, res) => {
         
         const checkInRecord = {
             purchase_id: new ObjectId(purchase_id),
+            purchase_order_number: purchase.order_number || null,
+            purchase_platform: purchase.platform || null,
+            purchase_seller_name: purchase.seller_name || null,
             tracking_number: tracking_number || null,
             items: items.map(item => ({
                 item_type: item.item_type,
@@ -3560,6 +3569,8 @@ async function generateAIFeedback(purchase, checkIn) {
     const condition = purchase.condition || 'good';
     const platform = purchase.platform || 'eBay';
     const purchasePrice = purchase.purchase_price || 0;
+    const orderNumber = purchase.order_number || 'N/A';
+    const sellerName = purchase.seller_name || 'the seller';
 
     // Check-in data
     const hasCheckIn = !!checkIn;
@@ -3575,12 +3586,65 @@ async function generateAIFeedback(purchase, checkIn) {
     const sellerResponded = resolutionWorkflow ? resolutionWorkflow.seller_responded : null;
     const resolutionNotes = resolutionWorkflow ? resolutionWorkflow.resolution_notes : '';
 
+    const formatConditionLabel = (value) => {
+        if (!value) return 'Not recorded';
+        return value.replace(/_/g, ' ');
+    };
+
+    const formatAudibleLabel = (value) => {
+        if (!value) return 'Not recorded';
+        if (value === 'not_working') return 'Not working';
+        return formatConditionLabel(value);
+    };
+
+    const buildCheckInSummary = (itemsChecked) => {
+        if (!itemsChecked || itemsChecked.length === 0) {
+            return 'No item-level details recorded';
+        }
+
+        return itemsChecked.map((item) => {
+            const details = [];
+            details.push(`Genuine: ${item.is_genuine ? 'Yes' : 'No'}`);
+            details.push(`Condition: ${formatConditionLabel(item.condition)}`);
+
+            if (['left', 'right'].includes(item.item_type)) {
+                details.push(`Audio: ${formatAudibleLabel(item.audible_condition)}`);
+            }
+
+            if (item.connects_correctly !== null && item.connects_correctly !== undefined) {
+                details.push(`Connectivity: ${item.connects_correctly ? 'OK' : 'Issues'}`);
+            }
+
+            return `- ${getItemDisplayName(item.item_type)}: ${details.join('; ')}`;
+        }).join('\n');
+    };
+
+    const feedbackOutcomeInstructions = () => {
+        if (!hasIssues) {
+            return '- Very positive - item arrived exactly as described\n   - Everything works perfectly\n   - Fast delivery and professional seller\n   - Would buy again';
+        }
+
+        if (wasResolved) {
+            if (sellerCooperative === true) {
+                return '- Acknowledge there was an initial issue BUT praise the seller\'s excellent response and professionalism\n   - Emphasize they resolved it quickly and fairly\n   - Mention you\'d buy from them again despite the hiccup\n   - Make it clear their customer service was outstanding';
+            }
+            if (sellerCooperative === false) {
+                return '- Be honest that there were issues\n   - Note the seller wasn\'t very helpful\n   - Keep it factual and neutral, not angry\n   - Transaction completed but wouldn\'t recommend';
+            }
+            return '- Mention there were issues, but they were resolved\n   - Keep tone neutral to positive\n   - Focus on the outcome without overstating cooperation';
+        }
+
+        return '- Mention issues were present\n   - Item didn\'t meet expectations\n   - Neutral tone';
+    };
+
     // Build context for AI
     let context = `Generate authentic eBay/Vinted seller feedback for this transaction:
 
 PURCHASE DETAILS:
 - Item: ${generation}
 - Platform: ${platform}
+- Order number: ${orderNumber}
+- Seller: ${sellerName}
 - Condition listed: ${condition}
 - Price: £${purchasePrice}
 - Items included: ${items.join(', ')}
@@ -3600,6 +3664,8 @@ PURCHASE DETAILS:
         } else {
             context += `ISSUES DETECTED: None - item arrived in excellent condition\n\n`;
         }
+
+        context += `CHECK-IN ITEM SUMMARY:\n${buildCheckInSummary(checkIn.items)}\n\n`;
     } else {
         context += `CHECK-IN PERFORMED: No\n\n`;
     }
@@ -3608,7 +3674,7 @@ PURCHASE DETAILS:
         context += `RESOLUTION DETAILS:
 - Resolution type: ${resolutionType}
 - Seller responded: ${sellerResponded ? 'Yes' : 'No'}
-- Seller was cooperative: ${sellerCooperative ? 'Yes - very helpful and professional' : 'No - difficult to work with'}
+- Seller was cooperative: ${sellerCooperative === true ? 'Yes - very helpful and professional' : sellerCooperative === false ? 'No - difficult to work with' : 'Not specified'}
 `;
         if (refundAmount) {
             context += `- Refund amount: £${refundAmount}\n`;
@@ -3624,13 +3690,7 @@ INSTRUCTIONS:
 Write authentic, natural-sounding buyer feedback (100-150 words) for ${platform} that:
 
 1. **Reflects the actual outcome:**
-   ${hasIssues && sellerCooperative === true ?
-     '- Acknowledge there was an initial issue BUT praise the seller\'s excellent response and professionalism\n   - Emphasize they resolved it quickly and fairly\n   - Mention you\'d buy from them again despite the hiccup\n   - Make it clear their customer service was outstanding' :
-   hasIssues && sellerCooperative === false ?
-     '- Be honest that there were issues\n   - Note the seller wasn\'t very helpful\n   - Keep it factual and neutral, not angry\n   - Transaction completed but wouldn\'t recommend' :
-   hasIssues && !wasResolved ?
-     '- Mention issues were present\n   - Item didn\'t meet expectations\n   - Neutral tone' :
-     '- Very positive - item arrived exactly as described\n   - Everything works perfectly\n   - Fast delivery and professional seller\n   - Would buy again'}
+   ${feedbackOutcomeInstructions()}
 
 2. **Sound natural:** Use conversational language, vary sentence structure
 3. **Be specific:** Mention the actual ${generation}, what items were included
@@ -3678,9 +3738,15 @@ app.post('/api/admin/purchases/:id/generate-feedback', requireAuth, requireDB, a
         }
 
         // Check if there's a check-in with issues for this purchase
-        const checkIn = await db.collection('check_ins').findOne({
+        let checkIn = await db.collection('check_ins').findOne({
             purchase_id: new ObjectId(id)
         });
+
+        if (!checkIn && purchase.order_number) {
+            checkIn = await db.collection('check_ins').findOne({
+                purchase_order_number: purchase.order_number
+            });
+        }
 
         console.log('[FEEDBACK] Generating AI feedback for purchase:', purchase.order_number);
 
