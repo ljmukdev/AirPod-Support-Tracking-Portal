@@ -878,6 +878,7 @@ async function loadStatusOptions() {
             // Use defaults
             statusOptionsCache = [
                 { value: 'active', label: 'Active' },
+                { value: 'item_in_dispute', label: 'Item in Dispute' },
                 { value: 'delivered_no_warranty', label: 'Delivered (No Warranty)' },
                 { value: 'returned', label: 'Returned' },
                 { value: 'pending', label: 'Pending' }
@@ -888,6 +889,7 @@ async function loadStatusOptions() {
         // Use defaults on error
         statusOptionsCache = [
             { value: 'active', label: 'Active' },
+            { value: 'item_in_dispute', label: 'Item in Dispute' },
             { value: 'delivered_no_warranty', label: 'Delivered (No Warranty)' },
             { value: 'returned', label: 'Returned' },
             { value: 'pending', label: 'Pending' }
