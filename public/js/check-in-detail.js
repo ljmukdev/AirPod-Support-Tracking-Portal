@@ -164,6 +164,15 @@ function displaySplitSection() {
                     <h3 style="margin-top: 0;">✓ Already Split into Products</h3>
                     <p>This check-in has already been split into individual products on ${new Date(checkInData.split_date).toLocaleString('en-GB')}.</p>
                     ${checkInData.products_created ? `<p><strong>${checkInData.products_created}</strong> products were created.</p>` : ''}
+                    <button 
+                        onclick="undoSplit('${checkInData._id}')" 
+                        class="button" 
+                        style="margin-top: 16px; background: #ef4444; color: white;">
+                        ↶ Undo Split
+                    </button>
+                    <p style="font-size: 0.875rem; color: #6b7280; margin-top: 8px;">
+                        Warning: This will delete the created products and allow you to re-split with correct data.
+                    </p>
                 </div>
             </div>
         `;
@@ -836,6 +845,43 @@ async function markResolved() {
     } catch (error) {
         console.error('[WORKFLOW] Error:', error);
         alert('Error: ' + error.message);
+    }
+}
+
+async function undoSplit(checkInId) {
+    const confirmed = confirm(
+        '⚠️ UNDO SPLIT OPERATION\n\n' +
+        'This will:\n' +
+        '• Delete ALL products created from this check-in\n' +
+        '• Reset the check-in to allow re-splitting\n' +
+        '• Allow you to correct any data issues\n\n' +
+        'Are you sure you want to undo the split?'
+    );
+    
+    if (!confirmed) {
+        return;
+    }
+    
+    try {
+        const response = await authenticatedFetch(`${window.API_BASE}/api/admin/check-in/${checkInId}/undo-split`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            alert(`✅ Split undone successfully!\n\n${data.products_deleted} product(s) deleted.`);
+            // Reload the page to show updated state
+            window.location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Failed to undo split'));
+        }
+    } catch (error) {
+        console.error('[UNDO SPLIT] Error:', error);
+        alert('Error undoing split: ' + error.message);
     }
 }
 

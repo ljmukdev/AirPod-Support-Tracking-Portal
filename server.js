@@ -2872,6 +2872,87 @@ app.post('/api/admin/check-in/:id/split', requireAuth, requireDB, async (req, re
     }
 });
 
+// Undo split - delete products and reset check-in (Admin only)
+app.post('/api/admin/check-in/:id/undo-split', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid check-in ID' });
+    }
+    
+    try {
+        // Load check-in
+        const checkIn = await db.collection('check_ins').findOne({ _id: new ObjectId(id) });
+        
+        if (!checkIn) {
+            return res.status(404).json({ error: 'Check-in not found' });
+        }
+        
+        if (!checkIn.split_into_products) {
+            return res.status(400).json({ error: 'This check-in has not been split yet' });
+        }
+        
+        console.log('[UNDO SPLIT] Undoing split for check-in:', id);
+        
+        // Find and delete all products created from this check-in
+        const productsToDelete = await db.collection('products').find({
+            check_in_id: new ObjectId(id)
+        }).toArray();
+        
+        console.log(`[UNDO SPLIT] Found ${productsToDelete.length} products to delete`);
+        
+        if (productsToDelete.length > 0) {
+            const deleteResult = await db.collection('products').deleteMany({
+                check_in_id: new ObjectId(id)
+            });
+            console.log(`[UNDO SPLIT] Deleted ${deleteResult.deletedCount} products`);
+        }
+        
+        // Reset check-in split status
+        await db.collection('check_ins').updateOne(
+            { _id: new ObjectId(id) },
+            { 
+                $unset: { 
+                    split_into_products: "",
+                    split_date: "",
+                    split_by: "",
+                    products_created: "",
+                    items_split: "",
+                    items_not_split: "",
+                    items_not_split_reason: ""
+                }
+            }
+        );
+        
+        console.log('[UNDO SPLIT] Reset check-in split status');
+        
+        // Update purchase status back to checked_in (not completed)
+        if (checkIn.purchase_id) {
+            await db.collection('purchases').updateOne(
+                { _id: new ObjectId(checkIn.purchase_id) },
+                { 
+                    $set: { 
+                        status: 'delivered'
+                    },
+                    $unset: {
+                        completed_date: ""
+                    }
+                }
+            );
+            console.log('[UNDO SPLIT] Updated purchase status back to delivered');
+        }
+        
+        res.json({
+            success: true,
+            message: 'Split operation undone successfully',
+            products_deleted: productsToDelete.length
+        });
+    } catch (err) {
+        console.error('[UNDO SPLIT] Error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // Update check-in (Admin only)
 app.put('/api/admin/check-in/:id', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;
