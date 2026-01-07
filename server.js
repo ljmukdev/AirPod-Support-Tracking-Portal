@@ -1488,6 +1488,7 @@ app.post('/api/admin/product', requireAuth, requireDB, (req, res, next) => {
     const part_model_number = req.body.part_model_number;
     const notes = req.body.notes;
     const ebay_order_number = req.body.ebay_order_number;
+    const sales_order_number = req.body.sales_order_number;
     
     // Log received data for debugging
     console.log('Received product data:', {
@@ -1688,6 +1689,7 @@ app.post('/api/admin/product', requireAuth, requireDB, (req, res, next) => {
             part_model_number: part_model_number ? part_model_number.trim() : null,
             notes: notes ? notes.trim() : null,
             ebay_order_number: ebay_order_number ? ebay_order_number.trim() : null,
+            sales_order_number: sales_order_number ? sales_order_number.trim() : null,
             photos: photos, // Array of photo paths
             tracking_number: null,
             tracking_date: null,
@@ -1831,6 +1833,7 @@ app.put('/api/admin/product/:id', requireAuth, requireDB, (req, res, next) => {
     const part_model_number = req.body.part_model_number;
     const notes = req.body.notes;
     const ebay_order_number = req.body.ebay_order_number;
+    const sales_order_number = req.body.sales_order_number;
     
     if (!serial_number || !security_barcode || !part_type) {
         return res.status(400).json({ 
@@ -1911,6 +1914,7 @@ app.put('/api/admin/product/:id', requireAuth, requireDB, (req, res, next) => {
             part_model_number: part_model_number ? part_model_number.trim() : null,
             notes: notes ? notes.trim() : null,
             ebay_order_number: ebay_order_number ? ebay_order_number.trim() : null,
+            sales_order_number: sales_order_number ? sales_order_number.trim() : null,
             ...photosUpdate
             // Note: tracking_number and tracking_date are updated via separate endpoint
         };

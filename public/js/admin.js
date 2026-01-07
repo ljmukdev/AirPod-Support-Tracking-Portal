@@ -662,9 +662,12 @@ async function editProduct(id) {
                     partTypeSelect.value = product.part_type;
                 }
                 
-                // Set notes and eBay order number
+                // Set notes and eBay order numbers
                 document.getElementById('notes').value = product.notes || '';
                 document.getElementById('ebayOrderNumber').value = product.ebay_order_number || '';
+                if (document.getElementById('salesOrderNumber')) {
+                    document.getElementById('salesOrderNumber').value = product.sales_order_number || '';
+                }
                 
                 // Update button text and show cancel button
                 if (addProductButton) {
@@ -738,6 +741,7 @@ if (productForm) {
         const partModelNumber = document.getElementById('partModelNumber').value.trim();
         const notes = document.getElementById('notes').value.trim();
         const ebayOrderNumber = document.getElementById('ebayOrderNumber').value.trim();
+        const salesOrderNumber = document.getElementById('salesOrderNumber') ? document.getElementById('salesOrderNumber').value.trim() : '';
         const productPhotos = document.getElementById('productPhotos');
         const addProductButton = document.getElementById('addProductButton');
         
@@ -780,6 +784,7 @@ if (productForm) {
             formData.append('part_model_number', partModelNumber);
             if (notes) formData.append('notes', notes);
             if (ebayOrderNumber) formData.append('ebay_order_number', ebayOrderNumber);
+            if (salesOrderNumber) formData.append('sales_order_number', salesOrderNumber);
             
             // Append photos if selected (use selectedFiles array)
             if (selectedFiles && selectedFiles.length > 0) {
