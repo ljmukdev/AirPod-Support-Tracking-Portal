@@ -3367,12 +3367,43 @@ app.post('/api/admin/check-in/:id/mark-resolved', requireAuth, requireDB, async 
             return res.status(404).json({ error: 'Check-in not found' });
         }
 
+        // Get the check-in to see if it was split
+        const checkIn = await db.collection('check_ins').findOne({ _id: new ObjectId(id) });
+
+        // If items were split into products and there's a refund, update product prices
+        if (checkIn.split_into_products && refund_amount && parseFloat(refund_amount) > 0) {
+            const refundValue = parseFloat(refund_amount);
+
+            // Find all products created from this check-in
+            const products = await db.collection('products').find({
+                check_in_id: new ObjectId(id)
+            }).toArray();
+
+            if (products.length > 0) {
+                // Calculate refund per product (split equally)
+                const refundPerProduct = refundValue / products.length;
+
+                // Update each product's purchase price
+                for (const product of products) {
+                    if (product.purchase_price) {
+                        const newPrice = Math.max(0, product.purchase_price - refundPerProduct);
+                        await db.collection('products').updateOne(
+                            { _id: product._id },
+                            { $set: { purchase_price: newPrice } }
+                        );
+                    }
+                }
+
+                console.log(`[WORKFLOW] Updated ${products.length} product prices with refund of £${refundValue}`);
+            }
+        }
+
         // Also update purchase status if not already resolved
         await db.collection('purchases').updateOne(
-            { _id: new ObjectId((await db.collection('check_ins').findOne({ _id: new ObjectId(id) })).purchase_id) },
+            { _id: new ObjectId(checkIn.purchase_id) },
             { $set: { status: 'resolved' } }
         );
-        
+
         console.log('[WORKFLOW] Issue marked as resolved for check-in:', id);
         
         res.json({
