@@ -999,7 +999,7 @@ tryConnect()
 async function initializeDatabase() {
     try {
         // Create indexes for products collection
-        await db.collection('products').createIndex({ security_barcode: 1 }, { unique: true });
+        await db.collection('products').createIndex({ security_barcode: 1 }, { unique: true, sparse: true });
         await db.collection('products').createIndex({ date_added: -1 });
         
         // Create indexes for airpod_parts collection
@@ -4955,7 +4955,6 @@ app.post('/api/track/page-view', requireDB, async (req, res) => {
             { session_id },
             {
                 $set: {
-                    tracking_id,
                     last_page: page,
                     last_updated: new Date(),
                     updated_at: new Date()
