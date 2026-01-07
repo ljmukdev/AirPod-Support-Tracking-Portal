@@ -2957,6 +2957,80 @@ app.post('/api/admin/check-in/:id/undo-split', requireAuth, requireDB, async (re
     }
 });
 
+// Migrate order numbers from purchase to sales field (Admin only - one-time migration)
+app.post('/api/admin/migrate-order-numbers', requireAuth, requireDB, async (req, res) => {
+    try {
+        console.log('[MIGRATION] Starting order number migration...');
+        
+        const products = db.collection('products');
+        
+        // Find all products with ebay_order_number that is NOT the purchase order
+        const productsToMigrate = await products.find({
+            ebay_order_number: { 
+                $exists: true, 
+                $ne: null,
+                $ne: '15-14031-74596' // Exclude the actual purchase order
+            }
+        }).toArray();
+        
+        console.log(`[MIGRATION] Found ${productsToMigrate.length} products to migrate`);
+        
+        if (productsToMigrate.length === 0) {
+            return res.json({
+                success: true,
+                message: 'No products need migration',
+                migrated: 0
+            });
+        }
+        
+        // Perform migration
+        let successCount = 0;
+        let errorCount = 0;
+        
+        for (const product of productsToMigrate) {
+            try {
+                await products.updateOne(
+                    { _id: product._id },
+                    {
+                        $set: {
+                            sales_order_number: product.ebay_order_number,
+                            ebay_order_number: null
+                        }
+                    }
+                );
+                successCount++;
+            } catch (error) {
+                console.error(`[MIGRATION] Error migrating product ${product._id}:`, error.message);
+                errorCount++;
+            }
+        }
+        
+        console.log(`[MIGRATION] Complete - Success: ${successCount}, Errors: ${errorCount}`);
+        
+        // Get final statistics
+        const purchaseOrderCount = await products.countDocuments({ 
+            ebay_order_number: '15-14031-74596' 
+        });
+        const salesOrderCount = await products.countDocuments({ 
+            sales_order_number: { $exists: true, $ne: null } 
+        });
+        
+        res.json({
+            success: true,
+            message: 'Migration completed successfully',
+            migrated: successCount,
+            errors: errorCount,
+            stats: {
+                purchaseOrders: purchaseOrderCount,
+                salesOrders: salesOrderCount
+            }
+        });
+    } catch (err) {
+        console.error('[MIGRATION] Error:', err);
+        res.status(500).json({ error: 'Migration failed: ' + err.message });
+    }
+});
+
 // Update check-in (Admin only)
 app.put('/api/admin/check-in/:id', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;
