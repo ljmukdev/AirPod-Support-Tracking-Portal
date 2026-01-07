@@ -30,8 +30,8 @@ async function renderProductsTable(products) {
         // Serial Column
         const serialNumber = product.serial_number || '—';
 
-        // Order Column
-        const orderNumber = product.ebay_order_number || '—';
+        // Order Column - show sales order number if available, otherwise show purchase order
+        const orderNumber = product.sales_order_number || product.ebay_order_number || '—';
 
         // Status
         let productStatus = product.status || 'active';
@@ -71,10 +71,11 @@ async function renderProductsTable(products) {
             }
         }
 
-        // eBay Order Number (editable)
-        const ebayOrderNumber = product.ebay_order_number || '';
-        const hasEbayOrder = ebayOrderNumber && ebayOrderNumber.trim();
-        const ebayOrderClass = hasEbayOrder ? 'has-ebay-order' : 'no-ebay-order';
+        // Sales Order Number (editable) and Purchase Order (background)
+        const salesOrderNumber = product.sales_order_number || '';
+        const purchaseOrderNumber = product.ebay_order_number || '';
+        const hasSalesOrder = salesOrderNumber && salesOrderNumber.trim();
+        const salesOrderClass = hasSalesOrder ? 'has-sales-order' : 'no-sales-order';
 
         // Date
         const date = new Date(product.date_added);
@@ -115,10 +116,11 @@ async function renderProductsTable(products) {
                 <td>
                     <input 
                         type="text" 
-                        class="ebay-order-input ${ebayOrderClass}" 
+                        class="sales-order-input ${salesOrderClass}" 
                         data-product-id="${escapeHtml(String(product.id))}" 
-                        value="${escapeHtml(ebayOrderNumber)}"
-                        placeholder="Paste order number"
+                        value="${escapeHtml(salesOrderNumber)}"
+                        placeholder="Enter sales order"
+                        title="Purchase Order: ${escapeHtml(purchaseOrderNumber || 'None')}"
                         style="width: 100%; padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem;"
                     >
                 </td>
@@ -186,8 +188,8 @@ document.addEventListener('click', function(event) {
 
 // Attach event listeners to product elements
 function attachProductEventListeners(tableBody) {
-    // eBay order number input listeners
-    tableBody.querySelectorAll('.ebay-order-input').forEach(input => {
+    // Sales order number input listeners
+    tableBody.querySelectorAll('.sales-order-input').forEach(input => {
         let saveTimeout = null;
         
         input.addEventListener('input', function(e) {
@@ -197,7 +199,7 @@ function attachProductEventListeners(tableBody) {
             // Set a new timeout to save after user stops typing
             saveTimeout = setTimeout(async () => {
                 const productId = this.getAttribute('data-product-id');
-                const newEbayOrder = this.value.trim();
+                const newSalesOrder = this.value.trim();
                 
                 if (!productId) return;
                 
@@ -206,10 +208,10 @@ function attachProductEventListeners(tableBody) {
                 this.disabled = true;
                 
                 try {
-                    const response = await authenticatedFetch(`${window.API_BASE}/api/admin/product/${encodeURIComponent(productId)}/ebay-order`, {
+                    const response = await authenticatedFetch(`${window.API_BASE}/api/admin/product/${encodeURIComponent(productId)}/sales-order`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ ebay_order_number: newEbayOrder })
+                        body: JSON.stringify({ sales_order_number: newSalesOrder })
                     });
                     
                     const data = await response.json();
@@ -228,13 +230,13 @@ function attachProductEventListeners(tableBody) {
                     } else {
                         // Error feedback
                         this.style.backgroundColor = '#f8d7da';
-                        alert(data.error || 'Failed to update eBay order number');
+                        alert(data.error || 'Failed to update sales order number');
                         setTimeout(() => {
                             this.style.backgroundColor = '';
                         }, 2000);
                     }
                 } catch (error) {
-                    console.error('eBay order update error:', error);
+                    console.error('Sales order update error:', error);
                     this.style.backgroundColor = '#f8d7da';
                     alert('Network error. Please try again.');
                     setTimeout(() => {
