@@ -3519,27 +3519,46 @@ app.delete('/api/admin/purchases/:id', requireAuth, requireDB, async (req, res) 
 // Generate seller feedback text based on purchase (Admin only)
 app.post('/api/admin/purchases/:id/generate-feedback', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;
-    
+
     if (!ObjectId.isValid(id)) {
         return res.status(400).json({ error: 'Invalid purchase ID' });
     }
-    
+
     try {
         const purchase = await db.collection('purchases').findOne({ _id: new ObjectId(id) });
-        
+
         if (!purchase) {
             return res.status(404).json({ error: 'Purchase not found' });
         }
-        
+
+        // Check if there's a check-in with issues for this purchase
+        const checkIn = await db.collection('check_ins').findOne({
+            purchase_id: new ObjectId(id)
+        });
+
+        const hasIssues = checkIn && checkIn.has_issues;
+        const resolutionWorkflow = checkIn ? checkIn.resolution_workflow : null;
+        const wasResolved = resolutionWorkflow && resolutionWorkflow.resolved_at;
+        const resolutionType = resolutionWorkflow ? resolutionWorkflow.resolution_type : null;
+
+        // Check purchase status and notes for refund/resolution info
+        const status = purchase.status;
+        const notes = purchase.notes || '';
+        const isRefunded = status === 'refunded' || status === 'returned';
+        const hasRefundNotes = notes.toLowerCase().includes('refund') ||
+                              notes.toLowerCase().includes('partial') ||
+                              notes.toLowerCase().includes('resolved') ||
+                              notes.toLowerCase().includes('issue');
+
         // Generate personalized feedback based on purchase details
         const generation = purchase.generation || 'AirPods';
         const items = purchase.items_purchased || [];
         const condition = purchase.condition || 'good';
         const platform = purchase.platform || 'eBay';
-        
+
         // Build detailed feedback based on what was purchased and condition
         let feedback = '';
-        
+
         // Determine what items were included
         const hasCase = items.includes('case') || items.includes('Case');
         const hasLeft = items.includes('left') || items.includes('Left');
@@ -3547,12 +3566,41 @@ app.post('/api/admin/purchases/:id/generate-feedback', requireAuth, requireDB, a
         const hasBox = items.includes('box') || items.includes('Box');
         const hasEarTips = items.includes('ear_tips') || items.includes('Ear Tips');
         const hasCable = items.includes('cable') || items.includes('Cable');
-        
+
         // Determine if it's a complete set
         const isCompleteSet = hasCase && hasLeft && hasRight;
-        
-        // Build natural-sounding feedback
-        if (condition === 'new' || condition === 'like_new') {
+
+        // Special handling if there were issues but seller was cooperative
+        if ((hasIssues || hasRefundNotes || isRefunded) && wasResolved) {
+            // Seller was cooperative in resolving an issue
+            const itemDesc = isCompleteSet ? generation :
+                            (hasCase ? `${generation} case` :
+                             (hasLeft || hasRight ? `${generation} ${hasLeft && hasRight ? 'earbuds' : 'earbud'}` : generation));
+
+            feedback = `While there was an initial issue with the ${itemDesc}, `;
+            feedback += `the seller was extremely professional and responsive in resolving it. `;
+
+            // Check if it was a partial refund or full resolution
+            if (resolutionType && resolutionType.toLowerCase().includes('partial')) {
+                feedback += `They offered a fair partial refund without hesitation. `;
+            } else if (resolutionType && resolutionType.toLowerCase().includes('refund')) {
+                feedback += `They promptly offered a full refund. `;
+            } else {
+                feedback += `They worked with me to find a fair solution. `;
+            }
+
+            feedback += `Great customer service and communication throughout. `;
+            feedback += `Sellers like this who stand behind their items and resolve issues quickly are rare. `;
+            feedback += `Would buy from again despite the hiccup!`;
+        }
+        // Full refund/return with no positive resolution
+        else if (isRefunded && !wasResolved) {
+            feedback = `Unfortunately the ${generation} had issues and required a return. `;
+            feedback += `Seller processed the refund, but the item did not meet expectations. `;
+            feedback += `Transaction completed but would recommend checking items carefully before purchasing.`;
+        }
+        // No issues - generate positive feedback based on condition
+        else if (condition === 'new' || condition === 'like_new') {
             if (isCompleteSet) {
                 feedback = `Fantastic! The ${generation} arrived in pristine condition. Both AirPods and charging case are flawless and work perfectly. `;
                 if (hasBox) feedback += `Everything came in the original box with all accessories included. `;
@@ -3591,7 +3639,7 @@ app.post('/api/admin/purchases/:id/generate-feedback', requireAuth, requireDB, a
                 feedback = `Item received as described and working well. Good communication from seller. Thank you for the smooth transaction!`;
             }
         }
-        
+
         res.json({
             success: true,
             feedback: feedback,
