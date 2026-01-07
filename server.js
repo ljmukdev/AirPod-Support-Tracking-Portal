@@ -2167,30 +2167,47 @@ function getItemDisplayName(itemType) {
 // Get part number from airpod_parts collection
 async function getPartNumber(generation, itemType, connectorType = null, ancType = null) {
     try {
-        // Build query
-        const query = {
+        console.log(`[PART LOOKUP] Searching for: generation="${generation}", itemType="${itemType}", connector="${connectorType}", anc="${ancType}"`);
+        
+        // Build query - try exact match first
+        let query = {
             generation: generation,
             part_type: itemType
         };
         
         // Find matching part - prioritize based on connector/ANC type if provided
-        const parts = await db.collection('airpod_parts').find(query).toArray();
+        let parts = await db.collection('airpod_parts').find(query).toArray();
+        
+        // If no exact match, try case-insensitive regex
+        if (parts.length === 0) {
+            console.log(`[PART LOOKUP] No exact match, trying case-insensitive search...`);
+            query = {
+                generation: { $regex: new RegExp(`^${generation.replace(/[()]/g, '\\$&')}$`, 'i') },
+                part_type: itemType
+            };
+            parts = await db.collection('airpod_parts').find(query).toArray();
+        }
         
         if (parts.length === 0) {
-            console.log(`[PART LOOKUP] No part found for ${generation} ${itemType}`);
+            console.log(`[PART LOOKUP] ❌ No part found for ${generation} ${itemType}`);
+            // Log all available generations for debugging
+            const allGenerations = await db.collection('airpod_parts').distinct('generation');
+            console.log(`[PART LOOKUP] Available generations:`, allGenerations);
             return null;
         }
+        
+        console.log(`[PART LOOKUP] ✅ Found ${parts.length} matching part(s)`);
         
         // If multiple parts, try to match by connector type or ANC type
         if (parts.length > 1) {
             // For Pro 2nd Gen, match by connector type
             if (connectorType) {
                 const matchingPart = parts.find(p => 
-                    (connectorType === 'USB-C' && p.part_name.includes('USB-C')) ||
-                    (connectorType === 'Lightning' && p.part_name.includes('Lightning'))
+                    (connectorType === 'USB-C' && (p.part_name.includes('USB-C') || p.part_model_number.includes('A2700') || p.part_model_number.includes('A2968') || p.part_model_number.includes('A3048') || p.part_model_number.includes('A3047'))) ||
+                    (connectorType === 'Lightning' && (p.part_name.includes('Lightning') || p.part_model_number.includes('A2698') || p.part_model_number.includes('A2699')))
                 );
                 if (matchingPart) {
-                    console.log(`[PART LOOKUP] Found ${matchingPart.part_model_number} for ${generation} ${itemType} (${connectorType})`);
+                    console.log(`[PART LOOKUP] ✅ Found ${matchingPart.part_model_number} for ${generation} ${itemType} (${connectorType})`);
                     return matchingPart.part_model_number;
                 }
             }
@@ -2200,10 +2217,10 @@ async function getPartNumber(generation, itemType, connectorType = null, ancType
             return parts[0].part_model_number;
         }
         
-        console.log(`[PART LOOKUP] Found ${parts[0].part_model_number} for ${generation} ${itemType}`);
+        console.log(`[PART LOOKUP] ✅ Found ${parts[0].part_model_number} for ${generation} ${itemType}`);
         return parts[0].part_model_number;
     } catch (err) {
-        console.error(`[PART LOOKUP] Error looking up part number:`, err);
+        console.error(`[PART LOOKUP] ❌ Error looking up part number:`, err);
         return null;
     }
 }
@@ -2731,6 +2748,8 @@ app.post('/api/admin/check-in/:id/split', requireAuth, requireDB, async (req, re
         for (const item of itemsToSplit) {
             const productName = `AirPods ${purchase.generation || 'Unknown'} - ${getItemDisplayName(item.item_type)}`;
             
+            console.log(`[SPLIT] Creating product for: ${item.item_type}, generation: "${purchase.generation}"`);
+            
             // Get part number from database
             let partNumber = null;
             if (['case', 'left', 'right'].includes(item.item_type)) {
@@ -2740,6 +2759,7 @@ app.post('/api/admin/check-in/:id/split', requireAuth, requireDB, async (req, re
                     purchase.connector_type, 
                     purchase.anc_type
                 );
+                console.log(`[SPLIT] Part number for ${item.item_type}: ${partNumber || 'NOT FOUND'}`);
             }
             
             // Determine product type (more descriptive than item_type)
