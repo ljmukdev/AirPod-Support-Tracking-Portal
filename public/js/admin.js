@@ -1414,7 +1414,9 @@ async function openTrackingModal(productId) {
             productInfo.innerHTML = `
                 <p style="margin: 0 0 8px 0;"><strong>Product:</strong> ${escapeHtml(product.generation || 'N/A')} - ${escapeHtml(product.part_model_number || 'N/A')}</p>
                 <p style="margin: 0 0 8px 0;"><strong>Serial:</strong> ${escapeHtml(product.serial_number || 'N/A')}</p>
-                <p style="margin: 0;"><strong>Security Barcode:</strong> ${escapeHtml(product.security_barcode || 'N/A')}</p>
+                <p style="margin: 0 0 8px 0;"><strong>Security Barcode:</strong> ${escapeHtml(product.security_barcode || 'N/A')}</p>
+                <p style="margin: 0 0 8px 0;"><strong>eBay Purchase Order:</strong> ${escapeHtml(product.ebay_order_number || 'N/A')}</p>
+                <p style="margin: 0;"><strong>eBay Sales Order:</strong> ${escapeHtml(product.sales_order_number || 'Not yet sold')}</p>
             `;
             
             // Show current tracking if exists
