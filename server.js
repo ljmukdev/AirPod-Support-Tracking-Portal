@@ -3538,17 +3538,39 @@ app.post('/api/admin/purchases/:id/generate-feedback', requireAuth, requireDB, a
 
         const hasIssues = checkIn && checkIn.has_issues;
         const resolutionWorkflow = checkIn ? checkIn.resolution_workflow : null;
-        const wasResolved = resolutionWorkflow && resolutionWorkflow.resolved_at;
+        const wasFormallyClosed = resolutionWorkflow && resolutionWorkflow.resolved_at;
         const resolutionType = resolutionWorkflow ? resolutionWorkflow.resolution_type : null;
 
         // Check purchase status and notes for refund/resolution info
         const status = purchase.status;
         const notes = purchase.notes || '';
+        const notesLower = notes.toLowerCase();
+
         const isRefunded = status === 'refunded' || status === 'returned';
-        const hasRefundNotes = notes.toLowerCase().includes('refund') ||
-                              notes.toLowerCase().includes('partial') ||
-                              notes.toLowerCase().includes('resolved') ||
-                              notes.toLowerCase().includes('issue');
+
+        // Check for issue/refund keywords
+        const hasIssueNotes = notesLower.includes('issue') ||
+                             notesLower.includes('fault') ||
+                             notesLower.includes('problem') ||
+                             notesLower.includes('defect');
+
+        const hasRefundNotes = notesLower.includes('refund') ||
+                              notesLower.includes('partial');
+
+        // Check for positive resolution keywords in notes
+        const hasPositiveResolution = notesLower.includes('offered') ||
+                                     notesLower.includes('cooperative') ||
+                                     notesLower.includes('forthcoming') ||
+                                     notesLower.includes('responsive') ||
+                                     notesLower.includes('professional') ||
+                                     notesLower.includes('helpful') ||
+                                     notesLower.includes('resolved') ||
+                                     notesLower.includes('agreed') ||
+                                     notesLower.includes('accepted');
+
+        // Determine if this was an issue that was resolved cooperatively
+        const hadCooperativeResolution = (hasIssues || hasIssueNotes || hasRefundNotes) &&
+                                        (wasFormallyClosed || hasPositiveResolution);
 
         // Generate personalized feedback based on purchase details
         const generation = purchase.generation || 'AirPods';
@@ -3571,7 +3593,7 @@ app.post('/api/admin/purchases/:id/generate-feedback', requireAuth, requireDB, a
         const isCompleteSet = hasCase && hasLeft && hasRight;
 
         // Special handling if there were issues but seller was cooperative
-        if ((hasIssues || hasRefundNotes || isRefunded) && wasResolved) {
+        if (hadCooperativeResolution) {
             // Seller was cooperative in resolving an issue
             const itemDesc = isCompleteSet ? generation :
                             (hasCase ? `${generation} case` :
@@ -3581,9 +3603,9 @@ app.post('/api/admin/purchases/:id/generate-feedback', requireAuth, requireDB, a
             feedback += `the seller was extremely professional and responsive in resolving it. `;
 
             // Check if it was a partial refund or full resolution
-            if (resolutionType && resolutionType.toLowerCase().includes('partial')) {
+            if ((resolutionType && resolutionType.toLowerCase().includes('partial')) || notesLower.includes('partial')) {
                 feedback += `They offered a fair partial refund without hesitation. `;
-            } else if (resolutionType && resolutionType.toLowerCase().includes('refund')) {
+            } else if ((resolutionType && resolutionType.toLowerCase().includes('refund')) || notesLower.includes('full refund')) {
                 feedback += `They promptly offered a full refund. `;
             } else {
                 feedback += `They worked with me to find a fair solution. `;
@@ -3594,7 +3616,7 @@ app.post('/api/admin/purchases/:id/generate-feedback', requireAuth, requireDB, a
             feedback += `Would buy from again despite the hiccup!`;
         }
         // Full refund/return with no positive resolution
-        else if (isRefunded && !wasResolved) {
+        else if (isRefunded && !hadCooperativeResolution) {
             feedback = `Unfortunately the ${generation} had issues and required a return. `;
             feedback += `Seller processed the refund, but the item did not meet expectations. `;
             feedback += `Transaction completed but would recommend checking items carefully before purchasing.`;
