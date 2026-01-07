@@ -2132,6 +2132,50 @@ function getItemDisplayName(itemType) {
     return names[itemType] || itemType;
 }
 
+// Get part number from airpod_parts collection
+async function getPartNumber(generation, itemType, connectorType = null, ancType = null) {
+    try {
+        // Build query
+        const query = {
+            generation: generation,
+            part_type: itemType
+        };
+        
+        // Find matching part - prioritize based on connector/ANC type if provided
+        const parts = await db.collection('airpod_parts').find(query).toArray();
+        
+        if (parts.length === 0) {
+            console.log(`[PART LOOKUP] No part found for ${generation} ${itemType}`);
+            return null;
+        }
+        
+        // If multiple parts, try to match by connector type or ANC type
+        if (parts.length > 1) {
+            // For Pro 2nd Gen, match by connector type
+            if (connectorType) {
+                const matchingPart = parts.find(p => 
+                    (connectorType === 'USB-C' && p.part_name.includes('USB-C')) ||
+                    (connectorType === 'Lightning' && p.part_name.includes('Lightning'))
+                );
+                if (matchingPart) {
+                    console.log(`[PART LOOKUP] Found ${matchingPart.part_model_number} for ${generation} ${itemType} (${connectorType})`);
+                    return matchingPart.part_model_number;
+                }
+            }
+            
+            // Return first part as default
+            console.log(`[PART LOOKUP] Multiple parts found, using first: ${parts[0].part_model_number}`);
+            return parts[0].part_model_number;
+        }
+        
+        console.log(`[PART LOOKUP] Found ${parts[0].part_model_number} for ${generation} ${itemType}`);
+        return parts[0].part_model_number;
+    } catch (err) {
+        console.error(`[PART LOOKUP] Error looking up part number:`, err);
+        return null;
+    }
+}
+
 // Generate email template for seller contact
 function generateSellerEmail(purchase, checkIn) {
     const issues = checkIn.issues_detected || [];
@@ -2655,6 +2699,20 @@ app.post('/api/admin/check-in/:id/split', requireAuth, requireDB, async (req, re
         for (const item of itemsToSplit) {
             const productName = `AirPods ${purchase.generation || 'Unknown'} - ${getItemDisplayName(item.item_type)}`;
             
+            // Get part number from database
+            let partNumber = null;
+            if (['case', 'left', 'right'].includes(item.item_type)) {
+                partNumber = await getPartNumber(
+                    purchase.generation, 
+                    item.item_type, 
+                    purchase.connector_type, 
+                    purchase.anc_type
+                );
+            }
+            
+            // Determine product type (more descriptive than item_type)
+            const productType = getItemDisplayName(item.item_type);
+            
             // Determine status based on issues
             let status = 'in_stock';
             let notes = [];
@@ -2675,8 +2733,10 @@ app.post('/api/admin/check-in/:id/split', requireAuth, requireDB, async (req, re
                 serial_number: item.serial_number || null,
                 security_number: null,
                 product_name: productName,
-                part_number: null,
-                product_type: item.item_type,
+                part_number: partNumber,
+                part_model_number: partNumber,
+                product_type: productType,
+                part_type: item.item_type,
                 generation: purchase.generation || 'Unknown',
                 connector_type: purchase.connector_type || null,
                 anc_type: purchase.anc_type || null,
