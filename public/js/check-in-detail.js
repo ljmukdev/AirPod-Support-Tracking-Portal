@@ -158,10 +158,45 @@ function displaySplitSection() {
     const alreadySplit = checkInData.split_into_products === true;
     
     if (alreadySplit) {
-        // Show workflow section if there are issues and an email was sent
+        // Show workflow section or simple resolution section
         let workflowHtml = '';
+        const workflow = checkInData.resolution_workflow || {};
+        const isResolved = workflow.resolved_at;
+
         if (hasIssues && checkInData.email_sent_at) {
+            // Full workflow for items with issues
             workflowHtml = generateWorkflowHtml();
+        } else if (!isResolved) {
+            // Simple resolution section for items without issues
+            workflowHtml = `
+                <div class="workflow-section" style="margin-top: 24px;">
+                    <h3>💰 Mark as Resolved</h3>
+                    <p style="margin: 8px 0 16px 0; font-size: 0.9rem; color: #6b7280;">
+                        Record resolution details and update product costs if a refund was received
+                    </p>
+                    <button onclick="markResolved()" class="button" style="background: #10b981; color: white; padding: 10px 20px; font-size: 0.95rem;">
+                        Mark as Resolved
+                    </button>
+                </div>
+            `;
+        } else {
+            // Show resolved status
+            workflowHtml = `
+                <div class="workflow-section" style="margin-top: 24px;">
+                    <div class="workflow-step completed">
+                        <div class="workflow-step-header">
+                            <span class="workflow-step-title">✓ Resolved</span>
+                        </div>
+                        <div class="workflow-step-description">
+                            ${workflow.resolution_type || 'Marked as resolved'}
+                            ${workflow.refund_amount ? `<br>Refund: £${workflow.refund_amount}` : ''}
+                        </div>
+                        <div class="workflow-due-date">
+                            Resolved: ${new Date(workflow.resolved_at).toLocaleString('en-GB')}
+                        </div>
+                    </div>
+                </div>
+            `;
         }
 
         container.innerHTML = `
