@@ -579,6 +579,10 @@
                         </label>
                         <select id="resolutionType" name="resolution_type" required style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 0.95rem;">
                             <option value="">Select resolution type...</option>
+                            <option value="Customer agreed to full refund">Customer agreed to full refund</option>
+                            <option value="Customer agreed to partial refund">Customer agreed to partial refund</option>
+                            <option value="Customer agreed to return (full refund)">Customer agreed to return (full refund)</option>
+                            <option value="Customer agreed to return (partial refund)">Customer agreed to return (partial refund)</option>
                             <option value="Partial refund">Partial refund</option>
                             <option value="Full refund">Full refund</option>
                             <option value="Replacement sent">Replacement sent</option>
@@ -655,7 +659,7 @@
         });
 
         document.getElementById('resolutionType')?.addEventListener('change', (e) => {
-            const showRefund = ['Partial refund', 'Full refund'].includes(e.target.value);
+            const showRefund = ['Partial refund', 'Full refund', 'Customer agreed to full refund', 'Customer agreed to partial refund', 'Customer agreed to return (full refund)', 'Customer agreed to return (partial refund)'].includes(e.target.value);
             document.getElementById('refundSection').style.display = showRefund ? 'block' : 'none';
         });
     </script>
