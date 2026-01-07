@@ -23,6 +23,22 @@ if (process.env.STRIPE_SECRET_KEY) {
     console.warn('⚠️  Stripe secret key not set - payment features will be disabled');
 }
 
+// Initialize Anthropic AI for feedback generation (optional)
+let anthropic = null;
+if (process.env.ANTHROPIC_API_KEY) {
+    try {
+        const Anthropic = require('@anthropic-ai/sdk');
+        anthropic = new Anthropic({
+            apiKey: process.env.ANTHROPIC_API_KEY
+        });
+        console.log('✅ Anthropic AI configured for feedback generation');
+    } catch (e) {
+        console.warn('⚠️  Anthropic AI initialization failed:', e.message);
+    }
+} else {
+    console.warn('⚠️  Anthropic API key not set - AI feedback generation will use templates');
+}
+
 // Initialize Nodemailer for email sending (optional)
 let nodemailer = null;
 let emailTransporter = null;
@@ -3532,6 +3548,120 @@ app.delete('/api/admin/purchases/:id', requireAuth, requireDB, async (req, res) 
     }
 });
 
+// AI-powered feedback generation helper
+async function generateAIFeedback(purchase, checkIn) {
+    if (!anthropic) {
+        throw new Error('AI service not configured');
+    }
+
+    // Gather all relevant data
+    const generation = purchase.generation || 'AirPods';
+    const items = purchase.items_purchased || [];
+    const condition = purchase.condition || 'good';
+    const platform = purchase.platform || 'eBay';
+    const purchasePrice = purchase.purchase_price || 0;
+
+    // Check-in data
+    const hasCheckIn = !!checkIn;
+    const hasIssues = checkIn && checkIn.has_issues;
+    const issuesDetected = checkIn ? checkIn.issues_detected : [];
+    const resolutionWorkflow = checkIn ? checkIn.resolution_workflow : null;
+
+    // Resolution details
+    const wasResolved = resolutionWorkflow && resolutionWorkflow.resolved_at;
+    const resolutionType = resolutionWorkflow ? resolutionWorkflow.resolution_type : null;
+    const sellerCooperative = resolutionWorkflow ? resolutionWorkflow.seller_cooperative : null;
+    const refundAmount = resolutionWorkflow ? resolutionWorkflow.refund_amount : null;
+    const sellerResponded = resolutionWorkflow ? resolutionWorkflow.seller_responded : null;
+    const resolutionNotes = resolutionWorkflow ? resolutionWorkflow.resolution_notes : '';
+
+    // Build context for AI
+    let context = `Generate authentic eBay/Vinted seller feedback for this transaction:
+
+PURCHASE DETAILS:
+- Item: ${generation}
+- Platform: ${platform}
+- Condition listed: ${condition}
+- Price: £${purchasePrice}
+- Items included: ${items.join(', ')}
+
+`;
+
+    if (hasCheckIn) {
+        context += `CHECK-IN PERFORMED: Yes
+`;
+
+        if (hasIssues && issuesDetected.length > 0) {
+            context += `ISSUES DETECTED:\n`;
+            issuesDetected.forEach(issue => {
+                context += `- ${issue.item_name}: ${issue.issues.map(i => i.description).join('; ')}\n`;
+            });
+            context += '\n';
+        } else {
+            context += `ISSUES DETECTED: None - item arrived in excellent condition\n\n`;
+        }
+    } else {
+        context += `CHECK-IN PERFORMED: No\n\n`;
+    }
+
+    if (wasResolved) {
+        context += `RESOLUTION DETAILS:
+- Resolution type: ${resolutionType}
+- Seller responded: ${sellerResponded ? 'Yes' : 'No'}
+- Seller was cooperative: ${sellerCooperative ? 'Yes - very helpful and professional' : 'No - difficult to work with'}
+`;
+        if (refundAmount) {
+            context += `- Refund amount: £${refundAmount}\n`;
+        }
+        if (resolutionNotes) {
+            context += `- Additional context: ${resolutionNotes}\n`;
+        }
+        context += '\n';
+    }
+
+    const prompt = `${context}
+INSTRUCTIONS:
+Write authentic, natural-sounding buyer feedback (100-150 words) for ${platform} that:
+
+1. **Reflects the actual outcome:**
+   ${hasIssues && sellerCooperative === true ?
+     '- Acknowledge there was an initial issue BUT praise the seller\'s excellent response and professionalism\n   - Emphasize they resolved it quickly and fairly\n   - Mention you\'d buy from them again despite the hiccup\n   - Make it clear their customer service was outstanding' :
+   hasIssues && sellerCooperative === false ?
+     '- Be honest that there were issues\n   - Note the seller wasn\'t very helpful\n   - Keep it factual and neutral, not angry\n   - Transaction completed but wouldn\'t recommend' :
+   hasIssues && !wasResolved ?
+     '- Mention issues were present\n   - Item didn\'t meet expectations\n   - Neutral tone' :
+     '- Very positive - item arrived exactly as described\n   - Everything works perfectly\n   - Fast delivery and professional seller\n   - Would buy again'}
+
+2. **Sound natural:** Use conversational language, vary sentence structure
+3. **Be specific:** Mention the actual ${generation}, what items were included
+4. **Match the platform:** Use ${platform} style (e.g., "A+++" for eBay if very positive)
+5. **Vary each time:** Don't repeat phrases, use different words and structure every time
+
+Write ONLY the feedback text, nothing else:`;
+
+    console.log('[AI-FEEDBACK] Calling Claude API...');
+
+    try {
+        const message = await anthropic.messages.create({
+            model: 'claude-3-5-sonnet-20241022',
+            max_tokens: 300,
+            temperature: 0.8, // Higher temp for more variation
+            messages: [{
+                role: 'user',
+                content: prompt
+            }]
+        });
+
+        const feedback = message.content[0].text.trim();
+        console.log('[AI-FEEDBACK] Generated successfully:', feedback.substring(0, 50) + '...');
+        return feedback;
+
+    } catch (error) {
+        console.error('[AI-FEEDBACK] Error:', error);
+        throw new Error('Failed to generate AI feedback: ' + error.message);
+    }
+}
+
 // Generate seller feedback text based on purchase (Admin only)
 app.post('/api/admin/purchases/:id/generate-feedback', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;
@@ -3552,151 +3682,26 @@ app.post('/api/admin/purchases/:id/generate-feedback', requireAuth, requireDB, a
             purchase_id: new ObjectId(id)
         });
 
-        const hasIssues = checkIn && checkIn.has_issues;
-        const resolutionWorkflow = checkIn ? checkIn.resolution_workflow : null;
-        const wasFormallyClosed = resolutionWorkflow && resolutionWorkflow.resolved_at;
-        const resolutionType = resolutionWorkflow ? resolutionWorkflow.resolution_type : null;
-        const sellerCooperative = resolutionWorkflow ? resolutionWorkflow.seller_cooperative : null;
-        const refundAmount = resolutionWorkflow ? resolutionWorkflow.refund_amount : null;
+        console.log('[FEEDBACK] Generating AI feedback for purchase:', purchase.order_number);
 
-        // Check purchase status and notes for refund/resolution info
-        const status = purchase.status;
-        const notes = purchase.notes || '';
-        const notesLower = notes.toLowerCase();
-
-        const isRefunded = status === 'refunded' || status === 'returned';
-
-        // Check for issue/refund keywords in notes (fallback if workflow not used)
-        const hasIssueNotes = notesLower.includes('issue') ||
-                             notesLower.includes('fault') ||
-                             notesLower.includes('problem') ||
-                             notesLower.includes('defect');
-
-        const hasRefundNotes = notesLower.includes('refund') ||
-                              notesLower.includes('partial');
-
-        // Check for positive resolution keywords in notes (fallback)
-        const hasPositiveResolutionNotes = notesLower.includes('offered') ||
-                                          notesLower.includes('cooperative') ||
-                                          notesLower.includes('forthcoming') ||
-                                          notesLower.includes('responsive') ||
-                                          notesLower.includes('professional') ||
-                                          notesLower.includes('helpful') ||
-                                          notesLower.includes('resolved') ||
-                                          notesLower.includes('agreed') ||
-                                          notesLower.includes('accepted');
-
-        // Determine if this was an issue that was resolved cooperatively
-        // Priority: use workflow data if available, otherwise fall back to notes
-        const hadCooperativeResolution = (hasIssues || hasIssueNotes || hasRefundNotes) &&
-                                        (sellerCooperative === true ||
-                                         (wasFormallyClosed && sellerCooperative !== false) ||
-                                         hasPositiveResolutionNotes);
-
-        // Debug logging
-        console.log('[FEEDBACK] Purchase:', purchase.order_number);
-        console.log('[FEEDBACK] Status:', status);
-        console.log('[FEEDBACK] Notes:', notes);
-        console.log('[FEEDBACK] Has check-in:', !!checkIn);
-        console.log('[FEEDBACK] Has issues:', hasIssues);
-        console.log('[FEEDBACK] Has issue notes:', hasIssueNotes);
-        console.log('[FEEDBACK] Has refund notes:', hasRefundNotes);
-        console.log('[FEEDBACK] Has positive resolution notes:', hasPositiveResolutionNotes);
-        console.log('[FEEDBACK] Was formally closed:', wasFormallyClosed);
-        console.log('[FEEDBACK] Seller cooperative:', sellerCooperative);
-        console.log('[FEEDBACK] Refund amount:', refundAmount);
-        console.log('[FEEDBACK] Resolution type:', resolutionType);
-        console.log('[FEEDBACK] Had cooperative resolution:', hadCooperativeResolution);
-        console.log('[FEEDBACK] Is refunded:', isRefunded);
-
-        // Generate personalized feedback based on purchase details
-        const generation = purchase.generation || 'AirPods';
-        const items = purchase.items_purchased || [];
-        const condition = purchase.condition || 'good';
+        // Use AI to generate feedback if available, otherwise fallback to templates
+        let feedback;
         const platform = purchase.platform || 'eBay';
 
-        // Build detailed feedback based on what was purchased and condition
-        let feedback = '';
-
-        // Determine what items were included
-        const hasCase = items.includes('case') || items.includes('Case');
-        const hasLeft = items.includes('left') || items.includes('Left');
-        const hasRight = items.includes('right') || items.includes('Right');
-        const hasBox = items.includes('box') || items.includes('Box');
-        const hasEarTips = items.includes('ear_tips') || items.includes('Ear Tips');
-        const hasCable = items.includes('cable') || items.includes('Cable');
-
-        // Determine if it's a complete set
-        const isCompleteSet = hasCase && hasLeft && hasRight;
-
-        // Special handling if there were issues but seller was cooperative
-        if (hadCooperativeResolution) {
-            // Seller was cooperative in resolving an issue
-            const itemDesc = isCompleteSet ? generation :
-                            (hasCase ? `${generation} case` :
-                             (hasLeft || hasRight ? `${generation} ${hasLeft && hasRight ? 'earbuds' : 'earbud'}` : generation));
-
-            feedback = `While there was an initial issue with the ${itemDesc}, `;
-            feedback += `the seller was extremely professional and responsive in resolving it. `;
-
-            // Check if it was a partial refund or full resolution
-            if ((resolutionType && resolutionType.toLowerCase().includes('partial')) || notesLower.includes('partial')) {
-                feedback += `They offered a fair partial refund without hesitation. `;
-            } else if ((resolutionType && resolutionType.toLowerCase().includes('refund')) || notesLower.includes('full refund')) {
-                feedback += `They promptly offered a full refund. `;
-            } else {
-                feedback += `They worked with me to find a fair solution. `;
-            }
-
-            feedback += `Great customer service and communication throughout. `;
-            feedback += `Sellers like this who stand behind their items and resolve issues quickly are rare. `;
-            feedback += `Would buy from again despite the hiccup!`;
-        }
-        // Full refund/return with no positive resolution
-        else if (isRefunded && !hadCooperativeResolution) {
-            feedback = `Unfortunately the ${generation} had issues and required a return. `;
-            feedback += `Seller processed the refund, but the item did not meet expectations. `;
-            feedback += `Transaction completed but would recommend checking items carefully before purchasing.`;
-        }
-        // No issues - generate positive feedback based on condition
-        else if (condition === 'new' || condition === 'like_new') {
-            if (isCompleteSet) {
-                feedback = `Fantastic! The ${generation} arrived in pristine condition. Both AirPods and charging case are flawless and work perfectly. `;
-                if (hasBox) feedback += `Everything came in the original box with all accessories included. `;
-                feedback += `Exactly as described in the listing. Fast delivery and excellent packaging. `;
-                feedback += `Really happy with this purchase - highly recommend this seller! A+++`;
-            } else {
-                const parts = [];
-                if (hasCase) parts.push('charging case');
-                if (hasLeft) parts.push('left AirPod');
-                if (hasRight) parts.push('right AirPod');
-                feedback = `Perfect transaction! The ${generation} ${parts.join(' and ')} arrived in excellent condition. `;
-                feedback += `Everything works perfectly and looks brand new. Fast shipping and great communication. `;
-                feedback += `Highly recommended seller! A+++`;
-            }
-        } else if (condition === 'very_good' || condition === 'good') {
-            if (isCompleteSet) {
-                feedback = `Great purchase! The ${generation} arrived exactly as described. `;
-                feedback += `Both AirPods connect instantly and sound quality is excellent. Charging case works perfectly. `;
-                if (hasBox || hasEarTips) feedback += `All accessories included as shown. `;
-                feedback += `Item was well packaged and arrived quickly. Professional seller - would definitely buy from again!`;
-            } else {
-                const parts = [];
-                if (hasCase) parts.push('case');
-                if (hasLeft) parts.push('left pod');
-                if (hasRight) parts.push('right pod');
-                feedback = `Very pleased with this ${generation} ${parts.join(' and ')}. `;
-                feedback += `Everything works as it should and condition matches the description. `;
-                feedback += `Good communication and fast postage. Recommended seller!`;
+        if (anthropic) {
+            try {
+                feedback = await generateAIFeedback(purchase, checkIn);
+            } catch (aiError) {
+                console.error('[FEEDBACK] AI generation failed, using template fallback:', aiError.message);
+                // Fallback to simple template if AI fails
+                const generation = purchase.generation || 'AirPods';
+                feedback = `Great purchase! The ${generation} arrived as described. Everything works well and the seller was professional. Would recommend!`;
             }
         } else {
-            if (isCompleteSet) {
-                feedback = `Happy with this purchase. ${generation} received and working properly. `;
-                feedback += `Both earbuds connect fine and battery life is good. `;
-                feedback += `Item as described. Thank you!`;
-            } else {
-                feedback = `Item received as described and working well. Good communication from seller. Thank you for the smooth transaction!`;
-            }
+            // Simple fallback when AI not configured
+            const generation = purchase.generation || 'AirPods';
+            feedback = `Great purchase! The ${generation} arrived as described. Everything works well and the seller was professional. Would recommend!`;
+            console.log('[FEEDBACK] AI not configured - using template fallback');
         }
 
         res.json({
