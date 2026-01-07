@@ -2661,7 +2661,42 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
             }
         }
         
-        // 3. Find products missing photos or security barcode
+        // 3. Find purchases where feedback hasn't been left yet (after check-in)
+        const purchasesNeedingFeedback = await db.collection('purchases').find({
+            checked_in: true,
+            $or: [
+                { feedback_left: false },
+                { feedback_left: { $exists: false } },
+                { feedback_left: null }
+            ]
+        }).toArray();
+        
+        for (const purchase of purchasesNeedingFeedback) {
+            // Calculate days since checked in
+            const daysSinceCheckIn = purchase.checked_in_date ? (now - new Date(purchase.checked_in_date)) / (1000 * 60 * 60 * 24) : 0;
+            const isOverdue = daysSinceCheckIn > 3; // Overdue after 3 days
+            const dueSoon = daysSinceCheckIn > 1 && daysSinceCheckIn <= 3; // Due soon if 1-3 days
+            
+            tasks.push({
+                id: `feedback-${purchase._id.toString()}`,
+                purchase_id: purchase._id.toString(),
+                type: 'leave_feedback',
+                title: 'Leave feedback for seller',
+                description: `${purchase.generation || 'AirPods'} from ${purchase.seller_name || 'seller'} (Order: ${purchase.order_number || 'N/A'})`,
+                due_date: purchase.checked_in_date ? new Date(new Date(purchase.checked_in_date).getTime() + (3 * 24 * 60 * 60 * 1000)) : new Date(),
+                is_overdue: isOverdue,
+                due_soon: dueSoon,
+                seller: purchase.seller_name,
+                order_number: purchase.order_number,
+                tracking_number: purchase.tracking_number,
+                generation: purchase.generation,
+                items_purchased: purchase.items_purchased,
+                completed: false,
+                priority: isOverdue ? 'high' : (dueSoon ? 'medium' : 'normal')
+            });
+        }
+        
+        // 4. Find products missing photos or security barcode
         const productsNeedingAttention = await db.collection('products').find({
             $or: [
                 { photos: { $exists: false } },
@@ -3475,6 +3510,61 @@ app.delete('/api/admin/purchases/:id', requireAuth, requireDB, async (req, res) 
             console.log('Purchase deleted successfully, ID:', id);
             res.json({ success: true, message: 'Purchase deleted successfully' });
         }
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Generate seller feedback text based on purchase (Admin only)
+app.post('/api/admin/purchases/:id/generate-feedback', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid purchase ID' });
+    }
+    
+    try {
+        const purchase = await db.collection('purchases').findOne({ _id: new ObjectId(id) });
+        
+        if (!purchase) {
+            return res.status(404).json({ error: 'Purchase not found' });
+        }
+        
+        // Generate personalized feedback based on purchase details
+        const generation = purchase.generation || 'AirPods';
+        const items = purchase.items_purchased || [];
+        const condition = purchase.condition || 'good';
+        const platform = purchase.platform || 'eBay';
+        
+        // Create item description
+        let itemDescription = generation;
+        if (items.length > 0) {
+            const itemNames = items.map(item => {
+                if (item === 'left') return 'left AirPod';
+                if (item === 'right') return 'right AirPod';
+                if (item === 'case') return 'charging case';
+                return item;
+            });
+            itemDescription += ' (' + itemNames.join(', ') + ')';
+        }
+        
+        // Build feedback based on condition
+        let feedback = '';
+        
+        if (condition === 'new' || condition === 'like_new') {
+            feedback = `Perfect! ${itemDescription} arrived in excellent condition as described. Fast shipping and great communication. Highly recommended seller! A+++`;
+        } else if (condition === 'very_good' || condition === 'good') {
+            feedback = `Great transaction! ${itemDescription} exactly as described and in ${condition.replace('_', ' ')} condition. Fast delivery and professional seller. Would buy again!`;
+        } else {
+            feedback = `Item received as described. ${itemDescription} working perfectly. Thank you for the smooth transaction!`;
+        }
+        
+        res.json({
+            success: true,
+            feedback: feedback,
+            platform: platform
+        });
     } catch (err) {
         console.error('Database error:', err);
         res.status(500).json({ error: 'Database error: ' + err.message });

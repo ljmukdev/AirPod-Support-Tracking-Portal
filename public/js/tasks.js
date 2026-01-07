@@ -183,6 +183,12 @@ function renderTaskCard(task) {
                 Mark Done
             </button>
         `;
+    } else if (task.type === 'leave_feedback') {
+        actionButtons = `
+            <button onclick="leaveFeedback('${task.purchase_id}')" class="button" style="padding: 10px 16px; font-size: 0.9rem;">
+                Leave Feedback
+            </button>
+        `;
     }
     
     return `
@@ -333,6 +339,10 @@ async function markTaskDone(taskId) {
     // For now, just reload the page - the task will disappear once the product has the required info
     alert('Task marked as done. Please ensure you have added all required information to the product.');
     location.reload();
+}
+
+function leaveFeedback(purchaseId) {
+    window.location.href = `edit-purchase.html?id=${purchaseId}#feedback`;
 }
 
 function closeEmailModal() {
