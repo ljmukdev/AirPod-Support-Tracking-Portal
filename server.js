@@ -3304,28 +3304,44 @@ app.post('/api/admin/check-in/:id/mark-case-opened', requireAuth, requireDB, asy
 // Mark issue as resolved (Admin only)
 app.post('/api/admin/check-in/:id/mark-resolved', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;
-    const { resolution_type } = req.body;
-    
+    const {
+        resolution_type,
+        seller_responded,
+        seller_response_notes,
+        refund_amount,
+        seller_cooperative,
+        resolution_notes
+    } = req.body;
+
     if (!ObjectId.isValid(id)) {
         return res.status(400).json({ error: 'Invalid check-in ID' });
     }
-    
+
+    if (!resolution_type) {
+        return res.status(400).json({ error: 'Resolution type is required' });
+    }
+
     try {
+        const resolutionData = {
+            'resolution_workflow.resolved_at': new Date(),
+            'resolution_workflow.resolved_by': req.user.email,
+            'resolution_workflow.resolution_type': resolution_type,
+            'resolution_workflow.seller_responded': seller_responded === true || seller_responded === 'true',
+            'resolution_workflow.seller_response_notes': seller_response_notes || '',
+            'resolution_workflow.refund_amount': refund_amount ? parseFloat(refund_amount) : null,
+            'resolution_workflow.seller_cooperative': seller_cooperative === true || seller_cooperative === 'true',
+            'resolution_workflow.resolution_notes': resolution_notes || ''
+        };
+
         const result = await db.collection('check_ins').updateOne(
             { _id: new ObjectId(id) },
-            { 
-                $set: { 
-                    'resolution_workflow.resolved_at': new Date(),
-                    'resolution_workflow.resolved_by': req.user.email,
-                    'resolution_workflow.resolution_type': resolution_type || 'Resolved'
-                }
-            }
+            { $set: resolutionData }
         );
-        
+
         if (result.matchedCount === 0) {
             return res.status(404).json({ error: 'Check-in not found' });
         }
-        
+
         // Also update purchase status if not already resolved
         await db.collection('purchases').updateOne(
             { _id: new ObjectId((await db.collection('check_ins').findOne({ _id: new ObjectId(id) })).purchase_id) },
@@ -3540,6 +3556,8 @@ app.post('/api/admin/purchases/:id/generate-feedback', requireAuth, requireDB, a
         const resolutionWorkflow = checkIn ? checkIn.resolution_workflow : null;
         const wasFormallyClosed = resolutionWorkflow && resolutionWorkflow.resolved_at;
         const resolutionType = resolutionWorkflow ? resolutionWorkflow.resolution_type : null;
+        const sellerCooperative = resolutionWorkflow ? resolutionWorkflow.seller_cooperative : null;
+        const refundAmount = resolutionWorkflow ? resolutionWorkflow.refund_amount : null;
 
         // Check purchase status and notes for refund/resolution info
         const status = purchase.status;
@@ -3548,7 +3566,7 @@ app.post('/api/admin/purchases/:id/generate-feedback', requireAuth, requireDB, a
 
         const isRefunded = status === 'refunded' || status === 'returned';
 
-        // Check for issue/refund keywords
+        // Check for issue/refund keywords in notes (fallback if workflow not used)
         const hasIssueNotes = notesLower.includes('issue') ||
                              notesLower.includes('fault') ||
                              notesLower.includes('problem') ||
@@ -3557,20 +3575,23 @@ app.post('/api/admin/purchases/:id/generate-feedback', requireAuth, requireDB, a
         const hasRefundNotes = notesLower.includes('refund') ||
                               notesLower.includes('partial');
 
-        // Check for positive resolution keywords in notes
-        const hasPositiveResolution = notesLower.includes('offered') ||
-                                     notesLower.includes('cooperative') ||
-                                     notesLower.includes('forthcoming') ||
-                                     notesLower.includes('responsive') ||
-                                     notesLower.includes('professional') ||
-                                     notesLower.includes('helpful') ||
-                                     notesLower.includes('resolved') ||
-                                     notesLower.includes('agreed') ||
-                                     notesLower.includes('accepted');
+        // Check for positive resolution keywords in notes (fallback)
+        const hasPositiveResolutionNotes = notesLower.includes('offered') ||
+                                          notesLower.includes('cooperative') ||
+                                          notesLower.includes('forthcoming') ||
+                                          notesLower.includes('responsive') ||
+                                          notesLower.includes('professional') ||
+                                          notesLower.includes('helpful') ||
+                                          notesLower.includes('resolved') ||
+                                          notesLower.includes('agreed') ||
+                                          notesLower.includes('accepted');
 
         // Determine if this was an issue that was resolved cooperatively
+        // Priority: use workflow data if available, otherwise fall back to notes
         const hadCooperativeResolution = (hasIssues || hasIssueNotes || hasRefundNotes) &&
-                                        (wasFormallyClosed || hasPositiveResolution);
+                                        (sellerCooperative === true ||
+                                         (wasFormallyClosed && sellerCooperative !== false) ||
+                                         hasPositiveResolutionNotes);
 
         // Debug logging
         console.log('[FEEDBACK] Purchase:', purchase.order_number);
@@ -3580,8 +3601,11 @@ app.post('/api/admin/purchases/:id/generate-feedback', requireAuth, requireDB, a
         console.log('[FEEDBACK] Has issues:', hasIssues);
         console.log('[FEEDBACK] Has issue notes:', hasIssueNotes);
         console.log('[FEEDBACK] Has refund notes:', hasRefundNotes);
-        console.log('[FEEDBACK] Has positive resolution:', hasPositiveResolution);
+        console.log('[FEEDBACK] Has positive resolution notes:', hasPositiveResolutionNotes);
         console.log('[FEEDBACK] Was formally closed:', wasFormallyClosed);
+        console.log('[FEEDBACK] Seller cooperative:', sellerCooperative);
+        console.log('[FEEDBACK] Refund amount:', refundAmount);
+        console.log('[FEEDBACK] Resolution type:', resolutionType);
         console.log('[FEEDBACK] Had cooperative resolution:', hadCooperativeResolution);
         console.log('[FEEDBACK] Is refunded:', isRefunded);
 

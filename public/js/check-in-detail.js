@@ -801,49 +801,82 @@ async function markCaseOpened() {
     }
 }
 
-async function markResolved() {
-    const resolutionTypes = [
-        'Full refund received',
-        'Partial refund received',
-        'Replacement sent',
-        'Seller resolved issue',
-        'eBay case closed in our favor',
-        'Other'
-    ];
-    
-    const resolutionType = prompt('How was this resolved?\n\n' + resolutionTypes.map((type, i) => `${i + 1}. ${type}`).join('\n') + '\n\nEnter 1-6:');
-    
+function markResolved() {
+    // Open the resolution modal
+    const modal = document.getElementById('resolutionModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        // Reset form
+        document.getElementById('resolutionForm').reset();
+        document.getElementById('sellerResponseSection').style.display = 'none';
+        document.getElementById('refundSection').style.display = 'none';
+        document.querySelectorAll('.radio-option').forEach(opt => {
+            opt.style.borderColor = '#d1d5db';
+            opt.style.background = 'white';
+        });
+    }
+}
+
+function closeResolutionModal() {
+    const modal = document.getElementById('resolutionModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+async function submitResolution() {
+    const form = document.getElementById('resolutionForm');
+
+    // Validate required fields
+    const resolutionType = document.getElementById('resolutionType').value;
+    const sellerCooperative = document.querySelector('input[name="seller_cooperative"]:checked');
+
     if (!resolutionType) {
+        alert('Please select how the issue was resolved');
         return;
     }
-    
-    const selectedType = resolutionTypes[parseInt(resolutionType) - 1] || 'Resolved';
-    
+
+    if (!sellerCooperative) {
+        alert('Please indicate if the seller was cooperative');
+        return;
+    }
+
+    // Collect form data
+    const formData = {
+        resolution_type: resolutionType,
+        seller_responded: document.getElementById('sellerResponded').checked,
+        seller_response_notes: document.getElementById('sellerResponseNotes').value,
+        refund_amount: document.getElementById('refundAmount').value || null,
+        seller_cooperative: sellerCooperative.value === 'true',
+        resolution_notes: document.getElementById('resolutionNotes').value
+    };
+
+    console.log('[RESOLUTION] Submitting:', formData);
+
     try {
         const response = await authenticatedFetch(`${window.API_BASE}/api/admin/check-in/${checkInId}/mark-resolved`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                resolution_type: selectedType
-            })
+            body: JSON.stringify(formData)
         });
-        
+
         if (!response.ok) {
-            throw new Error('Failed to update workflow');
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to save resolution');
         }
-        
+
         const data = await response.json();
-        
+
         if (data.success) {
-            alert('Marked as resolved!');
+            alert('✓ Resolution recorded successfully!');
             window.location.reload();
         } else {
-            throw new Error(data.error || 'Failed to update workflow');
+            throw new Error(data.error || 'Failed to save resolution');
         }
     } catch (error) {
-        console.error('[WORKFLOW] Error:', error);
+        console.error('[RESOLUTION] Error:', error);
         alert('Error: ' + error.message);
     }
 }
