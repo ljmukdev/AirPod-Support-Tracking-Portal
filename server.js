@@ -2661,6 +2661,55 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
             }
         }
         
+        // 3. Find products missing photos or security barcode
+        const productsNeedingAttention = await db.collection('products').find({
+            $or: [
+                { photos: { $exists: false } },
+                { photos: { $size: 0 } },
+                { photos: null },
+                { security_barcode: { $exists: false } },
+                { security_barcode: null },
+                { security_barcode: '' }
+            ],
+            status: { $ne: 'sold' } // Only for items not yet sold
+        }).toArray();
+        
+        for (const product of productsNeedingAttention) {
+            const missingItems = [];
+            
+            // Check for missing photos
+            if (!product.photos || product.photos.length === 0) {
+                missingItems.push('photos');
+            }
+            
+            // Check for missing security barcode
+            if (!product.security_barcode || product.security_barcode === '') {
+                missingItems.push('security barcode');
+            }
+            
+            if (missingItems.length > 0) {
+                // Determine priority based on how long it's been since added
+                const daysSinceAdded = product.date_added ? (now - new Date(product.date_added)) / (1000 * 60 * 60 * 24) : 0;
+                const isOverdue = daysSinceAdded > 7; // Overdue after 7 days
+                const dueSoon = daysSinceAdded > 5 && daysSinceAdded <= 7; // Due soon if 5-7 days old
+                
+                tasks.push({
+                    id: `product-${product._id.toString()}`,
+                    product_id: product._id.toString(),
+                    type: 'product_missing_info',
+                    title: `Add ${missingItems.join(' and ')} to product`,
+                    description: `${product.generation || 'Unknown'} - ${product.part_type || 'Unknown part'} (Serial: ${product.serial_number || 'N/A'})`,
+                    due_date: product.date_added ? new Date(new Date(product.date_added).getTime() + (7 * 24 * 60 * 60 * 1000)) : new Date(),
+                    is_overdue: isOverdue,
+                    due_soon: dueSoon,
+                    serial_number: product.serial_number,
+                    missing_items: missingItems,
+                    completed: false,
+                    priority: isOverdue ? 'high' : (dueSoon ? 'medium' : 'normal')
+                });
+            }
+        }
+        
         console.log(`[TASKS] Found ${tasks.length} tasks`);
         
         res.json({

@@ -174,6 +174,15 @@ function renderTaskCard(task) {
                 View Purchase
             </button>
         `;
+    } else if (task.type === 'product_missing_info') {
+        actionButtons = `
+            <button onclick="editProduct('${task.product_id}')" class="button" style="padding: 10px 16px; font-size: 0.9rem;">
+                Edit Product
+            </button>
+            <button onclick="markTaskDone('${task.id}')" class="button button-secondary" style="padding: 10px 16px; font-size: 0.9rem;">
+                Mark Done
+            </button>
+        `;
     }
     
     return `
@@ -310,6 +319,20 @@ async function markTaskComplete(taskId, taskType) {
 
 function viewPurchase(purchaseId) {
     window.location.href = `edit-purchase.html?id=${purchaseId}`;
+}
+
+function editProduct(productId) {
+    window.location.href = `add-product.html?edit=${productId}`;
+}
+
+async function markTaskDone(taskId) {
+    if (!confirm('Mark this task as complete?')) {
+        return;
+    }
+    
+    // For now, just reload the page - the task will disappear once the product has the required info
+    alert('Task marked as done. Please ensure you have added all required information to the product.');
+    location.reload();
 }
 
 function closeEmailModal() {
