@@ -999,6 +999,16 @@ tryConnect()
 async function initializeDatabase() {
     try {
         // Create indexes for products collection
+        // Drop and recreate security_barcode index with sparse option
+        try {
+            await db.collection('products').dropIndex('security_barcode_1');
+            console.log('✅ Dropped old security_barcode index');
+        } catch (err) {
+            // Index might not exist, that's okay
+            if (!err.message.includes('index not found')) {
+                console.log('Note: Could not drop security_barcode index (may not exist):', err.message);
+            }
+        }
         await db.collection('products').createIndex({ security_barcode: 1 }, { unique: true, sparse: true });
         await db.collection('products').createIndex({ date_added: -1 });
         
