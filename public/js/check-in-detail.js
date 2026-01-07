@@ -158,15 +158,21 @@ function displaySplitSection() {
     const alreadySplit = checkInData.split_into_products === true;
     
     if (alreadySplit) {
+        // Show workflow section if there are issues and an email was sent
+        let workflowHtml = '';
+        if (hasIssues && checkInData.email_sent_at) {
+            workflowHtml = generateWorkflowHtml();
+        }
+
         container.innerHTML = `
             <div class="detail-card">
                 <div class="already-split">
                     <h3 style="margin-top: 0;">✓ Already Split into Products</h3>
                     <p>This check-in has already been split into individual products on ${new Date(checkInData.split_date).toLocaleString('en-GB')}.</p>
                     ${checkInData.products_created ? `<p><strong>${checkInData.products_created}</strong> products were created.</p>` : ''}
-                    <button 
-                        onclick="undoSplit('${checkInData._id}')" 
-                        class="button" 
+                    <button
+                        onclick="undoSplit('${checkInData._id}')"
+                        class="button"
                         style="margin-top: 16px; background: #ef4444; color: white;">
                         ↶ Undo Split
                     </button>
@@ -175,6 +181,7 @@ function displaySplitSection() {
                     </p>
                 </div>
             </div>
+            ${workflowHtml}
         `;
         return;
     }
