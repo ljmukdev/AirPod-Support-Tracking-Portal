@@ -30,9 +30,6 @@ async function renderProductsTable(products) {
         // Serial Column
         const serialNumber = product.serial_number || '—';
 
-        // Order Column - show sales order number if available, otherwise show purchase order
-        const orderNumber = product.sales_order_number || product.ebay_order_number || '—';
-
         // Status
         let productStatus = product.status || 'active';
         if (productStatus === 'active' && product.tracking_number && !product.warranty) {
@@ -100,7 +97,19 @@ async function renderProductsTable(products) {
                     <span class="serial-number">${escapeHtml(serialNumber)}</span>
                 </td>
                 <td>
-                    <a href="#" class="order-link">${escapeHtml(orderNumber)}</a>
+                    <span class="purchase-order-display" style="color: ${hasSalesOrder ? '#111827' : '#ef4444'}; font-weight: ${hasSalesOrder ? 'normal' : '600'};">
+                        ${escapeHtml(purchaseOrderNumber || '—')}
+                    </span>
+                </td>
+                <td>
+                    <input 
+                        type="text" 
+                        class="sales-order-input ${salesOrderClass}" 
+                        data-product-id="${escapeHtml(String(product.id))}" 
+                        value="${escapeHtml(salesOrderNumber)}"
+                        placeholder="Enter sales order"
+                        style="width: 100%; padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem;"
+                    >
                 </td>
                 <td>
                     <div class="status-cell">
@@ -112,17 +121,6 @@ async function renderProductsTable(products) {
                 </td>
                 <td>
                     <span class="warranty-badge ${warrantyClass}">${warrantyText}</span>
-                </td>
-                <td>
-                    <input 
-                        type="text" 
-                        class="sales-order-input ${salesOrderClass}" 
-                        data-product-id="${escapeHtml(String(product.id))}" 
-                        value="${escapeHtml(salesOrderNumber)}"
-                        placeholder="Enter sales order"
-                        title="Purchase Order: ${escapeHtml(purchaseOrderNumber || 'None')}"
-                        style="width: 100%; padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem;"
-                    >
                 </td>
                 <td>
                     <span class="date-text">${dateText}</span>
