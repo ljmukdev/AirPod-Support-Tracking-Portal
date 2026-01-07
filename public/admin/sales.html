@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Products | LJM AirPod Support</title>
+    <title>Sales | LJM AirPod Support</title>
     <link rel="stylesheet" href="../css/styles.css?v=1.2.5.032">
 
     <script>
@@ -292,9 +292,9 @@
         
         <!-- Page Content -->
         <div class="admin-content">
-            <!-- Products Header -->
+            <!-- Sales Header -->
             <div class="products-header">
-                <h1 class="products-title">Products</h1>
+                <h1 class="products-title">Sales (Sold Items)</h1>
                 <div class="products-header-actions">
                     <div class="search-box">
                         <input
@@ -538,6 +538,35 @@
                     link.classList.add('active');
                 }
             });
+        })();
+    </script>
+    <script>
+        // Filter to show only sold items (has sales_order_number)
+        (function() {
+            // Override the loadProducts function to filter sales only
+            const originalFetch = window.authenticatedFetch;
+            window.authenticatedFetch = function(url, options) {
+                return originalFetch(url, options).then(response => {
+                    if (url.includes('/api/admin/products')) {
+                        return response.clone().json().then(data => {
+                            if (data.products) {
+                                // Filter to only show products with sales_order_number (sold)
+                                data.products = data.products.filter(product => 
+                                    product.sales_order_number && product.sales_order_number !== null && product.sales_order_number !== ''
+                                );
+                                data.total = data.products.length;
+                            }
+                            // Return a new response with filtered data
+                            return new Response(JSON.stringify(data), {
+                                status: response.status,
+                                statusText: response.statusText,
+                                headers: response.headers
+                            });
+                        });
+                    }
+                    return response;
+                });
+            };
         })();
     </script>
 </body>
