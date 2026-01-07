@@ -68,10 +68,11 @@ async function renderProductsTable(products) {
             }
         }
 
-        // Sales Order Number (editable) and Purchase Order (background)
+        // Order Number - shows sales order if exists, otherwise purchase order
         const salesOrderNumber = product.sales_order_number || '';
         const purchaseOrderNumber = product.ebay_order_number || '';
         const hasSalesOrder = salesOrderNumber && salesOrderNumber.trim();
+        const displayOrderNumber = hasSalesOrder ? salesOrderNumber : purchaseOrderNumber;
         const salesOrderClass = hasSalesOrder ? 'has-sales-order' : 'no-sales-order';
 
         // Date
@@ -97,18 +98,15 @@ async function renderProductsTable(products) {
                     <span class="serial-number">${escapeHtml(serialNumber)}</span>
                 </td>
                 <td>
-                    <span class="purchase-order-display" style="color: ${hasSalesOrder ? '#111827' : '#ef4444'}; font-weight: ${hasSalesOrder ? 'normal' : '600'};">
-                        ${escapeHtml(purchaseOrderNumber || '—')}
-                    </span>
-                </td>
-                <td>
                     <input 
                         type="text" 
                         class="sales-order-input ${salesOrderClass}" 
                         data-product-id="${escapeHtml(String(product.id))}" 
-                        value="${escapeHtml(salesOrderNumber)}"
-                        placeholder="Enter sales order"
-                        style="width: 100%; padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem;"
+                        data-purchase-order="${escapeHtml(purchaseOrderNumber)}"
+                        value="${escapeHtml(displayOrderNumber)}"
+                        placeholder="Enter order number"
+                        title="${hasSalesOrder ? 'Sales Order (Purchase: ' + escapeHtml(purchaseOrderNumber || 'None') + ')' : 'Purchase Order (not yet sold)'}"
+                        style="width: 100%; padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem; color: ${hasSalesOrder ? '#111827' : '#ef4444'}; font-weight: ${hasSalesOrder ? 'normal' : '600'};"
                     >
                 </td>
                 <td>
@@ -197,9 +195,15 @@ function attachProductEventListeners(tableBody) {
             // Set a new timeout to save after user stops typing
             saveTimeout = setTimeout(async () => {
                 const productId = this.getAttribute('data-product-id');
+                const purchaseOrder = this.getAttribute('data-purchase-order') || '';
                 const newSalesOrder = this.value.trim();
                 
                 if (!productId) return;
+                
+                // If the value is the same as purchase order, user hasn't entered a sales order yet
+                if (newSalesOrder === purchaseOrder) {
+                    return; // Don't save purchase order as sales order
+                }
                 
                 // Visual feedback
                 this.style.backgroundColor = '#fff3cd';
