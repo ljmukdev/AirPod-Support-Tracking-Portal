@@ -762,6 +762,16 @@
         // Make functions globally available
         window.generateFeedback = generateFeedback;
         window.copyFeedback = copyFeedback;
+        
+        // Auto-generate feedback if URL has #feedback hash (coming from tasks)
+        if (window.location.hash === '#feedback') {
+            // Wait for page to fully load, then generate feedback
+            setTimeout(() => {
+                generateFeedback();
+                // Scroll to feedback section
+                document.getElementById('feedback').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 500);
+        }
     </script>
 </body>
 </html>

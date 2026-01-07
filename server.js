@@ -3537,27 +3537,59 @@ app.post('/api/admin/purchases/:id/generate-feedback', requireAuth, requireDB, a
         const condition = purchase.condition || 'good';
         const platform = purchase.platform || 'eBay';
         
-        // Create item description
-        let itemDescription = generation;
-        if (items.length > 0) {
-            const itemNames = items.map(item => {
-                if (item === 'left') return 'left AirPod';
-                if (item === 'right') return 'right AirPod';
-                if (item === 'case') return 'charging case';
-                return item;
-            });
-            itemDescription += ' (' + itemNames.join(', ') + ')';
-        }
-        
-        // Build feedback based on condition
+        // Build detailed feedback based on what was purchased and condition
         let feedback = '';
         
+        // Determine what items were included
+        const hasCase = items.includes('case') || items.includes('Case');
+        const hasLeft = items.includes('left') || items.includes('Left');
+        const hasRight = items.includes('right') || items.includes('Right');
+        const hasBox = items.includes('box') || items.includes('Box');
+        const hasEarTips = items.includes('ear_tips') || items.includes('Ear Tips');
+        const hasCable = items.includes('cable') || items.includes('Cable');
+        
+        // Determine if it's a complete set
+        const isCompleteSet = hasCase && hasLeft && hasRight;
+        
+        // Build natural-sounding feedback
         if (condition === 'new' || condition === 'like_new') {
-            feedback = `Perfect! ${itemDescription} arrived in excellent condition as described. Fast shipping and great communication. Highly recommended seller! A+++`;
+            if (isCompleteSet) {
+                feedback = `Fantastic! The ${generation} arrived in pristine condition. Both AirPods and charging case are flawless and work perfectly. `;
+                if (hasBox) feedback += `Everything came in the original box with all accessories included. `;
+                feedback += `Exactly as described in the listing. Fast delivery and excellent packaging. `;
+                feedback += `Really happy with this purchase - highly recommend this seller! A+++`;
+            } else {
+                const parts = [];
+                if (hasCase) parts.push('charging case');
+                if (hasLeft) parts.push('left AirPod');
+                if (hasRight) parts.push('right AirPod');
+                feedback = `Perfect transaction! The ${generation} ${parts.join(' and ')} arrived in excellent condition. `;
+                feedback += `Everything works perfectly and looks brand new. Fast shipping and great communication. `;
+                feedback += `Highly recommended seller! A+++`;
+            }
         } else if (condition === 'very_good' || condition === 'good') {
-            feedback = `Great transaction! ${itemDescription} exactly as described and in ${condition.replace('_', ' ')} condition. Fast delivery and professional seller. Would buy again!`;
+            if (isCompleteSet) {
+                feedback = `Great purchase! The ${generation} arrived exactly as described. `;
+                feedback += `Both AirPods connect instantly and sound quality is excellent. Charging case works perfectly. `;
+                if (hasBox || hasEarTips) feedback += `All accessories included as shown. `;
+                feedback += `Item was well packaged and arrived quickly. Professional seller - would definitely buy from again!`;
+            } else {
+                const parts = [];
+                if (hasCase) parts.push('case');
+                if (hasLeft) parts.push('left pod');
+                if (hasRight) parts.push('right pod');
+                feedback = `Very pleased with this ${generation} ${parts.join(' and ')}. `;
+                feedback += `Everything works as it should and condition matches the description. `;
+                feedback += `Good communication and fast postage. Recommended seller!`;
+            }
         } else {
-            feedback = `Item received as described. ${itemDescription} working perfectly. Thank you for the smooth transaction!`;
+            if (isCompleteSet) {
+                feedback = `Happy with this purchase. ${generation} received and working properly. `;
+                feedback += `Both earbuds connect fine and battery life is good. `;
+                feedback += `Item as described. Thank you!`;
+            } else {
+                feedback = `Item received as described and working well. Good communication from seller. Thank you for the smooth transaction!`;
+            }
         }
         
         res.json({
