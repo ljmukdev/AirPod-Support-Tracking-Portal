@@ -3643,7 +3643,7 @@ Write ONLY the feedback text, nothing else:`;
 
     try {
         const message = await anthropic.messages.create({
-            model: 'claude-3-sonnet-20240229',
+            model: 'claude-3-haiku-20240307',
             max_tokens: 300,
             temperature: 0.8, // Higher temp for more variation
             messages: [{
