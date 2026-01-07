@@ -1736,6 +1736,11 @@ app.get('/api/admin/products', requireAuth, requireDB, async (req, res) => {
         // Build a flat array of all possible barcode matches (handling hyphen variations)
         const warrantyConditions = [];
         products.forEach(product => {
+            // Skip products without security_barcode
+            if (!product.security_barcode) {
+                return;
+            }
+            
             const normalized = normalizeSecurityBarcode(product.security_barcode);
             const original = product.security_barcode.trim().toUpperCase();
             
