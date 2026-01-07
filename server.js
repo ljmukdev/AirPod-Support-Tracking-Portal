@@ -3701,21 +3701,50 @@ Write ONLY the feedback text, nothing else:`;
 
     console.log('[AI-FEEDBACK] Calling Claude API...');
 
+    const requestedModel = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-latest';
+    const fallbackModels = [
+        requestedModel,
+        'claude-3-5-sonnet-20240620',
+        'claude-3-5-sonnet-latest',
+        'claude-3-haiku-20240307'
+    ].filter((value, index, array) => array.indexOf(value) === index);
+
+    const isModelNotFound = (error) => {
+        if (!error) return false;
+        if (error.status === 404) return true;
+        if (error.error && error.error.type === 'not_found_error') return true;
+        return typeof error.message === 'string' && error.message.includes('not_found_error');
+    };
+
     try {
-        const message = await anthropic.messages.create({
-            model: 'claude-3-haiku-20240307',
-            max_tokens: 300,
-            temperature: 0.8, // Higher temp for more variation
-            messages: [{
-                role: 'user',
-                content: prompt
-            }]
-        });
+        let lastError;
 
-        const feedback = message.content[0].text.trim();
-        console.log('[AI-FEEDBACK] Generated successfully:', feedback.substring(0, 50) + '...');
-        return feedback;
+        for (const model of fallbackModels) {
+            try {
+                console.log(`[AI-FEEDBACK] Requesting model: ${model}`);
+                const message = await anthropic.messages.create({
+                    model,
+                    max_tokens: 300,
+                    temperature: 0.8, // Higher temp for more variation
+                    messages: [{
+                        role: 'user',
+                        content: prompt
+                    }]
+                });
 
+                const feedback = message.content[0].text.trim();
+                console.log('[AI-FEEDBACK] Generated successfully:', feedback.substring(0, 50) + '...');
+                return feedback;
+            } catch (error) {
+                lastError = error;
+                if (!isModelNotFound(error)) {
+                    throw error;
+                }
+                console.warn(`[AI-FEEDBACK] Model not found: ${model}, trying fallback...`);
+            }
+        }
+
+        throw lastError || new Error('AI model unavailable');
     } catch (error) {
         console.error('[AI-FEEDBACK] Error:', error);
         throw new Error('Failed to generate AI feedback: ' + error.message);
@@ -4077,6 +4106,7 @@ app.get('/api/admin/settings', requireAuth, requireDB, async (req, res) => {
                 settings: {
                     product_status_options: [
                         { value: 'active', label: 'Active' },
+                        { value: 'item_in_dispute', label: 'Item in Dispute' },
                         { value: 'delivered_no_warranty', label: 'Delivered (No Warranty)' },
                         { value: 'returned', label: 'Returned' },
                         { value: 'pending', label: 'Pending' }
