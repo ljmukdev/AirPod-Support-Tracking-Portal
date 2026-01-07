@@ -1966,6 +1966,15 @@ html {
     background: #f9fafb;
 }
 
+/* Highlight sold items with green background */
+.products-table tbody tr.sold-item {
+    background: #f0fdf4 !important; /* Very light green */
+}
+
+.products-table tbody tr.sold-item:hover {
+    background: #dcfce7 !important; /* Slightly darker green on hover */
+}
+
 .products-table td {
     padding: 16px;
     vertical-align: middle;

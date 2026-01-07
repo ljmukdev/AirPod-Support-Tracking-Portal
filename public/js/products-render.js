@@ -86,8 +86,11 @@ async function renderProductsTable(products) {
             statusOptionsHtml += `<option value="${escapeHtml(option.value)}"${selected}>${escapeHtml(option.label)}</option>`;
         });
 
+        // Add 'sold-item' class if product has sales order number
+        const soldClass = (product.sales_order_number && product.sales_order_number !== null && product.sales_order_number !== '') ? ' sold-item' : '';
+
         return `
-            <tr data-product-id="${escapeHtml(String(product.id))}">
+            <tr data-product-id="${escapeHtml(String(product.id))}" class="product-row${soldClass}">
                 <td>
                     <div class="product-cell">
                         <div class="product-name">${escapeHtml(generation)}</div>
