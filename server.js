@@ -2358,6 +2358,23 @@ function generateSellerEmail(purchase, checkIn) {
     const hasConditionIssues = issues.some(item =>
         item.issues.some(issue => issue.type === 'condition')
     );
+
+    const totalItems = Array.isArray(checkIn.items) ? checkIn.items.length : 0;
+    const affectedItems = totalItems
+        ? checkIn.items.filter(item => issues.some(issue => issue.item_type === item.item_type && (!issue.set_number || issue.set_number === item.set_number))).length
+        : issues.length;
+    const affectedPercent = totalItems ? Math.round((affectedItems / totalItems) * 100) : null;
+
+    const buildEvidenceLines = (itemIssue) => {
+        const lines = [];
+        if (itemIssue.evidence_notes) {
+            lines.push(`Notes: ${itemIssue.evidence_notes}`);
+        }
+        if (itemIssue.evidence_photos && itemIssue.evidence_photos.length > 0) {
+            lines.push(`Photos: ${itemIssue.evidence_photos.join(', ')}`);
+        }
+        return lines;
+    };
     
     // Build email content
     let emailBody = 'Hi,\n\n';
@@ -2410,6 +2427,11 @@ function generateSellerEmail(purchase, checkIn) {
         } else if (issue.type === 'condition') {
             emailBody += `The visual condition is worse than described in the listing (${issue.description.toLowerCase()}).\n\n`;
         }
+
+        const evidenceLines = buildEvidenceLines(item);
+        if (evidenceLines.length > 0) {
+            emailBody += `${evidenceLines.join('\n')}\n\n`;
+        }
     } else {
         // Multiple items with issues
         emailBody += 'Unfortunately, we are experiencing issues with the following items:\n\n';
@@ -2434,8 +2456,17 @@ function generateSellerEmail(purchase, checkIn) {
             
             emailBody += descriptions.join(', ');
             emailBody += '\n';
+
+            const evidenceLines = buildEvidenceLines(item);
+            if (evidenceLines.length > 0) {
+                emailBody += `   ${evidenceLines.join('\n   ')}\n`;
+            }
         });
         emailBody += '\n';
+    }
+
+    if (affectedPercent !== null && affectedItems > 0) {
+        emailBody += `Based on our inspection, ${affectedItems} out of ${totalItems} item${totalItems === 1 ? '' : 's'} (${affectedPercent}%) appear to be affected. We would like to discuss a partial refund that reflects this proportion.\n\n`;
     }
     
     // Troubleshooting steps taken
@@ -2476,19 +2507,17 @@ function generateSellerEmail(purchase, checkIn) {
         emailBody += issues.length === 1 ? 'it' : 'these issues';
         emailBody += ', as our preference is always to get items fully working. However, if this proves unsuccessful, we would like to propose one of the following options:\n\n';
         
-        // Calculate partial refund amount (only count actual AirPod parts, not accessories)
+        // Calculate partial refund amount based on affected proportion
         const totalPrice = parseFloat(purchase.purchase_price) || 0;
-        
-        // Count only AirPod parts (case, left, right) from items_purchased
-        const airpodParts = purchase.items_purchased ? 
-            purchase.items_purchased.filter(item => ['case', 'left', 'right'].includes(item)).length : 3;
-        
-        const affectedItemCount = issues.length;
-        const partialRefundAmount = (totalPrice * affectedItemCount / airpodParts).toFixed(2);
+        const refundBaseCount = totalItems || (purchase.items_purchased ? purchase.items_purchased.length : 1);
+        const affectedItemCount = affectedItems || issues.length;
+        const partialRefundAmount = refundBaseCount > 0
+            ? (totalPrice * affectedItemCount / refundBaseCount).toFixed(2)
+            : totalPrice.toFixed(2);
         
         emailBody += `• Return the full set for a full refund\n`;
         emailBody += `• Keep the `;
-        emailBody += issues.length === 1 ? 'item' : 'items';
+        emailBody += affectedItemCount === 1 ? 'item' : 'items';
         emailBody += ` and receive a partial refund of £${partialRefundAmount}, reflecting the `;
         
         if (affectedItemCount === 1) {
@@ -2507,41 +2536,110 @@ function generateSellerEmail(purchase, checkIn) {
     return emailBody;
 }
 
-// Check-in a purchase (Admin only)
-app.post('/api/admin/check-in', requireAuth, requireDB, async (req, res) => {
+// Support/Suggestion submission endpoint
+app.post('/api/support', async (req, res) => {
     try {
-        const {
-            purchase_id,
-            tracking_number,
-            items
-        } = req.body;
-        
-        // Validation
-        if (!purchase_id || !items || !Array.isArray(items) || items.length === 0) {
-            return res.status(400).json({ error: 'Missing required fields' });
-        }
-        
-        if (!ObjectId.isValid(purchase_id)) {
-            return res.status(400).json({ error: 'Invalid purchase ID' });
+        const { type, message, userEmail, page } = req.body || {};
+
+        if (!message || !message.trim()) {
+            return res.status(400).json({ success: false, error: 'Message is required' });
         }
 
-        const purchase = await db.collection('purchases').findOne({ _id: new ObjectId(purchase_id) });
+        const requestType = type === 'suggestion' ? 'Suggestion' : 'Fault / Issue';
+        const fromEmail = userEmail || 'Not provided';
+        const pageInfo = page || 'Unknown page';
 
-        if (!purchase) {
-            return res.status(404).json({ error: 'Purchase not found' });
+        const emailBody = `New ${requestType} submission\n\nMessage:\n${message.trim()}\n\nPage: ${pageInfo}\nSubmitted by: ${fromEmail}\n`;
+
+        if (emailTransporter) {
+            await emailTransporter.sendMail({
+                from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+                to: 'support@ljmuk.co.uk',
+                subject: `Support Request (${requestType})`,
+                text: emailBody
+            });
+        } else {
+            console.warn('[SUPPORT] Email transporter not configured, request logged instead.');
+            console.log(emailBody);
         }
+
+        res.json({ success: true });
+    } catch (err) {
+        console.error('[SUPPORT] Error sending support request:', err);
+        res.status(500).json({ success: false, error: 'Failed to send support request' });
+    }
+});
+
+// Check-in a purchase (Admin only)
+app.post('/api/admin/check-in', requireAuth, requireDB, (req, res) => {
+    const handleCheckIn = async () => {
+        try {
+            let {
+                purchase_id,
+                tracking_number,
+                items
+            } = req.body;
+
+            if (typeof items === 'string') {
+                try {
+                    items = JSON.parse(items);
+                } catch (parseError) {
+                    return res.status(400).json({ error: 'Invalid items payload' });
+                }
+            }
         
-        // Analyze items for issues
-        console.log('[CHECK-IN] Analyzing items for issues:', JSON.stringify(items, null, 2));
-        const issues = [];
-        items.forEach(item => {
-            console.log(`[CHECK-IN] Checking item: ${item.item_type}`);
-            console.log(`  - is_genuine: ${item.is_genuine}`);
-            console.log(`  - condition: ${item.condition}`);
-            console.log(`  - audible_condition: ${item.audible_condition}`);
-            console.log(`  - connects_correctly: ${item.connects_correctly}`);
-            
-            const itemIssues = [];
+            // Validation
+            if (!purchase_id || !items || !Array.isArray(items) || items.length === 0) {
+                return res.status(400).json({ error: 'Missing required fields' });
+            }
+        
+            if (!ObjectId.isValid(purchase_id)) {
+                return res.status(400).json({ error: 'Invalid purchase ID' });
+            }
+
+            const purchase = await db.collection('purchases').findOne({ _id: new ObjectId(purchase_id) });
+
+            if (!purchase) {
+                return res.status(404).json({ error: 'Purchase not found' });
+            }
+
+            const photoMap = new Map();
+            if (Array.isArray(req.files)) {
+                req.files.forEach((file) => {
+                    const field = file.fieldname;
+                    const url = `/uploads/${file.filename}`;
+                    if (!photoMap.has(field)) {
+                        photoMap.set(field, []);
+                    }
+                    photoMap.get(field).push(url);
+                });
+            }
+
+            items = items.map((item) => {
+                const setNumber = item.set_number ? parseInt(item.set_number, 10) : null;
+                const fieldSuffix = setNumber ? `_${setNumber}` : '';
+                const photoKey = `issue_photos_${item.item_type}${fieldSuffix}`;
+                const issuePhotos = photoMap.get(photoKey) || [];
+                return {
+                    ...item,
+                    set_number: setNumber || null,
+                    serial_number: item.serial_number ? String(item.serial_number).toUpperCase() : null,
+                    issue_notes: item.issue_notes ? String(item.issue_notes).trim() : null,
+                    issue_photos: issuePhotos
+                };
+            });
+        
+            // Analyze items for issues
+            console.log('[CHECK-IN] Analyzing items for issues:', JSON.stringify(items, null, 2));
+            const issues = [];
+            items.forEach(item => {
+                console.log(`[CHECK-IN] Checking item: ${item.item_type}`);
+                console.log(`  - is_genuine: ${item.is_genuine}`);
+                console.log(`  - condition: ${item.condition}`);
+                console.log(`  - audible_condition: ${item.audible_condition}`);
+                console.log(`  - connects_correctly: ${item.connects_correctly}`);
+                
+                const itemIssues = [];
             
             // Check if not genuine
             if (item.is_genuine === false) {
@@ -2595,72 +2693,90 @@ app.post('/api/admin/check-in', requireAuth, requireDB, async (req, res) => {
                 });
             }
             
-            if (itemIssues.length > 0) {
-                console.log(`  Total issues for ${item.item_type}: ${itemIssues.length}`);
-                issues.push({
+                if (itemIssues.length > 0) {
+                    console.log(`  Total issues for ${item.item_type}: ${itemIssues.length}`);
+                    issues.push({
+                        item_type: item.item_type,
+                        item_name: getItemDisplayName(item.item_type),
+                        set_number: item.set_number || null,
+                        issues: itemIssues,
+                        evidence_notes: item.issue_notes || null,
+                        evidence_photos: item.issue_photos || []
+                    });
+                } else {
+                    console.log(`  ✓ No issues detected for ${item.item_type}`);
+                }
+            });
+            
+            console.log(`[CHECK-IN] Total items with issues: ${issues.length}`);
+            
+            const checkInRecord = {
+                purchase_id: new ObjectId(purchase_id),
+                purchase_order_number: purchase.order_number || null,
+                purchase_platform: purchase.platform || null,
+                purchase_seller_name: purchase.seller_name || null,
+                tracking_number: tracking_number || null,
+                items: items.map(item => ({
                     item_type: item.item_type,
-                    item_name: getItemDisplayName(item.item_type),
-                    issues: itemIssues
-                });
+                    is_genuine: item.is_genuine === true,
+                    condition: item.condition,
+                    serial_number: item.serial_number || null,
+                    audible_condition: item.audible_condition || null,
+                    connects_correctly: item.connects_correctly !== undefined ? item.connects_correctly : null,
+                    set_number: item.set_number || null,
+                    issue_notes: item.issue_notes || null,
+                    issue_photos: item.issue_photos || []
+                })),
+                issues_detected: issues,
+                has_issues: issues.length > 0,
+                checked_in_by: req.user.email,
+                checked_in_at: new Date()
+            };
+            
+            const result = await db.collection('check_ins').insertOne(checkInRecord);
+            
+            // Update purchase status based on issues
+            const purchaseUpdate = {
+                checked_in: true,
+                checked_in_date: new Date()
+            };
+            
+            if (issues.length > 0) {
+                // Set to on_hold if issues detected
+                purchaseUpdate.status = 'on_hold';
+                purchaseUpdate.requires_seller_contact = true;
             } else {
-                console.log(`  ✓ No issues detected for ${item.item_type}`);
+                // Set to delivered if no issues
+                purchaseUpdate.status = 'delivered';
             }
-        });
-        
-        console.log(`[CHECK-IN] Total items with issues: ${issues.length}`);
-        
-        const checkInRecord = {
-            purchase_id: new ObjectId(purchase_id),
-            purchase_order_number: purchase.order_number || null,
-            purchase_platform: purchase.platform || null,
-            purchase_seller_name: purchase.seller_name || null,
-            tracking_number: tracking_number || null,
-            items: items.map(item => ({
-                item_type: item.item_type,
-                is_genuine: item.is_genuine === true,
-                condition: item.condition,
-                serial_number: item.serial_number || null,
-                audible_condition: item.audible_condition || null,
-                connects_correctly: item.connects_correctly !== undefined ? item.connects_correctly : null
-            })),
-            issues_detected: issues,
-            has_issues: issues.length > 0,
-            checked_in_by: req.user.email,
-            checked_in_at: new Date()
-        };
-        
-        const result = await db.collection('check_ins').insertOne(checkInRecord);
-        
-        // Update purchase status based on issues
-        const purchaseUpdate = {
-            checked_in: true,
-            checked_in_date: new Date()
-        };
-        
-        if (issues.length > 0) {
-            // Set to on_hold if issues detected
-            purchaseUpdate.status = 'on_hold';
-            purchaseUpdate.requires_seller_contact = true;
-        } else {
-            // Set to delivered if no issues
-            purchaseUpdate.status = 'delivered';
+            
+            await db.collection('purchases').updateOne(
+                { _id: new ObjectId(purchase_id) },
+                { $set: purchaseUpdate }
+            );
+            
+            console.log('Check-in completed successfully, ID:', result.insertedId, 'Issues found:', issues.length);
+            res.json({ 
+                success: true, 
+                message: 'Check-in completed successfully', 
+                id: result.insertedId,
+                issues_found: issues
+            });
+        } catch (err) {
+            console.error('Database error:', err);
+            res.status(500).json({ error: 'Database error: ' + err.message });
         }
-        
-        await db.collection('purchases').updateOne(
-            { _id: new ObjectId(purchase_id) },
-            { $set: purchaseUpdate }
-        );
-        
-        console.log('Check-in completed successfully, ID:', result.insertedId, 'Issues found:', issues.length);
-        res.json({ 
-            success: true, 
-            message: 'Check-in completed successfully', 
-            id: result.insertedId,
-            issues_found: issues
+    };
+
+    if (req.is('multipart/form-data')) {
+        upload.any()(req, res, (err) => {
+            if (err) {
+                return handleMulterError(err, req, res, () => {});
+            }
+            handleCheckIn();
         });
-    } catch (err) {
-        console.error('Database error:', err);
-        res.status(500).json({ error: 'Database error: ' + err.message });
+    } else {
+        handleCheckIn();
     }
 });
 
