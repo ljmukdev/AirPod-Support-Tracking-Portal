@@ -5190,15 +5190,18 @@ PURCHASE DETAILS:
 
     const prompt = `${context}
 INSTRUCTIONS:
-Write authentic, natural-sounding buyer feedback (100-150 words) for ${platform} that:
+Write authentic, natural-sounding buyer feedback for ${platform} that:
 
 1. **Reflects the actual outcome:**
    ${feedbackOutcomeInstructions()}
 
-2. **Sound natural:** Use conversational language, vary sentence structure
-3. **Be specific:** Mention the actual ${generation}, what items were included
-4. **Match the platform:** Use ${platform} style (e.g., "A+++" for eBay if very positive)
-5. **Vary each time:** Don't repeat phrases, use different words and structure every time
+2. **MUST mention VALUE:** Comment on whether the item was good value for money, fair price, great deal, etc.
+3. **MUST mention APPEARANCE:** Comment on the cosmetic condition/appearance of the item
+4. **Sound natural:** Use conversational language, vary sentence structure
+5. **Be specific:** Mention the actual ${generation}, what items were included
+6. **Match the platform:** Use ${platform} style (e.g., "A+++" for eBay if very positive)
+7. **Vary each time:** Don't repeat phrases, use different words and structure every time
+8. **CRITICAL: Maximum 500 characters** - Be concise and to the point. Count characters, not words.
 
 Write ONLY the feedback text, nothing else:`;
 
@@ -5227,7 +5230,7 @@ Write ONLY the feedback text, nothing else:`;
                 console.log(`[AI-FEEDBACK] Requesting model: ${model}`);
                 const message = await anthropic.messages.create({
                     model,
-                    max_tokens: 300,
+                    max_tokens: 150,
                     temperature: 0.8, // Higher temp for more variation
                     messages: [{
                         role: 'user',
@@ -5235,8 +5238,28 @@ Write ONLY the feedback text, nothing else:`;
                     }]
                 });
 
-                const feedback = message.content[0].text.trim();
-                console.log('[AI-FEEDBACK] Generated successfully:', feedback.substring(0, 50) + '...');
+                let feedback = message.content[0].text.trim();
+                
+                // Ensure feedback is under 500 characters
+                if (feedback.length > 500) {
+                    console.log(`[AI-FEEDBACK] Generated ${feedback.length} chars, truncating to 500...`);
+                    // Truncate at the last complete sentence before 497 chars (leaving room for "...")
+                    const truncated = feedback.substring(0, 497);
+                    const lastPeriod = truncated.lastIndexOf('.');
+                    const lastExclamation = truncated.lastIndexOf('!');
+                    const lastSentenceEnd = Math.max(lastPeriod, lastExclamation);
+                    
+                    if (lastSentenceEnd > 300) {
+                        // If we have a sentence ending after 300 chars, use that
+                        feedback = truncated.substring(0, lastSentenceEnd + 1);
+                    } else {
+                        // Otherwise, truncate at word boundary and add ellipsis
+                        const lastSpace = truncated.lastIndexOf(' ');
+                        feedback = truncated.substring(0, lastSpace) + '...';
+                    }
+                }
+                
+                console.log('[AI-FEEDBACK] Generated successfully:', feedback.length, 'chars:', feedback.substring(0, 50) + '...');
                 return feedback;
             } catch (error) {
                 lastError = error;
