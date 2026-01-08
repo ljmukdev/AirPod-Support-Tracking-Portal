@@ -338,6 +338,95 @@
         </div>
     </div>
 
+    <!-- Resolution Modal -->
+    <div class="email-modal" id="resolutionModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 10000; align-items: center; justify-content: center; padding: 20px;">
+        <div class="email-modal-content" style="background: white; border-radius: 12px; max-width: 600px; width: 100%; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+            <div class="email-modal-header" style="padding: 20px 24px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
+                <h2 style="margin: 0; font-size: 1.25rem; color: #111827;">📝 Record Resolution</h2>
+                <button class="email-modal-close" onclick="closeResolutionModal()" style="background: none; border: none; font-size: 1.5rem; color: #6b7280; cursor: pointer; padding: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 4px;">&times;</button>
+            </div>
+            <div class="email-modal-body" style="padding: 24px; overflow-y: auto; flex: 1; max-height: 70vh;">
+                <form id="resolutionForm">
+                    <!-- Seller Response -->
+                    <div style="margin-bottom: 24px;">
+                        <label style="display: flex; align-items: center; gap: 10px; font-weight: 600; margin-bottom: 12px; cursor: pointer;">
+                            <input type="checkbox" id="sellerResponded" name="seller_responded" style="width: 20px; height: 20px;">
+                            Did the seller respond to your message?
+                        </label>
+                        <div id="sellerResponseSection" style="display: none; margin-left: 30px;">
+                            <label style="display: block; font-size: 0.9rem; color: #6b7280; margin-bottom: 6px;">What did they say? (optional)</label>
+                            <textarea id="sellerResponseNotes" name="seller_response_notes" style="width: 100%; min-height: 60px; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; font-family: inherit; font-size: 0.9rem;"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Resolution Type -->
+                    <div style="margin-bottom: 24px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 8px;">
+                            How was this resolved? *
+                        </label>
+                        <select id="resolutionType" name="resolution_type" required style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 0.95rem;">
+                            <option value="">Select resolution type...</option>
+                            <option value="Seller agreed to full refund">Seller agreed to full refund</option>
+                            <option value="Seller agreed to partial refund">Seller agreed to partial refund</option>
+                            <option value="Seller agreed to return (full refund)">Seller agreed to return (full refund)</option>
+                            <option value="Seller agreed to return (partial refund)">Seller agreed to return (partial refund)</option>
+                            <option value="Partial refund">Partial refund</option>
+                            <option value="Full refund">Full refund</option>
+                            <option value="Replacement sent">Replacement sent</option>
+                            <option value="Item returned">Item returned</option>
+                            <option value="Item fixed">Item fixed</option>
+                            <option value="Seller resolved issue">Seller resolved issue</option>
+                            <option value="eBay case closed in our favor">eBay case closed in our favor</option>
+                            <option value="Accepted as-is">Accepted as-is (no refund)</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+
+                    <!-- Refund Amount -->
+                    <div id="refundSection" style="display: none; margin-bottom: 24px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 8px;">
+                            Refund Amount (£)
+                        </label>
+                        <input type="number" id="refundAmount" name="refund_amount" step="0.01" min="0" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 0.95rem;" placeholder="e.g., 15.50">
+                    </div>
+
+                    <!-- Seller Cooperation -->
+                    <div style="margin-bottom: 24px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 12px;">
+                            Was the seller cooperative and professional? *
+                        </label>
+                        <div style="display: flex; gap: 12px;">
+                            <label style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 12px; border: 2px solid #d1d5db; border-radius: 6px; cursor: pointer; transition: all 0.2s;" class="radio-option">
+                                <input type="radio" name="seller_cooperative" value="true" required style="margin-right: 8px;">
+                                <span style="font-weight: 500;">✓ Yes, very helpful</span>
+                            </label>
+                            <label style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 12px; border: 2px solid #d1d5db; border-radius: 6px; cursor: pointer; transition: all 0.2s;" class="radio-option">
+                                <input type="radio" name="seller_cooperative" value="false" required style="margin-right: 8px;">
+                                <span style="font-weight: 500;">✗ No, difficult</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Additional Notes -->
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 8px;">
+                            Additional Notes (optional)
+                        </label>
+                        <textarea id="resolutionNotes" name="resolution_notes" style="width: 100%; min-height: 80px; padding: 10px; border: 1px solid #d1d5db; border-radius: 4px; font-family: inherit; font-size: 0.9rem;" placeholder="Any other details about the resolution..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="email-modal-footer" style="padding: 16px 24px; border-top: 1px solid #e5e7eb; display: flex; gap: 12px; justify-content: flex-end;">
+                <button type="button" onclick="closeResolutionModal()" style="background: #6b7280; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-size: 0.95rem; font-weight: 500; cursor: pointer;">
+                    Cancel
+                </button>
+                <button type="button" onclick="submitResolution()" style="background: #10b981; color: white; border: none; padding: 10px 24px; border-radius: 6px; font-size: 0.95rem; font-weight: 600; cursor: pointer;">
+                    Save Resolution
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="../js/admin.js"></script>
     <script src="../js/tasks.js?v=1.3.0"></script>
 </body>
