@@ -194,7 +194,7 @@
                             <label for="sku">SKU (auto-generated) *</label>
                             <input type="text" id="sku" name="sku" required readonly style="text-transform: uppercase; background-color: #f8f9fa; cursor: not-allowed;">
                             <p style="font-size: 0.875rem; color: #666; margin-top: 4px;">
-                                SKU is automatically generated from category and item name
+                                SKU is automatically generated from category, item name, and size (if provided)
                             </p>
                         </div>
 
@@ -334,7 +334,7 @@
             'general': 'GEN'
         };
 
-        function generateSKUPrefix(category, itemName) {
+        function generateSKUPrefix(category, itemName, size) {
             const categoryPrefix = categoryPrefixes[category] || 'GEN';
 
             // Extract first significant word from item name (skip common words)
@@ -347,7 +347,40 @@
                 namePrefix = words[0].substring(0, 5).toUpperCase().replace(/[^A-Z0-9]/g, '');
             }
 
-            return `${categoryPrefix}-${namePrefix}`;
+            // Process size if provided
+            let sizePrefix = '';
+            if (size && size.trim()) {
+                const sizeTrimmed = size.trim();
+
+                // Handle common size abbreviations
+                const sizeMap = {
+                    'small': 'SM',
+                    's': 'SM',
+                    'medium': 'MD',
+                    'm': 'MD',
+                    'large': 'LG',
+                    'l': 'LG',
+                    'extra large': 'XL',
+                    'xl': 'XL',
+                    'extra small': 'XS',
+                    'xs': 'XS'
+                };
+
+                const sizeLower = sizeTrimmed.toLowerCase();
+                if (sizeMap[sizeLower]) {
+                    sizePrefix = sizeMap[sizeLower];
+                } else {
+                    // Extract alphanumeric characters and take first 2-3 chars
+                    sizePrefix = sizeTrimmed.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 3);
+                }
+            }
+
+            // Build the prefix
+            if (sizePrefix) {
+                return `${categoryPrefix}-${namePrefix}-${sizePrefix}`;
+            } else {
+                return `${categoryPrefix}-${namePrefix}`;
+            }
         }
 
         async function getNextSKUNumber(prefix) {
@@ -386,6 +419,7 @@
         async function generateSKU() {
             const category = document.getElementById('category').value;
             const itemName = document.getElementById('itemName').value.trim();
+            const size = document.getElementById('size').value.trim();
             const skuField = document.getElementById('sku');
 
             if (!category || !itemName) {
@@ -397,7 +431,7 @@
             skuField.value = 'Generating...';
 
             try {
-                const prefix = generateSKUPrefix(category, itemName);
+                const prefix = generateSKUPrefix(category, itemName, size);
                 const number = await getNextSKUNumber(prefix);
                 const paddedNumber = String(number).padStart(3, '0');
 
@@ -412,6 +446,12 @@
         document.getElementById('category').addEventListener('change', generateSKU);
         document.getElementById('itemName').addEventListener('blur', generateSKU);
         document.getElementById('itemName').addEventListener('input', function() {
+            // Debounce the input to avoid too many API calls
+            clearTimeout(this.skuDebounce);
+            this.skuDebounce = setTimeout(generateSKU, 500);
+        });
+        document.getElementById('size').addEventListener('blur', generateSKU);
+        document.getElementById('size').addEventListener('input', function() {
             // Debounce the input to avoid too many API calls
             clearTimeout(this.skuDebounce);
             this.skuDebounce = setTimeout(generateSKU, 500);
