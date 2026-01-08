@@ -1093,7 +1093,20 @@ async function initializeDatabase() {
                 console.error('Warning: Could not create cookie tracking indexes:', err.message);
             }
         }
-        
+
+        // Create indexes for consumables collection
+        try {
+            await db.collection('consumables').createIndex({ sku: 1 }, { unique: true });
+            await db.collection('consumables').createIndex({ category: 1 });
+            await db.collection('consumables').createIndex({ quantity_in_stock: 1 });
+            await db.collection('consumables').createIndex({ status: 1 });
+            await db.collection('consumables').createIndex({ created_at: -1 });
+        } catch (err) {
+            if (!err.message.includes('already exists') && !err.message.includes('E11000')) {
+                console.error('Warning: Could not create consumables indexes:', err.message);
+            }
+        }
+
         console.log('Database indexes created');
         
         // Check if parts collection is empty and populate
@@ -3582,6 +3595,295 @@ app.delete('/api/admin/purchases/:id', requireAuth, requireDB, async (req, res) 
             console.log('Purchase deleted successfully, ID:', id);
             res.json({ success: true, message: 'Purchase deleted successfully' });
         }
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// ==================== CONSUMABLES INVENTORY ENDPOINTS ====================
+
+// Get all consumables (Admin only)
+app.get('/api/admin/consumables', requireAuth, requireDB, async (req, res) => {
+    try {
+        const consumables = await db.collection('consumables').find({}).sort({ created_at: -1 }).toArray();
+        res.json({ success: true, consumables });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Add new consumable (Admin only)
+app.post('/api/admin/consumables', requireAuth, requireDB, async (req, res) => {
+    try {
+        const {
+            item_name,
+            sku,
+            category,
+            description,
+            unit_type,
+            quantity_in_stock,
+            reorder_level,
+            reorder_quantity,
+            unit_cost,
+            supplier,
+            last_received_date,
+            last_received_quantity,
+            expiry_date,
+            location,
+            status,
+            notes
+        } = req.body;
+
+        // Validation
+        if (!item_name || !sku || !unit_type || quantity_in_stock === undefined) {
+            return res.status(400).json({ error: 'Missing required fields: item_name, sku, unit_type, and quantity_in_stock are required' });
+        }
+
+        // Check for duplicate SKU
+        const existingItem = await db.collection('consumables').findOne({ sku: sku.trim().toUpperCase() });
+        if (existingItem) {
+            return res.status(409).json({ error: 'A consumable with this SKU already exists' });
+        }
+
+        const consumable = {
+            item_name: item_name.trim(),
+            sku: sku.trim().toUpperCase(),
+            category: category || 'general',
+            description: description || '',
+            unit_type: unit_type, // piece, pack, meter, etc.
+            quantity_in_stock: parseInt(quantity_in_stock),
+            reorder_level: reorder_level ? parseInt(reorder_level) : null,
+            reorder_quantity: reorder_quantity ? parseInt(reorder_quantity) : null,
+            unit_cost: unit_cost ? parseFloat(unit_cost) : null,
+            supplier: supplier || '',
+            last_received_date: last_received_date ? new Date(last_received_date) : null,
+            last_received_quantity: last_received_quantity ? parseInt(last_received_quantity) : null,
+            expiry_date: expiry_date ? new Date(expiry_date) : null,
+            location: location || '',
+            status: status || 'active',
+            notes: notes || '',
+            created_at: new Date(),
+            updated_at: new Date(),
+            created_by: req.user?.username || 'admin',
+            updated_by: req.user?.username || 'admin'
+        };
+
+        const result = await db.collection('consumables').insertOne(consumable);
+
+        console.log('Consumable added successfully, ID:', result.insertedId);
+        res.json({ success: true, message: 'Consumable added successfully', id: result.insertedId });
+    } catch (err) {
+        console.error('Database error:', err);
+        if (err.code === 11000) {
+            res.status(409).json({ error: 'A consumable with this SKU already exists' });
+        } else {
+            res.status(500).json({ error: 'Database error: ' + err.message });
+        }
+    }
+});
+
+// Get single consumable (Admin only)
+app.get('/api/admin/consumables/:id', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid consumable ID' });
+    }
+
+    try {
+        const consumable = await db.collection('consumables').findOne({ _id: new ObjectId(id) });
+
+        if (!consumable) {
+            return res.status(404).json({ error: 'Consumable not found' });
+        }
+
+        res.json({ success: true, consumable });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Update consumable (Admin only)
+app.put('/api/admin/consumables/:id', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid consumable ID' });
+    }
+
+    try {
+        const {
+            item_name,
+            sku,
+            category,
+            description,
+            unit_type,
+            quantity_in_stock,
+            reorder_level,
+            reorder_quantity,
+            unit_cost,
+            supplier,
+            last_received_date,
+            last_received_quantity,
+            expiry_date,
+            location,
+            status,
+            notes
+        } = req.body;
+
+        // Validation
+        if (!item_name || !sku || !unit_type || quantity_in_stock === undefined) {
+            return res.status(400).json({ error: 'Missing required fields: item_name, sku, unit_type, and quantity_in_stock are required' });
+        }
+
+        // Check if SKU is being changed and if the new SKU already exists
+        const existingItem = await db.collection('consumables').findOne({
+            sku: sku.trim().toUpperCase(),
+            _id: { $ne: new ObjectId(id) }
+        });
+        if (existingItem) {
+            return res.status(409).json({ error: 'Another consumable with this SKU already exists' });
+        }
+
+        const updateData = {
+            item_name: item_name.trim(),
+            sku: sku.trim().toUpperCase(),
+            category: category || 'general',
+            description: description || '',
+            unit_type: unit_type,
+            quantity_in_stock: parseInt(quantity_in_stock),
+            reorder_level: reorder_level ? parseInt(reorder_level) : null,
+            reorder_quantity: reorder_quantity ? parseInt(reorder_quantity) : null,
+            unit_cost: unit_cost ? parseFloat(unit_cost) : null,
+            supplier: supplier || '',
+            last_received_date: last_received_date ? new Date(last_received_date) : null,
+            last_received_quantity: last_received_quantity ? parseInt(last_received_quantity) : null,
+            expiry_date: expiry_date ? new Date(expiry_date) : null,
+            location: location || '',
+            status: status || 'active',
+            notes: notes || '',
+            updated_at: new Date(),
+            updated_by: req.user?.username || 'admin'
+        };
+
+        const result = await db.collection('consumables').updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updateData }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ error: 'Consumable not found' });
+        }
+
+        console.log('Consumable updated successfully, ID:', id);
+        res.json({ success: true, message: 'Consumable updated successfully' });
+    } catch (err) {
+        console.error('Database error:', err);
+        if (err.code === 11000) {
+            res.status(409).json({ error: 'Another consumable with this SKU already exists' });
+        } else {
+            res.status(500).json({ error: 'Database error: ' + err.message });
+        }
+    }
+});
+
+// Delete consumable (Admin only)
+app.delete('/api/admin/consumables/:id', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid consumable ID' });
+    }
+
+    try {
+        const result = await db.collection('consumables').deleteOne({ _id: new ObjectId(id) });
+
+        if (result.deletedCount === 0) {
+            res.status(404).json({ error: 'Consumable not found' });
+        } else {
+            console.log('Consumable deleted successfully, ID:', id);
+            res.json({ success: true, message: 'Consumable deleted successfully' });
+        }
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Adjust consumable stock (Admin only) - for adding or removing stock
+app.post('/api/admin/consumables/:id/adjust-stock', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    const { adjustment, reason } = req.body;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid consumable ID' });
+    }
+
+    if (adjustment === undefined || adjustment === 0) {
+        return res.status(400).json({ error: 'Adjustment amount is required and must not be zero' });
+    }
+
+    try {
+        const consumable = await db.collection('consumables').findOne({ _id: new ObjectId(id) });
+
+        if (!consumable) {
+            return res.status(404).json({ error: 'Consumable not found' });
+        }
+
+        const newQuantity = consumable.quantity_in_stock + parseInt(adjustment);
+
+        if (newQuantity < 0) {
+            return res.status(400).json({ error: 'Insufficient stock. Cannot reduce below zero.' });
+        }
+
+        const updateData = {
+            quantity_in_stock: newQuantity,
+            updated_at: new Date(),
+            updated_by: req.user?.username || 'admin'
+        };
+
+        // If adding stock, update last_received info
+        if (adjustment > 0) {
+            updateData.last_received_date = new Date();
+            updateData.last_received_quantity = parseInt(adjustment);
+        }
+
+        await db.collection('consumables').updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updateData }
+        );
+
+        // Log the adjustment (could be extended to a separate audit log collection)
+        console.log(`Stock adjusted for consumable ${id}: ${adjustment > 0 ? '+' : ''}${adjustment} (Reason: ${reason || 'N/A'})`);
+
+        res.json({
+            success: true,
+            message: 'Stock adjusted successfully',
+            new_quantity: newQuantity
+        });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Get low stock consumables (Admin only)
+app.get('/api/admin/consumables/alerts/low-stock', requireAuth, requireDB, async (req, res) => {
+    try {
+        const lowStockItems = await db.collection('consumables').find({
+            $expr: {
+                $and: [
+                    { $ne: ['$reorder_level', null] },
+                    { $lte: ['$quantity_in_stock', '$reorder_level'] }
+                ]
+            },
+            status: { $ne: 'discontinued' }
+        }).sort({ quantity_in_stock: 1 }).toArray();
+
+        res.json({ success: true, items: lowStockItems, count: lowStockItems.length });
     } catch (err) {
         console.error('Database error:', err);
         res.status(500).json({ error: 'Database error: ' + err.message });

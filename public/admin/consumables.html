@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Purchases | LJM Admin</title>
+    <title>Consumables Inventory | LJM Admin</title>
     <link rel="stylesheet" href="../css/styles.css?v=1.2.5.032">
 </head>
 <body class="admin-panel">
@@ -20,7 +20,7 @@
                 </div>
             </div>
         </div>
-        
+
         <nav class="sidebar-nav">
             <div class="nav-section">
                 <div class="nav-section-header">ADMIN</div>
@@ -65,7 +65,7 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="purchases.html" class="nav-link active" data-page="purchases">
+                        <a href="purchases.html" class="nav-link" data-page="purchases">
                             <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M3 5L10 2L17 5M3 5L3 15L10 18M3 5L10 8M17 5L17 15L10 18M17 5L10 8M10 8L10 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                             </svg>
@@ -73,7 +73,7 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="consumables.html" class="nav-link" data-page="consumables">
+                        <a href="consumables.html" class="nav-link active" data-page="consumables">
                             <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M3 3H17V8H3V3Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                                 <path d="M3 10H17V15H3V10Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -101,7 +101,7 @@
                     </li>
                 </ul>
             </div>
-            
+
             <div class="nav-section">
                 <div class="nav-section-header">WARRANTIES</div>
                 <ul class="nav-menu">
@@ -134,7 +134,7 @@
                     </li>
                 </ul>
             </div>
-            
+
             <div class="nav-section">
                 <div class="nav-section-header">SALES</div>
                 <ul class="nav-menu">
@@ -149,7 +149,7 @@
                     </li>
                 </ul>
             </div>
-            
+
             <div class="nav-section">
                 <div class="nav-section-header">ANALYTICS</div>
                 <ul class="nav-menu">
@@ -163,7 +163,7 @@
                     </li>
                 </ul>
             </div>
-            
+
             <div class="nav-section">
                 <div class="nav-section-header">SETTINGS</div>
                 <ul class="nav-menu">
@@ -191,7 +191,7 @@
                 </ul>
             </div>
         </nav>
-        
+
         <div class="sidebar-footer">
             <a href="downloads.html" class="sidebar-footer-link" data-page="downloads">
                 <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -209,7 +209,7 @@
             </button>
         </div>
     </aside>
-    
+
     <!-- Main Content Area -->
     <div class="admin-main">
         <!-- Top Utility Bar -->
@@ -220,76 +220,82 @@
                         <path d="M3 5H17M3 10H17M3 15H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                     </svg>
                 </button>
-                <h2 style="margin: 0; font-size: 1.25rem; color: var(--text-dark);">Purchases</h2>
+                <h2 style="margin: 0; font-size: 1.25rem; color: var(--text-dark);">Consumables Inventory</h2>
             </div>
             <div class="topbar-right">
-                <a href="add-purchase.html" class="topbar-add-button">
+                <a href="add-consumable.html" class="topbar-add-button">
                     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M8 3V13M3 8H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                     </svg>
-                    Add Purchase
+                    Add Item
                 </a>
                 <div class="topbar-user">
                     <span class="topbar-user-name">Admin</span>
                 </div>
             </div>
         </header>
-        
+
         <!-- Page Content -->
         <div class="admin-content">
-            <!-- Purchases Header -->
+            <!-- Consumables Header -->
             <div class="products-header">
-                <h1 class="products-title">Purchase History</h1>
+                <h1 class="products-title">Consumables Inventory</h1>
                 <div class="products-header-actions">
                     <div class="search-box">
                         <input
                             type="text"
-                            id="searchPurchases"
+                            id="searchConsumables"
                             class="search-input"
-                            placeholder="Search order number / seller..."
+                            placeholder="Search item name / SKU..."
                             autocomplete="off"
                         >
                     </div>
-                    <a href="add-purchase.html" class="btn-primary">
+                    <a href="add-consumable.html" class="btn-primary">
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M8 3V13M3 8H13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                         </svg>
-                        Add Purchase
+                        Add Item
                     </a>
                 </div>
             </div>
 
-            <!-- Purchases Table -->
+            <!-- Low Stock Alert -->
+            <div id="lowStockAlert" class="alert-banner" style="display: none; background: #fff3cd; border: 1px solid #ffc107; padding: 12px 20px; border-radius: 8px; margin-bottom: 20px;">
+                <strong>Low Stock Alert:</strong> <span id="lowStockCount">0</span> items need restocking.
+            </div>
+
+            <!-- Consumables Table -->
             <div class="products-layout">
                 <aside class="products-sidebar">
                     <div class="sidebar-section">
                         <h3 class="sidebar-heading">Filter</h3>
-                        <select id="filterPlatform" class="sidebar-select">
-                            <option value="">All Platforms</option>
-                            <option value="ebay">eBay</option>
-                            <option value="vinted">Vinted</option>
-                            <option value="other">Other</option>
+                        <select id="filterCategory" class="sidebar-select">
+                            <option value="">All Categories</option>
+                            <option value="packaging">Packaging</option>
+                            <option value="shipping">Shipping</option>
+                            <option value="cleaning">Cleaning</option>
+                            <option value="cables">Cables</option>
+                            <option value="ear-tips">Ear Tips</option>
+                            <option value="protective">Protective Cases</option>
+                            <option value="general">General</option>
                         </select>
-                        <select id="filterGeneration" class="sidebar-select">
-                            <option value="">Generation</option>
-                            <option value="AirPods (1st Gen)">1st Gen</option>
-                            <option value="AirPods (2nd Gen)">2nd Gen</option>
-                            <option value="AirPods (3rd Gen)">3rd Gen</option>
-                            <option value="AirPods (4th Gen)">4th Gen</option>
-                            <option value="AirPods Pro (1st Gen)">Pro (1st Gen)</option>
-                            <option value="AirPods Pro (2nd Gen)">Pro (2nd Gen)</option>
+                        <select id="filterStatus" class="sidebar-select">
+                            <option value="">All Status</option>
+                            <option value="active">Active</option>
+                            <option value="low-stock">Low Stock</option>
+                            <option value="discontinued">Discontinued</option>
                         </select>
                     </div>
 
                     <button id="clearFilters" class="sidebar-btn">Clear filters</button>
 
                     <div class="sidebar-count">
-                        <span id="purchasesCount">0 purchases</span>
+                        <span id="consumablesCount">0 items</span>
                     </div>
 
                     <div class="sidebar-section" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">
-                        <h3 class="sidebar-heading">Total Spent</h3>
-                        <div style="font-size: 1.5rem; font-weight: 600; color: var(--accent-teal);" id="totalSpent">
+                        <h3 class="sidebar-heading">Total Value</h3>
+                        <div style="font-size: 1.5rem; font-weight: 600; color: var(--accent-teal);" id="totalValue">
                             £0.00
                         </div>
                     </div>
@@ -300,24 +306,22 @@
                         <table class="products-table">
                             <thead>
                                 <tr>
-                                    <th>Platform</th>
-                                    <th>Order Number</th>
-                                    <th>Seller</th>
-                                    <th>Generation</th>
-                                    <th>Items</th>
-                                    <th>Qty</th>
-                                    <th>Price</th>
-                                    <th>Condition</th>
+                                    <th>Item Name</th>
+                                    <th>SKU</th>
+                                    <th>Category</th>
+                                    <th>Quantity</th>
+                                    <th>Unit</th>
+                                    <th>Unit Cost</th>
+                                    <th>Total Value</th>
+                                    <th>Reorder Level</th>
                                     <th>Status</th>
-                                    <th>Tracking</th>
-                                    <th>Purchase Date</th>
-                                    <th style="text-align: center;">Feedback</th>
+                                    <th>Location</th>
                                     <th></th>
                                 </tr>
                             </thead>
-                            <tbody id="purchasesTable">
+                            <tbody id="consumablesTable">
                                 <tr>
-                                    <td colspan="13" class="table-loading">Loading purchases...</td>
+                                    <td colspan="11" class="table-loading">Loading consumables...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -329,16 +333,16 @@
 
     <!-- Sidebar Overlay for Mobile -->
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
-    
+
     <script src="../js/admin.js?v=1.0.6"></script>
-    <script src="../js/purchases.js?v=1.1.0"></script>
+    <script src="../js/consumables.js?v=1.0.0"></script>
     <script>
         // Sidebar toggle functionality
         (function() {
             const sidebarToggle = document.getElementById('sidebarToggle');
             const sidebar = document.querySelector('.admin-sidebar');
             const overlay = document.getElementById('sidebarOverlay');
-            
+
             if (sidebarToggle && sidebar) {
                 sidebarToggle.addEventListener('click', function() {
                     sidebar.classList.toggle('sidebar-open');
@@ -346,7 +350,7 @@
                         overlay.classList.toggle('active');
                     }
                 });
-                
+
                 if (overlay) {
                     overlay.addEventListener('click', function() {
                         sidebar.classList.remove('sidebar-open');
@@ -354,7 +358,7 @@
                     });
                 }
             }
-            
+
             // Set active nav item
             const currentPage = window.location.pathname.split('/').pop() || 'dashboard.html';
             const navLinks = document.querySelectorAll('.nav-link, .sidebar-footer-link');
