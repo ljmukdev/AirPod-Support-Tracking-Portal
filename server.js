@@ -1873,15 +1873,24 @@ app.put('/api/admin/product/:id', requireAuth, requireDB, (req, res, next) => {
     const notes = req.body.notes;
     const ebay_order_number = req.body.ebay_order_number;
     const sales_order_number = req.body.sales_order_number;
-    
-    if (!serial_number || !security_barcode || !part_type) {
-        return res.status(400).json({ 
-            error: 'Serial number, security barcode, and part type are required'
-        });
-    }
-    
-    if (!['left', 'right', 'case'].includes(part_type.toLowerCase())) {
-        return res.status(400).json({ error: 'Part type must be left, right, or case' });
+    const sale_date = req.body.sale_date;
+    const sale_price = req.body.sale_price;
+    const sale_notes = req.body.sale_notes;
+    const consumables = req.body.consumables;
+
+    // If this is a sale update (has sales_order_number), allow it without full validation
+    const isSaleUpdate = sales_order_number && !serial_number && !security_barcode && !part_type;
+
+    if (!isSaleUpdate) {
+        if (!serial_number || !security_barcode || !part_type) {
+            return res.status(400).json({
+                error: 'Serial number, security barcode, and part type are required'
+            });
+        }
+
+        if (!['left', 'right', 'case'].includes(part_type.toLowerCase())) {
+            return res.status(400).json({ error: 'Part type must be left, right, or case' });
+        }
     }
     
     try {
@@ -1945,28 +1954,81 @@ app.put('/api/admin/product/:id', requireAuth, requireDB, (req, res, next) => {
             photosUpdate.photos = [...existingPhotos, ...verifiedPhotos];
         }
         
-        const updateData = {
-            serial_number: serial_number.trim(),
-            security_barcode: security_barcode.trim().toUpperCase(), // Store in uppercase
-            part_type: part_type.toLowerCase(),
-            generation: generation ? generation.trim() : null,
-            part_model_number: part_model_number ? part_model_number.trim() : null,
-            notes: notes ? notes.trim() : null,
-            ebay_order_number: ebay_order_number ? ebay_order_number.trim() : null,
-            sales_order_number: sales_order_number ? sales_order_number.trim() : null,
-            ...photosUpdate
-            // Note: tracking_number and tracking_date are updated via separate endpoint
-        };
-        
+        // Build updateData conditionally based on what fields are provided
+        const updateData = {};
+
+        if (!isSaleUpdate) {
+            updateData.serial_number = serial_number.trim();
+            updateData.security_barcode = security_barcode.trim().toUpperCase();
+            updateData.part_type = part_type.toLowerCase();
+            updateData.generation = generation ? generation.trim() : null;
+            updateData.part_model_number = part_model_number ? part_model_number.trim() : null;
+            updateData.notes = notes ? notes.trim() : null;
+            updateData.ebay_order_number = ebay_order_number ? ebay_order_number.trim() : null;
+        }
+
+        // Add sale-specific fields
+        if (sales_order_number) {
+            updateData.sales_order_number = sales_order_number.trim();
+        }
+        if (sale_date) {
+            updateData.sale_date = sale_date;
+        }
+        if (sale_price) {
+            updateData.sale_price = parseFloat(sale_price);
+        }
+        if (sale_notes) {
+            updateData.sale_notes = sale_notes.trim();
+        }
+
+        // Add photos if any were uploaded
+        Object.assign(updateData, photosUpdate);
+
+        // Process consumables if provided
+        if (consumables && Array.isArray(consumables) && consumables.length > 0) {
+            console.log(`[SALE] Processing ${consumables.length} consumable(s) for sale...`);
+
+            // Store consumables used in the product record
+            updateData.consumables_used = consumables;
+
+            // Deduct stock levels for each consumable
+            for (const consumable of consumables) {
+                const { consumable_id, quantity, name } = consumable;
+
+                if (!consumable_id || !quantity) {
+                    console.error(`[SALE] Invalid consumable data:`, consumable);
+                    continue;
+                }
+
+                try {
+                    const result = await db.collection('consumables').updateOne(
+                        { _id: new ObjectId(consumable_id) },
+                        { $inc: { stock_level: -quantity } }
+                    );
+
+                    if (result.matchedCount > 0) {
+                        console.log(`[SALE] ✅ Deducted ${quantity} from ${name} (ID: ${consumable_id})`);
+                    } else {
+                        console.error(`[SALE] ❌ Consumable not found: ${consumable_id}`);
+                    }
+                } catch (err) {
+                    console.error(`[SALE] Error deducting consumable ${consumable_id}:`, err);
+                }
+            }
+        }
+
         const result = await db.collection('products').updateOne(
             { _id: new ObjectId(id) },
             { $set: updateData }
         );
-        
+
         if (result.matchedCount === 0) {
             res.status(404).json({ error: 'Product not found' });
         } else {
             console.log('Product updated successfully, ID:', id);
+            if (consumables && consumables.length > 0) {
+                console.log(`[SALE] Sale recorded with ${consumables.length} consumable(s)`);
+            }
             res.json({ success: true, message: 'Product updated successfully' });
         }
     } catch (err) {

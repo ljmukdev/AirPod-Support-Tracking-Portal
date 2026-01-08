@@ -474,6 +474,17 @@
                                     placeholder="Add any additional notes about this sale..."
                                 ></textarea>
                             </div>
+
+                            <hr style="margin: 30px 0; border: none; border-top: 2px solid #e8ecf1;">
+
+                            <h3 style="margin-bottom: 15px;">Consumables Used (Optional)</h3>
+                            <p style="font-size: 0.85rem; color: #666; margin-bottom: 15px;">
+                                Select any consumables used for this sale. Stock levels will be automatically deducted.
+                            </p>
+
+                            <div id="consumablesContainer" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                                <div style="color: #999; font-style: italic;">Loading consumables...</div>
+                            </div>
                         </div>
 
                         <div id="errorMessage" class="error-message" style="display: none;"></div>
@@ -536,6 +547,7 @@
 
         // Add Sale Form Logic
         let selectedProduct = null;
+        let availableConsumables = [];
 
         document.getElementById('searchButton').addEventListener('click', searchProduct);
         document.getElementById('searchProduct').addEventListener('keypress', function(e) {
@@ -544,6 +556,82 @@
                 searchProduct();
             }
         });
+
+        // Fetch available consumables on page load
+        function fetchConsumables() {
+            authenticatedFetch('/api/admin/consumables')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.consumables) {
+                        availableConsumables = data.consumables;
+                        displayConsumables();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching consumables:', error);
+                    document.getElementById('consumablesContainer').innerHTML = '<div style="color: #999; font-style: italic;">Failed to load consumables</div>';
+                });
+        }
+
+        function displayConsumables() {
+            const container = document.getElementById('consumablesContainer');
+
+            if (availableConsumables.length === 0) {
+                container.innerHTML = '<div style="color: #999; font-style: italic;">No consumables available</div>';
+                return;
+            }
+
+            container.innerHTML = availableConsumables.map(consumable => `
+                <div style="border: 1px solid #e8ecf1; border-radius: 8px; padding: 15px; background-color: #fafbfc;">
+                    <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
+                        <input
+                            type="checkbox"
+                            class="consumable-checkbox"
+                            data-id="${consumable._id}"
+                            data-name="${consumable.name}"
+                            data-stock="${consumable.stock_level}"
+                            style="margin-top: 3px;"
+                            onchange="toggleConsumableQuantity(this)"
+                        >
+                        <div style="flex: 1;">
+                            <div style="font-weight: 500; color: var(--text-dark); margin-bottom: 5px;">
+                                ${consumable.name}
+                            </div>
+                            <div style="font-size: 0.85rem; color: #666;">
+                                Stock: ${consumable.stock_level} ${consumable.unit || 'units'}
+                            </div>
+                            <div id="quantity-${consumable._id}" style="margin-top: 10px; display: none;">
+                                <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 5px;">
+                                    Quantity Used:
+                                </label>
+                                <input
+                                    type="number"
+                                    class="consumable-quantity"
+                                    data-id="${consumable._id}"
+                                    min="1"
+                                    max="${consumable.stock_level}"
+                                    value="1"
+                                    style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"
+                                    placeholder="Enter quantity"
+                                >
+                            </div>
+                        </div>
+                    </label>
+                </div>
+            `).join('');
+        }
+
+        function toggleConsumableQuantity(checkbox) {
+            const quantityDiv = document.getElementById('quantity-' + checkbox.dataset.id);
+            if (checkbox.checked) {
+                quantityDiv.style.display = 'block';
+            } else {
+                quantityDiv.style.display = 'none';
+            }
+        }
+
+        // Fetch consumables when page loads
+        fetchConsumables();
 
         function searchProduct() {
             const searchValue = document.getElementById('searchProduct').value.trim();
@@ -605,6 +693,28 @@
                 return;
             }
 
+            // Collect selected consumables
+            const selectedConsumables = [];
+            const checkboxes = document.querySelectorAll('.consumable-checkbox:checked');
+
+            for (const checkbox of checkboxes) {
+                const consumableId = checkbox.dataset.id;
+                const quantityInput = document.querySelector(`.consumable-quantity[data-id="${consumableId}"]`);
+                const quantity = parseInt(quantityInput.value) || 1;
+                const stockLevel = parseInt(checkbox.dataset.stock);
+
+                if (quantity > stockLevel) {
+                    showError(`Quantity for ${checkbox.dataset.name} exceeds available stock (${stockLevel})`);
+                    return;
+                }
+
+                selectedConsumables.push({
+                    consumable_id: consumableId,
+                    name: checkbox.dataset.name,
+                    quantity: quantity
+                });
+            }
+
             showSpinner();
             hideMessages();
 
@@ -612,11 +722,12 @@
                 sales_order_number: salesOrderNumber,
                 sale_date: document.getElementById('saleDate').value || null,
                 sale_price: document.getElementById('salePrice').value || null,
-                sale_notes: document.getElementById('saleNotes').value.trim() || null
+                sale_notes: document.getElementById('saleNotes').value.trim() || null,
+                consumables: selectedConsumables
             };
 
             // Update product with sale information
-            authenticatedFetch('/api/admin/products/' + selectedProduct._id, {
+            authenticatedFetch('/api/admin/product/' + selectedProduct._id, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'
