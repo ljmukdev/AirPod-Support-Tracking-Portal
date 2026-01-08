@@ -99,8 +99,20 @@ function displayItems() {
     
     container.innerHTML = items.map(item => {
         const itemName = getItemDisplayName(item.item_type);
-        const hasIssues = checkInData.issues_detected && checkInData.issues_detected.some(i => i.item_type === item.item_type);
-        const itemIssues = hasIssues ? checkInData.issues_detected.find(i => i.item_type === item.item_type).issues : [];
+        const itemIssueMatch = checkInData.issues_detected
+            ? checkInData.issues_detected.find(issue => {
+                if (issue.item_type !== item.item_type) {
+                    return false;
+                }
+                const issueSet = issue.set_number || null;
+                const itemSet = item.set_number || null;
+                if (issueSet || itemSet) {
+                    return issueSet === itemSet;
+                }
+                return true;
+            })
+            : null;
+        const itemIssues = itemIssueMatch ? itemIssueMatch.issues : [];
         
         let issuesBadges = '';
         if (itemIssues.length > 0) {

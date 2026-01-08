@@ -227,20 +227,25 @@ function hideSpinner() {
     }
 }
 
-// Auto-uppercase conversion for serial number, security barcode, and part number fields
+// Auto-uppercase conversion for serial number, security barcode, and related fields
 function setupUppercaseFields() {
-    const serialNumberField = document.getElementById('serialNumber');
-    const securityBarcodeField = document.getElementById('securityBarcode');
-    const partModelNumberField = document.getElementById('partModelNumber');
-    
+    const fields = Array.from(document.querySelectorAll('input[type="text"], input[type="search"], textarea'));
+    const targets = fields.filter((field) => {
+        const id = field.id || '';
+        const name = field.name || '';
+        return /serial|security/i.test(id) || /serial|security/i.test(name);
+    });
+
     // Function to convert to uppercase on input
     function convertToUppercase(e) {
         const start = e.target.selectionStart;
         const end = e.target.selectionEnd;
         e.target.value = e.target.value.toUpperCase();
-        e.target.setSelectionRange(start, end); // Maintain cursor position
+        if (typeof start === 'number' && typeof end === 'number') {
+            e.target.setSelectionRange(start, end); // Maintain cursor position
+        }
     }
-    
+
     // Function to convert to uppercase on paste
     function convertPasteToUppercase(e) {
         e.preventDefault();
@@ -250,35 +255,22 @@ function setupUppercaseFields() {
         const currentValue = e.target.value;
         const newValue = currentValue.substring(0, start) + paste.toUpperCase() + currentValue.substring(end);
         e.target.value = newValue;
-        e.target.setSelectionRange(start + paste.length, start + paste.length);
-    }
-    
-    if (serialNumberField) {
-        serialNumberField.addEventListener('input', convertToUppercase);
-        serialNumberField.addEventListener('paste', convertPasteToUppercase);
-        // Also convert existing value if any
-        if (serialNumberField.value) {
-            serialNumberField.value = serialNumberField.value.toUpperCase();
+        if (typeof start === 'number') {
+            e.target.setSelectionRange(start + paste.length, start + paste.length);
         }
     }
-    
-    if (securityBarcodeField) {
-        securityBarcodeField.addEventListener('input', convertToUppercase);
-        securityBarcodeField.addEventListener('paste', convertPasteToUppercase);
-        // Also convert existing value if any
-        if (securityBarcodeField.value) {
-            securityBarcodeField.value = securityBarcodeField.value.toUpperCase();
+
+    targets.forEach((field) => {
+        if (field.dataset.uppercaseBound === 'true') {
+            return;
         }
-    }
-    
-    if (partModelNumberField) {
-        partModelNumberField.addEventListener('input', convertToUppercase);
-        partModelNumberField.addEventListener('paste', convertPasteToUppercase);
-        // Also convert existing value if any
-        if (partModelNumberField.value) {
-            partModelNumberField.value = partModelNumberField.value.toUpperCase();
+        field.dataset.uppercaseBound = 'true';
+        field.addEventListener('input', convertToUppercase);
+        field.addEventListener('paste', convertPasteToUppercase);
+        if (field.value) {
+            field.value = field.value.toUpperCase();
         }
-    }
+    });
 }
 
 // Setup uppercase conversion when page loads
@@ -286,6 +278,119 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', setupUppercaseFields);
 } else {
     setupUppercaseFields();
+}
+
+// Support/Suggestions Bubble
+function initSupportBubble() {
+    if (document.getElementById('supportBubble')) {
+        return;
+    }
+
+    // Don't show on login page
+    if (window.location.pathname.includes('login')) {
+        return;
+    }
+
+    const bubbleButton = document.createElement('button');
+    bubbleButton.id = 'supportBubble';
+    bubbleButton.className = 'support-bubble';
+    bubbleButton.type = 'button';
+    bubbleButton.setAttribute('aria-label', 'Support or suggestions');
+    bubbleButton.innerHTML = `
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M21 15C21 15.5304 20.7893 16.0391 20.4142 16.4142C20.0391 16.7893 19.5304 17 19 17H7L3 21V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Support</span>
+    `;
+
+    const modal = document.createElement('div');
+    modal.id = 'supportModal';
+    modal.className = 'support-modal';
+    modal.innerHTML = `
+        <div class="support-modal-content" role="dialog" aria-modal="true" aria-labelledby="supportModalTitle">
+            <button type="button" class="support-modal-close" aria-label="Close support form">×</button>
+            <h3 id="supportModalTitle">Support / Suggestions</h3>
+            <p>Send a fault report or improvement idea to our support team.</p>
+            <form id="supportForm" class="support-form">
+                <label for="supportType">Type</label>
+                <select id="supportType" name="supportType" required>
+                    <option value="fault">Fault / Issue</option>
+                    <option value="suggestion">Suggestion</option>
+                </select>
+                <label for="supportMessage">Message</label>
+                <textarea id="supportMessage" name="supportMessage" rows="4" placeholder="Describe the issue or suggestion..." required></textarea>
+                <label for="supportEmail">Your Email (optional)</label>
+                <input type="email" id="supportEmail" name="supportEmail" placeholder="name@example.com">
+                <button type="submit" class="button button-primary">Send to Support</button>
+                <div class="support-form-status" id="supportFormStatus" role="status" aria-live="polite"></div>
+            </form>
+        </div>
+    `;
+
+    document.body.appendChild(bubbleButton);
+    document.body.appendChild(modal);
+
+    const closeButton = modal.querySelector('.support-modal-close');
+    const form = modal.querySelector('#supportForm');
+    const status = modal.querySelector('#supportFormStatus');
+
+    const openModal = () => {
+        modal.classList.add('open');
+    };
+    const closeModal = () => {
+        modal.classList.remove('open');
+    };
+
+    bubbleButton.addEventListener('click', openModal);
+    closeButton.addEventListener('click', closeModal);
+    modal.addEventListener('click', (event) => {
+        if (event.target === modal) {
+            closeModal();
+        }
+    });
+
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        status.textContent = '';
+
+        const payload = {
+            type: form.supportType.value,
+            message: form.supportMessage.value.trim(),
+            userEmail: form.supportEmail.value.trim() || null,
+            page: window.location.pathname
+        };
+
+        if (!payload.message) {
+            status.textContent = 'Please enter a message.';
+            status.classList.add('error');
+            return;
+        }
+
+        try {
+            const response = await authenticatedFetch(`${window.API_BASE}/api/support`, {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || 'Failed to send message');
+            }
+            status.textContent = 'Message sent. Thanks for the feedback!';
+            status.classList.remove('error');
+            status.classList.add('success');
+            form.reset();
+        } catch (error) {
+            status.textContent = error.message || 'Failed to send message.';
+            status.classList.remove('success');
+            status.classList.add('error');
+        }
+    });
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSupportBubble);
+} else {
+    initSupportBubble();
 }
 
 // Toggle submenu function (for Settings dropdown)
