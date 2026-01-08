@@ -203,6 +203,14 @@
                     </p>
                 </div>
 
+                <!-- Reorder Suggestions Section -->
+                <div id="reorderSuggestionsSection" class="stock-adjustment form-group-full" style="display: none; background: #e7f3ff; border: 1px solid #0dcaf0;">
+                    <h3>📊 Smart Reorder Suggestions</h3>
+                    <div id="suggestionsContent">
+                        <p style="color: #666;">Loading suggestions...</p>
+                    </div>
+                </div>
+
                 <hr style="margin: 30px 0; border: none; border-top: 2px solid #e0e0e0;">
 
                 <form id="editConsumableForm">
@@ -266,14 +274,24 @@
 
                         <!-- Reorder Level -->
                         <div class="form-group">
-                            <label for="reorderLevel">Reorder Level</label>
+                            <label for="reorderLevel">Reorder Level
+                                <button type="button" id="applySuggestedLevel" class="button button-small" style="display: none; margin-left: 8px; padding: 2px 8px; font-size: 0.75rem;">
+                                    Use Suggested
+                                </button>
+                            </label>
                             <input type="number" id="reorderLevel" name="reorderLevel" min="0" step="1" placeholder="Alert when stock reaches this level">
+                            <p id="suggestedLevelHint" style="font-size: 0.75rem; color: #0dcaf0; margin-top: 4px; display: none;"></p>
                         </div>
 
                         <!-- Reorder Quantity -->
                         <div class="form-group">
-                            <label for="reorderQuantity">Reorder Quantity</label>
+                            <label for="reorderQuantity">Reorder Quantity
+                                <button type="button" id="applySuggestedQuantity" class="button button-small" style="display: none; margin-left: 8px; padding: 2px 8px; font-size: 0.75rem;">
+                                    Use Suggested
+                                </button>
+                            </label>
                             <input type="number" id="reorderQuantity" name="reorderQuantity" min="0" step="1" placeholder="How much to reorder">
+                            <p id="suggestedQuantityHint" style="font-size: 0.75rem; color: #0dcaf0; margin-top: 4px; display: none;"></p>
                         </div>
 
                         <!-- Supplier -->
@@ -409,12 +427,119 @@
                     document.getElementById('expiryDate').value = date.toISOString().split('T')[0];
                 }
 
+                // Load reorder suggestions
+                loadReorderSuggestions();
+
             } catch (error) {
                 console.error('Error loading consumable:', error);
                 document.getElementById('errorBanner').textContent = error.message;
                 document.getElementById('errorBanner').style.display = 'block';
             }
         }
+
+        // Load reorder suggestions based on usage history
+        let suggestedReorderLevel = null;
+        let suggestedReorderQuantity = null;
+
+        async function loadReorderSuggestions() {
+            try {
+                const response = await authenticatedFetch(`/api/admin/consumables/${consumableId}/reorder-suggestions`, {
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    return; // Silently fail, suggestions are optional
+                }
+
+                const data = await response.json();
+                const suggestions = data.suggestions;
+
+                if (!suggestions.has_data) {
+                    // Show message that no data is available
+                    document.getElementById('suggestionsContent').innerHTML = `
+                        <p style="color: #666; margin: 0;">
+                            ${suggestions.message}
+                        </p>
+                    `;
+                    document.getElementById('reorderSuggestionsSection').style.display = 'block';
+                    return;
+                }
+
+                // Display suggestions
+                let suggestionsHTML = `
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 10px;">
+                        <div>
+                            <strong>Daily Usage Rate:</strong><br>
+                            ${suggestions.daily_usage_rate} ${document.getElementById('unitType').value}/day
+                        </div>
+                        <div>
+                            <strong>Days Until Stockout:</strong><br>
+                            ${suggestions.days_until_stockout !== null ? suggestions.days_until_stockout + ' days' : 'N/A'}
+                        </div>
+                `;
+
+                if (suggestions.suggested_reorder_date) {
+                    const reorderDate = new Date(suggestions.suggested_reorder_date);
+                    suggestionsHTML += `
+                        <div>
+                            <strong>Suggested Reorder Date:</strong><br>
+                            ${reorderDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </div>
+                    `;
+                }
+
+                suggestionsHTML += `
+                        <div>
+                            <strong>Suggested Reorder Quantity:</strong><br>
+                            ${suggestions.suggested_reorder_quantity} ${document.getElementById('unitType').value}
+                        </div>
+                    </div>
+                    <p style="margin: 15px 0 0 0; padding: 10px; background: white; border-radius: 4px;">
+                        <strong>${suggestions.message}</strong>
+                    </p>
+                `;
+
+                document.getElementById('suggestionsContent').innerHTML = suggestionsHTML;
+                document.getElementById('reorderSuggestionsSection').style.display = 'block';
+
+                // Store suggestions for use with buttons
+                if (suggestions.daily_usage_rate > 0) {
+                    // Suggest reorder level as 7-14 days of stock
+                    suggestedReorderLevel = Math.ceil(suggestions.daily_usage_rate * 10);
+                }
+                suggestedReorderQuantity = suggestions.suggested_reorder_quantity;
+
+                // Show "Use Suggested" buttons and hints
+                if (suggestedReorderLevel) {
+                    document.getElementById('applySuggestedLevel').style.display = 'inline-block';
+                    document.getElementById('suggestedLevelHint').textContent = `💡 Suggested: ${suggestedReorderLevel}`;
+                    document.getElementById('suggestedLevelHint').style.display = 'block';
+                }
+
+                if (suggestedReorderQuantity) {
+                    document.getElementById('applySuggestedQuantity').style.display = 'inline-block';
+                    document.getElementById('suggestedQuantityHint').textContent = `💡 Suggested: ${suggestedReorderQuantity} (30 days supply)`;
+                    document.getElementById('suggestedQuantityHint').style.display = 'block';
+                }
+
+            } catch (error) {
+                console.error('Error loading suggestions:', error);
+                // Silently fail, suggestions are optional
+            }
+        }
+
+        // Apply suggested values buttons
+        document.getElementById('applySuggestedLevel').addEventListener('click', function() {
+            if (suggestedReorderLevel) {
+                document.getElementById('reorderLevel').value = suggestedReorderLevel;
+            }
+        });
+
+        document.getElementById('applySuggestedQuantity').addEventListener('click', function() {
+            if (suggestedReorderQuantity) {
+                document.getElementById('reorderQuantity').value = suggestedReorderQuantity;
+            }
+        });
 
         // Stock adjustment handler
         document.getElementById('adjustStockBtn').addEventListener('click', async function() {
@@ -458,6 +583,9 @@
                 successBanner.textContent = `Stock adjusted successfully! New quantity: ${data.new_quantity}`;
                 successBanner.style.display = 'block';
                 errorBanner.style.display = 'none';
+
+                // Reload suggestions with updated data
+                loadReorderSuggestions();
 
                 window.scrollTo(0, 0);
 
