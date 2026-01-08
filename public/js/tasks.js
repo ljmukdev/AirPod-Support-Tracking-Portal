@@ -219,6 +219,15 @@ function renderTaskCard(task) {
                 View Item
             </button>
         `;
+    } else if (task.type === 'refund_verification') {
+        actionButtons = `
+            <button onclick="confirmRefundReceived('${task.purchase_id}', ${task.expected_refund || 0})" class="button" style="padding: 10px 16px; font-size: 0.9rem; background: #10b981;">
+                ✓ Refund Received
+            </button>
+            <button onclick="viewPurchase('${task.purchase_id}')" class="button button-secondary" style="padding: 10px 16px; font-size: 0.9rem;">
+                View Purchase
+            </button>
+        `;
     }
     
     return `
@@ -519,6 +528,60 @@ function checkInConsumable(consumableId) {
 function checkInDelivery(consumableId, restockHistoryId) {
     // Redirect to consumables page with both IDs to trigger delivery check-in
     window.location.href = `consumables.html?deliveryCheckIn=${consumableId}&restockId=${restockHistoryId}`;
+}
+
+async function confirmRefundReceived(purchaseId, expectedAmount) {
+    const actualAmount = prompt(
+        `Expected refund: £${expectedAmount ? expectedAmount.toFixed(2) : '0.00'}\n\n` +
+        'Enter the ACTUAL refund amount received (£):', 
+        expectedAmount ? expectedAmount.toFixed(2) : ''
+    );
+    
+    if (actualAmount === null) {
+        return; // User cancelled
+    }
+    
+    const amount = parseFloat(actualAmount);
+    if (isNaN(amount) || amount < 0) {
+        alert('Please enter a valid refund amount');
+        return;
+    }
+    
+    if (!confirm(`Confirm refund of £${amount.toFixed(2)} received?\n\nThis will update the purchase cost and balance sheet.`)) {
+        return;
+    }
+    
+    try {
+        const response = await authenticatedFetch(`${window.API_BASE}/api/admin/purchases/${purchaseId}/confirm-refund`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                refund_amount: amount
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to confirm refund');
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('✅ Refund confirmed!\n\nPurchase cost has been updated and balance sheet adjusted.');
+            loadTasks(); // Reload tasks to remove this one
+        } else {
+            throw new Error(data.error || 'Failed to confirm refund');
+        }
+    } catch (error) {
+        console.error('[TASKS] Error confirming refund:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+function viewPurchase(purchaseId) {
+    window.location.href = `purchases.html?highlight=${purchaseId}`;
 }
 
 function closeEmailModal() {

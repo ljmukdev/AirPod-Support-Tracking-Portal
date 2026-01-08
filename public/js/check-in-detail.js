@@ -980,6 +980,16 @@ async function submitResolution() {
         return;
     }
 
+    // Check if return tracking is required
+    const isReturn = resolutionType.includes('return');
+    if (isReturn) {
+        const returnTracking = document.getElementById('returnTrackingNumber').value;
+        if (!returnTracking || !returnTracking.trim()) {
+            alert('Please enter a return tracking number');
+            return;
+        }
+    }
+
     // Collect form data
     const formData = {
         resolution_type: resolutionType,
@@ -989,6 +999,16 @@ async function submitResolution() {
         seller_cooperative: sellerCooperative.value === 'true',
         resolution_notes: document.getElementById('resolutionNotes').value
     };
+
+    // Add return tracking data if this is a return
+    if (isReturn) {
+        formData.return_tracking = {
+            tracking_number: document.getElementById('returnTrackingNumber').value,
+            carrier: document.getElementById('returnCarrier').value || null,
+            expected_delivery: document.getElementById('expectedReturnDate').value || null,
+            notes: document.getElementById('returnNotes').value || null
+        };
+    }
 
     console.log('[RESOLUTION] Submitting:', formData);
 

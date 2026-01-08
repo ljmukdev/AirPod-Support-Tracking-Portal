@@ -604,6 +604,54 @@
                         <input type="number" id="refundAmount" name="refund_amount" step="0.01" min="0" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 0.95rem;" placeholder="e.g., 15.50">
                     </div>
 
+                    <!-- Return Tracking Section -->
+                    <div id="returnTrackingSection" style="display: none; margin-bottom: 24px; background: #eff6ff; border: 1px solid #3b82f6; border-radius: 8px; padding: 16px;">
+                        <h4 style="margin: 0 0 12px 0; font-size: 1rem; color: #1e40af;">
+                            📦 Return Shipment Details
+                        </h4>
+                        
+                        <div style="margin-bottom: 16px;">
+                            <label style="display: block; font-weight: 600; margin-bottom: 8px;">
+                                Return Tracking Number *
+                            </label>
+                            <input type="text" id="returnTrackingNumber" name="return_tracking_number" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 0.95rem;" placeholder="e.g., 1Z999AA10123456784">
+                        </div>
+                        
+                        <div style="margin-bottom: 16px;">
+                            <label style="display: block; font-weight: 600; margin-bottom: 8px;">
+                                Carrier/Service
+                            </label>
+                            <select id="returnCarrier" name="return_carrier" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 0.95rem;">
+                                <option value="">Select carrier...</option>
+                                <option value="Royal Mail">Royal Mail</option>
+                                <option value="Evri">Evri</option>
+                                <option value="DPD">DPD</option>
+                                <option value="DHL">DHL</option>
+                                <option value="UPS">UPS</option>
+                                <option value="Yodel">Yodel</option>
+                                <option value="eBay Returns">eBay Returns</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        
+                        <div style="margin-bottom: 16px;">
+                            <label style="display: block; font-weight: 600; margin-bottom: 8px;">
+                                Expected Delivery to Seller
+                            </label>
+                            <input type="date" id="expectedReturnDate" name="expected_return_date" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 0.95rem;">
+                            <p style="margin: 6px 0 0 0; font-size: 0.85rem; color: #6b7280;">
+                                We'll create a task to check for refund after this date
+                            </p>
+                        </div>
+                        
+                        <div style="margin-bottom: 0;">
+                            <label style="display: block; font-weight: 600; margin-bottom: 8px;">
+                                Return Notes (optional)
+                            </label>
+                            <textarea id="returnNotes" name="return_notes" style="width: 100%; min-height: 60px; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; font-family: inherit; font-size: 0.9rem;" placeholder="Any additional details about the return shipment..."></textarea>
+                        </div>
+                    </div>
+
                     <!-- Seller Cooperation -->
                     <div style="margin-bottom: 24px;">
                         <label style="display: block; font-weight: 600; margin-bottom: 12px;">
@@ -662,8 +710,28 @@
         });
 
         document.getElementById('resolutionType')?.addEventListener('change', (e) => {
-            const showRefund = ['Partial refund', 'Full refund', 'Customer agreed to full refund', 'Customer agreed to partial refund', 'Customer agreed to return (full refund)', 'Customer agreed to return (partial refund)'].includes(e.target.value);
+            const value = e.target.value;
+            const showRefund = ['Partial refund', 'Full refund', 'Customer agreed to full refund', 'Customer agreed to partial refund', 'Customer agreed to return (full refund)', 'Customer agreed to return (partial refund)'].includes(value);
+            const showReturn = value.includes('return');
+            
             document.getElementById('refundSection').style.display = showRefund ? 'block' : 'none';
+            document.getElementById('returnTrackingSection').style.display = showReturn ? 'block' : 'none';
+            
+            // Make return tracking required if return is selected
+            const returnTrackingInput = document.getElementById('returnTrackingNumber');
+            if (returnTrackingInput) {
+                returnTrackingInput.required = showReturn;
+            }
+            
+            // Set default expected date (7 days from now) when return is selected
+            if (showReturn) {
+                const expectedDateInput = document.getElementById('expectedReturnDate');
+                if (expectedDateInput && !expectedDateInput.value) {
+                    const defaultDate = new Date();
+                    defaultDate.setDate(defaultDate.getDate() + 7);
+                    expectedDateInput.value = defaultDate.toISOString().split('T')[0];
+                }
+            }
         });
     </script>
 </body>

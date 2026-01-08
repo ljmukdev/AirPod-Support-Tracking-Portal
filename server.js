@@ -3257,7 +3257,54 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
             });
         }
 
-        // 7. Find consumables that need a stock check
+        // 7. Find purchases awaiting refund verification (returns)
+        const pendingRefunds = await db.collection('purchases').find({
+            'return_tracking.refund_check_due': { $exists: true },
+            'return_tracking.refund_verified': { $ne: true }
+        }).toArray();
+
+        for (const purchase of pendingRefunds) {
+            const refundCheckDue = new Date(purchase.return_tracking.refund_check_due);
+            const isOverdue = now > refundCheckDue;
+            const daysUntil = Math.ceil((refundCheckDue - now) / (1000 * 60 * 60 * 24));
+            const dueSoon = daysUntil >= 0 && daysUntil <= 2;
+
+            const taskId = `refund-check-${purchase._id.toString()}`;
+            
+            let description = `Return shipped on ${new Date(purchase.return_tracking.shipped_at).toLocaleDateString('en-GB')} via ${purchase.return_tracking.carrier || 'carrier'}. `;
+            description += `Tracking: ${purchase.return_tracking.tracking_number}. `;
+            
+            if (isOverdue) {
+                description += `Expected refund check ${refundCheckDue.toLocaleDateString('en-GB')} - OVERDUE by ${Math.abs(daysUntil)} day(s).`;
+            } else if (daysUntil === 0) {
+                description += 'Check for refund TODAY!';
+            } else if (daysUntil === 1) {
+                description += 'Check for refund TOMORROW.';
+            } else {
+                description += `Check for refund in ${daysUntil} days (${refundCheckDue.toLocaleDateString('en-GB')}).`;
+            }
+
+            if (purchase.return_tracking.expected_refund_amount) {
+                description += ` Expected refund: £${purchase.return_tracking.expected_refund_amount.toFixed(2)}.`;
+            }
+
+            tasks.push({
+                id: taskId,
+                purchase_id: purchase._id.toString(),
+                type: 'refund_verification',
+                title: `Verify refund received: ${purchase.generation || 'AirPods'}`,
+                description: description,
+                due_date: refundCheckDue,
+                is_overdue: isOverdue,
+                due_soon: dueSoon,
+                order_number: purchase.order_number || null,
+                seller_name: purchase.seller_name || null,
+                expected_refund: purchase.return_tracking.expected_refund_amount || null,
+                return_tracking: purchase.return_tracking
+            });
+        }
+
+        // 8. Find consumables that need a stock check
         const allActiveConsumables = await db.collection('consumables').find({
             status: { $ne: 'discontinued' }
         }).toArray();
@@ -3926,7 +3973,8 @@ app.post('/api/admin/check-in/:id/mark-resolved', requireAuth, requireDB, async 
         seller_response_notes,
         refund_amount,
         seller_cooperative,
-        resolution_notes
+        resolution_notes,
+        return_tracking
     } = req.body;
 
     if (!ObjectId.isValid(id)) {
@@ -3937,9 +3985,16 @@ app.post('/api/admin/check-in/:id/mark-resolved', requireAuth, requireDB, async 
         return res.status(400).json({ error: 'Resolution type is required' });
     }
 
+    // Validate return tracking if this is a return
+    const isReturn = resolution_type.toLowerCase().includes('return');
+    if (isReturn && (!return_tracking || !return_tracking.tracking_number)) {
+        return res.status(400).json({ error: 'Return tracking number is required for return resolutions' });
+    }
+
     try {
+        const now = new Date();
         const resolutionData = {
-            'resolution_workflow.resolved_at': new Date(),
+            'resolution_workflow.resolved_at': now,
             'resolution_workflow.resolved_by': req.user.email,
             'resolution_workflow.resolution_type': resolution_type,
             'resolution_workflow.seller_responded': seller_responded === true || seller_responded === 'true',
@@ -3948,6 +4003,17 @@ app.post('/api/admin/check-in/:id/mark-resolved', requireAuth, requireDB, async 
             'resolution_workflow.seller_cooperative': seller_cooperative === true || seller_cooperative === 'true',
             'resolution_workflow.resolution_notes': resolution_notes || ''
         };
+
+        // Add return tracking data if applicable
+        if (isReturn && return_tracking) {
+            resolutionData['resolution_workflow.return_tracking'] = {
+                tracking_number: return_tracking.tracking_number,
+                carrier: return_tracking.carrier || null,
+                shipped_at: now,
+                expected_delivery: return_tracking.expected_delivery ? new Date(return_tracking.expected_delivery) : null,
+                notes: return_tracking.notes || null
+            };
+        }
 
         const result = await db.collection('check_ins').updateOne(
             { _id: new ObjectId(id) },
@@ -3989,16 +4055,82 @@ app.post('/api/admin/check-in/:id/mark-resolved', requireAuth, requireDB, async 
             }
         }
 
-        // Also update purchase status if not already resolved
-        await db.collection('purchases').updateOne(
-            { _id: new ObjectId(checkIn.purchase_id) },
-            { $set: { status: 'resolved' } }
-        );
+        // Handle return-related tasks
+        let refundCheckTaskCreated = false;
+        if (isReturn && return_tracking) {
+            // Update purchase with return tracking info
+            const purchaseUpdate = {
+                status: 'return_in_transit',
+                return_tracking: {
+                    tracking_number: return_tracking.tracking_number,
+                    carrier: return_tracking.carrier || null,
+                    shipped_at: now,
+                    expected_delivery: return_tracking.expected_delivery ? new Date(return_tracking.expected_delivery) : null,
+                    notes: return_tracking.notes || null
+                },
+                last_updated_at: now
+            };
+
+            await db.collection('purchases').updateOne(
+                { _id: new ObjectId(checkIn.purchase_id) },
+                { $set: purchaseUpdate }
+            );
+
+            // Create a follow-up task to check for refund
+            // Calculate when to check (expected delivery + 3 days grace period)
+            let refundCheckDate = new Date();
+            if (return_tracking.expected_delivery) {
+                refundCheckDate = new Date(return_tracking.expected_delivery);
+                refundCheckDate.setDate(refundCheckDate.getDate() + 3); // 3 days after expected delivery
+            } else {
+                refundCheckDate.setDate(refundCheckDate.getDate() + 10); // Default 10 days if no expected date
+            }
+
+            // Store task info in purchase for task endpoint to pick up
+            await db.collection('purchases').updateOne(
+                { _id: new ObjectId(checkIn.purchase_id) },
+                { 
+                    $set: { 
+                        'return_tracking.refund_check_due': refundCheckDate,
+                        'return_tracking.refund_verified': false,
+                        'return_tracking.expected_refund_amount': refund_amount ? parseFloat(refund_amount) : null
+                    }
+                }
+            );
+
+            refundCheckTaskCreated = true;
+            console.log(`[WORKFLOW] Return tracking recorded. Refund check task will be created for ${refundCheckDate.toLocaleDateString('en-GB')}`);
+        } else {
+            // Not a return, just mark as resolved
+            await db.collection('purchases').updateOne(
+                { _id: new ObjectId(checkIn.purchase_id) },
+                { $set: { status: 'resolved', last_updated_at: now } }
+            );
+
+            // If partial/full refund received immediately, update purchase cost
+            if (refund_amount && parseFloat(refund_amount) > 0) {
+                const purchase = await db.collection('purchases').findOne({ _id: new ObjectId(checkIn.purchase_id) });
+                if (purchase && purchase.total_price_paid) {
+                    const newTotal = Math.max(0, purchase.total_price_paid - parseFloat(refund_amount));
+                    await db.collection('purchases').updateOne(
+                        { _id: new ObjectId(checkIn.purchase_id) },
+                        { $set: { total_price_paid: newTotal, refund_received: parseFloat(refund_amount) } }
+                    );
+                    console.log(`[WORKFLOW] Updated purchase total from £${purchase.total_price_paid} to £${newTotal} (refund: £${refund_amount})`);
+                }
+            }
+        }
 
         console.log('[WORKFLOW] Issue marked as resolved for check-in:', id);
         
+        let message = 'Resolution recorded successfully!';
+        if (refundCheckTaskCreated) {
+            message += '\n\nA follow-up task has been created to verify the refund is received.';
+        }
+        
         res.json({
             success: true,
+            message: message,
             message: 'Issue marked as resolved'
         });
     } catch (err) {
@@ -4203,6 +4335,97 @@ app.put('/api/admin/purchases/:id', requireAuth, requireDB, async (req, res) => 
         res.json({ success: true, message: 'Purchase updated successfully' });
     } catch (err) {
         console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Confirm refund received and update balance sheet (Admin only)
+app.post('/api/admin/purchases/:id/confirm-refund', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    const { refund_amount } = req.body;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid purchase ID' });
+    }
+
+    if (!refund_amount || parseFloat(refund_amount) <= 0) {
+        return res.status(400).json({ error: 'Valid refund amount is required' });
+    }
+
+    try {
+        const purchase = await db.collection('purchases').findOne({ _id: new ObjectId(id) });
+
+        if (!purchase) {
+            return res.status(404).json({ error: 'Purchase not found' });
+        }
+
+        const refundValue = parseFloat(refund_amount);
+        const now = new Date();
+
+        // Calculate new total cost after refund
+        const originalCost = purchase.total_price_paid || purchase.purchase_price || 0;
+        const newCost = Math.max(0, originalCost - refundValue);
+
+        // Update purchase record
+        await db.collection('purchases').updateOne(
+            { _id: new ObjectId(id) },
+            { 
+                $set: { 
+                    'return_tracking.refund_verified': true,
+                    'return_tracking.refund_verified_at': now,
+                    'return_tracking.actual_refund_amount': refundValue,
+                    total_price_paid: newCost,
+                    refund_received: refundValue,
+                    status: 'refunded',
+                    last_updated_at: now,
+                    last_updated_by: req.user.email
+                }
+            }
+        );
+
+        // If items were split into products, update their purchase prices proportionally
+        const checkIns = await db.collection('check_ins').find({
+            purchase_id: new ObjectId(id),
+            split_into_products: true
+        }).toArray();
+
+        let productsUpdated = 0;
+        for (const checkIn of checkIns) {
+            const products = await db.collection('products').find({
+                check_in_id: checkIn._id
+            }).toArray();
+
+            if (products.length > 0) {
+                // Split refund equally across all products from this purchase
+                const refundPerProduct = refundValue / products.length;
+
+                for (const product of products) {
+                    if (product.purchase_price) {
+                        const newProductPrice = Math.max(0, product.purchase_price - refundPerProduct);
+                        await db.collection('products').updateOne(
+                            { _id: product._id },
+                            { $set: { purchase_price: newProductPrice } }
+                        );
+                        productsUpdated++;
+                    }
+                }
+            }
+        }
+
+        console.log(`[REFUND] Confirmed refund of £${refundValue} for purchase ${id}`);
+        console.log(`[REFUND] Updated ${productsUpdated} product prices`);
+        console.log(`[REFUND] Purchase cost updated from £${originalCost} to £${newCost}`);
+
+        res.json({
+            success: true,
+            message: 'Refund confirmed and balance sheet updated',
+            refund_amount: refundValue,
+            original_cost: originalCost,
+            new_cost: newCost,
+            products_updated: productsUpdated
+        });
+    } catch (err) {
+        console.error('[REFUND] Error:', err);
         res.status(500).json({ error: 'Database error: ' + err.message });
     }
 });
