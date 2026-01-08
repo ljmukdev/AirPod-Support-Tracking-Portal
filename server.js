@@ -2792,6 +2792,67 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                 });
             }
         }
+
+        // 5. Find consumables that need reordering
+        const lowStockConsumables = await db.collection('consumables').find({
+            reorder_level: { $ne: null },
+            status: { $ne: 'discontinued' }
+        }).toArray();
+
+        for (const consumable of lowStockConsumables) {
+            if (consumable.quantity_in_stock > consumable.reorder_level) {
+                continue;
+            }
+
+            const leadTimeDays = consumable.lead_time_days || 0;
+            tasks.push({
+                id: `consumable-reorder-${consumable._id.toString()}`,
+                consumable_id: consumable._id.toString(),
+                type: 'consumable_reorder',
+                title: `Reorder ${consumable.item_name}`,
+                description: `Stock is ${consumable.quantity_in_stock} ${consumable.unit_type} (reorder level ${consumable.reorder_level}). ${leadTimeDays ? `${leadTimeDays} day lead time.` : 'No lead time set.'}`,
+                due_date: new Date(),
+                is_overdue: true,
+                due_soon: false,
+                current_stock: consumable.quantity_in_stock,
+                reorder_level: consumable.reorder_level,
+                lead_time_days: leadTimeDays,
+                supplier: consumable.supplier || null
+            });
+        }
+
+        // 6. Find consumables that need a stock check
+        const allActiveConsumables = await db.collection('consumables').find({
+            status: { $ne: 'discontinued' }
+        }).toArray();
+
+        const stockCheckIntervalDays = 30;
+        const stockCheckSoonDays = 7;
+
+        for (const consumable of allActiveConsumables) {
+            const lastCheck = consumable.last_stock_check_at ? new Date(consumable.last_stock_check_at) : null;
+            const dueDate = lastCheck
+                ? new Date(lastCheck.getTime() + (stockCheckIntervalDays * 24 * 60 * 60 * 1000))
+                : new Date();
+            const isOverdue = now > dueDate;
+            const dueSoon = !isOverdue && (dueDate - now) / (1000 * 60 * 60 * 24) <= stockCheckSoonDays;
+
+            if (!lastCheck || isOverdue || dueSoon) {
+                tasks.push({
+                    id: `consumable-check-${consumable._id.toString()}`,
+                    consumable_id: consumable._id.toString(),
+                    type: 'consumable_stock_check',
+                    title: `Check stock for ${consumable.item_name}`,
+                    description: lastCheck
+                        ? `Last check: ${lastCheck.toLocaleDateString('en-GB')}. Verify faults/breakages and quantity.`
+                        : 'No stock check recorded yet. Verify faults/breakages and quantity.',
+                    due_date: dueDate,
+                    is_overdue: isOverdue,
+                    due_soon: dueSoon,
+                    last_stock_check_at: lastCheck
+                });
+            }
+        }
         
         console.log(`[TASKS] Found ${tasks.length} tasks`);
         
@@ -3640,6 +3701,7 @@ app.post('/api/admin/consumables', requireAuth, requireDB, async (req, res) => {
             unit_cost,
             supplier,
             product_url,
+            lead_time_days,
             last_received_date,
             last_received_quantity,
             expiry_date,
@@ -3672,6 +3734,7 @@ app.post('/api/admin/consumables', requireAuth, requireDB, async (req, res) => {
             unit_cost: unit_cost ? parseFloat(unit_cost) : null,
             supplier: supplier || '',
             product_url: product_url || '',
+            lead_time_days: lead_time_days ? parseInt(lead_time_days) : null,
             last_received_date: last_received_date ? new Date(last_received_date) : null,
             last_received_quantity: last_received_quantity ? parseInt(last_received_quantity) : null,
             expiry_date: expiry_date ? new Date(expiry_date) : null,
@@ -3742,6 +3805,7 @@ app.put('/api/admin/consumables/:id', requireAuth, requireDB, async (req, res) =
             unit_cost,
             supplier,
             product_url,
+            lead_time_days,
             last_received_date,
             last_received_quantity,
             expiry_date,
@@ -3777,6 +3841,7 @@ app.put('/api/admin/consumables/:id', requireAuth, requireDB, async (req, res) =
             unit_cost: unit_cost ? parseFloat(unit_cost) : null,
             supplier: supplier || '',
             product_url: product_url || '',
+            lead_time_days: lead_time_days ? parseInt(lead_time_days) : null,
             last_received_date: last_received_date ? new Date(last_received_date) : null,
             last_received_quantity: last_received_quantity ? parseInt(last_received_quantity) : null,
             expiry_date: expiry_date ? new Date(expiry_date) : null,
@@ -3901,6 +3966,94 @@ app.post('/api/admin/consumables/:id/adjust-stock', requireAuth, requireDB, asyn
     }
 });
 
+// Check in consumable stock (Admin only) - for inspections and fault/breakage tracking
+app.post('/api/admin/consumables/:id/check-in', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    const { quantity_checked, faulty_quantity, breakage_quantity, notes } = req.body;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid consumable ID' });
+    }
+
+    const checkedQuantity = parseInt(quantity_checked);
+    const faultyQuantity = faulty_quantity ? parseInt(faulty_quantity) : 0;
+    const breakageQuantity = breakage_quantity ? parseInt(breakage_quantity) : 0;
+
+    if (Number.isNaN(checkedQuantity) || checkedQuantity < 0) {
+        return res.status(400).json({ error: 'Checked quantity is required and must be zero or more' });
+    }
+
+    if (Number.isNaN(faultyQuantity) || faultyQuantity < 0 || Number.isNaN(breakageQuantity) || breakageQuantity < 0) {
+        return res.status(400).json({ error: 'Faulty and breakage quantities must be zero or more' });
+    }
+
+    if (faultyQuantity + breakageQuantity > checkedQuantity) {
+        return res.status(400).json({ error: 'Faulty and breakage quantities cannot exceed the checked quantity' });
+    }
+
+    try {
+        const consumable = await db.collection('consumables').findOne({ _id: new ObjectId(id) });
+
+        if (!consumable) {
+            return res.status(404).json({ error: 'Consumable not found' });
+        }
+
+        const newQuantity = checkedQuantity - faultyQuantity - breakageQuantity;
+        const adjustment = newQuantity - consumable.quantity_in_stock;
+
+        const updateData = {
+            quantity_in_stock: newQuantity,
+            last_stock_check_at: new Date(),
+            last_stock_check_by: req.user?.username || 'admin',
+            last_faulty_quantity: faultyQuantity,
+            last_breakage_quantity: breakageQuantity,
+            updated_at: new Date(),
+            updated_by: req.user?.username || 'admin'
+        };
+
+        await db.collection('consumables').updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updateData }
+        );
+
+        await db.collection('consumable_check_ins').insertOne({
+            consumable_id: new ObjectId(id),
+            sku: consumable.sku,
+            item_name: consumable.item_name,
+            quantity_checked: checkedQuantity,
+            faulty_quantity: faultyQuantity,
+            breakage_quantity: breakageQuantity,
+            notes: notes || '',
+            checked_at: new Date(),
+            checked_by: req.user?.username || 'admin'
+        });
+
+        await db.collection('consumable_stock_history').insertOne({
+            consumable_id: new ObjectId(id),
+            sku: consumable.sku,
+            item_name: consumable.item_name,
+            adjustment: adjustment,
+            quantity_before: consumable.quantity_in_stock,
+            quantity_after: newQuantity,
+            reason: notes || '',
+            type: 'inspection',
+            timestamp: new Date(),
+            user: req.user?.username || 'admin'
+        });
+
+        console.log(`Stock check completed for consumable ${id}: new quantity ${newQuantity}`);
+
+        res.json({
+            success: true,
+            message: 'Stock check completed successfully',
+            new_quantity: newQuantity
+        });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // Get low stock consumables (Admin only)
 app.get('/api/admin/consumables/alerts/low-stock', requireAuth, requireDB, async (req, res) => {
     try {
@@ -3954,6 +4107,7 @@ app.get('/api/admin/consumables/:id/reorder-suggestions', requireAuth, requireDB
             suggested_reorder_date: null,
             suggested_reorder_quantity: consumable.reorder_quantity || null,
             current_stock: consumable.quantity_in_stock,
+            lead_time_days: consumable.lead_time_days || 0,
             message: ''
         };
 
@@ -3979,14 +4133,16 @@ app.get('/api/admin/consumables/:id/reorder-suggestions', requireAuth, requireDB
         if (dailyUsageRate > 0) {
             const daysUntilStockout = Math.floor(consumable.quantity_in_stock / dailyUsageRate);
             suggestions.days_until_stockout = daysUntilStockout;
+            const leadTimeDays = consumable.lead_time_days || 0;
 
-            // Suggest reordering when stock reaches reorder level
+            // Suggest reordering when stock reaches reorder level, accounting for lead time
             if (consumable.reorder_level) {
                 const daysUntilReorderLevel = Math.floor((consumable.quantity_in_stock - consumable.reorder_level) / dailyUsageRate);
+                const daysUntilOrderNeeded = daysUntilReorderLevel - leadTimeDays;
 
-                if (daysUntilReorderLevel > 0) {
+                if (daysUntilOrderNeeded > 0) {
                     const reorderDate = new Date();
-                    reorderDate.setDate(reorderDate.getDate() + daysUntilReorderLevel);
+                    reorderDate.setDate(reorderDate.getDate() + daysUntilOrderNeeded);
                     suggestions.suggested_reorder_date = reorderDate;
                 } else {
                     suggestions.suggested_reorder_date = new Date(); // Reorder now!
@@ -3998,12 +4154,16 @@ app.get('/api/admin/consumables/:id/reorder-suggestions', requireAuth, requireDB
             const daysOfStockToOrder = 30;
             suggestions.suggested_reorder_quantity = Math.ceil(dailyUsageRate * daysOfStockToOrder);
 
-            if (daysUntilStockout <= 7) {
-                suggestions.message = `⚠️ Low stock! Only ${daysUntilStockout} days remaining at current usage rate.`;
-            } else if (daysUntilStockout <= 14) {
-                suggestions.message = `Stock running low. ${daysUntilStockout} days remaining.`;
+            const effectiveStockDays = daysUntilStockout - leadTimeDays;
+
+            if (effectiveStockDays <= 7) {
+                suggestions.message = `⚠️ Critical! Only ${daysUntilStockout} days of stock left (minus ${leadTimeDays} day lead time = ${Math.max(0, effectiveStockDays)} days buffer). Order immediately!`;
+            } else if (effectiveStockDays <= 14) {
+                suggestions.message = `Stock running low. ${daysUntilStockout} days remaining (accounting for ${leadTimeDays} day lead time).`;
             } else {
-                suggestions.message = `Stock level healthy. ${daysUntilStockout} days remaining.`;
+                suggestions.message = leadTimeDays > 0
+                    ? `Stock level healthy. ${daysUntilStockout} days remaining (${leadTimeDays} day lead time accounted for).`
+                    : `Stock level healthy. ${daysUntilStockout} days remaining.`;
             }
         } else {
             suggestions.message = 'No recent usage detected.';

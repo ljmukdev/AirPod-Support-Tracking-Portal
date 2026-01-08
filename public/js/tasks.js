@@ -192,6 +192,24 @@ function renderTaskCard(task) {
                 Leave Feedback
             </button>
         `;
+    } else if (task.type === 'consumable_reorder') {
+        actionButtons = `
+            <button onclick="restockConsumable('${task.consumable_id}')" class="button" style="padding: 10px 16px; font-size: 0.9rem;">
+                Restock
+            </button>
+            <button onclick="viewConsumable('${task.consumable_id}')" class="button button-secondary" style="padding: 10px 16px; font-size: 0.9rem;">
+                View Item
+            </button>
+        `;
+    } else if (task.type === 'consumable_stock_check') {
+        actionButtons = `
+            <button onclick="checkInConsumable('${task.consumable_id}')" class="button" style="padding: 10px 16px; font-size: 0.9rem;">
+                Check In
+            </button>
+            <button onclick="viewConsumable('${task.consumable_id}')" class="button button-secondary" style="padding: 10px 16px; font-size: 0.9rem;">
+                View Item
+            </button>
+        `;
     }
     
     return `
@@ -346,6 +364,18 @@ async function markTaskDone(taskId) {
 
 function leaveFeedback(purchaseId) {
     window.location.href = `edit-purchase.html?id=${purchaseId}#feedback`;
+}
+
+function viewConsumable(consumableId) {
+    window.location.href = `edit-consumable.html?id=${consumableId}`;
+}
+
+function restockConsumable(consumableId) {
+    window.location.href = `consumables.html?restockId=${consumableId}`;
+}
+
+function checkInConsumable(consumableId) {
+    window.location.href = `consumables.html?checkInId=${consumableId}`;
 }
 
 function closeEmailModal() {

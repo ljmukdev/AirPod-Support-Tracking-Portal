@@ -331,6 +331,58 @@
         </div>
     </div>
 
+    <!-- Restock Modal -->
+    <div id="restockModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); align-items: center; justify-content: center; z-index: 1000;">
+        <div style="background: white; padding: 24px; border-radius: 10px; max-width: 420px; width: 90%; box-shadow: 0 12px 30px rgba(0,0,0,0.2);">
+            <h3 style="margin-top: 0;">Restock Consumable</h3>
+            <p id="restockItemName" style="margin: 0 0 16px 0; color: #666;"></p>
+            <form id="restockForm">
+                <div class="form-group">
+                    <label for="restockQuantity">Restock Quantity</label>
+                    <input type="number" id="restockQuantity" min="1" step="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="restockReason">Reason / Notes</label>
+                    <input type="text" id="restockReason" placeholder="Optional notes">
+                </div>
+                <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 16px;">
+                    <button type="button" class="button button-secondary" id="cancelRestock">Cancel</button>
+                    <button type="submit" class="button button-primary">Restock</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Stock Check Modal -->
+    <div id="stockCheckModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); align-items: center; justify-content: center; z-index: 1000;">
+        <div style="background: white; padding: 24px; border-radius: 10px; max-width: 460px; width: 90%; box-shadow: 0 12px 30px rgba(0,0,0,0.2);">
+            <h3 style="margin-top: 0;">Consumable Stock Check</h3>
+            <p id="stockCheckItemName" style="margin: 0 0 16px 0; color: #666;"></p>
+            <form id="stockCheckForm">
+                <div class="form-group">
+                    <label for="checkedQuantity">Checked Quantity</label>
+                    <input type="number" id="checkedQuantity" min="0" step="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="faultyQuantity">Faulty Quantity</label>
+                    <input type="number" id="faultyQuantity" min="0" step="1" value="0">
+                </div>
+                <div class="form-group">
+                    <label for="breakageQuantity">Breakage Quantity</label>
+                    <input type="number" id="breakageQuantity" min="0" step="1" value="0">
+                </div>
+                <div class="form-group">
+                    <label for="stockCheckNotes">Notes</label>
+                    <textarea id="stockCheckNotes" rows="3" placeholder="Optional inspection notes"></textarea>
+                </div>
+                <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 16px;">
+                    <button type="button" class="button button-secondary" id="cancelStockCheck">Cancel</button>
+                    <button type="submit" class="button button-primary">Save Check-In</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Sidebar Overlay for Mobile -->
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
