@@ -774,11 +774,6 @@ async function editProduct(id) {
                     document.getElementById('salesOrderNumber').value = product.sales_order_number || '';
                 }
                 
-                // Set skip photos/security checkbox
-                if (document.getElementById('skipPhotosecurity')) {
-                    document.getElementById('skipPhotosecurity').checked = product.skip_photos_security || false;
-                }
-                
                 // Update button text and show cancel button
                 if (addProductButton) {
                     addProductButton.textContent = 'Update Product';
@@ -843,7 +838,6 @@ function cancelEdit() {
 const partTypeField = document.getElementById('partType');
 const generationField = document.getElementById('generation');
 const partSelectionField = document.getElementById('partSelection');
-const skipPhotoSecurityCheckbox = document.getElementById('skipPhotosecurity');
 
 if (partTypeField) {
     partTypeField.addEventListener('change', function() {
@@ -851,11 +845,6 @@ if (partTypeField) {
         const isAccessory = ['ear_tips', 'box', 'cable', 'other'].includes(selectedType);
         
         if (isAccessory) {
-            // Auto-check skip photos/security for accessories
-            if (skipPhotoSecurityCheckbox) {
-                skipPhotoSecurityCheckbox.checked = true;
-            }
-            
             // Hide generation and part selection fields for accessories
             if (generationField) {
                 generationField.removeAttribute('required');
@@ -937,32 +926,30 @@ if (productForm) {
         const notes = document.getElementById('notes').value.trim();
         const ebayOrderNumber = document.getElementById('ebayOrderNumber').value.trim();
         const salesOrderNumber = document.getElementById('salesOrderNumber') ? document.getElementById('salesOrderNumber').value.trim() : '';
-        const skipPhotoSecurity = document.getElementById('skipPhotosecurity') ? document.getElementById('skipPhotosecurity').checked : false;
         const productPhotos = document.getElementById('productPhotos');
         const addProductButton = document.getElementById('addProductButton');
         
+        // Check if this is an accessory type - accessories automatically skip photo/security requirements
+        const isAccessory = ['ear_tips', 'box', 'cable', 'other'].includes(partType);
+        const skipPhotoSecurity = isAccessory; // Accessories automatically skip, others don't
+        
         // Validation - check required fields
-        // Serial number and security barcode are optional if skip checkbox is checked
-        if (!skipPhotoSecurity) {
+        // Serial number and security barcode are optional for accessories
+        if (!isAccessory) {
             if (!serialNumber) {
-                showError('Serial number is required (or check "Skip photo & security code requirements")');
+                showError('Serial number is required for AirPod parts');
                 return;
             }
             if (!securityBarcode) {
-                showError('Security barcode is required (or check "Skip photo & security code requirements")');
+                showError('Security barcode is required for AirPod parts');
                 return;
             }
-        } else {
-            // If skipping, use placeholder values if empty
-            // These will be handled on the server side
         }
+        
         if (!partModelNumber) {
             showError('Part/Model number is required');
             return;
         }
-        
-        // Check if this is an accessory type
-        const isAccessory = ['ear_tips', 'box', 'cable', 'other'].includes(partType);
         
         // Generation and Part Selection are only required for AirPod parts (left, right, case)
         if (!isAccessory) {

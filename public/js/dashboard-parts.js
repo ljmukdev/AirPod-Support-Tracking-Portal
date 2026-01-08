@@ -149,17 +149,6 @@ function populateFieldsFromPart(part) {
                 if (part.notes) {
                     notesInput.value = part.notes;
                 }
-                // Auto-check "skip photos/security" for boxes, cables, and ear tips
-                const skipPhotosCheckbox = document.getElementById('skipPhotosecurity');
-                if (skipPhotosCheckbox && part.part_name) {
-                    const partName = part.part_name.toLowerCase();
-                    const shouldSkip = partName.includes('box') || 
-                                     partName.includes('cable') || 
-                                     partName.includes('ear tip') || 
-                                     partName.includes('tips') || 
-                                     partName.includes('lead');
-                    skipPhotosCheckbox.checked = shouldSkip;
-                }
                 // Try to find part by model number in current generation
                 const currentGenParts = partsData[part.generation] || [];
                 const matchingPart = currentGenParts.find(p => 
@@ -246,19 +235,6 @@ function setupPartModelNumberAutoFill() {
                 // Auto-fill notes
                 if (notesInput && selectedOption.dataset.notes) {
                     notesInput.value = selectedOption.dataset.notes;
-                }
-                
-                // Auto-check "skip photos/security" for boxes, cables, and ear tips
-                const skipPhotosCheckbox = document.getElementById('skipPhotosecurity');
-                if (skipPhotosCheckbox) {
-                    const partName = selectedOption.value.toLowerCase();
-                    // Check if part name contains box, cable, ear tip, tips, or lead
-                    const shouldSkip = partName.includes('box') || 
-                                     partName.includes('cable') || 
-                                     partName.includes('ear tip') || 
-                                     partName.includes('tips') || 
-                                     partName.includes('lead');
-                    skipPhotosCheckbox.checked = shouldSkip;
                 }
             } else {
                 if (partModelNumberInput) partModelNumberInput.value = '';
