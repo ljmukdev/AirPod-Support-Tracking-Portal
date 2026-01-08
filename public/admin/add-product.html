@@ -372,57 +372,7 @@
                 <div class="card form-fields-card" style="background-color: var(--background-white);">
                     <h3 style="margin-top: 0;">Product Details</h3>
                     <form id="productForm">
-                        <div class="form-group">
-                            <label for="serialNumber">Item Serial Number</label>
-                            <input 
-                                type="text" 
-                                id="serialNumber" 
-                                name="serialNumber"
-                                placeholder="Enter serial number (or use N/A if skipping)"
-                            >
-                        </div>
-                        <div class="form-group">
-                            <label for="securityBarcode">Security Barcode</label>
-                            <input 
-                                type="text" 
-                                id="securityBarcode" 
-                                name="securityBarcode"
-                                placeholder="Enter security barcode (or use N/A if skipping)"
-                            >
-                        </div>
-                        <div class="form-group">
-                            <label for="partModelNumber">Part/Model Number</label>
-                            <p style="font-size: 0.85rem; color: #666; margin-bottom: 10px;">
-                                Enter part number (e.g., A2968) to auto-fill all fields, or select generation/part below
-                            </p>
-                            <input 
-                                type="text" 
-                                id="partModelNumber" 
-                                name="partModelNumber" 
-                                placeholder="Enter part number (e.g., A2968)"
-                                autocomplete="off"
-                            >
-                        </div>
-                        <div class="form-group">
-                            <label for="generation">Generation</label>
-                            <select id="generation" name="generation" required>
-                                <option value="">Select generation</option>
-                                <option value="AirPods (1st Gen)">AirPods (1st Gen)</option>
-                                <option value="AirPods (2nd Gen)">AirPods (2nd Gen)</option>
-                                <option value="AirPods (3rd Gen)">AirPods (3rd Gen)</option>
-                                <option value="AirPods (4th Gen) standard line (non-Pro)">AirPods (4th Gen) standard line (non-Pro)</option>
-                                <option value="AirPods (4th Gen) standard line (ANC version)">AirPods (4th Gen) standard line (ANC version)</option>
-                                <option value="AirPods Pro (1st Gen)">AirPods Pro (1st Gen)</option>
-                                <option value="AirPods Pro (2nd Gen)">AirPods Pro (2nd Gen)</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="partSelection">Part Selection</label>
-                            <select id="partSelection" name="partSelection" required>
-                                <option value="">Select part</option>
-                                <!-- Options will be populated by JavaScript based on generation -->
-                            </select>
-                        </div>
+                        <!-- Part Type FIRST -->
                         <div class="form-group">
                             <label for="partType">Part Type (for routing)</label>
                             <select id="partType" name="partType" required>
@@ -440,12 +390,65 @@
                                 </optgroup>
                             </select>
                         </div>
-                        <div class="form-group">
+
+                        <!-- Fields hidden for accessories -->
+                        <div class="form-group" id="serialNumberGroup">
+                            <label for="serialNumber">Item Serial Number</label>
+                            <input
+                                type="text"
+                                id="serialNumber"
+                                name="serialNumber"
+                                placeholder="Enter serial number (or use N/A if skipping)"
+                            >
+                        </div>
+                        <div class="form-group" id="securityBarcodeGroup">
+                            <label for="securityBarcode">Security Barcode</label>
+                            <input
+                                type="text"
+                                id="securityBarcode"
+                                name="securityBarcode"
+                                placeholder="Enter security barcode (or use N/A if skipping)"
+                            >
+                        </div>
+                        <div class="form-group" id="partModelNumberGroup">
+                            <label for="partModelNumber">Part/Model Number</label>
+                            <p style="font-size: 0.85rem; color: #666; margin-bottom: 10px;">
+                                Enter part number (e.g., A2968) to auto-fill all fields, or select generation/part below
+                            </p>
+                            <input
+                                type="text"
+                                id="partModelNumber"
+                                name="partModelNumber"
+                                placeholder="Enter part number (e.g., A2968)"
+                                autocomplete="off"
+                            >
+                        </div>
+                        <div class="form-group" id="generationGroup">
+                            <label for="generation">Generation</label>
+                            <select id="generation" name="generation" required>
+                                <option value="">Select generation</option>
+                                <option value="AirPods (1st Gen)">AirPods (1st Gen)</option>
+                                <option value="AirPods (2nd Gen)">AirPods (2nd Gen)</option>
+                                <option value="AirPods (3rd Gen)">AirPods (3rd Gen)</option>
+                                <option value="AirPods (4th Gen) standard line (non-Pro)">AirPods (4th Gen) standard line (non-Pro)</option>
+                                <option value="AirPods (4th Gen) standard line (ANC version)">AirPods (4th Gen) standard line (ANC version)</option>
+                                <option value="AirPods Pro (1st Gen)">AirPods Pro (1st Gen)</option>
+                                <option value="AirPods Pro (2nd Gen)">AirPods Pro (2nd Gen)</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="partSelectionGroup">
+                            <label for="partSelection">Part Selection</label>
+                            <select id="partSelection" name="partSelection" required>
+                                <option value="">Select part</option>
+                                <!-- Options will be populated by JavaScript based on generation -->
+                            </select>
+                        </div>
+                        <div class="form-group" id="skipPhotoSecurityGroup">
                             <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;">
-                                <input 
-                                    type="checkbox" 
-                                    id="skipPhotosecurity" 
-                                    name="skipPhotoSecurity" 
+                                <input
+                                    type="checkbox"
+                                    id="skipPhotosecurity"
+                                    name="skipPhotoSecurity"
                                     style="width: auto; cursor: pointer;"
                                 >
                                 <span style="font-weight: normal;">Skip photo & security code requirements</span>
@@ -454,21 +457,23 @@
                                 ✓ Check this for items like boxes, cables, or ear tips that don't need photos or security codes. No tasks will be generated for this product.
                             </p>
                         </div>
+
+                        <!-- Always visible for both AirPod parts and accessories -->
                         <div class="form-group">
                             <label for="ebayOrderNumber">eBay Purchase Order Number (optional)</label>
-                            <input 
-                                type="text" 
-                                id="ebayOrderNumber" 
-                                name="ebayOrderNumber" 
+                            <input
+                                type="text"
+                                id="ebayOrderNumber"
+                                name="ebayOrderNumber"
                                 placeholder="Order number from when you purchased this item"
                             >
                         </div>
                         <div class="form-group">
                             <label for="salesOrderNumber">eBay Sales Order Number (optional)</label>
-                            <input 
-                                type="text" 
-                                id="salesOrderNumber" 
-                                name="salesOrderNumber" 
+                            <input
+                                type="text"
+                                id="salesOrderNumber"
+                                name="salesOrderNumber"
                                 placeholder="Order number from when you sold this item"
                             >
                         </div>
@@ -568,8 +573,8 @@
             onload="console.log('QuaggaJS loaded successfully')"></script>
     <!-- QRCode generation is handled via external API (qrserver.com), no library needed -->
     
-    <script src="../js/admin.js?v=1.2.5.031"></script>
-    <script src="../js/dashboard-parts.js?v=1.2.5.031"></script>
+    <script src="../js/admin.js?v=1.2.5.032"></script>
+    <script src="../js/dashboard-parts.js?v=1.2.5.032"></script>
     <script src="../js/image-scan.js"></script>
     <script src="../js/version.js"></script>
     <script>

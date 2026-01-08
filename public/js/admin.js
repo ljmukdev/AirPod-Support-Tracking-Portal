@@ -853,6 +853,14 @@ const securityBarcodeField = document.getElementById('securityBarcode');
 const partModelNumberField = document.getElementById('partModelNumber');
 const skipPhotoSecurityCheckbox = document.getElementById('skipPhotosecurity');
 
+// Get form groups by ID for easier hiding/showing
+const serialNumberGroup = document.getElementById('serialNumberGroup');
+const securityBarcodeGroup = document.getElementById('securityBarcodeGroup');
+const partModelNumberGroup = document.getElementById('partModelNumberGroup');
+const generationGroup = document.getElementById('generationGroup');
+const partSelectionGroup = document.getElementById('partSelectionGroup');
+const skipPhotoSecurityGroup = document.getElementById('skipPhotoSecurityGroup');
+
 if (partTypeField) {
     partTypeField.addEventListener('change', function() {
         const selectedType = this.value;
@@ -864,31 +872,25 @@ if (partTypeField) {
                 skipPhotoSecurityCheckbox.checked = true;
             }
 
-            // Hide and auto-fill serial number for accessories
+            // Hide and auto-fill all fields that are not needed for accessories
             if (serialNumberField) {
                 serialNumberField.value = 'N/A';
                 serialNumberField.removeAttribute('required');
-                const formGroup = serialNumberField.closest('.form-group');
-                if (formGroup) formGroup.style.display = 'none';
             }
+            if (serialNumberGroup) serialNumberGroup.style.display = 'none';
 
-            // Hide and auto-fill security barcode for accessories
             if (securityBarcodeField) {
                 securityBarcodeField.value = 'N/A';
                 securityBarcodeField.removeAttribute('required');
-                const formGroup = securityBarcodeField.closest('.form-group');
-                if (formGroup) formGroup.style.display = 'none';
             }
+            if (securityBarcodeGroup) securityBarcodeGroup.style.display = 'none';
 
-            // Hide and auto-fill part model number for accessories
             if (partModelNumberField) {
                 partModelNumberField.value = 'N/A';
                 partModelNumberField.removeAttribute('required');
-                const formGroup = partModelNumberField.closest('.form-group');
-                if (formGroup) formGroup.style.display = 'none';
             }
+            if (partModelNumberGroup) partModelNumberGroup.style.display = 'none';
 
-            // Hide generation and part selection fields for accessories
             if (generationField) {
                 generationField.removeAttribute('required');
                 // Set a placeholder value to satisfy any validation
@@ -899,11 +901,9 @@ if (partTypeField) {
                     generationField.appendChild(naOption);
                 }
                 generationField.value = 'N/A';
-                const generationFormGroup = generationField.closest('.form-group');
-                if (generationFormGroup) {
-                    generationFormGroup.style.display = 'none';
-                }
             }
+            if (generationGroup) generationGroup.style.display = 'none';
+
             if (partSelectionField) {
                 partSelectionField.removeAttribute('required');
                 // Set a placeholder value to satisfy any validation
@@ -914,61 +914,50 @@ if (partTypeField) {
                     partSelectionField.appendChild(naOption);
                 }
                 partSelectionField.value = 'N/A';
-                const partSelectionFormGroup = partSelectionField.closest('.form-group');
-                if (partSelectionFormGroup) {
-                    partSelectionFormGroup.style.display = 'none';
-                }
             }
+            if (partSelectionGroup) partSelectionGroup.style.display = 'none';
+
+            // Hide skip photos/security checkbox (auto-enabled for accessories)
+            if (skipPhotoSecurityGroup) skipPhotoSecurityGroup.style.display = 'none';
+
         } else {
             // Show and restore required status for AirPod parts
 
-            // Show serial number field
-            if (serialNumberField) {
-                if (serialNumberField.value === 'N/A') serialNumberField.value = '';
-                const formGroup = serialNumberField.closest('.form-group');
-                if (formGroup) formGroup.style.display = 'block';
+            if (serialNumberField && serialNumberField.value === 'N/A') {
+                serialNumberField.value = '';
             }
+            if (serialNumberGroup) serialNumberGroup.style.display = 'block';
 
-            // Show security barcode field
-            if (securityBarcodeField) {
-                if (securityBarcodeField.value === 'N/A') securityBarcodeField.value = '';
-                const formGroup = securityBarcodeField.closest('.form-group');
-                if (formGroup) formGroup.style.display = 'block';
+            if (securityBarcodeField && securityBarcodeField.value === 'N/A') {
+                securityBarcodeField.value = '';
             }
+            if (securityBarcodeGroup) securityBarcodeGroup.style.display = 'block';
 
-            // Show part model number field
-            if (partModelNumberField) {
-                if (partModelNumberField.value === 'N/A') partModelNumberField.value = '';
-                const formGroup = partModelNumberField.closest('.form-group');
-                if (formGroup) formGroup.style.display = 'block';
+            if (partModelNumberField && partModelNumberField.value === 'N/A') {
+                partModelNumberField.value = '';
             }
+            if (partModelNumberGroup) partModelNumberGroup.style.display = 'block';
 
             if (generationField) {
                 generationField.setAttribute('required', 'required');
                 // Remove N/A option if it exists
                 const naOption = generationField.querySelector('option[value="N/A"]');
-                if (naOption) {
-                    naOption.remove();
-                }
+                if (naOption) naOption.remove();
                 generationField.value = ''; // Reset to empty
-                const generationFormGroup = generationField.closest('.form-group');
-                if (generationFormGroup) {
-                    generationFormGroup.style.display = 'block';
-                }
             }
+            if (generationGroup) generationGroup.style.display = 'block';
+
             if (partSelectionField) {
                 partSelectionField.setAttribute('required', 'required');
                 // Remove N/A option if it exists
                 const naOption = partSelectionField.querySelector('option[value="N/A"]');
-                if (naOption) {
-                    naOption.remove();
-                }
+                if (naOption) naOption.remove();
                 partSelectionField.value = ''; // Reset to empty
-                const partSelectionFormGroup = partSelectionField.closest('.form-group');
-                if (partSelectionFormGroup) {
-                    partSelectionFormGroup.style.display = 'block';
-                }
             }
+            if (partSelectionGroup) partSelectionGroup.style.display = 'block';
+
+            // Show skip photos/security checkbox for AirPod parts
+            if (skipPhotoSecurityGroup) skipPhotoSecurityGroup.style.display = 'block';
         }
     });
     
