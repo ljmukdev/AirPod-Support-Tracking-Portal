@@ -340,8 +340,18 @@ function displaySplitSection() {
     // Build item selection list
     const itemsListHtml = splittableItems.map((item, index) => {
         const itemName = getItemDisplayName(item.item_type);
-        const hasItemIssues = checkInData.issues_detected && checkInData.issues_detected.some(i => i.item_type === item.item_type);
-        const itemIssues = hasItemIssues ? checkInData.issues_detected.find(i => i.item_type === item.item_type).issues : [];
+        
+        // Match issues by BOTH item_type AND set_number (for multi-set check-ins)
+        const hasItemIssues = checkInData.issues_detected && checkInData.issues_detected.some(i => 
+            i.item_type === item.item_type && 
+            (i.set_number || null) === (item.set_number || null)
+        );
+        const itemIssues = hasItemIssues 
+            ? checkInData.issues_detected.find(i => 
+                i.item_type === item.item_type && 
+                (i.set_number || null) === (item.set_number || null)
+              ).issues 
+            : [];
         
         let issuesBadges = '';
         let defaultChecked = true; // Check by default
