@@ -245,6 +245,13 @@
                             </select>
                         </div>
 
+                        <!-- Size -->
+                        <div class="form-group">
+                            <label for="size">Size / Variant</label>
+                            <input type="text" id="size" name="size" placeholder="e.g., Small, 1m, 100ml">
+                            <p style="font-size: 0.75rem; color: #666; margin-top: 4px;">Optional: S/M/L, dimensions, volume, etc.</p>
+                        </div>
+
                         <!-- Unit Type -->
                         <div class="form-group">
                             <label for="unitType">Unit Type *</label>
@@ -407,6 +414,7 @@
                 document.getElementById('itemName').value = consumable.item_name || '';
                 document.getElementById('sku').value = consumable.sku || '';
                 document.getElementById('category').value = consumable.category || 'general';
+                document.getElementById('size').value = consumable.size || '';
                 document.getElementById('description').value = consumable.description || '';
                 document.getElementById('unitType').value = consumable.unit_type || '';
                 document.getElementById('quantityInStock').value = consumable.quantity_in_stock || 0;
@@ -616,6 +624,7 @@
                 item_name: document.getElementById('itemName').value.trim(),
                 sku: document.getElementById('sku').value.trim().toUpperCase(),
                 category: document.getElementById('category').value,
+                size: document.getElementById('size').value.trim(),
                 description: document.getElementById('description').value.trim(),
                 unit_type: document.getElementById('unitType').value,
                 quantity_in_stock: parseInt(document.getElementById('quantityInStock').value),

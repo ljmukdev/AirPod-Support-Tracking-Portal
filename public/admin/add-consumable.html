@@ -198,6 +198,13 @@
                             </p>
                         </div>
 
+                        <!-- Size -->
+                        <div class="form-group">
+                            <label for="size">Size / Variant</label>
+                            <input type="text" id="size" name="size" placeholder="e.g., Small, 1m, 100ml">
+                            <p style="font-size: 0.75rem; color: #666; margin-top: 4px;">Optional: S/M/L, dimensions, volume, etc.</p>
+                        </div>
+
                         <!-- Unit Type -->
                         <div class="form-group">
                             <label for="unitType">Unit Type *</label>
@@ -431,6 +438,7 @@
                 item_name: document.getElementById('itemName').value.trim(),
                 sku: document.getElementById('sku').value.trim().toUpperCase(),
                 category: document.getElementById('category').value,
+                size: document.getElementById('size').value.trim(),
                 description: document.getElementById('description').value.trim(),
                 unit_type: document.getElementById('unitType').value,
                 quantity_in_stock: parseInt(document.getElementById('quantityInStock').value),
