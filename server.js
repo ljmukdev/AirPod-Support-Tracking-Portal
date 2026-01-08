@@ -3153,20 +3153,32 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
         
         // 4. Find products missing photos or security barcode
         const productsNeedingAttention = await db.collection('products').find({
-            $or: [
-                { photos: { $exists: false } },
-                { photos: { $size: 0 } },
-                { photos: null },
-                { security_barcode: { $exists: false } },
-                { security_barcode: null },
-                { security_barcode: '' }
-            ],
-            status: { $ne: 'sold' }, // Only for items not yet sold
-            // Exclude products that don't require photos/security codes
-            $or: [
-                { skip_photos_security: { $exists: false } },
-                { skip_photos_security: false },
-                { skip_photos_security: null }
+            $and: [
+                // Must have missing photos or security barcode
+                {
+                    $or: [
+                        { photos: { $exists: false } },
+                        { photos: { $size: 0 } },
+                        { photos: null },
+                        { security_barcode: { $exists: false } },
+                        { security_barcode: null },
+                        { security_barcode: '' }
+                    ]
+                },
+                // Must not be sold
+                { status: { $ne: 'sold' } },
+                // Must not have skip_photos_security flag set
+                {
+                    $or: [
+                        { skip_photos_security: { $exists: false } },
+                        { skip_photos_security: false },
+                        { skip_photos_security: null }
+                    ]
+                },
+                // Must not be an accessory type
+                {
+                    part_type: { $nin: ['ear_tips', 'box', 'cable', 'other'] }
+                }
             ]
         }).toArray();
         
@@ -3530,9 +3542,10 @@ app.post('/api/admin/check-in/:id/split', requireAuth, requireDB, async (req, re
             // Determine purchase price - only valuable items (case, left, right) get a price
             // Accessories get 0
             const isValuableItem = ['case', 'left', 'right'].includes(item.item_type);
+            const isAccessory = ['ear_tips', 'box', 'cable', 'other'].includes(item.item_type);
             const itemPrice = isValuableItem ? pricePerValuableItem : 0;
             
-            console.log(`[SPLIT] ${item.item_type} - Valuable: ${isValuableItem}, Price: ${itemPrice}`);
+            console.log(`[SPLIT] ${item.item_type} - Valuable: ${isValuableItem}, Accessory: ${isAccessory}, Price: ${itemPrice}`);
             
             const product = {
                 serial_number: item.serial_number || null,
@@ -3560,7 +3573,8 @@ app.post('/api/admin/check-in/:id/split', requireAuth, requireDB, async (req, re
                 purchase_price: itemPrice,
                 platform: purchase.platform || null,
                 seller_name: purchase.seller_name || null,
-                created_by: req.user.email
+                created_by: req.user.email,
+                skip_photos_security: isAccessory // Auto-set for accessories
             };
             
             productsToCreate.push(product);
@@ -3772,6 +3786,74 @@ app.post('/api/admin/migrate-order-numbers', requireAuth, requireDB, async (req,
             stats: {
                 purchaseOrders: purchaseOrderCount,
                 salesOrders: salesOrderCount
+            }
+        });
+    } catch (err) {
+        console.error('[MIGRATION] Error:', err);
+        res.status(500).json({ error: 'Migration failed: ' + err.message });
+    }
+});
+
+// Migration: Update accessories to have skip_photos_security flag (Admin only)
+app.post('/api/admin/migrate-accessories-skip-flag', requireAuth, requireDB, async (req, res) => {
+    try {
+        console.log('[MIGRATION] Starting accessories skip_photos_security flag migration...');
+        
+        const products = db.collection('products');
+        
+        // Find all accessories that don't have skip_photos_security set to true
+        const accessoriesToUpdate = await products.find({
+            part_type: { $in: ['ear_tips', 'box', 'cable', 'other'] },
+            $or: [
+                { skip_photos_security: { $exists: false } },
+                { skip_photos_security: false },
+                { skip_photos_security: null }
+            ]
+        }).toArray();
+        
+        console.log(`[MIGRATION] Found ${accessoriesToUpdate.length} accessories to update`);
+        
+        if (accessoriesToUpdate.length === 0) {
+            return res.json({
+                success: true,
+                message: 'No accessories need migration',
+                updated: 0
+            });
+        }
+        
+        // Update all accessories to have skip_photos_security: true
+        const result = await products.updateMany(
+            {
+                part_type: { $in: ['ear_tips', 'box', 'cable', 'other'] },
+                $or: [
+                    { skip_photos_security: { $exists: false } },
+                    { skip_photos_security: false },
+                    { skip_photos_security: null }
+                ]
+            },
+            {
+                $set: { skip_photos_security: true }
+            }
+        );
+        
+        console.log(`[MIGRATION] Complete - Updated: ${result.modifiedCount}`);
+        
+        // Get final statistics
+        const accessoriesWithFlag = await products.countDocuments({ 
+            part_type: { $in: ['ear_tips', 'box', 'cable', 'other'] },
+            skip_photos_security: true
+        });
+        const totalAccessories = await products.countDocuments({ 
+            part_type: { $in: ['ear_tips', 'box', 'cable', 'other'] }
+        });
+        
+        res.json({
+            success: true,
+            message: 'Migration completed successfully',
+            updated: result.modifiedCount,
+            stats: {
+                accessoriesWithFlag: accessoriesWithFlag,
+                totalAccessories: totalAccessories
             }
         });
     } catch (err) {
