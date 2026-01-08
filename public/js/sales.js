@@ -319,11 +319,26 @@ async function addConsumableRow() {
             return;
         }
         
-        const consumableId = prompt('Enter consumable ID or select from list:');
-        const consumable = data.consumables.find(c => c._id === consumableId || c.name.toLowerCase().includes(consumableId.toLowerCase()));
+        // Show numbered list of consumables
+        const options = data.consumables.map((c, i) => 
+            `${i + 1}. ${c.name} - £${c.price_per_unit?.toFixed(2) || '0.00'} each (${c.quantity_in_stock || 0} in stock)`
+        ).join('\n');
+        
+        const selection = prompt(`Select a consumable:\n\n${options}\n\nEnter number:`);
+        
+        if (!selection) return;
+        
+        const index = parseInt(selection) - 1;
+        const consumable = data.consumables[index];
         
         if (consumable) {
             const quantity = parseInt(prompt(`How many ${consumable.name}?`, '1')) || 1;
+            
+            // Check if enough stock
+            if (quantity > (consumable.quantity_in_stock || 0)) {
+                const proceed = confirm(`Warning: Only ${consumable.quantity_in_stock || 0} in stock. Add ${quantity} anyway?`);
+                if (!proceed) return;
+            }
             
             selectedConsumables.push({
                 consumable_id: consumable._id,
@@ -334,9 +349,12 @@ async function addConsumableRow() {
             
             displayConsumables();
             updatePreview();
+        } else {
+            alert('Invalid selection. Please try again.');
         }
     } catch (error) {
         console.error('Error loading consumables:', error);
+        alert('Error loading consumables. Please try again.');
     }
 }
 
@@ -379,30 +397,67 @@ function removeConsumable(index) {
 
 async function loadTemplate() {
     try {
-        const response = await authenticatedFetch(`${API_BASE}/api/admin/consumable-templates`);
-        const data = await response.json();
+        // Load both templates and current consumables
+        const [templatesResponse, consumablesResponse] = await Promise.all([
+            authenticatedFetch(`${API_BASE}/api/admin/consumable-templates`),
+            authenticatedFetch(`${API_BASE}/api/admin/consumables`)
+        ]);
         
-        if (!data.templates || data.templates.length === 0) {
+        const templatesData = await templatesResponse.json();
+        const consumablesData = await consumablesResponse.json();
+        
+        if (!templatesData.templates || templatesData.templates.length === 0) {
             alert('No templates available. Create one first!');
             return;
         }
         
+        const currentConsumables = consumablesData.consumables || [];
+        
         // Show template selection
-        const templateNames = data.templates.map((t, i) => `${i + 1}. ${t.name}`).join('\n');
+        const templateNames = templatesData.templates.map((t, i) => `${i + 1}. ${t.name}`).join('\n');
         const selection = prompt(`Select a template:\n${templateNames}\n\nEnter number:`);
         
         if (selection) {
             const index = parseInt(selection) - 1;
-            const template = data.templates[index];
+            const template = templatesData.templates[index];
             
             if (template) {
-                selectedConsumables = template.consumables.map(c => ({...c}));
+                // Map template consumables to current consumables data
+                selectedConsumables = [];
+                
+                for (const templateItem of template.consumables) {
+                    // Find current consumable by ID
+                    const currentConsumable = currentConsumables.find(c => 
+                        c._id === templateItem.consumable_id
+                    );
+                    
+                    if (currentConsumable) {
+                        // Use current data from inventory
+                        selectedConsumables.push({
+                            consumable_id: currentConsumable._id,
+                            name: currentConsumable.name,
+                            cost: currentConsumable.price_per_unit || 0,
+                            quantity: templateItem.quantity
+                        });
+                    } else {
+                        // Consumable no longer exists - show warning but include with stored data
+                        console.warn(`Consumable ${templateItem.name} (ID: ${templateItem.consumable_id}) no longer exists`);
+                        alert(`Warning: Consumable "${templateItem.name}" no longer exists in inventory. It will be skipped.`);
+                    }
+                }
+                
+                if (selectedConsumables.length === 0) {
+                    alert('None of the consumables in this template exist anymore. Please update the template.');
+                    return;
+                }
+                
                 displayConsumables();
                 updatePreview();
             }
         }
     } catch (error) {
         console.error('Error loading templates:', error);
+        alert('Error loading template. Please try again.');
     }
 }
 
@@ -417,40 +472,78 @@ function closeTemplatesModal() {
 
 async function loadTemplates() {
     try {
-        const response = await authenticatedFetch(`${API_BASE}/api/admin/consumable-templates`);
-        const data = await response.json();
+        // Load both templates and current consumables to show accurate data
+        const [templatesResponse, consumablesResponse] = await Promise.all([
+            authenticatedFetch(`${API_BASE}/api/admin/consumable-templates`),
+            authenticatedFetch(`${API_BASE}/api/admin/consumables`)
+        ]);
+        
+        const templatesData = await templatesResponse.json();
+        const consumablesData = await consumablesResponse.json();
         
         const container = document.getElementById('templatesContainer');
         
-        if (!data.templates || data.templates.length === 0) {
+        if (!templatesData.templates || templatesData.templates.length === 0) {
             container.innerHTML = '<p style="text-align: center; color: #999;">No templates found</p>';
             return;
         }
         
-        container.innerHTML = data.templates.map(template => `
-            <div class="card" style="margin-bottom: 15px; padding: 15px;">
-                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
-                    <div>
-                        <h3 style="margin: 0 0 5px 0;">${template.name}</h3>
-                        <p style="margin: 0; color: #666; font-size: 0.9rem;">${template.description || 'No description'}</p>
-                    </div>
-                    <button onclick="deleteTemplate('${template._id}')" class="button button-secondary button-sm">Delete</button>
-                </div>
-                <div style="background: #f9fafb; padding: 10px; border-radius: 4px;">
-                    ${template.consumables.map(c => `
+        const currentConsumables = consumablesData.consumables || [];
+        
+        container.innerHTML = templatesData.templates.map(template => {
+            // Calculate current costs based on live consumable data
+            let totalCost = 0;
+            let hasInvalidItems = false;
+            
+            const consumablesList = template.consumables.map(c => {
+                const currentConsumable = currentConsumables.find(curr => curr._id === c.consumable_id);
+                
+                if (currentConsumable) {
+                    const currentCost = (currentConsumable.price_per_unit || 0) * c.quantity;
+                    totalCost += currentCost;
+                    return `
                         <div style="display: flex; justify-content: space-between; padding: 4px 0;">
-                            <span>${c.name} × ${c.quantity}</span>
-                            <span>£${(c.cost * c.quantity).toFixed(2)}</span>
+                            <span>${currentConsumable.name} × ${c.quantity}</span>
+                            <span>£${currentCost.toFixed(2)}</span>
                         </div>
-                    `).join('')}
-                    <div style="border-top: 1px solid #ddd; margin-top: 8px; padding-top: 8px;">
-                        <strong>Total: £${template.consumables.reduce((sum, c) => sum + (c.cost * c.quantity), 0).toFixed(2)}</strong>
+                    `;
+                } else {
+                    hasInvalidItems = true;
+                    return `
+                        <div style="display: flex; justify-content: space-between; padding: 4px 0; color: #ef4444;">
+                            <span>${c.name} × ${c.quantity} <em>(not found)</em></span>
+                            <span>-</span>
+                        </div>
+                    `;
+                }
+            }).join('');
+            
+            return `
+                <div class="card" style="margin-bottom: 15px; padding: 15px; ${hasInvalidItems ? 'border: 2px solid #ef4444;' : ''}">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                        <div>
+                            <h3 style="margin: 0 0 5px 0;">${template.name}</h3>
+                            <p style="margin: 0; color: #666; font-size: 0.9rem;">${template.description || 'No description'}</p>
+                            ${hasInvalidItems ? '<p style="margin: 5px 0 0 0; color: #ef4444; font-size: 0.85rem;">⚠️ Some consumables no longer exist</p>' : ''}
+                        </div>
+                        <button onclick="deleteTemplate('${template._id}')" class="button button-secondary button-sm">Delete</button>
+                    </div>
+                    <div style="background: #f9fafb; padding: 10px; border-radius: 4px;">
+                        ${consumablesList}
+                        <div style="border-top: 1px solid #ddd; margin-top: 8px; padding-top: 8px;">
+                            <strong>Total: £${totalCost.toFixed(2)}</strong>
+                            <small style="color: #666; display: block; margin-top: 4px; font-size: 0.85rem;">
+                                (Based on current consumable prices)
+                            </small>
+                        </div>
                     </div>
                 </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
     } catch (error) {
         console.error('Error loading templates:', error);
+        document.getElementById('templatesContainer').innerHTML = 
+            '<p style="text-align: center; color: #ef4444;">Error loading templates</p>';
     }
 }
 
@@ -482,26 +575,36 @@ async function addTemplateConsumable() {
         return;
     }
     
-    // Create a simple selection interface
-    const options = allConsumables.map((c, i) => `${i + 1}. ${c.name} (£${c.price_per_unit?.toFixed(2) || '0.00'})`).join('\n');
-    const selection = prompt(`Select a consumable:\n${options}\n\nEnter number:`);
+    // Show numbered list with prices and stock
+    const options = allConsumables.map((c, i) => 
+        `${i + 1}. ${c.name} - £${c.price_per_unit?.toFixed(2) || '0.00'} each (${c.quantity_in_stock || 0} in stock)`
+    ).join('\n');
     
-    if (selection) {
-        const index = parseInt(selection) - 1;
-        const consumable = allConsumables[index];
+    const selection = prompt(`Select a consumable:\n\n${options}\n\nEnter number:`);
+    
+    if (!selection) return;
+    
+    const index = parseInt(selection) - 1;
+    const consumable = allConsumables[index];
+    
+    if (consumable) {
+        const quantity = parseInt(prompt(`How many ${consumable.name}?`, '1')) || 1;
         
-        if (consumable) {
-            const quantity = parseInt(prompt(`How many ${consumable.name}?`, '1')) || 1;
-            
-            templateConsumables.push({
-                consumable_id: consumable._id,
-                name: consumable.name,
-                cost: consumable.price_per_unit || 0,
-                quantity: quantity
-            });
-            
-            displayTemplateConsumables();
+        if (quantity < 1) {
+            alert('Quantity must be at least 1');
+            return;
         }
+        
+        templateConsumables.push({
+            consumable_id: consumable._id,
+            name: consumable.name,
+            cost: consumable.price_per_unit || 0,
+            quantity: quantity
+        });
+        
+        displayTemplateConsumables();
+    } else {
+        alert('Invalid selection. Please try again.');
     }
 }
 
