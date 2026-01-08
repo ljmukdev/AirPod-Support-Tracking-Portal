@@ -257,6 +257,13 @@
                             <p style="font-size: 0.75rem; color: #666; margin-top: 4px;">Link to product page or supplier listing</p>
                         </div>
 
+                        <!-- Lead Time -->
+                        <div class="form-group">
+                            <label for="leadTime">Lead Time (days)</label>
+                            <input type="number" id="leadTime" name="leadTime" min="0" step="1" placeholder="e.g., 7">
+                            <p style="font-size: 0.75rem; color: #666; margin-top: 4px;">How many days from order to delivery</p>
+                        </div>
+
                         <!-- Location -->
                         <div class="form-group">
                             <label for="location">Storage Location</label>
@@ -494,6 +501,7 @@
                 unit_cost: document.getElementById('unitCost').value ? parseFloat(document.getElementById('unitCost').value) : null,
                 supplier: document.getElementById('supplier').value.trim(),
                 product_url: document.getElementById('productUrl').value.trim(),
+                lead_time_days: document.getElementById('leadTime').value ? parseInt(document.getElementById('leadTime').value) : null,
                 location: document.getElementById('location').value.trim(),
                 status: document.getElementById('status').value,
                 expiry_date: document.getElementById('expiryDate').value || null,
