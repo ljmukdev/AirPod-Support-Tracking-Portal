@@ -1783,11 +1783,32 @@ app.get('/api/admin/products', requireAuth, requireDB, async (req, res) => {
         // Build filter
         const filter = {};
         if (unsoldOnly) {
-            filter.$or = [
-                { status: { $ne: 'sold' } },
-                { status: { $exists: false } }
+            // Only show products that are available for sale
+            filter.$and = [
+                // Must NOT be sold or faulty
+                {
+                    $or: [
+                        { status: { $in: ['in_stock', 'active'] } },
+                        { status: { $exists: false } },
+                        { status: null }
+                    ]
+                },
+                // Must NOT have a sales_order_number (means it's been sold)
+                {
+                    $or: [
+                        { sales_order_number: { $exists: false } },
+                        { sales_order_number: null },
+                        { sales_order_number: '' }
+                    ]
+                },
+                // Must be an actual AirPod part (not an accessory)
+                {
+                    part_type: { $in: ['left', 'right', 'case'] }
+                }
             ];
         }
+        
+        console.log('[PRODUCTS] Filter:', JSON.stringify(filter));
         
         const products = await db.collection('products')
             .find(filter)
@@ -1796,8 +1817,9 @@ app.get('/api/admin/products', requireAuth, requireDB, async (req, res) => {
             .skip(offset)
             .toArray();
 
-        const total = await db.collection('products').countDocuments();
-        console.log(`[PRODUCTS] ✅ Found ${products.length} products (total: ${total})`);
+        const total = await db.collection('products').countDocuments(filter);
+        const allProducts = await db.collection('products').countDocuments();
+        console.log(`[PRODUCTS] ✅ Found ${products.length} products matching filter (${total} total match, ${allProducts} all products)`);
         
         // Get warranties for all products
         // Build a flat array of all possible barcode matches (handling hyphen variations)

@@ -185,13 +185,17 @@ async function openAddSaleModal() {
 
 async function loadAvailableProducts() {
     try {
+        console.log('Loading available products...');
         const response = await authenticatedFetch(`${API_BASE}/api/admin/products?unsold=true`);
         const data = await response.json();
+        
+        console.log('Products response:', data);
         
         const select = document.getElementById('saleProduct');
         select.innerHTML = '<option value="">Select a product...</option>';
         
         if (data.products && data.products.length > 0) {
+            console.log(`Found ${data.products.length} available products`);
             data.products.forEach(product => {
                 const option = document.createElement('option');
                 option.value = product._id;
@@ -202,6 +206,7 @@ async function loadAvailableProducts() {
                 select.appendChild(option);
             });
         } else {
+            console.log('No products found');
             select.innerHTML = '<option value="">No unsold products available</option>';
         }
     } catch (error) {
@@ -620,3 +625,5 @@ window.removeConsumable = removeConsumable;
 window.closeSaleModal = closeSaleModal;
 window.closeTemplatesModal = closeTemplatesModal;
 window.deleteTemplate = deleteTemplate;
+window.closeCreateTemplateModal = closeCreateTemplateModal;
+window.removeTemplateConsumable = removeTemplateConsumable;
