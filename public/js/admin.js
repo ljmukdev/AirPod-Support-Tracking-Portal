@@ -995,31 +995,29 @@ if (productForm) {
         const productPhotos = document.getElementById('productPhotos');
         const addProductButton = document.getElementById('addProductButton');
         
-        // Validation - check required fields
-        // Serial number and security barcode are optional if skip checkbox is checked
-        if (!skipPhotoSecurity) {
-            if (!serialNumber) {
-                showError('Serial number is required (or check "Skip photo & security code requirements")');
-                return;
-            }
-            if (!securityBarcode) {
-                showError('Security barcode is required (or check "Skip photo & security code requirements")');
-                return;
-            }
-        } else {
-            // If skipping, use placeholder values if empty
-            // These will be handled on the server side
-        }
-        if (!partModelNumber) {
-            showError('Part/Model number is required');
-            return;
-        }
-        
-        // Check if this is an accessory type
+        // Check if this is an accessory type FIRST
         const isAccessory = ['ear_tips', 'box', 'cable', 'other'].includes(partType);
-        
-        // Generation and Part Selection are only required for AirPod parts (left, right, case)
+
+        // Validation - only check required fields for AirPod parts (not accessories)
         if (!isAccessory) {
+            // Serial number and security barcode are optional if skip checkbox is checked
+            if (!skipPhotoSecurity) {
+                if (!serialNumber) {
+                    showError('Serial number is required (or check "Skip photo & security code requirements")');
+                    return;
+                }
+                if (!securityBarcode) {
+                    showError('Security barcode is required (or check "Skip photo & security code requirements")');
+                    return;
+                }
+            }
+
+            if (!partModelNumber) {
+                showError('Part/Model number is required');
+                return;
+            }
+
+            // Generation and Part Selection are only required for AirPod parts (left, right, case)
             if (!generation || generation === '') {
                 showError('Generation is required for AirPod parts');
                 return;
