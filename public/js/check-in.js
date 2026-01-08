@@ -130,7 +130,7 @@ function displayPurchaseDetails(purchase) {
 
 function displayCheckInForm(purchase) {
     const itemsSection = document.getElementById('itemsCheckSection');
-    
+
     const itemLabels = {
         'case': 'Case',
         'left': 'Left AirPod',
@@ -140,122 +140,136 @@ function displayCheckInForm(purchase) {
         'cable': 'Cable',
         'protective_case': 'Protective Case'
     };
-    
+
     const items = purchase.items_purchased || [];
-    
+    const quantity = purchase.quantity || 1;
+
     if (items.length === 0) {
         itemsSection.innerHTML = '<p style="color: #999;">No items listed for this purchase</p>';
         return;
     }
-    
-    itemsSection.innerHTML = items.map(item => {
-        const itemName = itemLabels[item] || item;
-        const needsSerial = ['case', 'left', 'right'].includes(item);
-        const needsAudible = ['left', 'right'].includes(item); // Only left and right need audible check
-        
-        return `
-            <div class="item-check-section" data-item="${item}">
-                <h4>
-                    <span>✓</span>
-                    <span>${escapeHtml(itemName)}</span>
-                </h4>
+
+    // Generate forms for each quantity set
+    let formHtml = '';
+
+    for (let setIndex = 1; setIndex <= quantity; setIndex++) {
+        if (quantity > 1) {
+            formHtml += `
+                <div style="background: #e8f4f8; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <h3 style="margin: 0; color: var(--accent-teal);">Set ${setIndex} of ${quantity}</h3>
+                </div>
+            `;
+        }
+
+        formHtml += items.map(item => {
+            const itemName = itemLabels[item] || item;
+            const needsSerial = ['case', 'left', 'right'].includes(item);
+            const needsAudible = ['left', 'right'].includes(item);
+            const fieldSuffix = quantity > 1 ? `_${setIndex}` : '';
+
+            return `
+                <div class="item-check-section" data-item="${item}" data-set="${setIndex}">
+                    <h4>
+                        <span>✓</span>
+                        <span>${escapeHtml(itemName)}</span>
+                    </h4>
                 
                 <!-- Genuine Check -->
                 <div class="form-group">
                     <label style="font-weight: 600; display: block; margin-bottom: 8px;">Is this item genuine?</label>
                     <div style="display: flex; gap: 20px;">
                         <label style="display: flex; align-items: center; cursor: pointer;">
-                            <input type="radio" name="genuine_${item}" value="yes" style="margin-right: 8px;" required>
+                            <input type="radio" name="genuine_${item}${fieldSuffix}" value="yes" style="margin-right: 8px;" required>
                             <span>Yes - Genuine</span>
                         </label>
                         <label style="display: flex; align-items: center; cursor: pointer;">
-                            <input type="radio" name="genuine_${item}" value="no" style="margin-right: 8px;" required>
+                            <input type="radio" name="genuine_${item}${fieldSuffix}" value="no" style="margin-right: 8px;" required>
                             <span>No - Fake/Replica</span>
                         </label>
                     </div>
                 </div>
-                
+
                 <!-- Condition Rating -->
                 <div class="form-group" style="margin-top: 15px;">
                     <label style="font-weight: 600; display: block; margin-bottom: 8px;">Visual Condition:</label>
                     <div class="condition-rating">
                         <label>
-                            <input type="radio" name="condition_${item}" value="new" required>
+                            <input type="radio" name="condition_${item}${fieldSuffix}" value="new" required>
                             <span>New</span>
                         </label>
                         <label>
-                            <input type="radio" name="condition_${item}" value="like_new" required>
+                            <input type="radio" name="condition_${item}${fieldSuffix}" value="like_new" required>
                             <span>Like New</span>
                         </label>
                         <label>
-                            <input type="radio" name="condition_${item}" value="excellent" required>
+                            <input type="radio" name="condition_${item}${fieldSuffix}" value="excellent" required>
                             <span>Excellent</span>
                         </label>
                         <label>
-                            <input type="radio" name="condition_${item}" value="good" required>
+                            <input type="radio" name="condition_${item}${fieldSuffix}" value="good" required>
                             <span>Good</span>
                         </label>
                         <label>
-                            <input type="radio" name="condition_${item}" value="fair" required>
+                            <input type="radio" name="condition_${item}${fieldSuffix}" value="fair" required>
                             <span>Fair</span>
                         </label>
                         <label>
-                            <input type="radio" name="condition_${item}" value="poor" required>
+                            <input type="radio" name="condition_${item}${fieldSuffix}" value="poor" required>
                             <span>Poor</span>
                         </label>
                     </div>
                 </div>
-                
+
                 ${needsSerial ? `
                 <!-- Serial Number -->
                 <div class="form-group" style="margin-top: 15px;">
-                    <label for="serial_${item}" style="font-weight: 600;">Serial Number:</label>
-                    <input type="text" id="serial_${item}" name="serial_${item}" 
-                           placeholder="Enter serial number" 
+                    <label for="serial_${item}${fieldSuffix}" style="font-weight: 600;">Serial Number:</label>
+                    <input type="text" id="serial_${item}${fieldSuffix}" name="serial_${item}${fieldSuffix}"
+                           placeholder="Enter serial number"
                            style="width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ddd; border-radius: 4px;">
                 </div>
                 ` : ''}
-                
+
                 ${needsAudible ? `
                 <!-- Audible Condition -->
                 <div class="form-group" style="margin-top: 15px;">
                     <label style="font-weight: 600; display: block; margin-bottom: 8px;">Audible Condition:</label>
                     <div class="condition-rating">
                         <label>
-                            <input type="radio" name="audible_${item}" value="excellent" required>
+                            <input type="radio" name="audible_${item}${fieldSuffix}" value="excellent" required>
                             <span>Excellent</span>
                         </label>
                         <label>
-                            <input type="radio" name="audible_${item}" value="good" required>
+                            <input type="radio" name="audible_${item}${fieldSuffix}" value="good" required>
                             <span>Good</span>
                         </label>
                         <label>
-                            <input type="radio" name="audible_${item}" value="fair" required>
+                            <input type="radio" name="audible_${item}${fieldSuffix}" value="fair" required>
                             <span>Fair</span>
                         </label>
                         <label>
-                            <input type="radio" name="audible_${item}" value="poor" required>
+                            <input type="radio" name="audible_${item}${fieldSuffix}" value="poor" required>
                             <span>Poor</span>
                         </label>
                         <label>
-                            <input type="radio" name="audible_${item}" value="not_working" required>
+                            <input type="radio" name="audible_${item}${fieldSuffix}" value="not_working" required>
                             <span>Not Working</span>
                         </label>
                     </div>
                 </div>
                 ` : ''}
-                
+
                 ${needsSerial ? `
                 <!-- Connectivity Check -->
                 <div class="form-group" style="margin-top: 15px;">
                     <label style="font-weight: 600; display: block; margin-bottom: 8px;">Does it connect correctly?</label>
                     <div style="display: flex; gap: 20px;">
                         <label style="display: flex; align-items: center; cursor: pointer;">
-                            <input type="radio" name="connectivity_${item}" value="yes" style="margin-right: 8px;" required>
+                            <input type="radio" name="connectivity_${item}${fieldSuffix}" value="yes" style="margin-right: 8px;" required>
                             <span>Yes - Connects Fine</span>
                         </label>
                         <label style="display: flex; align-items: center; cursor: pointer;">
-                            <input type="radio" name="connectivity_${item}" value="no" style="margin-right: 8px;" required>
+                            <input type="radio" name="connectivity_${item}${fieldSuffix}" value="no" style="margin-right: 8px;" required>
                             <span>No - Connection Issues</span>
                         </label>
                     </div>
@@ -263,7 +277,10 @@ function displayCheckInForm(purchase) {
                 ` : ''}
             </div>
         `;
-    }).join('');
+        }).join('');
+    }
+
+    itemsSection.innerHTML = formHtml;
 }
 
 async function submitCheckIn() {
@@ -283,55 +300,69 @@ async function submitCheckIn() {
     
     // Collect check-in data
     const items = currentPurchase.items_purchased || [];
+    const quantity = currentPurchase.quantity || 1;
     const checkInData = {
         purchase_id: currentPurchase._id,
         tracking_number: currentPurchase.tracking_number,
         items: []
     };
-    
-    // Validate and collect data for each item
+
+    // Validate and collect data for each item in each set
     let hasErrors = false;
-    
-    for (const item of items) {
-        const genuineRadio = document.querySelector(`input[name="genuine_${item}"]:checked`);
-        const conditionRadio = document.querySelector(`input[name="condition_${item}"]:checked`);
-        
-        if (!genuineRadio || !conditionRadio) {
-            errorBanner.textContent = 'Please complete all fields for each item';
-            errorBanner.style.display = 'block';
-            hasErrors = true;
+
+    for (let setIndex = 1; setIndex <= quantity; setIndex++) {
+        const fieldSuffix = quantity > 1 ? `_${setIndex}` : '';
+
+        for (const item of items) {
+            const genuineRadio = document.querySelector(`input[name="genuine_${item}${fieldSuffix}"]:checked`);
+            const conditionRadio = document.querySelector(`input[name="condition_${item}${fieldSuffix}"]:checked`);
+
+            if (!genuineRadio || !conditionRadio) {
+                errorBanner.textContent = 'Please complete all fields for each item';
+                errorBanner.style.display = 'block';
+                hasErrors = true;
+                break;
+            }
+
+            const itemData = {
+                item_type: item,
+                is_genuine: genuineRadio.value === 'yes',
+                condition: conditionRadio.value
+            };
+
+            // Add set information if quantity > 1
+            if (quantity > 1) {
+                itemData.set_number = setIndex;
+            }
+
+            // Add serial number and connectivity if applicable (case, left, right)
+            if (['case', 'left', 'right'].includes(item)) {
+                const serialInput = document.getElementById(`serial_${item}${fieldSuffix}`);
+                if (serialInput && serialInput.value.trim()) {
+                    itemData.serial_number = serialInput.value.trim();
+                }
+
+                // Connectivity (all three items that connect)
+                const connectivityRadio = document.querySelector(`input[name="connectivity_${item}${fieldSuffix}"]:checked`);
+                if (connectivityRadio) {
+                    itemData.connects_correctly = connectivityRadio.value === 'yes';
+                }
+            }
+
+            // Add audible condition only for left and right AirPods (not case)
+            if (['left', 'right'].includes(item)) {
+                const audibleRadio = document.querySelector(`input[name="audible_${item}${fieldSuffix}"]:checked`);
+                if (audibleRadio) {
+                    itemData.audible_condition = audibleRadio.value;
+                }
+            }
+
+            checkInData.items.push(itemData);
+        }
+
+        if (hasErrors) {
             break;
         }
-        
-        const itemData = {
-            item_type: item,
-            is_genuine: genuineRadio.value === 'yes',
-            condition: conditionRadio.value
-        };
-        
-        // Add serial number and connectivity if applicable (case, left, right)
-        if (['case', 'left', 'right'].includes(item)) {
-            const serialInput = document.getElementById(`serial_${item}`);
-            if (serialInput && serialInput.value.trim()) {
-                itemData.serial_number = serialInput.value.trim();
-            }
-            
-            // Connectivity (all three items that connect)
-            const connectivityRadio = document.querySelector(`input[name="connectivity_${item}"]:checked`);
-            if (connectivityRadio) {
-                itemData.connects_correctly = connectivityRadio.value === 'yes';
-            }
-        }
-        
-        // Add audible condition only for left and right AirPods (not case)
-        if (['left', 'right'].includes(item)) {
-            const audibleRadio = document.querySelector(`input[name="audible_${item}"]:checked`);
-            if (audibleRadio) {
-                itemData.audible_condition = audibleRadio.value;
-            }
-        }
-        
-        checkInData.items.push(itemData);
     }
     
     if (hasErrors) {
