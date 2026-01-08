@@ -133,9 +133,9 @@
     <div class="admin-main">
         <header class="admin-topbar">
             <div class="topbar-left">
-                <button class="sidebar-toggle" id="sidebarToggle">
+                <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M3 5H17M3 10H17M3 15H17" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M3 5H17M3 10H17M3 15H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                     </svg>
                 </button>
                 <form class="topbar-search-form" action="search-product.html" method="get">
@@ -153,18 +153,35 @@
                         </svg>
                     </button>
                 </form>
-                <div class="topbar-actions">
-                    <a href="search-product.html" class="topbar-action-button is-secondary">Search Products</a>
-                    <a href="parts.html" class="topbar-action-button">Add Part</a>
-                    <a href="add-product.html" class="topbar-action-button">Add Product</a>
-                    <a href="add-purchase.html" class="topbar-action-button">Add Purchase</a>
-                    <a href="addon-sales.html" class="topbar-action-button">Add Sale</a>
-                </div>
+                <a href="parts.html" class="topbar-add-button" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; background-color: var(--accent-teal); color: white; text-decoration: none; border-radius: 6px; font-size: 0.85rem; font-weight: 500; transition: background-color 0.2s ease; white-space: nowrap;">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M8 3V13M3 8H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                    Add Part
+                </a>
+                <a href="add-product.html" class="topbar-add-button" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; background-color: var(--accent-teal); color: white; text-decoration: none; border-radius: 6px; font-size: 0.85rem; font-weight: 500; transition: background-color 0.2s ease; white-space: nowrap;">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M8 3V13M3 8H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                    Add Product
+                </a>
+                <a href="add-purchase.html" class="topbar-add-button" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; background-color: var(--accent-teal); color: white; text-decoration: none; border-radius: 6px; font-size: 0.85rem; font-weight: 500; transition: background-color 0.2s ease; white-space: nowrap;">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M8 3V13M3 8H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                    Add Purchase
+                </a>
+                <a href="add-sale.html" class="topbar-add-button" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; background-color: var(--accent-teal); color: white; text-decoration: none; border-radius: 6px; font-size: 0.85rem; font-weight: 500; transition: background-color 0.2s ease; white-space: nowrap;">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M8 3V13M3 8H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                    Add Sale
+                </a>
             </div>
             <div class="topbar-right">
-                <a href="purchases.html" class="button button-secondary" style="padding: 8px 16px; font-size: 0.9rem;">
-                    ← Back to Purchases
-                </a>
+                <div class="topbar-user">
+                    <span class="topbar-user-name">Admin</span>
+                </div>
             </div>
         </header>
         
