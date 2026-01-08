@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sales | LJM AirPod Support</title>
+    <title>Add Sale | LJM AirPod Support</title>
     <link rel="stylesheet" href="../css/styles.css?v=1.2.5.032">
 
     <script>
@@ -29,11 +29,11 @@
                     el.textContent = versionText;
                     el.title = 'Version ' + versionData.version + ' (Revision ' + versionData.revision + ')';
                 } else {
-                    el.textContent = 'v1.2.5.031';
-                    el.title = 'Version 1.2.5 (Revision 031)';
+                    el.textContent = 'v1.2.5.032';
+                    el.title = 'Version 1.2.5 (Revision 032)';
                 }
             }
-            
+
             // Fetch version from API
             fetch(API_BASE + '/api/version')
                 .then(function(res) { return res.json(); })
@@ -44,7 +44,7 @@
                     console.log('Version fetch failed, using default');
                     showVersion(null);
                 });
-            
+
             // Also show immediately with default
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', function() { showVersion(null); });
@@ -53,6 +53,60 @@
             }
         })();
     </script>
+    <style>
+        .sale-form-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 30px;
+        }
+        .sale-form {
+            background-color: var(--background-white);
+            padding: 30px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+        }
+        .product-info-box {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .product-info-box.show {
+            display: block;
+        }
+        .product-info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .product-info-item {
+            display: flex;
+            flex-direction: column;
+        }
+        .product-info-label {
+            font-weight: 500;
+            color: #666;
+            font-size: 0.85rem;
+            margin-bottom: 5px;
+        }
+        .product-info-value {
+            color: var(--text-dark);
+            font-size: 1rem;
+        }
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .button-cancel {
+            background-color: #6c757d;
+        }
+        .button-cancel:hover {
+            background-color: #5a6268;
+        }
+    </style>
 </head>
 <body class="admin-panel">
     <!-- Sidebar Navigation -->
@@ -68,7 +122,7 @@
                 </div>
             </div>
         </div>
-        
+
         <nav class="sidebar-nav">
             <div class="nav-section">
                 <div class="nav-section-header">ADMIN</div>
@@ -125,6 +179,17 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a href="consumables.html" class="nav-link" data-page="consumables">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 3H17V8H3V3Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M3 10H17V15H3V10Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M7 3V8M13 3V8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                <path d="M7 10V15M13 10V15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                            <span>Consumables</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a href="check-in.html" class="nav-link" data-page="check-in">
                             <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M7 10L9 12L13 8M18 10C18 14.4183 14.4183 18 10 18C5.58172 18 2 14.4183 2 10C2 5.58172 5.58172 2 10 2C14.4183 2 18 5.58172 18 10Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -142,7 +207,7 @@
                     </li>
                 </ul>
             </div>
-            
+
             <div class="nav-section">
                 <div class="nav-section-header">WARRANTIES</div>
                 <ul class="nav-menu">
@@ -175,7 +240,7 @@
                     </li>
                 </ul>
             </div>
-            
+
             <div class="nav-section">
                 <div class="nav-section-header">SALES</div>
                 <ul class="nav-menu">
@@ -190,7 +255,7 @@
                     </li>
                 </ul>
             </div>
-            
+
             <div class="nav-section">
                 <div class="nav-section-header">ANALYTICS</div>
                 <ul class="nav-menu">
@@ -204,7 +269,7 @@
                     </li>
                 </ul>
             </div>
-            
+
             <div class="nav-section">
                 <div class="nav-section-header">SETTINGS</div>
                 <ul class="nav-menu">
@@ -232,7 +297,7 @@
                 </ul>
             </div>
         </nav>
-        
+
         <div class="sidebar-footer">
             <a href="downloads.html" class="sidebar-footer-link" data-page="downloads">
                 <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -250,7 +315,7 @@
             </button>
         </div>
     </aside>
-    
+
     <!-- Main Content Area -->
     <div class="admin-main">
         <!-- Top Utility Bar -->
@@ -261,12 +326,12 @@
                         <path d="M3 5H17M3 10H17M3 15H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                     </svg>
                 </button>
-                <form class="topbar-search-form" onsubmit="return handleUniversalSearch(event)">
+                <form class="topbar-search-form" action="search-product.html" method="get">
                     <input
                         type="text"
-                        id="universalSearchInput"
+                        name="security_barcode"
                         class="topbar-search-input"
-                        placeholder="Search serial, security, eBay order..."
+                        placeholder="Search products..."
                         autocomplete="off"
                     >
                     <button type="submit" class="topbar-search-button" aria-label="Search">
@@ -307,230 +372,141 @@
                 </div>
             </div>
         </header>
-        
+
         <!-- Page Content -->
         <div class="admin-content">
-            <!-- Sales Header -->
-            <div class="products-header">
-                <h1 class="products-title">Sales (Sold Items)</h1>
-                <div class="products-header-actions">
-                    <div class="search-box">
-                        <input
-                            type="text"
-                            id="headerSearch"
-                            class="search-input"
-                            placeholder="Search serial / barcode"
-                            autocomplete="off"
-                        >
-                    </div>
-                    <a href="add-product.html" class="btn-primary">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M8 3V13M3 8H13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                        </svg>
-                        Add Product
-                    </a>
-                </div>
-            </div>
+            <div class="sale-form-container">
+                <h1 style="margin-top: 0; margin-bottom: 24px;">Record a Sale</h1>
 
-            <!-- Products Layout -->
-            <div class="products-layout">
-                <!-- Left Sidebar: Filters -->
-                <aside class="products-sidebar">
-                    <div class="sidebar-section">
-                        <h3 class="sidebar-heading">Search</h3>
-                        <input
-                            type="text"
-                            id="filterSearch"
-                            class="sidebar-input"
-                            placeholder="Serial / Barcode"
-                            autocomplete="off"
-                        >
-                    </div>
-
-                    <div class="sidebar-section">
-                        <h3 class="sidebar-heading">Sort</h3>
-                        <select id="filterSort" class="sidebar-select">
-                            <option value="date_desc">Date Added (Newest)</option>
-                            <option value="date_asc">Date Added (Oldest)</option>
-                            <option value="serial_asc">Serial Number (A-Z)</option>
-                            <option value="serial_desc">Serial Number (Z-A)</option>
-                            <option value="warranty_desc">Warranty (Expiring Soon)</option>
-                        </select>
-                    </div>
-
-                    <div class="sidebar-section">
-                        <h3 class="sidebar-heading">Product</h3>
-                        <select id="filterGeneration" class="sidebar-select">
-                            <option value="">Generation</option>
-                            <option value="AirPods (1st Gen)">1st Gen</option>
-                            <option value="AirPods (2nd Gen)">2nd Gen</option>
-                            <option value="AirPods (3rd Gen)">3rd Gen</option>
-                            <option value="AirPods (4th Gen)">4th Gen</option>
-                            <option value="AirPods Pro (1st Gen)">Pro (1st Gen)</option>
-                            <option value="AirPods Pro (2nd Gen)">Pro (2nd Gen)</option>
-                        </select>
-                        <select id="filterPartType" class="sidebar-select">
-                            <option value="">Part Type</option>
-                            <option value="left">Left AirPod</option>
-                            <option value="right">Right AirPod</option>
-                            <option value="case">Case</option>
-                        </select>
-                    </div>
-
-                    <div class="sidebar-section">
-                        <h3 class="sidebar-heading">Status</h3>
-                        <select id="filterStatus" class="sidebar-select">
-                            <option value="">Status</option>
-                            <option value="active">Active</option>
-                            <option value="delivered_no_warranty">Delivered (No Warranty)</option>
-                            <option value="returned">Returned</option>
-                            <option value="pending">Pending</option>
-                        </select>
-                        <select id="filterWarranty" class="sidebar-select">
-                            <option value="">Warranty</option>
-                            <option value="active">Active</option>
-                            <option value="none">No Warranty</option>
-                            <option value="expired">Expired</option>
-                            <option value="paid">Paid</option>
-                        </select>
-                        <select id="filterTracking" class="sidebar-select">
-                            <option value="">Tracking Status</option>
-                            <option value="tracked">Has Tracking</option>
-                            <option value="not_tracked">No Tracking</option>
-                        </select>
-                    </div>
-
-                    <button id="clearFilters" class="sidebar-btn">Clear filters</button>
-
-                    <div class="sidebar-count">
-                        <span id="productsCount">0 products</span>
-                    </div>
-                </aside>
-
-                <!-- Main Content: Products Table -->
-                <main class="products-main">
-                    <div class="products-table-wrapper">
-                        <table class="products-table">
-                            <thead>
-                                <tr>
-                                    <th>Serial Number</th>
-                                    <th>Security Number</th>
-                                    <th>Product Name</th>
-                                    <th>Part Number</th>
-                                    <th>Product Type</th>
-                                    <th>Order Number</th>
-                                    <th>Photos Uploaded</th>
-                                    <th>Date Added</th>
-                                    <th>Tracking Status</th>
-                                    <th>Status</th>
-                                    <th>Warranty Status</th>
-                                    <th>Warranty Days Remaining</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody id="productsTable">
-                                <tr>
-                                    <td colspan="13" class="table-loading">Loading products...</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </main>
-            </div>
-        </div>
-    </div>
-
-    <!-- Tracking Modal -->
-    <div id="trackingModal" class="modal" style="display: none;">
-        <div class="modal-content" style="max-width: 600px;">
-            <div class="modal-header">
-                <h2>Add Tracking Number</h2>
-                <span class="modal-close" id="closeTrackingModal">&times;</span>
-            </div>
-            <div class="modal-body" id="trackingModalBody">
-                <div id="trackingProductInfo" style="margin-bottom: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 8px;">
-                    <p><strong>Loading product details...</strong></p>
-                </div>
-                
-                <div class="form-group">
-                    <label for="trackingNumber">Tracking Number</label>
-                    <p style="font-size: 0.85rem; color: #666; margin-bottom: 10px;">
-                        You can type, paste (Ctrl+V / Cmd+V), or scan a shipping tracking number
+                <div class="sale-form">
+                    <p style="color: #666; margin-bottom: 20px;">
+                        Enter the serial number or security barcode of the product that was sold, then provide the sale details.
                     </p>
-                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                        <input 
-                            type="text" 
-                            id="trackingNumber" 
-                            name="trackingNumber" 
-                            placeholder="Paste or enter tracking number here"
-                            style="flex: 1; padding: 12px; font-size: 1rem;"
-                            autocomplete="off"
-                        >
-                        <button type="button" class="button button-secondary" id="scanTrackingBarcode" style="min-width: 120px;">
-                            📷 Scan
-                        </button>
-                    </div>
-                    <div id="trackingBarcodeScanner" style="display: none; margin-top: 15px;">
-                        <video id="trackingBarcodeVideo" width="100%" style="border-radius: 8px; display: none; max-width: 100%;"></video>
-                        <canvas id="trackingBarcodeCanvas" style="display: none;"></canvas>
-                        <button type="button" class="button button-secondary" id="stopTrackingScan" style="margin-top: 10px;">
-                            Stop Scanning
-                        </button>
-                    </div>
+
+                    <form id="saleForm">
+                        <div class="form-group">
+                            <label for="searchProduct">Search Product *</label>
+                            <p style="font-size: 0.85rem; color: #666; margin-bottom: 10px;">
+                                Enter serial number or security barcode to find the product
+                            </p>
+                            <input
+                                type="text"
+                                id="searchProduct"
+                                name="searchProduct"
+                                required
+                                placeholder="Enter serial number or security barcode"
+                                autocomplete="off"
+                            >
+                            <button type="button" class="button" id="searchButton" style="margin-top: 10px;">
+                                Search Product
+                            </button>
+                        </div>
+
+                        <div id="productInfo" class="product-info-box">
+                            <h3 style="margin-top: 0; margin-bottom: 15px;">Product Information</h3>
+                            <div class="product-info-grid">
+                                <div class="product-info-item">
+                                    <span class="product-info-label">Serial Number</span>
+                                    <span class="product-info-value" id="productSerial">-</span>
+                                </div>
+                                <div class="product-info-item">
+                                    <span class="product-info-label">Security Barcode</span>
+                                    <span class="product-info-value" id="productSecurity">-</span>
+                                </div>
+                                <div class="product-info-item">
+                                    <span class="product-info-label">Product Name</span>
+                                    <span class="product-info-value" id="productName">-</span>
+                                </div>
+                                <div class="product-info-item">
+                                    <span class="product-info-label">Part Type</span>
+                                    <span class="product-info-value" id="productPartType">-</span>
+                                </div>
+                            </div>
+                            <input type="hidden" id="productId" name="productId">
+                        </div>
+
+                        <div id="saleFields" style="display: none;">
+                            <hr style="margin: 30px 0; border: none; border-top: 2px solid #e8ecf1;">
+
+                            <h3 style="margin-bottom: 15px;">Sale Details</h3>
+
+                            <div class="form-group">
+                                <label for="salesOrderNumber">Sales Order Number *</label>
+                                <p style="font-size: 0.85rem; color: #666; margin-bottom: 10px;">
+                                    Enter the order number (e.g., eBay order number, invoice number)
+                                </p>
+                                <input
+                                    type="text"
+                                    id="salesOrderNumber"
+                                    name="salesOrderNumber"
+                                    placeholder="e.g., 123-4567890-1234567"
+                                    autocomplete="off"
+                                >
+                            </div>
+
+                            <div class="form-group">
+                                <label for="saleDate">Sale Date</label>
+                                <input
+                                    type="date"
+                                    id="saleDate"
+                                    name="saleDate"
+                                >
+                            </div>
+
+                            <div class="form-group">
+                                <label for="salePrice">Sale Price (£)</label>
+                                <input
+                                    type="number"
+                                    id="salePrice"
+                                    name="salePrice"
+                                    step="0.01"
+                                    min="0"
+                                    placeholder="0.00"
+                                >
+                            </div>
+
+                            <div class="form-group">
+                                <label for="saleNotes">Notes (Optional)</label>
+                                <textarea
+                                    id="saleNotes"
+                                    name="saleNotes"
+                                    rows="4"
+                                    placeholder="Add any additional notes about this sale..."
+                                ></textarea>
+                            </div>
+                        </div>
+
+                        <div id="errorMessage" class="error-message" style="display: none;"></div>
+                        <div id="successMessage" class="success-message" style="display: none;"></div>
+
+                        <div class="form-actions" id="formActions" style="display: none;">
+                            <button type="submit" class="button" id="submitButton">
+                                Record Sale
+                            </button>
+                            <button type="button" class="button button-cancel" id="cancelButton" onclick="window.location.href='sales.html'">
+                                Cancel
+                            </button>
+                        </div>
+
+                        <div class="spinner" id="spinner" style="display: none;"></div>
+                    </form>
                 </div>
-                
-                <div id="trackingCurrentInfo" style="margin-top: 20px; padding: 15px; background-color: #e8f4f8; border-radius: 8px; display: none;">
-                    <p style="margin: 0; color: #666;"><strong>Current Tracking:</strong> <span id="currentTrackingNumber"></span></p>
-                    <p style="margin: 5px 0 0 0; color: #666; font-size: 0.9rem;">Added: <span id="currentTrackingDate"></span></p>
-                </div>
-                
-                <div id="trackingError" class="error-message" style="display: none; margin-top: 15px;"></div>
-                <div id="trackingSuccess" class="success-message" style="display: none; margin-top: 15px;"></div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="button button-secondary" id="cancelTracking">
-                    Cancel
-                </button>
-                <button type="button" class="button" id="saveTracking">
-                    Save Tracking
-                </button>
             </div>
         </div>
     </div>
 
-    <script src="../js/admin.js?v=1.2.5.032"></script>
-    <script src="../js/products-filter.js?v=1.3.0"></script>
-    <script src="../js/products-render.js?v=1.2.5.032"></script>
-    <script src="../js/version.js?v=1.2.5.032"></script>
-    <script>
-        // Quick search handler
-        function handleQuickSearch(event) {
-            const form = event.target;
-            const input = form.querySelector('input[name="security_barcode"]');
-            const value = input.value.trim();
-            
-            if (!value) {
-                event.preventDefault();
-                // If empty, go to search page without query
-                window.location.href = 'search-product.html';
-                return false;
-            }
-            
-            // Let form submit naturally with query parameter
-            return true;
-        }
-    </script>
-    
     <!-- Sidebar Overlay for Mobile -->
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
-    
+
+    <script src="../js/admin.js?v=1.2.5.032"></script>
+    <script src="../js/version.js?v=1.2.5.032"></script>
     <script>
         // Sidebar toggle functionality
         (function() {
             const sidebarToggle = document.getElementById('sidebarToggle');
             const sidebar = document.querySelector('.admin-sidebar');
             const overlay = document.getElementById('sidebarOverlay');
-            
+
             if (sidebarToggle && sidebar) {
                 sidebarToggle.addEventListener('click', function() {
                     sidebar.classList.toggle('sidebar-open');
@@ -538,7 +514,7 @@
                         overlay.classList.toggle('active');
                     }
                 });
-                
+
                 if (overlay) {
                     overlay.addEventListener('click', function() {
                         sidebar.classList.remove('sidebar-open');
@@ -546,9 +522,9 @@
                     });
                 }
             }
-            
+
             // Set active nav item based on current page
-            const currentPage = window.location.pathname.split('/').pop() || 'dashboard.html';
+            const currentPage = window.location.pathname.split('/').pop() || 'add-sale.html';
             const navLinks = document.querySelectorAll('.nav-link, .sidebar-footer-link');
             navLinks.forEach(link => {
                 const href = link.getAttribute('href');
@@ -557,35 +533,140 @@
                 }
             });
         })();
-    </script>
-    <script>
-        // Filter to show only sold items (has sales_order_number)
-        (function() {
-            // Override the loadProducts function to filter sales only
-            const originalFetch = window.authenticatedFetch;
-            window.authenticatedFetch = function(url, options) {
-                return originalFetch(url, options).then(response => {
-                    if (url.includes('/api/admin/products')) {
-                        return response.clone().json().then(data => {
-                            if (data.products) {
-                                // Filter to only show products with sales_order_number (sold)
-                                data.products = data.products.filter(product => 
-                                    product.sales_order_number && product.sales_order_number !== null && product.sales_order_number !== ''
-                                );
-                                data.total = data.products.length;
-                            }
-                            // Return a new response with filtered data
-                            return new Response(JSON.stringify(data), {
-                                status: response.status,
-                                statusText: response.statusText,
-                                headers: response.headers
-                            });
-                        });
+
+        // Add Sale Form Logic
+        let selectedProduct = null;
+
+        document.getElementById('searchButton').addEventListener('click', searchProduct);
+        document.getElementById('searchProduct').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                searchProduct();
+            }
+        });
+
+        function searchProduct() {
+            const searchValue = document.getElementById('searchProduct').value.trim();
+
+            if (!searchValue) {
+                showError('Please enter a serial number or security barcode');
+                return;
+            }
+
+            showSpinner();
+            hideMessages();
+
+            // Search for product
+            authenticatedFetch('/api/admin/products/search?q=' + encodeURIComponent(searchValue))
+                .then(response => response.json())
+                .then(data => {
+                    hideSpinner();
+
+                    if (data.product) {
+                        selectedProduct = data.product;
+                        displayProduct(data.product);
+                        document.getElementById('productInfo').classList.add('show');
+                        document.getElementById('saleFields').style.display = 'block';
+                        document.getElementById('formActions').style.display = 'flex';
+                    } else {
+                        showError('Product not found. Please check the serial number or security barcode.');
+                        document.getElementById('productInfo').classList.remove('show');
+                        document.getElementById('saleFields').style.display = 'none';
+                        document.getElementById('formActions').style.display = 'none';
                     }
-                    return response;
+                })
+                .catch(error => {
+                    hideSpinner();
+                    console.error('Search error:', error);
+                    showError('Failed to search for product. Please try again.');
                 });
+        }
+
+        function displayProduct(product) {
+            document.getElementById('productSerial').textContent = product.serial_number || '-';
+            document.getElementById('productSecurity').textContent = product.security_barcode || '-';
+            document.getElementById('productName').textContent = product.product_name || '-';
+            document.getElementById('productPartType').textContent = product.part_type || '-';
+            document.getElementById('productId').value = product._id;
+        }
+
+        document.getElementById('saleForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            if (!selectedProduct) {
+                showError('Please search for and select a product first');
+                return;
+            }
+
+            const salesOrderNumber = document.getElementById('salesOrderNumber').value.trim();
+
+            if (!salesOrderNumber) {
+                showError('Please enter a sales order number');
+                return;
+            }
+
+            showSpinner();
+            hideMessages();
+
+            const saleData = {
+                sales_order_number: salesOrderNumber,
+                sale_date: document.getElementById('saleDate').value || null,
+                sale_price: document.getElementById('salePrice').value || null,
+                sale_notes: document.getElementById('saleNotes').value.trim() || null
             };
-        })();
+
+            // Update product with sale information
+            authenticatedFetch('/api/admin/products/' + selectedProduct._id, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(saleData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                hideSpinner();
+
+                if (data.success) {
+                    showSuccess('Sale recorded successfully!');
+                    setTimeout(function() {
+                        window.location.href = 'sales.html';
+                    }, 1500);
+                } else {
+                    showError(data.message || 'Failed to record sale');
+                }
+            })
+            .catch(error => {
+                hideSpinner();
+                console.error('Error recording sale:', error);
+                showError('Failed to record sale. Please try again.');
+            });
+        });
+
+        function showSpinner() {
+            document.getElementById('spinner').style.display = 'block';
+        }
+
+        function hideSpinner() {
+            document.getElementById('spinner').style.display = 'none';
+        }
+
+        function showError(message) {
+            const errorEl = document.getElementById('errorMessage');
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+        }
+
+        function showSuccess(message) {
+            const successEl = document.getElementById('successMessage');
+            successEl.textContent = message;
+            successEl.style.display = 'block';
+        }
+
+        function hideMessages() {
+            document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('successMessage').style.display = 'none';
+        }
     </script>
 </body>
 </html>
