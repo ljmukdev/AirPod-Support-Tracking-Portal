@@ -779,6 +779,51 @@ async function copyEmail() {
     }
 }
 
+async function regenerateEmail() {
+    const button = document.getElementById('regenerateEmailButton');
+    const originalText = button.innerHTML;
+    
+    button.disabled = true;
+    button.innerHTML = '⏳ Generating...';
+    button.style.opacity = '0.6';
+    
+    try {
+        const response = await authenticatedFetch(`${window.API_BASE}/api/admin/check-in/${checkInId}/regenerate-email`, {
+            method: 'POST'
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to regenerate email');
+        }
+        
+        const data = await response.json();
+        
+        if (data.success && data.email_template) {
+            emailTemplate = data.email_template;
+            document.getElementById('emailContent').value = emailTemplate;
+            
+            // Show success feedback
+            button.innerHTML = '✓ Regenerated!';
+            button.style.background = '#10b981';
+            
+            setTimeout(() => {
+                button.innerHTML = originalText;
+                button.style.background = '#f59e0b';
+                button.disabled = false;
+                button.style.opacity = '1';
+            }, 2000);
+        } else {
+            throw new Error(data.error || 'Failed to regenerate email');
+        }
+    } catch (error) {
+        console.error('[EMAIL] Error regenerating:', error);
+        alert('Error: ' + error.message);
+        button.innerHTML = originalText;
+        button.disabled = false;
+        button.style.opacity = '1';
+    }
+}
+
 async function confirmEmailSent() {
     if (!confirm('Have you sent this email to the seller?\n\nThis will mark the email as sent and record the timestamp.')) {
         return;

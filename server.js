@@ -2639,7 +2639,7 @@ async function generateSellerEmail(purchase, checkIn, baseUrl) {
         };
     });
 
-    const prompt = `Write a professional message from a BUYER (LJMUK) to their SELLER about issues found during inspection. Write ONLY from the buyer's perspective. Do not add new facts.
+    const prompt = `Write a unique, professional message from a BUYER (LJMUK) to their SELLER about issues found during inspection. Write ONLY from the buyer's perspective. Be creative with phrasing while staying professional. Do not add new facts.
 
 Context: We are the BUYER who purchased these items from a SELLER on ${purchase.platform || 'eBay'}. We have inspected them and found issues. We need to contact the seller to request a resolution.
 
@@ -2661,16 +2661,18 @@ ${JSON.stringify(issueSummaries, null, 2)}
 
 Requirements:
 1. Write from BUYER's perspective (we purchased from the seller)
-2. Be professional but friendly
+2. Be professional, friendly, and constructive - vary your opening and phrasing
 3. Explain what issues we found during our inspection
 4. Include photo URLs directly in the text (NO brackets or markdown around URLs)
 5. Mention the affected item count and percentage
-6. REQUEST (not offer) either:
-   - Return for full refund, OR
-   - Keep items with partial refund of £${partialRefundAmount}
-7. Ask the seller how they would like to proceed
-8. Sign off as "Kind regards, LJMUK" or similar
-9. Keep it concise (under 300 words)`;
+6. REQUEST (not offer) one of two options:
+   Option A: Return the ENTIRE ORDER for a full refund (at seller's expense for return shipping)
+   Option B: Keep the items and receive a partial refund of £${partialRefundAmount}
+7. Make it CLEAR that if we return, it would be the entire order back to them at their cost
+8. Ask the seller which option they prefer
+9. Sign off with "Kind regards, LJMUK" or vary slightly
+10. Keep it concise (under 300 words)
+11. Make each message UNIQUE - vary sentence structure, opening, and phrasing while maintaining professionalism`;
 
     console.log('[AI-SELLER-EMAIL] Calling Claude API...');
 
@@ -2698,7 +2700,7 @@ Requirements:
                 const message = await anthropic.messages.create({
                     model,
                     max_tokens: 500,
-                    temperature: 0.2,
+                    temperature: 0.7,  // Higher temperature for more creative, unique messages
                     messages: [{
                         role: 'user',
                         content: prompt
@@ -3979,6 +3981,56 @@ app.post('/api/admin/check-in/:id/mark-email-sent', requireAuth, requireDB, asyn
     } catch (err) {
         console.error('[CHECK-IN] Error marking email as sent:', err);
         res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Regenerate seller email (Admin only)
+app.post('/api/admin/check-in/:id/regenerate-email', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid check-in ID' });
+    }
+    
+    try {
+        const checkIn = await db.collection('check_ins').findOne({ _id: new ObjectId(id) });
+        
+        if (!checkIn) {
+            return res.status(404).json({ error: 'Check-in not found' });
+        }
+        
+        const purchase = await db.collection('purchases').findOne({ 
+            _id: new ObjectId(checkIn.purchase_id) 
+        });
+        
+        if (!purchase) {
+            return res.status(404).json({ error: 'Purchase not found' });
+        }
+        
+        console.log('[CHECK-IN] Regenerating seller email for check-in:', id);
+        
+        // Get base URL for photo links
+        const baseUrl = process.env.RAILWAY_PUBLIC_DOMAIN 
+            ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+            : (req.get('origin') || `${req.protocol}://${req.get('host')}`);
+        
+        // Generate fresh email with AI
+        const emailContent = await generateSellerEmail(purchase, checkIn, baseUrl);
+        
+        if (!emailContent) {
+            return res.status(400).json({ error: 'Could not generate email - no issues found or AI unavailable' });
+        }
+        
+        console.log('[CHECK-IN] Email regenerated successfully');
+        
+        res.json({
+            success: true,
+            email_template: emailContent,
+            message: 'Email regenerated successfully'
+        });
+    } catch (err) {
+        console.error('[CHECK-IN] Error regenerating email:', err);
+        res.status(500).json({ error: 'Error regenerating email: ' + err.message });
     }
 });
 
