@@ -3403,21 +3403,55 @@ app.post('/api/admin/migrate-order-numbers', requireAuth, requireDB, async (req,
 });
 
 // Update check-in (Admin only)
-app.put('/api/admin/check-in/:id', requireAuth, requireDB, async (req, res) => {
+app.put('/api/admin/check-in/:id', requireAuth, requireDB, (req, res) => {
     const id = req.params.id;
-    const { items } = req.body;
+    const handleUpdate = async () => {
+        let { items } = req.body;
     
-    if (!ObjectId.isValid(id)) {
-        return res.status(400).json({ error: 'Invalid check-in ID' });
-    }
-    
-    if (!items || !Array.isArray(items)) {
-        return res.status(400).json({ error: 'Items array is required' });
-    }
-    
-    try {
+        if (typeof items === 'string') {
+            try {
+                items = JSON.parse(items);
+            } catch (parseError) {
+                return res.status(400).json({ error: 'Invalid items payload' });
+            }
+        }
+
+        if (!ObjectId.isValid(id)) {
+            return res.status(400).json({ error: 'Invalid check-in ID' });
+        }
+        
+        if (!items || !Array.isArray(items)) {
+            return res.status(400).json({ error: 'Items array is required' });
+        }
+        
+        try {
         console.log('[CHECK-IN UPDATE] Updating check-in:', id);
         console.log('[CHECK-IN UPDATE] New items:', JSON.stringify(items, null, 2));
+
+        const photoMap = new Map();
+        if (Array.isArray(req.files)) {
+            req.files.forEach((file) => {
+                const field = file.fieldname;
+                const url = `/uploads/${file.filename}`;
+                if (!photoMap.has(field)) {
+                    photoMap.set(field, []);
+                }
+                photoMap.get(field).push(url);
+            });
+        }
+
+        items = items.map((item, index) => {
+            const photoKey = `issue_photos_${index}`;
+            const issuePhotos = photoMap.get(photoKey) || [];
+            const existingPhotos = Array.isArray(item.issue_photos) ? item.issue_photos : [];
+            return {
+                ...item,
+                serial_number: item.serial_number ? String(item.serial_number).toUpperCase() : null,
+                issue_notes: item.issue_notes ? String(item.issue_notes).trim() : null,
+                issue_photos: existingPhotos.concat(issuePhotos),
+                set_number: item.set_number || null
+            };
+        });
         
         // Re-analyze items for issues after update
         const issues = [];
@@ -3474,7 +3508,10 @@ app.put('/api/admin/check-in/:id', requireAuth, requireDB, async (req, res) => {
                 issues.push({
                     item_type: item.item_type,
                     item_name: getItemDisplayName(item.item_type),
-                    issues: itemIssues
+                    set_number: item.set_number || null,
+                    issues: itemIssues,
+                    evidence_notes: item.issue_notes || null,
+                    evidence_photos: item.issue_photos || []
                 });
             }
         });
@@ -3486,7 +3523,10 @@ app.put('/api/admin/check-in/:id', requireAuth, requireDB, async (req, res) => {
                 condition: item.condition,
                 serial_number: item.serial_number || null,
                 audible_condition: item.audible_condition || null,
-                connects_correctly: item.connects_correctly !== undefined ? item.connects_correctly : null
+                connects_correctly: item.connects_correctly !== undefined ? item.connects_correctly : null,
+                issue_notes: item.issue_notes || null,
+                issue_photos: item.issue_photos || [],
+                set_number: item.set_number || null
             })),
             issues_detected: issues,
             has_issues: issues.length > 0,
@@ -3510,9 +3550,21 @@ app.put('/api/admin/check-in/:id', requireAuth, requireDB, async (req, res) => {
             message: 'Check-in updated successfully',
             has_issues: issues.length > 0
         });
-    } catch (err) {
-        console.error('[CHECK-IN UPDATE] Error:', err);
-        res.status(500).json({ error: 'Database error: ' + err.message });
+        } catch (err) {
+            console.error('[CHECK-IN UPDATE] Error:', err);
+            res.status(500).json({ error: 'Database error: ' + err.message });
+        }
+    };
+
+    if (req.is('multipart/form-data')) {
+        upload.any()(req, res, (err) => {
+            if (err) {
+                return handleMulterError(err, req, res, () => {});
+            }
+            handleUpdate();
+        });
+    } else {
+        handleUpdate();
     }
 });
 
