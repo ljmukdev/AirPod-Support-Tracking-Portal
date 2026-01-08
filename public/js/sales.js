@@ -1,7 +1,12 @@
 // Sales Management JavaScript
-const API_BASE = window.API_BASE || '';
-
-let currentSaleId = null;
+// Sales-specific code wrapped to avoid global scope conflicts
+(function() {
+    'use strict';
+    
+    // Use the API_BASE already defined globally by admin.js
+    const API_BASE = window.API_BASE || '';
+    
+    let currentSaleId = null;
 let selectedConsumables = [];
 let productCost = 0;
 let templateConsumables = [];
@@ -627,3 +632,5 @@ window.closeTemplatesModal = closeTemplatesModal;
 window.deleteTemplate = deleteTemplate;
 window.closeCreateTemplateModal = closeCreateTemplateModal;
 window.removeTemplateConsumable = removeTemplateConsumable;
+
+})(); // End of IIFE
