@@ -640,10 +640,44 @@ function openResolutionModal(checkInId) {
         document.getElementById('resolutionForm').reset();
         document.getElementById('sellerResponseSection').style.display = 'none';
         document.getElementById('refundSection').style.display = 'none';
+        document.getElementById('returnTrackingSection').style.display = 'none';
         document.querySelectorAll('.radio-option').forEach(opt => {
             opt.style.borderColor = '#d1d5db';
             opt.style.background = 'white';
         });
+        
+        // Setup resolution type change handler
+        const resolutionTypeSelect = document.getElementById('resolutionType');
+        if (resolutionTypeSelect) {
+            // Remove any existing listeners by cloning the element
+            const newSelect = resolutionTypeSelect.cloneNode(true);
+            resolutionTypeSelect.parentNode.replaceChild(newSelect, resolutionTypeSelect);
+            
+            newSelect.addEventListener('change', (e) => {
+                const value = e.target.value;
+                const showRefund = ['Partial refund', 'Full refund', 'Seller agreed to full refund', 'Seller agreed to partial refund', 'Seller agreed to return (full refund)', 'Seller agreed to return (partial refund)'].includes(value);
+                const showReturn = value.toLowerCase().includes('return');
+                
+                document.getElementById('refundSection').style.display = showRefund ? 'block' : 'none';
+                document.getElementById('returnTrackingSection').style.display = showReturn ? 'block' : 'none';
+                
+                // Make return tracking required if return is selected
+                const returnTrackingInput = document.getElementById('returnTrackingNumber');
+                if (returnTrackingInput) {
+                    returnTrackingInput.required = showReturn;
+                }
+                
+                // Set default expected date (7 days from now) when return is selected
+                if (showReturn) {
+                    const expectedDateInput = document.getElementById('expectedReturnDate');
+                    if (expectedDateInput && !expectedDateInput.value) {
+                        const defaultDate = new Date();
+                        defaultDate.setDate(defaultDate.getDate() + 7);
+                        expectedDateInput.value = defaultDate.toISOString().split('T')[0];
+                    }
+                }
+            });
+        }
     }
 }
 
@@ -672,6 +706,16 @@ async function submitResolution() {
         return;
     }
 
+    // Check if return tracking is required
+    const isReturn = resolutionType.toLowerCase().includes('return');
+    if (isReturn) {
+        const returnTracking = document.getElementById('returnTrackingNumber').value;
+        if (!returnTracking || !returnTracking.trim()) {
+            alert('Please enter a return tracking number');
+            return;
+        }
+    }
+
     // Collect form data
     const formData = {
         resolution_type: resolutionType,
@@ -681,6 +725,16 @@ async function submitResolution() {
         seller_cooperative: sellerCooperative.value === 'true',
         resolution_notes: document.getElementById('resolutionNotes').value
     };
+
+    // Add return tracking data if this is a return
+    if (isReturn) {
+        formData.return_tracking = {
+            tracking_number: document.getElementById('returnTrackingNumber').value,
+            carrier: document.getElementById('returnCarrier').value || null,
+            expected_delivery: document.getElementById('expectedReturnDate').value || null,
+            notes: document.getElementById('returnNotes').value || null
+        };
+    }
 
     console.log('[RESOLUTION] Submitting:', formData);
 
