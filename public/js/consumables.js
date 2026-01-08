@@ -151,9 +151,14 @@ function renderConsumables(consumables) {
         // Location display
         const locationDisplay = item.location || '<span style="color: #999;">—</span>';
 
+        // Item name with size
+        const itemNameDisplay = item.size
+            ? `<strong>${escapeHtml(item.item_name)}</strong><br><span style="font-size: 0.85rem; color: #666;">${escapeHtml(item.size)}</span>`
+            : `<strong>${escapeHtml(item.item_name)}</strong>`;
+
         return `
             <tr data-consumable-id="${escapeHtml(String(item._id || item.id))}">
-                <td><strong>${escapeHtml(item.item_name)}</strong></td>
+                <td>${itemNameDisplay}</td>
                 <td><code style="background: #f8f9fa; padding: 2px 6px; border-radius: 3px; font-size: 0.9rem;">${escapeHtml(item.sku)}</code></td>
                 <td>${categoryBadge}</td>
                 <td style="text-align: center;"><strong>${item.quantity_in_stock}</strong></td>
