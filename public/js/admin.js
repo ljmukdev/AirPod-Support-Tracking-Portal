@@ -761,10 +761,11 @@ async function editProduct(id) {
                     }, 200);
                 }
                 
-                // Set part type
+                // Set part type and trigger change event to handle accessories
                 const partTypeSelect = document.getElementById('partType');
                 if (partTypeSelect && product.part_type) {
                     partTypeSelect.value = product.part_type;
+                    partTypeSelect.dispatchEvent(new Event('change'));
                 }
                 
                 // Set notes and eBay order numbers
