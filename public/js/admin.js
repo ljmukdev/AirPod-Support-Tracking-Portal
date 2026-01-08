@@ -1870,6 +1870,7 @@ function setupTrackingModalListeners() {
 window.deleteProduct = deleteProduct;
 window.editProduct = editProduct;
 window.openTrackingModal = openTrackingModal;
+window.authenticatedFetch = authenticatedFetch;
 
 // Cancel edit button
 if (cancelEditButton) {

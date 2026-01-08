@@ -1772,12 +1772,14 @@ app.post('/api/admin/product', requireAuth, requireDB, (req, res, next) => {
 
 // Get all products (Admin only, paginated)
 app.get('/api/admin/products', requireAuth, requireDB, async (req, res) => {
-    console.log('[PRODUCTS] Request received - limit:', req.query.limit, 'offset:', req.query.offset);
+    console.log('[PRODUCTS] Request received - limit:', req.query.limit, 'offset:', req.query.offset, 'unsold:', req.query.unsold);
     console.log('[PRODUCTS] User:', req.user?.email || 'no user data');
 
     const limit = parseInt(req.query.limit) || 50;
     const offset = parseInt(req.query.offset) || 0;
     const unsoldOnly = req.query.unsold === 'true';
+    
+    console.log('[PRODUCTS] unsoldOnly flag:', unsoldOnly);
 
     try {
         // Build filter

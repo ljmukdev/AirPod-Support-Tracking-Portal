@@ -3,8 +3,9 @@
 (function() {
     'use strict';
     
-    // Use the API_BASE already defined globally by admin.js
+    // Use the API_BASE and authenticatedFetch already defined globally by admin.js
     const API_BASE = window.API_BASE || '';
+    const authenticatedFetch = window.authenticatedFetch;
     
     let currentSaleId = null;
 let selectedConsumables = [];
