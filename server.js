@@ -2813,10 +2813,16 @@ app.post('/api/admin/check-in', requireAuth, requireDB, (req, res) => {
             console.log('[CHECK-IN] Analyzing items for issues:', JSON.stringify(items, null, 2));
             const issues = [];
             items.forEach(item => {
+                // Normalize condition values for consistent checking
+                const condition = item.condition ? item.condition.toString().trim().toLowerCase() : null;
+                const audibleCondition = item.audible_condition ? item.audible_condition.toString().trim().toLowerCase() : null;
+                
                 console.log(`[CHECK-IN] Checking item: ${item.item_type}`);
                 console.log(`  - is_genuine: ${item.is_genuine}`);
-                console.log(`  - condition: ${item.condition}`);
-                console.log(`  - audible_condition: ${item.audible_condition}`);
+                console.log(`  - Raw condition: ${item.condition}`);
+                console.log(`  - Normalized condition: ${condition}`);
+                console.log(`  - Raw audible: ${item.audible_condition}`);
+                console.log(`  - Normalized audible: ${audibleCondition}`);
                 console.log(`  - connects_correctly: ${item.connects_correctly}`);
                 
                 const itemIssues = [];
@@ -2832,34 +2838,38 @@ app.post('/api/admin/check-in', requireAuth, requireDB, (req, res) => {
             }
             
             // Check visual condition issues (fair or poor)
-            if (['fair', 'poor'].includes(item.condition)) {
-                console.log(`  ✗ Issue detected: Visual condition ${item.condition}`);
+            if (['fair', 'poor'].includes(condition)) {
+                console.log(`  ✗ Issue detected: Visual condition ${condition}`);
                 itemIssues.push({
                     type: 'condition',
-                    severity: item.condition === 'poor' ? 'high' : 'medium',
-                    description: `Visual condition is ${item.condition}`
+                    severity: condition === 'poor' ? 'high' : 'medium',
+                    description: `Visual condition is ${condition}`
                 });
+            } else {
+                console.log(`  ✓ Visual condition OK: ${condition}`);
             }
             
             // Check audible condition issues (only for left/right AirPods)
-            if (['left', 'right'].includes(item.item_type) && item.audible_condition) {
-                console.log(`  - Checking audible condition: ${item.audible_condition}`);
-                if (['poor', 'not_working'].includes(item.audible_condition)) {
-                    console.log(`  ✗ Issue detected: Audible condition ${item.audible_condition}`);
+            if (['left', 'right'].includes(item.item_type) && audibleCondition) {
+                console.log(`  - Checking audible condition: ${audibleCondition}`);
+                if (['poor', 'not_working'].includes(audibleCondition)) {
+                    console.log(`  ✗ Issue detected: Audible condition ${audibleCondition}`);
                     itemIssues.push({
                         type: 'audible',
-                        severity: item.audible_condition === 'not_working' ? 'critical' : 'high',
-                        description: item.audible_condition === 'not_working' 
+                        severity: audibleCondition === 'not_working' ? 'critical' : 'high',
+                        description: audibleCondition === 'not_working' 
                             ? 'No audible sound - item not working'
-                            : `Poor sound quality - audible condition is ${item.audible_condition}`
+                            : `Poor sound quality - audible condition is ${audibleCondition}`
                     });
-                } else if (item.audible_condition === 'fair') {
+                } else if (audibleCondition === 'fair') {
                     console.log(`  ✗ Issue detected: Audible condition fair`);
                     itemIssues.push({
                         type: 'audible',
                         severity: 'medium',
                         description: 'Fair sound quality - audible condition is fair'
                     });
+                } else {
+                    console.log(`  ✓ Audible condition OK: ${audibleCondition}`);
                 }
             }
             
@@ -2899,9 +2909,9 @@ app.post('/api/admin/check-in', requireAuth, requireDB, (req, res) => {
                 items: items.map(item => ({
                     item_type: item.item_type,
                     is_genuine: item.is_genuine === true,
-                    condition: item.condition,
+                    condition: item.condition ? item.condition.toString().trim().toLowerCase() : null,
                     serial_number: item.serial_number || null,
-                    audible_condition: item.audible_condition || null,
+                    audible_condition: item.audible_condition ? item.audible_condition.toString().trim().toLowerCase() : null,
                     connects_correctly: item.connects_correctly !== undefined ? item.connects_correctly : null,
                     set_number: item.set_number || null,
                     issue_notes: item.issue_notes || null,
@@ -3636,10 +3646,20 @@ app.put('/api/admin/check-in/:id', requireAuth, requireDB, (req, res) => {
         // Re-analyze items for issues after update
         const issues = [];
         items.forEach(item => {
+            // Normalize condition values for consistent checking
+            const condition = item.condition ? item.condition.toString().trim().toLowerCase() : null;
+            const audibleCondition = item.audible_condition ? item.audible_condition.toString().trim().toLowerCase() : null;
+            
+            console.log(`[CHECK-IN UPDATE] Analyzing ${item.item_type}:`);
+            console.log(`  - Raw condition: "${item.condition}"`);
+            console.log(`  - Normalized condition: "${condition}"`);
+            console.log(`  - Is genuine: ${item.is_genuine}`);
+            
             const itemIssues = [];
             
             // Check if not genuine
             if (item.is_genuine === false) {
+                console.log(`  ✗ Issue: Not genuine`);
                 itemIssues.push({
                     type: 'authenticity',
                     severity: 'critical',
@@ -3648,30 +3668,39 @@ app.put('/api/admin/check-in/:id', requireAuth, requireDB, (req, res) => {
             }
             
             // Check visual condition issues
-            if (['fair', 'poor'].includes(item.condition)) {
+            console.log(`  - Checking if "${condition}" is in ['fair', 'poor']...`);
+            if (['fair', 'poor'].includes(condition)) {
+                console.log(`  ✗ Issue detected: Visual condition ${condition}`);
                 itemIssues.push({
                     type: 'condition',
-                    severity: item.condition === 'poor' ? 'high' : 'medium',
-                    description: `Visual condition is ${item.condition}`
+                    severity: condition === 'poor' ? 'high' : 'medium',
+                    description: `Visual condition is ${condition}`
                 });
+            } else {
+                console.log(`  ✓ Visual condition OK: ${condition}`);
             }
             
             // Check audible condition issues
-            if (['left', 'right'].includes(item.item_type) && item.audible_condition) {
-                if (['poor', 'not_working'].includes(item.audible_condition)) {
+            if (['left', 'right'].includes(item.item_type) && audibleCondition) {
+                console.log(`  - Checking audible condition: "${audibleCondition}"`);
+                if (['poor', 'not_working'].includes(audibleCondition)) {
+                    console.log(`  ✗ Issue: Audible condition ${audibleCondition}`);
                     itemIssues.push({
                         type: 'audible',
-                        severity: item.audible_condition === 'not_working' ? 'critical' : 'high',
-                        description: item.audible_condition === 'not_working' 
+                        severity: audibleCondition === 'not_working' ? 'critical' : 'high',
+                        description: audibleCondition === 'not_working' 
                             ? 'No audible sound - item not working'
-                            : `Poor sound quality - audible condition is ${item.audible_condition}`
+                            : `Poor sound quality - audible condition is ${audibleCondition}`
                     });
-                } else if (item.audible_condition === 'fair') {
+                } else if (audibleCondition === 'fair') {
+                    console.log(`  ✗ Issue: Audible condition fair`);
                     itemIssues.push({
                         type: 'audible',
                         severity: 'medium',
                         description: 'Fair sound quality - audible condition is fair'
                     });
+                } else {
+                    console.log(`  ✓ Audible condition OK: ${audibleCondition}`);
                 }
             }
             
@@ -3700,9 +3729,9 @@ app.put('/api/admin/check-in/:id', requireAuth, requireDB, (req, res) => {
             items: items.map(item => ({
                 item_type: item.item_type,
                 is_genuine: item.is_genuine === true,
-                condition: item.condition,
+                condition: item.condition ? item.condition.toString().trim().toLowerCase() : null,
                 serial_number: item.serial_number || null,
-                audible_condition: item.audible_condition || null,
+                audible_condition: item.audible_condition ? item.audible_condition.toString().trim().toLowerCase() : null,
                 connects_correctly: item.connects_correctly !== undefined ? item.connects_correctly : null,
                 issue_notes: item.issue_notes || null,
                 issue_photos: item.issue_photos || [],

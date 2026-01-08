@@ -239,12 +239,14 @@ async function saveChanges(e) {
                 } else {
                     updatedItem[fieldName] = field.value || null;
                 }
+                
+                console.log(`[EDIT-CHECK-IN] Item ${index} (${item.item_type}) - ${fieldName}: "${updatedItem[fieldName]}"`);
             });
             
             return updatedItem;
         });
         
-        console.log('[EDIT-CHECK-IN] Saving updated items:', updatedItems);
+        console.log('[EDIT-CHECK-IN] Saving updated items:', JSON.stringify(updatedItems, null, 2));
         
         const formData = new FormData();
         formData.append('items', JSON.stringify(updatedItems));
