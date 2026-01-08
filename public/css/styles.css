@@ -938,7 +938,7 @@ aside.admin-sidebar {
     background-color: var(--background-white);
     border-bottom: 1px solid #e5e7eb;
     padding: 0 24px;
-    height: 64px;
+    min-height: 64px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -953,6 +953,7 @@ aside.admin-sidebar {
     align-items: center;
     gap: 20px;
     flex: 1;
+    flex-wrap: wrap;
 }
 
 .sidebar-toggle {
@@ -1023,6 +1024,47 @@ aside.admin-sidebar {
 
 .topbar-search-button:hover {
     color: var(--accent-teal);
+}
+
+.topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.topbar-action-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background-color: var(--accent-teal);
+    color: white;
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    white-space: nowrap;
+    border: 1px solid var(--accent-teal);
+}
+
+.topbar-action-button:hover {
+    background-color: var(--accent-teal-hover);
+    border-color: var(--accent-teal-hover);
+    color: white;
+}
+
+.topbar-action-button.is-secondary {
+    background-color: white;
+    border-color: #e5e7eb;
+    color: var(--text-dark);
+}
+
+.topbar-action-button.is-secondary:hover {
+    background-color: #f3f4f6;
+    border-color: #d1d5db;
+    color: var(--text-dark);
 }
 
 .topbar-add-button {
