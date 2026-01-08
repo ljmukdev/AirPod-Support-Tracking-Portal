@@ -3182,6 +3182,27 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                 continue;
             }
 
+            // Check if there's already a pending restock order (not yet checked in)
+            const pendingRestock = await db.collection('consumable_stock_history').findOne({
+                consumable_id: consumable._id,
+                type: 'restock_ordered',
+                expected_arrival: { $exists: true, $ne: null }
+            });
+
+            // If there's a pending restock, check if it's been checked in yet
+            if (pendingRestock) {
+                const checkedIn = await db.collection('consumable_stock_history').findOne({
+                    consumable_id: consumable._id,
+                    type: 'restock_checked_in',
+                    timestamp: { $gte: pendingRestock.timestamp }
+                });
+
+                // Skip this reorder task if restock is pending (not yet checked in)
+                if (!checkedIn) {
+                    continue;
+                }
+            }
+
             const leadTimeDays = consumable.lead_time_days || 0;
             tasks.push({
                 id: `consumable-reorder-${consumable._id.toString()}`,
