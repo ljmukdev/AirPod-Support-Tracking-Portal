@@ -168,18 +168,6 @@
 
                 <form id="addConsumableForm">
                     <div class="form-grid">
-                        <!-- Item Name -->
-                        <div class="form-group">
-                            <label for="itemName">Item Name *</label>
-                            <input type="text" id="itemName" name="itemName" required placeholder="e.g., USB-C Cable">
-                        </div>
-
-                        <!-- SKU -->
-                        <div class="form-group">
-                            <label for="sku">SKU *</label>
-                            <input type="text" id="sku" name="sku" required placeholder="e.g., USBC-001" style="text-transform: uppercase;">
-                        </div>
-
                         <!-- Category -->
                         <div class="form-group">
                             <label for="category">Category *</label>
@@ -193,6 +181,21 @@
                                 <option value="protective">Protective Cases</option>
                                 <option value="general">General</option>
                             </select>
+                        </div>
+
+                        <!-- Item Name -->
+                        <div class="form-group">
+                            <label for="itemName">Item Name *</label>
+                            <input type="text" id="itemName" name="itemName" required placeholder="e.g., USB-C Cable">
+                        </div>
+
+                        <!-- SKU (auto-generated) -->
+                        <div class="form-group form-group-full">
+                            <label for="sku">SKU (auto-generated) *</label>
+                            <input type="text" id="sku" name="sku" required readonly style="text-transform: uppercase; background-color: #f8f9fa; cursor: not-allowed;">
+                            <p style="font-size: 0.875rem; color: #666; margin-top: 4px;">
+                                SKU is automatically generated from category and item name
+                            </p>
                         </div>
 
                         <!-- Unit Type -->
@@ -313,6 +316,100 @@
             }
         })();
 
+        // Auto-generate SKU based on category and item name
+        const categoryPrefixes = {
+            'packaging': 'PKG',
+            'shipping': 'SHIP',
+            'cleaning': 'CLN',
+            'cables': 'CAB',
+            'ear-tips': 'EAR',
+            'protective': 'PROT',
+            'general': 'GEN'
+        };
+
+        function generateSKUPrefix(category, itemName) {
+            const categoryPrefix = categoryPrefixes[category] || 'GEN';
+
+            // Extract first significant word from item name (skip common words)
+            const commonWords = ['the', 'a', 'an', 'and', 'or', 'for'];
+            const words = itemName.toLowerCase().split(/\s+/).filter(w => w.length > 0 && !commonWords.includes(w));
+
+            // Take first word and get first 3-5 characters
+            let namePrefix = '';
+            if (words.length > 0) {
+                namePrefix = words[0].substring(0, 5).toUpperCase().replace(/[^A-Z0-9]/g, '');
+            }
+
+            return `${categoryPrefix}-${namePrefix}`;
+        }
+
+        async function getNextSKUNumber(prefix) {
+            try {
+                // Get all consumables to find the highest number for this prefix
+                const response = await authenticatedFetch('/api/admin/consumables', {
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    return 1; // Default to 001 if we can't fetch
+                }
+
+                const data = await response.json();
+                const consumables = data.consumables || [];
+
+                // Find all SKUs with this prefix
+                const matchingSKUs = consumables
+                    .map(c => c.sku)
+                    .filter(sku => sku && sku.startsWith(prefix + '-'))
+                    .map(sku => {
+                        const parts = sku.split('-');
+                        const numberPart = parts[parts.length - 1];
+                        return parseInt(numberPart) || 0;
+                    });
+
+                // Get the highest number and add 1
+                const maxNumber = matchingSKUs.length > 0 ? Math.max(...matchingSKUs) : 0;
+                return maxNumber + 1;
+            } catch (error) {
+                console.error('Error getting next SKU number:', error);
+                return 1;
+            }
+        }
+
+        async function generateSKU() {
+            const category = document.getElementById('category').value;
+            const itemName = document.getElementById('itemName').value.trim();
+            const skuField = document.getElementById('sku');
+
+            if (!category || !itemName) {
+                skuField.value = '';
+                return;
+            }
+
+            // Show loading state
+            skuField.value = 'Generating...';
+
+            try {
+                const prefix = generateSKUPrefix(category, itemName);
+                const number = await getNextSKUNumber(prefix);
+                const paddedNumber = String(number).padStart(3, '0');
+
+                skuField.value = `${prefix}-${paddedNumber}`;
+            } catch (error) {
+                console.error('Error generating SKU:', error);
+                skuField.value = '';
+            }
+        }
+
+        // Add event listeners for auto-generation
+        document.getElementById('category').addEventListener('change', generateSKU);
+        document.getElementById('itemName').addEventListener('blur', generateSKU);
+        document.getElementById('itemName').addEventListener('input', function() {
+            // Debounce the input to avoid too many API calls
+            clearTimeout(this.skuDebounce);
+            this.skuDebounce = setTimeout(generateSKU, 500);
+        });
+
         // Form submission handler
         document.getElementById('addConsumableForm').addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -386,11 +483,6 @@
                 submitButton.disabled = false;
                 submitButton.textContent = 'Add Consumable';
             }
-        });
-
-        // Auto-uppercase SKU field
-        document.getElementById('sku').addEventListener('input', function(e) {
-            e.target.value = e.target.value.toUpperCase();
         });
     </script>
 </body>

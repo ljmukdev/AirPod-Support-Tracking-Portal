@@ -1107,6 +1107,16 @@ async function initializeDatabase() {
             }
         }
 
+        // Create indexes for consumable stock history collection
+        try {
+            await db.collection('consumable_stock_history').createIndex({ consumable_id: 1, timestamp: -1 });
+            await db.collection('consumable_stock_history').createIndex({ timestamp: -1 });
+        } catch (err) {
+            if (!err.message.includes('already exists') && !err.message.includes('E11000')) {
+                console.error('Warning: Could not create consumable_stock_history indexes:', err.message);
+            }
+        }
+
         console.log('Database indexes created');
         
         // Check if parts collection is empty and populate
@@ -3856,7 +3866,20 @@ app.post('/api/admin/consumables/:id/adjust-stock', requireAuth, requireDB, asyn
             { $set: updateData }
         );
 
-        // Log the adjustment (could be extended to a separate audit log collection)
+        // Log the adjustment to stock history for analytics
+        await db.collection('consumable_stock_history').insertOne({
+            consumable_id: new ObjectId(id),
+            sku: consumable.sku,
+            item_name: consumable.item_name,
+            adjustment: parseInt(adjustment),
+            quantity_before: consumable.quantity_in_stock,
+            quantity_after: newQuantity,
+            reason: reason || '',
+            type: adjustment > 0 ? 'restock' : 'usage',
+            timestamp: new Date(),
+            user: req.user?.username || 'admin'
+        });
+
         console.log(`Stock adjusted for consumable ${id}: ${adjustment > 0 ? '+' : ''}${adjustment} (Reason: ${reason || 'N/A'})`);
 
         res.json({
@@ -3884,6 +3907,101 @@ app.get('/api/admin/consumables/alerts/low-stock', requireAuth, requireDB, async
         }).sort({ quantity_in_stock: 1 }).toArray();
 
         res.json({ success: true, items: lowStockItems, count: lowStockItems.length });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Get reorder suggestions for a consumable based on usage history (Admin only)
+app.get('/api/admin/consumables/:id/reorder-suggestions', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid consumable ID' });
+    }
+
+    try {
+        const consumable = await db.collection('consumables').findOne({ _id: new ObjectId(id) });
+
+        if (!consumable) {
+            return res.status(404).json({ error: 'Consumable not found' });
+        }
+
+        // Get stock history for the past 90 days
+        const ninetyDaysAgo = new Date();
+        ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+        const history = await db.collection('consumable_stock_history').find({
+            consumable_id: new ObjectId(id),
+            timestamp: { $gte: ninetyDaysAgo },
+            type: 'usage' // Only count usage, not restocks
+        }).sort({ timestamp: 1 }).toArray();
+
+        // Calculate daily consumption rate
+        let suggestions = {
+            has_data: false,
+            daily_usage_rate: 0,
+            days_until_stockout: null,
+            suggested_reorder_date: null,
+            suggested_reorder_quantity: consumable.reorder_quantity || null,
+            current_stock: consumable.quantity_in_stock,
+            message: ''
+        };
+
+        if (history.length === 0) {
+            suggestions.message = 'No usage history available yet. Suggestions will appear after tracking stock usage.';
+            return res.json({ success: true, suggestions });
+        }
+
+        // Calculate total usage over the period
+        const totalUsage = history.reduce((sum, entry) => sum + Math.abs(entry.adjustment), 0);
+        const daysTracked = (new Date() - new Date(history[0].timestamp)) / (1000 * 60 * 60 * 24);
+
+        if (daysTracked < 1) {
+            suggestions.message = 'Need more usage history (at least 1 day) for accurate suggestions.';
+            return res.json({ success: true, suggestions });
+        }
+
+        const dailyUsageRate = totalUsage / daysTracked;
+        suggestions.has_data = true;
+        suggestions.daily_usage_rate = Math.round(dailyUsageRate * 100) / 100;
+
+        // Calculate days until stockout
+        if (dailyUsageRate > 0) {
+            const daysUntilStockout = Math.floor(consumable.quantity_in_stock / dailyUsageRate);
+            suggestions.days_until_stockout = daysUntilStockout;
+
+            // Suggest reordering when stock reaches reorder level
+            if (consumable.reorder_level) {
+                const daysUntilReorderLevel = Math.floor((consumable.quantity_in_stock - consumable.reorder_level) / dailyUsageRate);
+
+                if (daysUntilReorderLevel > 0) {
+                    const reorderDate = new Date();
+                    reorderDate.setDate(reorderDate.getDate() + daysUntilReorderLevel);
+                    suggestions.suggested_reorder_date = reorderDate;
+                } else {
+                    suggestions.suggested_reorder_date = new Date(); // Reorder now!
+                }
+            }
+
+            // Suggest reorder quantity based on usage pattern
+            // Default to 30 days of stock if no reorder_quantity is set
+            const daysOfStockToOrder = 30;
+            suggestions.suggested_reorder_quantity = Math.ceil(dailyUsageRate * daysOfStockToOrder);
+
+            if (daysUntilStockout <= 7) {
+                suggestions.message = `⚠️ Low stock! Only ${daysUntilStockout} days remaining at current usage rate.`;
+            } else if (daysUntilStockout <= 14) {
+                suggestions.message = `Stock running low. ${daysUntilStockout} days remaining.`;
+            } else {
+                suggestions.message = `Stock level healthy. ${daysUntilStockout} days remaining.`;
+            }
+        } else {
+            suggestions.message = 'No recent usage detected.';
+        }
+
+        res.json({ success: true, suggestions });
     } catch (err) {
         console.error('Database error:', err);
         res.status(500).json({ error: 'Database error: ' + err.message });
