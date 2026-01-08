@@ -164,6 +164,9 @@ function renderTaskCard(task) {
             <button onclick="markTaskComplete('${task.id}', '${task.type}')" class="button button-primary" style="padding: 10px 16px; font-size: 0.9rem;">
                 Mark Done
             </button>
+            <button onclick="openResolutionModal('${task.check_in_id}')" class="button" style="background: #10b981; color: white; padding: 10px 16px; font-size: 0.9rem;">
+                Mark Resolved
+            </button>
         `;
     } else if (task.type === 'delivery_overdue') {
         actionButtons = `
@@ -385,5 +388,140 @@ document.addEventListener('click', function(e) {
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closeEmailModal();
+        closeResolutionModal();
+    }
+});
+
+// Resolution Modal Functions
+let currentCheckInId = null;
+
+function openResolutionModal(checkInId) {
+    currentCheckInId = checkInId;
+    const modal = document.getElementById('resolutionModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        // Reset form
+        document.getElementById('resolutionForm').reset();
+        document.getElementById('sellerResponseSection').style.display = 'none';
+        document.getElementById('refundSection').style.display = 'none';
+        document.querySelectorAll('.radio-option').forEach(opt => {
+            opt.style.borderColor = '#d1d5db';
+            opt.style.background = 'white';
+        });
+    }
+}
+
+function closeResolutionModal() {
+    const modal = document.getElementById('resolutionModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+    currentCheckInId = null;
+}
+
+async function submitResolution() {
+    const form = document.getElementById('resolutionForm');
+
+    // Validate required fields
+    const resolutionType = document.getElementById('resolutionType').value;
+    const sellerCooperative = document.querySelector('input[name="seller_cooperative"]:checked');
+
+    if (!resolutionType) {
+        alert('Please select how the issue was resolved');
+        return;
+    }
+
+    if (!sellerCooperative) {
+        alert('Please indicate if the seller was cooperative');
+        return;
+    }
+
+    // Collect form data
+    const formData = {
+        resolution_type: resolutionType,
+        seller_responded: document.getElementById('sellerResponded').checked,
+        seller_response_notes: document.getElementById('sellerResponseNotes').value,
+        refund_amount: document.getElementById('refundAmount').value || null,
+        seller_cooperative: sellerCooperative.value === 'true',
+        resolution_notes: document.getElementById('resolutionNotes').value
+    };
+
+    console.log('[RESOLUTION] Submitting:', formData);
+
+    try {
+        const response = await authenticatedFetch(`${window.API_BASE}/api/admin/check-in/${currentCheckInId}/mark-resolved`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to save resolution');
+        }
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('✓ Resolution recorded successfully!');
+            closeResolutionModal();
+            loadTasks(); // Reload tasks
+        } else {
+            throw new Error(data.error || 'Failed to save resolution');
+        }
+    } catch (error) {
+        console.error('[RESOLUTION] Error:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+// Resolution modal event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    // Show/hide seller response notes section
+    const sellerRespondedCheckbox = document.getElementById('sellerResponded');
+    if (sellerRespondedCheckbox) {
+        sellerRespondedCheckbox.addEventListener('change', function() {
+            const section = document.getElementById('sellerResponseSection');
+            section.style.display = this.checked ? 'block' : 'none';
+        });
+    }
+
+    // Show/hide refund amount section based on resolution type
+    const resolutionTypeSelect = document.getElementById('resolutionType');
+    if (resolutionTypeSelect) {
+        resolutionTypeSelect.addEventListener('change', function() {
+            const refundSection = document.getElementById('refundSection');
+            const value = this.value.toLowerCase();
+            const showRefund = value.includes('refund') || value.includes('return');
+            refundSection.style.display = showRefund ? 'block' : 'none';
+        });
+    }
+
+    // Style radio buttons when selected
+    const radioInputs = document.querySelectorAll('input[name="seller_cooperative"]');
+    radioInputs.forEach(radio => {
+        radio.addEventListener('change', function() {
+            document.querySelectorAll('.radio-option').forEach(opt => {
+                opt.style.borderColor = '#d1d5db';
+                opt.style.background = 'white';
+            });
+            if (this.checked) {
+                const label = this.closest('.radio-option');
+                label.style.borderColor = '#10b981';
+                label.style.background = '#f0fdf4';
+            }
+        });
+    });
+
+    // Close modal when clicking outside
+    const resolutionModal = document.getElementById('resolutionModal');
+    if (resolutionModal) {
+        resolutionModal.addEventListener('click', function(e) {
+            if (e.target === resolutionModal) {
+                closeResolutionModal();
+            }
+        });
     }
 });
