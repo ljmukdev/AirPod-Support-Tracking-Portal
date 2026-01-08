@@ -439,13 +439,13 @@ function showRestockModal(consumable) {
     
     // Purchase link
     const purchaseLinkContainer = document.getElementById('restockPurchaseLink');
-    if (consumable.purchase_link) {
+    if (consumable.product_url) {
         purchaseLinkContainer.innerHTML = `
-            <a href="${escapeHtml(consumable.purchase_link)}" target="_blank" class="purchase-link-button">
+            <a href="${escapeHtml(consumable.product_url)}" target="_blank" class="purchase-link-button">
                 🔗 Open Purchase Link
             </a>
             <p style="margin: 8px 0 0 0; font-size: 0.85rem; color: #6b7280; word-break: break-all;">
-                ${escapeHtml(consumable.purchase_link)}
+                ${escapeHtml(consumable.product_url)}
             </p>
         `;
     } else {
