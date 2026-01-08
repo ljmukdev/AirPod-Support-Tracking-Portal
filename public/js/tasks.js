@@ -210,6 +210,15 @@ function renderTaskCard(task) {
                 View Item
             </button>
         `;
+    } else if (task.type === 'consumable_delivery') {
+        actionButtons = `
+            <button onclick="checkInDelivery('${task.consumable_id}', '${task.restock_history_id}')" class="button" style="padding: 10px 16px; font-size: 0.9rem; background: #10b981;">
+                📦 Check In Delivery
+            </button>
+            <button onclick="viewConsumable('${task.consumable_id}')" class="button button-secondary" style="padding: 10px 16px; font-size: 0.9rem;">
+                View Item
+            </button>
+        `;
     }
     
     return `
@@ -370,12 +379,146 @@ function viewConsumable(consumableId) {
     window.location.href = `edit-consumable.html?id=${consumableId}`;
 }
 
-function restockConsumable(consumableId) {
-    window.location.href = `consumables.html?restockId=${consumableId}`;
+async function restockConsumable(consumableId) {
+    console.log('[TASKS] Opening restock modal for:', consumableId);
+    
+    try {
+        // Fetch full consumable details
+        const response = await authenticatedFetch(`${window.API_BASE}/api/admin/consumables/${consumableId}`);
+        
+        if (!response.ok) {
+            throw new Error('Failed to load consumable details');
+        }
+        
+        const data = await response.json();
+        
+        if (!data.success || !data.consumable) {
+            throw new Error('Consumable not found');
+        }
+        
+        const consumable = data.consumable;
+        
+        // Show restock modal
+        showRestockModal(consumable);
+    } catch (error) {
+        console.error('[TASKS] Error loading consumable:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+function showRestockModal(consumable) {
+    const modal = document.getElementById('restockModal');
+    if (!modal) {
+        console.error('[TASKS] Restock modal not found');
+        return;
+    }
+    
+    // Populate modal content
+    document.getElementById('restockItemName').textContent = consumable.item_name || 'Unknown Item';
+    document.getElementById('restockCurrentStock').textContent = `${consumable.quantity_in_stock || 0} ${consumable.unit_type || 'units'}`;
+    document.getElementById('restockReorderLevel').textContent = `${consumable.reorder_level || 0} ${consumable.unit_type || 'units'}`;
+    document.getElementById('restockSupplier').textContent = consumable.supplier || 'Not specified';
+    
+    // Lead time info
+    const leadTimeDays = consumable.lead_time_days || 0;
+    const leadTimeInfo = document.getElementById('restockLeadTime');
+    if (leadTimeDays > 0) {
+        leadTimeInfo.innerHTML = `<strong>${leadTimeDays} days</strong> - Expected arrival: ${getExpectedArrivalDate(leadTimeDays)}`;
+    } else {
+        leadTimeInfo.innerHTML = '<span style="color: #6b7280;">Not specified</span>';
+    }
+    
+    // Purchase link
+    const purchaseLinkContainer = document.getElementById('restockPurchaseLink');
+    if (consumable.purchase_link) {
+        purchaseLinkContainer.innerHTML = `
+            <a href="${escapeHtml(consumable.purchase_link)}" target="_blank" class="purchase-link-button">
+                🔗 Open Purchase Link
+            </a>
+            <p style="margin: 8px 0 0 0; font-size: 0.85rem; color: #6b7280; word-break: break-all;">
+                ${escapeHtml(consumable.purchase_link)}
+            </p>
+        `;
+    } else {
+        purchaseLinkContainer.innerHTML = '<p style="color: #6b7280;">No purchase link available</p>';
+    }
+    
+    // Store consumable ID for confirmation
+    document.getElementById('confirmRestockButton').onclick = () => confirmRestock(consumable);
+    
+    // Show modal
+    modal.style.display = 'flex';
+}
+
+function getExpectedArrivalDate(leadTimeDays) {
+    const today = new Date();
+    const arrivalDate = new Date(today.getTime() + (leadTimeDays * 24 * 60 * 60 * 1000));
+    return arrivalDate.toLocaleDateString('en-GB', { 
+        weekday: 'short', 
+        day: 'numeric', 
+        month: 'short', 
+        year: 'numeric' 
+    });
+}
+
+function closeRestockModal() {
+    document.getElementById('restockModal').style.display = 'none';
+}
+
+async function confirmRestock(consumable) {
+    const button = document.getElementById('confirmRestockButton');
+    const originalText = button.textContent;
+    
+    button.disabled = true;
+    button.textContent = 'Recording...';
+    
+    try {
+        const response = await authenticatedFetch(`${window.API_BASE}/api/admin/consumables/${consumable._id}/restock`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                lead_time_days: consumable.lead_time_days || 0
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to record restock');
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(`✅ Restock recorded!\n\n${data.message}`);
+            closeRestockModal();
+            // Reload tasks to show the new follow-up task
+            loadTasks();
+        } else {
+            throw new Error(data.error || 'Failed to record restock');
+        }
+    } catch (error) {
+        console.error('[TASKS] Error confirming restock:', error);
+        alert('Error: ' + error.message);
+        button.disabled = false;
+        button.textContent = originalText;
+    }
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 function checkInConsumable(consumableId) {
     window.location.href = `consumables.html?checkInId=${consumableId}`;
+}
+
+function checkInDelivery(consumableId, restockHistoryId) {
+    // Redirect to consumables page with both IDs to trigger delivery check-in
+    window.location.href = `consumables.html?deliveryCheckIn=${consumableId}&restockId=${restockHistoryId}`;
 }
 
 function closeEmailModal() {

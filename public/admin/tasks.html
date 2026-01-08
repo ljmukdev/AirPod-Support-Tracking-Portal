@@ -427,7 +427,90 @@
         </div>
     </div>
 
+    <!-- Restock Modal -->
+    <div id="restockModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.6); z-index: 10000; align-items: center; justify-content: center; padding: 20px;">
+        <div style="background: white; border-radius: 12px; max-width: 600px; width: 100%; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+            <!-- Header -->
+            <div style="padding: 20px 24px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
+                <h2 style="margin: 0; font-size: 1.25rem; color: #111827;">📦 Restock Item</h2>
+                <button onclick="closeRestockModal()" style="background: none; border: none; font-size: 1.5rem; color: #6b7280; cursor: pointer; padding: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 4px;">×</button>
+            </div>
+            
+            <!-- Body -->
+            <div style="padding: 24px; overflow-y: auto; flex: 1;">
+                <!-- Item Info -->
+                <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                    <h3 style="margin: 0 0 12px 0; font-size: 1.1rem; color: #111827;" id="restockItemName">-</h3>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; font-size: 0.9rem;">
+                        <div>
+                            <span style="color: #6b7280;">Current Stock:</span>
+                            <strong id="restockCurrentStock" style="color: #dc2626; margin-left: 6px;">-</strong>
+                        </div>
+                        <div>
+                            <span style="color: #6b7280;">Reorder Level:</span>
+                            <strong id="restockReorderLevel" style="color: #111827; margin-left: 6px;">-</strong>
+                        </div>
+                        <div>
+                            <span style="color: #6b7280;">Supplier:</span>
+                            <strong id="restockSupplier" style="color: #111827; margin-left: 6px;">-</strong>
+                        </div>
+                        <div>
+                            <span style="color: #6b7280;">Lead Time:</span>
+                            <span id="restockLeadTime" style="margin-left: 6px;">-</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Purchase Link -->
+                <div style="margin-bottom: 24px;">
+                    <h4 style="margin: 0 0 12px 0; font-size: 0.95rem; font-weight: 600; color: #111827;">Purchase Link</h4>
+                    <div id="restockPurchaseLink" style="padding: 12px; background: #eff6ff; border: 1px solid #3b82f6; border-radius: 6px;">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                </div>
+                
+                <!-- Instructions -->
+                <div style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 12px; border-radius: 4px; margin-bottom: 20px;">
+                    <p style="margin: 0; font-size: 0.9rem; color: #92400e;">
+                        <strong>Next Steps:</strong><br>
+                        1. Click the purchase link above to order the item<br>
+                        2. Click "Confirm Restock" below once ordered<br>
+                        3. A follow-up task will be created based on the lead time
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div style="padding: 16px 24px; border-top: 1px solid #e5e7eb; display: flex; gap: 12px; justify-content: flex-end;">
+                <button onclick="closeRestockModal()" style="background: #6b7280; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-size: 0.95rem; font-weight: 500; cursor: pointer;">
+                    Cancel
+                </button>
+                <button id="confirmRestockButton" style="background: #10b981; color: white; border: none; padding: 10px 24px; border-radius: 6px; font-size: 0.95rem; font-weight: 600; cursor: pointer;">
+                    ✓ Confirm Restock Ordered
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .purchase-link-button {
+            display: inline-block;
+            background: #3b82f6;
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+        }
+        .purchase-link-button:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+        }
+    </style>
+
     <script src="../js/admin.js"></script>
-    <script src="../js/tasks.js?v=1.3.0"></script>
+    <script src="../js/tasks.js?v=1.4.0"></script>
 </body>
 </html>

@@ -3199,7 +3199,65 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
             });
         }
 
-        // 6. Find consumables that need a stock check
+        // 6. Find pending consumable restock deliveries
+        const pendingRestocks = await db.collection('consumable_stock_history').find({
+            type: 'restock_ordered',
+            expected_arrival: { $exists: true, $ne: null }
+        }).sort({ expected_arrival: 1 }).toArray();
+
+        for (const restock of pendingRestocks) {
+            const expectedArrival = new Date(restock.expected_arrival);
+            const isOverdue = now > expectedArrival;
+            const daysUntil = Math.ceil((expectedArrival - now) / (1000 * 60 * 60 * 24));
+            const dueSoon = daysUntil >= 0 && daysUntil <= 3;
+
+            // Check if already checked in (look for a 'restock_checked_in' entry after this order)
+            const checkedIn = await db.collection('consumable_stock_history').findOne({
+                consumable_id: restock.consumable_id,
+                type: 'restock_checked_in',
+                timestamp: { $gte: restock.timestamp }
+            });
+
+            if (checkedIn) {
+                continue; // Already checked in, skip
+            }
+
+            // Get consumable details
+            const consumable = await db.collection('consumables').findOne({
+                _id: restock.consumable_id
+            });
+
+            if (!consumable) continue;
+
+            const taskId = `restock-delivery-${restock._id.toString()}`;
+            
+            let description = `Ordered on ${restock.timestamp.toLocaleDateString('en-GB')}. `;
+            if (isOverdue) {
+                description += `Expected ${expectedArrival.toLocaleDateString('en-GB')} - OVERDUE by ${Math.abs(daysUntil)} day(s).`;
+            } else if (daysUntil === 0) {
+                description += 'Expected TODAY!';
+            } else if (daysUntil === 1) {
+                description += 'Expected TOMORROW.';
+            } else {
+                description += `Expected in ${daysUntil} days (${expectedArrival.toLocaleDateString('en-GB')}).`;
+            }
+
+            tasks.push({
+                id: taskId,
+                consumable_id: consumable._id.toString(),
+                restock_history_id: restock._id.toString(),
+                type: 'consumable_delivery',
+                title: `Check in delivery: ${consumable.item_name}`,
+                description: description,
+                due_date: expectedArrival,
+                is_overdue: isOverdue,
+                due_soon: dueSoon,
+                expected_arrival: expectedArrival,
+                ordered_at: restock.timestamp
+            });
+        }
+
+        // 7. Find consumables that need a stock check
         const allActiveConsumables = await db.collection('consumables').find({
             status: { $ne: 'discontinued' }
         }).toArray();
@@ -4279,6 +4337,88 @@ app.get('/api/admin/consumables/:id', requireAuth, requireDB, async (req, res) =
         res.json({ success: true, consumable });
     } catch (err) {
         console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Record consumable restock and create follow-up task (Admin only)
+app.post('/api/admin/consumables/:id/restock', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    const { lead_time_days } = req.body;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid consumable ID' });
+    }
+
+    try {
+        const consumable = await db.collection('consumables').findOne({ _id: new ObjectId(id) });
+
+        if (!consumable) {
+            return res.status(404).json({ error: 'Consumable not found' });
+        }
+
+        const now = new Date();
+        const leadTime = parseInt(lead_time_days) || 0;
+
+        // Record restock order in history
+        await db.collection('consumable_stock_history').insertOne({
+            consumable_id: new ObjectId(id),
+            type: 'restock_ordered',
+            quantity_before: consumable.quantity_in_stock,
+            quantity_after: consumable.quantity_in_stock,  // Same until it arrives
+            change_amount: 0,  // Will be updated when it arrives
+            notes: `Restock ordered. Expected arrival in ${leadTime} days.`,
+            timestamp: now,
+            user_email: req.user.email,
+            lead_time_days: leadTime,
+            expected_arrival: leadTime > 0 
+                ? new Date(now.getTime() + (leadTime * 24 * 60 * 60 * 1000))
+                : null
+        });
+
+        // Update consumable with last restock order date
+        await db.collection('consumables').updateOne(
+            { _id: new ObjectId(id) },
+            { 
+                $set: { 
+                    last_restock_ordered_at: now,
+                    last_updated_at: now,
+                    last_updated_by: req.user.email
+                }
+            }
+        );
+
+        let message = '✅ Restock recorded successfully!';
+
+        // Create follow-up task if lead time is specified
+        if (leadTime > 0) {
+            const arrivalDate = new Date(now.getTime() + (leadTime * 24 * 60 * 60 * 1000));
+            const arrivalDateStr = arrivalDate.toLocaleDateString('en-GB', { 
+                weekday: 'long', 
+                day: 'numeric', 
+                month: 'long', 
+                year: 'numeric' 
+            });
+            
+            // We could create a task in a "pending_tasks" collection, or
+            // the existing /api/admin/tasks endpoint will automatically generate it
+            // based on the last_restock_ordered_at and lead_time_days
+            
+            message += `\n\n📅 A follow-up task will be created for ${arrivalDateStr} to check in the delivery.`;
+        }
+
+        console.log(`[CONSUMABLES] Restock recorded for ${consumable.item_name}, lead time: ${leadTime} days`);
+
+        res.json({
+            success: true,
+            message: message,
+            restock_recorded_at: now,
+            expected_arrival: leadTime > 0 
+                ? new Date(now.getTime() + (leadTime * 24 * 60 * 60 * 1000))
+                : null
+        });
+    } catch (err) {
+        console.error('[CONSUMABLES] Error recording restock:', err);
         res.status(500).json({ error: 'Database error: ' + err.message });
     }
 });
