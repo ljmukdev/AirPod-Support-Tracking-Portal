@@ -469,8 +469,8 @@ async function submitCheckIn() {
         if (response.ok && data.success) {
             // Check if there are any issues that require seller contact
             if (data.issues_found && data.issues_found.length > 0) {
-                // Redirect to email generation page with check-in ID
-                window.location.href = `check-in-email.html?check_in_id=${data.id}&purchase_id=${currentPurchase._id}`;
+                // Redirect to check-in details page with generated email
+                window.location.href = `check-in-detail.html?id=${data.id}&purchase_id=${currentPurchase._id}`;
             } else {
                 successBanner.textContent = 'Check-in completed successfully! No issues detected.';
                 successBanner.style.display = 'block';
