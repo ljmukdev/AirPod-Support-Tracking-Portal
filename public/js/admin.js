@@ -848,19 +848,46 @@ function cancelEdit() {
 const partTypeField = document.getElementById('partType');
 const generationField = document.getElementById('generation');
 const partSelectionField = document.getElementById('partSelection');
+const serialNumberField = document.getElementById('serialNumber');
+const securityBarcodeField = document.getElementById('securityBarcode');
+const partModelNumberField = document.getElementById('partModelNumber');
 const skipPhotoSecurityCheckbox = document.getElementById('skipPhotosecurity');
 
 if (partTypeField) {
     partTypeField.addEventListener('change', function() {
         const selectedType = this.value;
         const isAccessory = ['ear_tips', 'box', 'cable', 'other'].includes(selectedType);
-        
+
         if (isAccessory) {
             // Auto-check skip photos/security for accessories
             if (skipPhotoSecurityCheckbox) {
                 skipPhotoSecurityCheckbox.checked = true;
             }
-            
+
+            // Hide and auto-fill serial number for accessories
+            if (serialNumberField) {
+                serialNumberField.value = 'N/A';
+                serialNumberField.removeAttribute('required');
+                const formGroup = serialNumberField.closest('.form-group');
+                if (formGroup) formGroup.style.display = 'none';
+            }
+
+            // Hide and auto-fill security barcode for accessories
+            if (securityBarcodeField) {
+                securityBarcodeField.value = 'N/A';
+                securityBarcodeField.removeAttribute('required');
+                const formGroup = securityBarcodeField.closest('.form-group');
+                if (formGroup) formGroup.style.display = 'none';
+            }
+
+            // Hide and auto-fill part model number for accessories
+            if (partModelNumberField) {
+                partModelNumberField.value = 'N/A';
+                partModelNumberField.removeAttribute('required');
+                const formGroup = partModelNumberField.closest('.form-group');
+                if (formGroup) formGroup.style.display = 'none';
+            }
+
             // Hide generation and part selection fields for accessories
             if (generationField) {
                 generationField.removeAttribute('required');
@@ -894,6 +921,28 @@ if (partTypeField) {
             }
         } else {
             // Show and restore required status for AirPod parts
+
+            // Show serial number field
+            if (serialNumberField) {
+                if (serialNumberField.value === 'N/A') serialNumberField.value = '';
+                const formGroup = serialNumberField.closest('.form-group');
+                if (formGroup) formGroup.style.display = 'block';
+            }
+
+            // Show security barcode field
+            if (securityBarcodeField) {
+                if (securityBarcodeField.value === 'N/A') securityBarcodeField.value = '';
+                const formGroup = securityBarcodeField.closest('.form-group');
+                if (formGroup) formGroup.style.display = 'block';
+            }
+
+            // Show part model number field
+            if (partModelNumberField) {
+                if (partModelNumberField.value === 'N/A') partModelNumberField.value = '';
+                const formGroup = partModelNumberField.closest('.form-group');
+                if (formGroup) formGroup.style.display = 'block';
+            }
+
             if (generationField) {
                 generationField.setAttribute('required', 'required');
                 // Remove N/A option if it exists
