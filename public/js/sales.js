@@ -4,6 +4,8 @@ const API_BASE = window.API_BASE || '';
 let currentSaleId = null;
 let selectedConsumables = [];
 let productCost = 0;
+let templateConsumables = [];
+let allConsumables = [];
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
@@ -49,7 +51,11 @@ function setupEventListeners() {
     document.getElementById('filterPeriod')?.addEventListener('change', filterSales);
     
     // Add Template Button in templates modal
-    document.getElementById('addTemplateBtn')?.addEventListener('click', createNewTemplate);
+    document.getElementById('addTemplateBtn')?.addEventListener('click', openCreateTemplateModal);
+    
+    // Template Creation Modal
+    document.getElementById('createTemplateForm')?.addEventListener('submit', handleTemplateSubmit);
+    document.getElementById('addTemplateConsumableBtn')?.addEventListener('click', addTemplateConsumable);
 }
 
 // ===== SALES LIST =====
@@ -437,16 +443,124 @@ async function loadTemplates() {
     }
 }
 
-async function createNewTemplate() {
-    const name = prompt('Template Name (e.g., "AirPods Pro Package"):');
-    if (!name) return;
+async function openCreateTemplateModal() {
+    templateConsumables = [];
     
-    const description = prompt('Description (optional):') || '';
+    // Load all consumables
+    try {
+        const response = await authenticatedFetch(`${API_BASE}/api/admin/consumables`);
+        const data = await response.json();
+        allConsumables = data.consumables || [];
+    } catch (error) {
+        console.error('Error loading consumables:', error);
+        allConsumables = [];
+    }
     
-    // For now, show simple consumables entry
-    alert('Use the main sale form to configure consumables, then save as template (future feature)');
+    document.getElementById('createTemplateForm').reset();
+    document.getElementById('templateConsumablesList').innerHTML = '<p style="text-align: center; color: #999;">No consumables added yet</p>';
+    document.getElementById('createTemplateModal').style.display = 'flex';
+}
+
+function closeCreateTemplateModal() {
+    document.getElementById('createTemplateModal').style.display = 'none';
+}
+
+async function addTemplateConsumable() {
+    if (allConsumables.length === 0) {
+        alert('No consumables available. Please add consumables first.');
+        return;
+    }
     
-    // TODO: Implement full template creation UI
+    // Create a simple selection interface
+    const options = allConsumables.map((c, i) => `${i + 1}. ${c.name} (£${c.price_per_unit?.toFixed(2) || '0.00'})`).join('\n');
+    const selection = prompt(`Select a consumable:\n${options}\n\nEnter number:`);
+    
+    if (selection) {
+        const index = parseInt(selection) - 1;
+        const consumable = allConsumables[index];
+        
+        if (consumable) {
+            const quantity = parseInt(prompt(`How many ${consumable.name}?`, '1')) || 1;
+            
+            templateConsumables.push({
+                consumable_id: consumable._id,
+                name: consumable.name,
+                cost: consumable.price_per_unit || 0,
+                quantity: quantity
+            });
+            
+            displayTemplateConsumables();
+        }
+    }
+}
+
+function displayTemplateConsumables() {
+    const container = document.getElementById('templateConsumablesList');
+    
+    if (templateConsumables.length === 0) {
+        container.innerHTML = '<p style="text-align: center; color: #999;">No consumables added yet</p>';
+        return;
+    }
+    
+    container.innerHTML = templateConsumables.map((c, index) => `
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #eee;">
+            <div>
+                <strong>${c.name}</strong> × ${c.quantity}
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span>£${(c.cost * c.quantity).toFixed(2)}</span>
+                <button type="button" onclick="removeTemplateConsumable(${index})" style="color: #ef4444; cursor: pointer; background: none; border: none; font-size: 18px;">
+                    ✕
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function removeTemplateConsumable(index) {
+    templateConsumables.splice(index, 1);
+    displayTemplateConsumables();
+}
+
+async function handleTemplateSubmit(e) {
+    e.preventDefault();
+    
+    const name = document.getElementById('templateName').value.trim();
+    const description = document.getElementById('templateDescription').value.trim();
+    
+    if (!name) {
+        alert('Please enter a template name');
+        return;
+    }
+    
+    if (templateConsumables.length === 0) {
+        alert('Please add at least one consumable');
+        return;
+    }
+    
+    try {
+        const response = await authenticatedFetch(`${API_BASE}/api/admin/consumable-templates`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: name,
+                description: description,
+                consumables: templateConsumables
+            })
+        });
+        
+        if (response.ok) {
+            closeCreateTemplateModal();
+            loadTemplates(); // Refresh templates list
+            alert('Template created successfully!');
+        } else {
+            const error = await response.json();
+            alert(`Error: ${error.error || 'Failed to create template'}`);
+        }
+    } catch (error) {
+        console.error('Error creating template:', error);
+        alert('Error creating template');
+    }
 }
 
 async function deleteTemplate(id) {

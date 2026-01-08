@@ -278,6 +278,41 @@
         </div>
     </div>
 
+    <!-- Create Template Modal -->
+    <div id="createTemplateModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>Create New Template</h2>
+                <button class="modal-close" onclick="closeCreateTemplateModal()">&times;</button>
+            </div>
+            <form id="createTemplateForm">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="templateName">Template Name *</label>
+                        <input type="text" id="templateName" required placeholder="e.g., AirPods Pro Package">
+                    </div>
+                    <div class="form-group">
+                        <label for="templateDescription">Description (optional)</label>
+                        <textarea id="templateDescription" rows="2" placeholder="Description of this template..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Consumables</label>
+                        <button type="button" class="button button-secondary" id="addTemplateConsumableBtn" style="margin-bottom: 10px;">
+                            + Add Consumable
+                        </button>
+                        <div id="templateConsumablesList" style="border: 1px solid #ddd; border-radius: 6px; padding: 10px; min-height: 100px;">
+                            <p style="text-align: center; color: #999;">No consumables added yet</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="button button-secondary" onclick="closeCreateTemplateModal()">Cancel</button>
+                    <button type="submit" class="button button-primary">Save Template</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="../js/config.js"></script>
     <script src="../js/auth.js"></script>
