@@ -856,35 +856,37 @@ if (partTypeField) {
                 skipPhotoSecurityCheckbox.checked = true;
             }
             
-            // Make generation and part selection optional (visually)
+            // Hide generation and part selection fields for accessories
             if (generationField) {
                 generationField.removeAttribute('required');
-                const generationLabel = generationField.previousElementSibling;
-                if (generationLabel && generationLabel.tagName === 'LABEL') {
-                    generationLabel.textContent = 'Generation (optional for accessories)';
+                generationField.value = ''; // Clear the value
+                const generationFormGroup = generationField.closest('.form-group');
+                if (generationFormGroup) {
+                    generationFormGroup.style.display = 'none';
                 }
             }
             if (partSelectionField) {
                 partSelectionField.removeAttribute('required');
-                const partSelectionLabel = partSelectionField.previousElementSibling;
-                if (partSelectionLabel && partSelectionLabel.tagName === 'LABEL') {
-                    partSelectionLabel.textContent = 'Part Selection (optional for accessories)';
+                partSelectionField.value = ''; // Clear the value
+                const partSelectionFormGroup = partSelectionField.closest('.form-group');
+                if (partSelectionFormGroup) {
+                    partSelectionFormGroup.style.display = 'none';
                 }
             }
         } else {
-            // Restore required status for AirPod parts
+            // Show and restore required status for AirPod parts
             if (generationField) {
                 generationField.setAttribute('required', 'required');
-                const generationLabel = generationField.previousElementSibling;
-                if (generationLabel && generationLabel.tagName === 'LABEL') {
-                    generationLabel.textContent = 'Generation';
+                const generationFormGroup = generationField.closest('.form-group');
+                if (generationFormGroup) {
+                    generationFormGroup.style.display = 'block';
                 }
             }
             if (partSelectionField) {
                 partSelectionField.setAttribute('required', 'required');
-                const partSelectionLabel = partSelectionField.previousElementSibling;
-                if (partSelectionLabel && partSelectionLabel.tagName === 'LABEL') {
-                    partSelectionLabel.textContent = 'Part Selection';
+                const partSelectionFormGroup = partSelectionField.closest('.form-group');
+                if (partSelectionFormGroup) {
+                    partSelectionFormGroup.style.display = 'block';
                 }
             }
         }
@@ -960,6 +962,7 @@ if (productForm) {
             formData.append('part_type', partType);
             // For accessories, generation and part selection are optional
             formData.append('generation', generation || (isAccessory ? 'N/A' : ''));
+            formData.append('part_selection', partSelection || (isAccessory ? 'N/A' : ''));
             formData.append('part_model_number', partModelNumber);
             if (notes) formData.append('notes', notes);
             if (ebayOrderNumber) formData.append('ebay_order_number', ebayOrderNumber);

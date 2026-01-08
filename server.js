@@ -3481,6 +3481,16 @@ app.post('/api/admin/check-in/:id/split', requireAuth, requireDB, async (req, re
         
         console.log('[SPLIT] Items to create products for:', itemsToSplit.length);
         
+        // Calculate price split - only actual AirPod parts (case, left, right) share the purchase price
+        // Accessories (ear_tips, box, cable, etc.) don't contribute to the price
+        const valuableItems = itemsToSplit.filter(item => ['case', 'left', 'right'].includes(item.item_type));
+        const valuableItemCount = valuableItems.length;
+        const pricePerValuableItem = (valuableItemCount > 0 && purchase.purchase_price) 
+            ? (purchase.purchase_price / valuableItemCount) 
+            : 0;
+        
+        console.log(`[SPLIT] Price calculation: Total=${purchase.purchase_price}, Valuable items=${valuableItemCount}, Price per item=${pricePerValuableItem}`);
+        
         for (const item of itemsToSplit) {
             const productName = `AirPods ${purchase.generation || 'Unknown'} - ${getItemDisplayName(item.item_type)}`;
             
@@ -3517,6 +3527,13 @@ app.post('/api/admin/check-in/:id/split', requireAuth, requireDB, async (req, re
                 }
             }
             
+            // Determine purchase price - only valuable items (case, left, right) get a price
+            // Accessories get 0
+            const isValuableItem = ['case', 'left', 'right'].includes(item.item_type);
+            const itemPrice = isValuableItem ? pricePerValuableItem : 0;
+            
+            console.log(`[SPLIT] ${item.item_type} - Valuable: ${isValuableItem}, Price: ${itemPrice}`);
+            
             const product = {
                 serial_number: item.serial_number || null,
                 security_number: null,
@@ -3540,7 +3557,7 @@ app.post('/api/admin/check-in/:id/split', requireAuth, requireDB, async (req, re
                 date_added: new Date(),
                 purchase_id: purchase._id,
                 check_in_id: checkIn._id,
-                purchase_price: purchase.purchase_price ? (purchase.purchase_price / itemsToSplit.length) : null,
+                purchase_price: itemPrice,
                 platform: purchase.platform || null,
                 seller_name: purchase.seller_name || null,
                 created_by: req.user.email
