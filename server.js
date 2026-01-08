@@ -2331,8 +2331,89 @@ async function getPartNumber(generation, itemType, connectorType = null, ancType
 }
 
 // Generate email template for seller contact
-function generateSellerEmail(purchase, checkIn) {
-    const issues = checkIn.issues_detected || [];
+const buildCheckInIssuesFromItems = (items = []) => {
+    return items.map((item) => {
+        const itemIssues = [];
+
+        if (item.is_genuine === false) {
+            itemIssues.push({
+                type: 'authenticity',
+                severity: 'critical',
+                description: 'Item appears to be counterfeit or not genuine'
+            });
+        }
+
+        if (['fair', 'poor'].includes(item.condition)) {
+            itemIssues.push({
+                type: 'condition',
+                severity: item.condition === 'poor' ? 'high' : 'medium',
+                description: `Visual condition is ${item.condition}`
+            });
+        }
+
+        if (['left', 'right'].includes(item.item_type) && item.audible_condition) {
+            if (['poor', 'not_working'].includes(item.audible_condition)) {
+                itemIssues.push({
+                    type: 'audible',
+                    severity: item.audible_condition === 'not_working' ? 'critical' : 'high',
+                    description: item.audible_condition === 'not_working'
+                        ? 'No audible sound - item not working'
+                        : `Poor sound quality - audible condition is ${item.audible_condition}`
+                });
+            } else if (item.audible_condition === 'fair') {
+                itemIssues.push({
+                    type: 'audible',
+                    severity: 'medium',
+                    description: 'Fair sound quality - audible condition is fair'
+                });
+            }
+        }
+
+        if (item.connects_correctly === false) {
+            itemIssues.push({
+                type: 'connectivity',
+                severity: 'high',
+                description: 'Item has connectivity/pairing issues'
+            });
+        }
+
+        if (itemIssues.length === 0) {
+            return null;
+        }
+
+        return {
+            item_type: item.item_type,
+            item_name: getItemDisplayName(item.item_type),
+            set_number: item.set_number || null,
+            issues: itemIssues,
+            evidence_notes: item.issue_notes || null,
+            evidence_photos: item.issue_photos || []
+        };
+    }).filter(Boolean);
+};
+
+const buildEvidenceLines = (itemIssue, baseUrl) => {
+    const lines = [];
+    if (itemIssue.evidence_notes) {
+        lines.push(`Notes: ${itemIssue.evidence_notes}`);
+    }
+    if (itemIssue.evidence_photos && itemIssue.evidence_photos.length > 0) {
+        const links = itemIssue.evidence_photos.map((photo) => {
+            if (!photo) return null;
+            if (photo.startsWith('http')) {
+                return photo;
+            }
+            return baseUrl ? `${baseUrl}${photo}` : photo;
+        }).filter(Boolean);
+        if (links.length > 0) {
+            lines.push(`Photos: ${links.join(', ')}`);
+        }
+    }
+    return lines;
+};
+
+function generateSellerEmailTemplate(purchase, checkIn, baseUrl) {
+    const issues = buildCheckInIssuesFromItems(checkIn.items || []);
     
     if (issues.length === 0) {
         return null;
@@ -2360,21 +2441,8 @@ function generateSellerEmail(purchase, checkIn) {
     );
 
     const totalItems = Array.isArray(checkIn.items) ? checkIn.items.length : 0;
-    const affectedItems = totalItems
-        ? checkIn.items.filter(item => issues.some(issue => issue.item_type === item.item_type && (!issue.set_number || issue.set_number === item.set_number))).length
-        : issues.length;
+    const affectedItems = issues.length;
     const affectedPercent = totalItems ? Math.round((affectedItems / totalItems) * 100) : null;
-
-    const buildEvidenceLines = (itemIssue) => {
-        const lines = [];
-        if (itemIssue.evidence_notes) {
-            lines.push(`Notes: ${itemIssue.evidence_notes}`);
-        }
-        if (itemIssue.evidence_photos && itemIssue.evidence_photos.length > 0) {
-            lines.push(`Photos: ${itemIssue.evidence_photos.join(', ')}`);
-        }
-        return lines;
-    };
     
     // Build email content
     let emailBody = 'Hi,\n\n';
@@ -2428,7 +2496,7 @@ function generateSellerEmail(purchase, checkIn) {
             emailBody += `The visual condition is worse than described in the listing (${issue.description.toLowerCase()}).\n\n`;
         }
 
-        const evidenceLines = buildEvidenceLines(item);
+        const evidenceLines = buildEvidenceLines(item, baseUrl);
         if (evidenceLines.length > 0) {
             emailBody += `${evidenceLines.join('\n')}\n\n`;
         }
@@ -2457,7 +2525,7 @@ function generateSellerEmail(purchase, checkIn) {
             emailBody += descriptions.join(', ');
             emailBody += '\n';
 
-            const evidenceLines = buildEvidenceLines(item);
+            const evidenceLines = buildEvidenceLines(item, baseUrl);
             if (evidenceLines.length > 0) {
                 emailBody += `   ${evidenceLines.join('\n   ')}\n`;
             }
@@ -2534,6 +2602,118 @@ function generateSellerEmail(purchase, checkIn) {
     emailBody += 'LJMUK';
     
     return emailBody;
+}
+
+async function generateSellerEmail(purchase, checkIn, baseUrl) {
+    if (!checkIn || !Array.isArray(checkIn.items)) {
+        return null;
+    }
+
+    const issues = buildCheckInIssuesFromItems(checkIn.items || []);
+    if (issues.length === 0) {
+        return null;
+    }
+
+    const totalItems = Array.isArray(checkIn.items) ? checkIn.items.length : 0;
+    const affectedItems = issues.length;
+    const affectedPercent = totalItems ? Math.round((affectedItems / totalItems) * 100) : null;
+    const totalPrice = parseFloat(purchase.purchase_price) || 0;
+    const partialRefundAmount = totalItems > 0
+        ? (totalPrice * affectedItems / totalItems).toFixed(2)
+        : totalPrice.toFixed(2);
+
+    if (!anthropic) {
+        return generateSellerEmailTemplate(purchase, checkIn, baseUrl);
+    }
+
+    const issueSummaries = issues.map((item) => {
+        return {
+            item_name: item.item_name,
+            set_number: item.set_number || null,
+            issues: item.issues.map((issue) => issue.description),
+            notes: item.evidence_notes || '',
+            photos: (item.evidence_photos || []).map((photo) => {
+                if (photo.startsWith('http')) return photo;
+                return baseUrl ? `${baseUrl}${photo}` : photo;
+            })
+        };
+    });
+
+    const prompt = `Write a concise, professional seller message based ONLY on the facts below. Do not add new facts.
+
+Purchase:
+- Platform: ${purchase.platform || 'N/A'}
+- Order: ${purchase.order_number || 'N/A'}
+- Seller: ${purchase.seller_name || 'N/A'}
+- Generation: ${purchase.generation || 'AirPods'}
+- Price: £${totalPrice.toFixed(2)}
+
+Inspection:
+- Total items inspected: ${totalItems}
+- Items affected: ${affectedItems}
+- Affected percentage: ${affectedPercent !== null ? affectedPercent + '%' : 'N/A'}
+- Proposed partial refund: £${partialRefundAmount}
+
+Issues by item (include notes and photo links exactly as provided):
+${JSON.stringify(issueSummaries, null, 2)}
+
+Requirements:
+- Be accurate and only reflect the facts above.
+- Include the photo links as full URLs in the message.
+- Mention the affected count and percentage.
+- Offer either return for full refund or partial refund amount.
+- Close with a polite sign-off from LJMUK.`;
+
+    console.log('[AI-SELLER-EMAIL] Calling Claude API...');
+
+    const requestedModel = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-latest';
+    const fallbackModels = [
+        requestedModel,
+        'claude-3-5-sonnet-20240620',
+        'claude-3-5-sonnet-latest',
+        'claude-3-haiku-20240307'
+    ].filter((value, index, array) => array.indexOf(value) === index);
+
+    const isModelNotFound = (error) => {
+        if (!error) return false;
+        if (error.status === 404) return true;
+        if (error.error && error.error.type === 'not_found_error') return true;
+        return typeof error.message === 'string' && error.message.includes('not_found_error');
+    };
+
+    try {
+        let lastError;
+
+        for (const model of fallbackModels) {
+            try {
+                console.log(`[AI-SELLER-EMAIL] Requesting model: ${model}`);
+                const message = await anthropic.messages.create({
+                    model,
+                    max_tokens: 500,
+                    temperature: 0.2,
+                    messages: [{
+                        role: 'user',
+                        content: prompt
+                    }]
+                });
+
+                const emailText = message.content[0].text.trim();
+                console.log('[AI-SELLER-EMAIL] Generated successfully:', emailText.substring(0, 80) + '...');
+                return emailText;
+            } catch (error) {
+                lastError = error;
+                if (!isModelNotFound(error)) {
+                    throw error;
+                }
+                console.warn(`[AI-SELLER-EMAIL] Model not found: ${model}, trying fallback...`);
+            }
+        }
+
+        throw lastError || new Error('AI model unavailable');
+    } catch (error) {
+        console.error('[AI-SELLER-EMAIL] Error:', error);
+        return generateSellerEmailTemplate(purchase, checkIn, baseUrl);
+    }
 }
 
 // Support/Suggestion submission endpoint
@@ -3791,7 +3971,8 @@ app.get('/api/admin/check-in/:id', requireAuth, requireDB, async (req, res) => {
         }
         
         // Generate email template
-        const emailContent = generateSellerEmail(purchase, checkIn);
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        const emailContent = await generateSellerEmail(purchase, checkIn, baseUrl);
         
         res.json({
             success: true,
