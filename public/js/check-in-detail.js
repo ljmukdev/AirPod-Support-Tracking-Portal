@@ -142,20 +142,7 @@ function displayItems() {
 
     container.innerHTML = items.map(item => {
         const itemName = getItemDisplayName(item.item_type);
-        const itemIssueMatch = checkInData.issues_detected
-            ? checkInData.issues_detected.find(issue => {
-                if (issue.item_type !== item.item_type) {
-                    return false;
-                }
-                const issueSet = issue.set_number || null;
-                const itemSet = item.set_number || null;
-                if (issueSet || itemSet) {
-                    return issueSet === itemSet;
-                }
-                return true;
-            })
-            : null;
-        const itemIssues = itemIssueMatch ? itemIssueMatch.issues : buildItemIssues(item);
+        const itemIssues = buildItemIssues(item);
         
         let issuesBadges = '';
         if (itemIssues.length > 0) {
