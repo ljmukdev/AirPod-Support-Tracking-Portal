@@ -40,8 +40,17 @@ function setupEventListeners() {
     // Sale Form Submit
     document.getElementById('saleForm')?.addEventListener('submit', handleSaleSubmit);
     
-    // Product Selection Change
-    document.getElementById('saleProduct')?.addEventListener('change', handleProductChange);
+    // Selection Method Radio Buttons
+    document.querySelectorAll('input[name="selectionMethod"]').forEach(radio => {
+        radio.addEventListener('change', handleSelectionMethodChange);
+    });
+    
+    // Security Barcode Input
+    document.getElementById('securityBarcode')?.addEventListener('input', handleBarcodeInput);
+    document.getElementById('securityBarcode')?.addEventListener('blur', handleBarcodeBlur);
+    
+    // Accessory Selection Change
+    document.getElementById('accessoryProduct')?.addEventListener('change', handleAccessoryChange);
     
     // Sale Price Input
     document.getElementById('salePrice')?.addEventListener('input', updatePreview);
@@ -168,6 +177,141 @@ function displaySummary(summary) {
 
 // ===== ADD/EDIT SALE MODAL =====
 
+// ===== PRODUCT SELECTION HANDLERS =====
+
+function handleSelectionMethodChange(e) {
+    const method = e.target.value;
+    const barcodeGroup = document.getElementById('barcodeInputGroup');
+    const accessoryGroup = document.getElementById('accessorySelectGroup');
+    const barcodeInput = document.getElementById('securityBarcode');
+    const accessorySelect = document.getElementById('accessoryProduct');
+    const selectedProductId = document.getElementById('selectedProductId');
+    const barcodeStatus = document.getElementById('barcodeStatus');
+    
+    if (method === 'barcode') {
+        // Show barcode input, hide accessory dropdown
+        barcodeGroup.style.display = 'block';
+        accessoryGroup.style.display = 'none';
+        barcodeInput.value = '';
+        accessorySelect.value = '';
+        selectedProductId.value = '';
+        barcodeStatus.style.display = 'none';
+        productCost = 0;
+    } else {
+        // Show accessory dropdown, hide barcode input
+        barcodeGroup.style.display = 'none';
+        accessoryGroup.style.display = 'block';
+        barcodeInput.value = '';
+        accessorySelect.value = '';
+        selectedProductId.value = '';
+        barcodeStatus.style.display = 'none';
+        productCost = 0;
+        
+        // Load accessories if not already loaded
+        if (accessorySelect.options.length === 1) {
+            loadAvailableAccessories();
+        }
+    }
+    
+    updatePreview();
+}
+
+let barcodeTimeout = null;
+
+function handleBarcodeInput(e) {
+    // Convert to uppercase as user types
+    const input = e.target;
+    input.value = input.value.toUpperCase();
+    
+    // Clear any existing timeout
+    if (barcodeTimeout) {
+        clearTimeout(barcodeTimeout);
+    }
+    
+    // Set a timeout to lookup after user stops typing
+    barcodeTimeout = setTimeout(() => {
+        if (input.value.trim()) {
+            lookupProductByBarcode(input.value.trim());
+        }
+    }, 500);
+}
+
+function handleBarcodeBlur(e) {
+    const barcode = e.target.value.trim();
+    if (barcode) {
+        lookupProductByBarcode(barcode);
+    }
+}
+
+async function lookupProductByBarcode(barcode) {
+    const statusDiv = document.getElementById('barcodeStatus');
+    const selectedProductId = document.getElementById('selectedProductId');
+    
+    try {
+        statusDiv.style.display = 'block';
+        statusDiv.style.backgroundColor = '#f3f4f6';
+        statusDiv.style.color = '#666';
+        statusDiv.textContent = 'Looking up product...';
+        
+        const response = await authenticatedFetch(`${API_BASE}/api/admin/products/lookup-barcode?barcode=${encodeURIComponent(barcode)}`);
+        const data = await response.json();
+        
+        if (response.ok && data.product) {
+            const product = data.product;
+            
+            // Check if product is available for sale
+            if (product.sales_order_number || product.status === 'sold' || product.status === 'faulty') {
+                statusDiv.style.backgroundColor = '#fee2e2';
+                statusDiv.style.color = '#dc2626';
+                statusDiv.innerHTML = `<strong>❌ Product Not Available</strong><br>This product has already been sold or is marked as faulty.`;
+                selectedProductId.value = '';
+                productCost = 0;
+            } else {
+                statusDiv.style.backgroundColor = '#d1fae5';
+                statusDiv.style.color = '#065f46';
+                statusDiv.innerHTML = `
+                    <strong>✅ Product Found:</strong> ${product.product_type || product.part_type}<br>
+                    Serial: ${product.serial_number || 'N/A'} | Cost: £${(product.purchase_price || 0).toFixed(2)}
+                `;
+                selectedProductId.value = product._id;
+                productCost = product.purchase_price || 0;
+                updatePreview();
+            }
+        } else {
+            statusDiv.style.backgroundColor = '#fee2e2';
+            statusDiv.style.color = '#dc2626';
+            statusDiv.innerHTML = '<strong>❌ Product Not Found</strong><br>No product with this security barcode exists.';
+            selectedProductId.value = '';
+            productCost = 0;
+            updatePreview();
+        }
+    } catch (error) {
+        console.error('Error looking up barcode:', error);
+        statusDiv.style.backgroundColor = '#fee2e2';
+        statusDiv.style.color = '#dc2626';
+        statusDiv.textContent = '❌ Error looking up product. Please try again.';
+        selectedProductId.value = '';
+        productCost = 0;
+        updatePreview();
+    }
+}
+
+function handleAccessoryChange() {
+    const select = document.getElementById('accessoryProduct');
+    const selectedOption = select.options[select.selectedIndex];
+    const selectedProductId = document.getElementById('selectedProductId');
+    
+    if (selectedOption && selectedOption.value) {
+        selectedProductId.value = selectedOption.value;
+        productCost = parseFloat(selectedOption.dataset.cost) || 0;
+    } else {
+        selectedProductId.value = '';
+        productCost = 0;
+    }
+    
+    updatePreview();
+}
+
 async function openAddSaleModal() {
     currentSaleId = null;
     selectedConsumables = [];
@@ -177,8 +321,12 @@ async function openAddSaleModal() {
     document.getElementById('saleForm').reset();
     setupDateDefault();
     
-    // Load available products
-    await loadAvailableProducts();
+    // Reset selection method to barcode
+    document.querySelector('input[name="selectionMethod"][value="barcode"]').checked = true;
+    document.getElementById('barcodeInputGroup').style.display = 'block';
+    document.getElementById('accessorySelectGroup').style.display = 'none';
+    document.getElementById('barcodeStatus').style.display = 'none';
+    document.getElementById('selectedProductId').value = '';
     
     // Clear consumables
     document.getElementById('consumablesList').innerHTML = '<p style="text-align: center; color: #999;">No consumables added yet</p>';
@@ -189,49 +337,37 @@ async function openAddSaleModal() {
     document.getElementById('saleModal').style.display = 'flex';
 }
 
-async function loadAvailableProducts() {
+async function loadAvailableAccessories() {
     try {
-        console.log('Loading available products...');
-        const response = await authenticatedFetch(`${API_BASE}/api/admin/products?unsold=true`);
+        console.log('Loading available accessories...');
+        const response = await authenticatedFetch(`${API_BASE}/api/admin/products?accessories=true`);
         const data = await response.json();
         
-        console.log('Products response:', data);
+        console.log('Accessories response:', data);
         
-        const select = document.getElementById('saleProduct');
-        select.innerHTML = '<option value="">Select a product...</option>';
+        const select = document.getElementById('accessoryProduct');
+        select.innerHTML = '<option value="">Select an accessory...</option>';
         
         if (data.products && data.products.length > 0) {
-            console.log(`Found ${data.products.length} available products`);
+            console.log(`Found ${data.products.length} available accessories`);
             data.products.forEach(product => {
                 const option = document.createElement('option');
                 option.value = product._id;
-                option.textContent = `${product.product_type || product.part_type} - ${product.serial_number || 'No Serial'} (£${product.purchase_price?.toFixed(2) || '0.00'})`;
+                const partName = product.part_name || product.product_type || product.part_type;
+                option.textContent = `${partName} - ${product.serial_number || 'N/A'} (£${product.purchase_price?.toFixed(2) || '0.00'})`;
                 option.dataset.cost = product.purchase_price || 0;
-                option.dataset.name = product.product_type || product.part_type;
-                option.dataset.serial = product.serial_number || 'N/A';
+                option.dataset.name = partName;
                 select.appendChild(option);
             });
         } else {
-            console.log('No products found');
-            select.innerHTML = '<option value="">No unsold products available</option>';
+            console.log('No accessories found');
+            select.innerHTML = '<option value="">No unsold accessories available</option>';
         }
     } catch (error) {
-        console.error('Error loading products:', error);
+        console.error('Error loading accessories:', error);
     }
 }
 
-function handleProductChange() {
-    const select = document.getElementById('saleProduct');
-    const selectedOption = select.options[select.selectedIndex];
-    
-    if (selectedOption && selectedOption.value) {
-        productCost = parseFloat(selectedOption.dataset.cost) || 0;
-    } else {
-        productCost = 0;
-    }
-    
-    updatePreview();
-}
 
 function updatePreview() {
     const salePrice = parseFloat(document.getElementById('salePrice')?.value) || 0;
@@ -255,19 +391,42 @@ function closeSaleModal() {
 async function handleSaleSubmit(e) {
     e.preventDefault();
     
-    const productId = document.getElementById('saleProduct').value;
-    const select = document.getElementById('saleProduct');
-    const selectedOption = select.options[select.selectedIndex];
+    const productId = document.getElementById('selectedProductId').value;
     
     if (!productId) {
-        alert('Please select a product');
+        alert('Please select or scan a product');
         return;
+    }
+    
+    // Get product details based on selection method
+    let productName = 'Unknown';
+    let productSerial = 'N/A';
+    const selectionMethod = document.querySelector('input[name="selectionMethod"]:checked').value;
+    
+    if (selectionMethod === 'accessory') {
+        const select = document.getElementById('accessoryProduct');
+        const selectedOption = select.options[select.selectedIndex];
+        if (selectedOption) {
+            productName = selectedOption.dataset.name || 'Unknown';
+            productSerial = 'N/A';
+        }
+    } else {
+        // For barcode, we need to get the details from the status display
+        // or fetch from the backend
+        const statusDiv = document.getElementById('barcodeStatus');
+        if (statusDiv && statusDiv.textContent.includes('Product Found')) {
+            // Extract from status display
+            const serialMatch = statusDiv.textContent.match(/Serial: ([^\|]+)/);
+            const typeMatch = statusDiv.textContent.match(/Found:\s*([^\n]+)/);
+            if (serialMatch) productSerial = serialMatch[1].trim();
+            if (typeMatch) productName = typeMatch[1].trim();
+        }
     }
     
     const saleData = {
         product_id: productId,
-        product_name: selectedOption.dataset.name,
-        product_serial: selectedOption.dataset.serial,
+        product_name: productName,
+        product_serial: productSerial,
         product_cost: productCost,
         platform: document.getElementById('salePlatform').value,
         order_number: document.getElementById('saleOrderNumber').value.trim(),
@@ -737,4 +896,5 @@ window.deleteTemplate = deleteTemplate;
 window.closeCreateTemplateModal = closeCreateTemplateModal;
 window.removeTemplateConsumable = removeTemplateConsumable;
 
+})(); // End of IIFE
 })(); // End of IIFE

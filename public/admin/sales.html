@@ -169,12 +169,38 @@
                 <div class="modal-body">
                     <!-- Product Selection -->
                     <div class="form-group">
-                        <label for="saleProduct">Product *</label>
-                        <select id="saleProduct" required>
-                            <option value="">Select a product...</option>
-                        </select>
-                        <small style="color: #666;">Only unsold products are shown</small>
+                        <label>Product Selection Method *</label>
+                        <div style="display: flex; gap: 15px; margin-bottom: 10px;">
+                            <label style="display: flex; align-items: center; gap: 5px;">
+                                <input type="radio" name="selectionMethod" value="barcode" checked>
+                                <span>Scan Security Barcode (AirPods)</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 5px;">
+                                <input type="radio" name="selectionMethod" value="accessory">
+                                <span>Select Accessory</span>
+                            </label>
+                        </div>
                     </div>
+
+                    <!-- Security Barcode Input (for AirPods) -->
+                    <div class="form-group" id="barcodeInputGroup">
+                        <label for="securityBarcode">Security Barcode *</label>
+                        <input type="text" id="securityBarcode" placeholder="Scan or enter security barcode..." style="text-transform: uppercase;">
+                        <small style="color: #666;">The security barcode will be automatically converted to uppercase</small>
+                        <div id="barcodeStatus" style="margin-top: 8px; padding: 8px; border-radius: 4px; display: none;"></div>
+                    </div>
+
+                    <!-- Accessory Dropdown -->
+                    <div class="form-group" id="accessorySelectGroup" style="display: none;">
+                        <label for="accessoryProduct">Accessory *</label>
+                        <select id="accessoryProduct">
+                            <option value="">Select an accessory...</option>
+                        </select>
+                        <small style="color: #666;">Only unsold accessories are shown</small>
+                    </div>
+
+                    <!-- Hidden field to store selected product ID -->
+                    <input type="hidden" id="selectedProductId" required>
 
                     <!-- Sale Details -->
                     <div class="form-row">

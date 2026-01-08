@@ -1772,14 +1772,15 @@ app.post('/api/admin/product', requireAuth, requireDB, (req, res, next) => {
 
 // Get all products (Admin only, paginated)
 app.get('/api/admin/products', requireAuth, requireDB, async (req, res) => {
-    console.log('[PRODUCTS] Request received - limit:', req.query.limit, 'offset:', req.query.offset, 'unsold:', req.query.unsold);
+    console.log('[PRODUCTS] Request received - limit:', req.query.limit, 'offset:', req.query.offset, 'unsold:', req.query.unsold, 'accessories:', req.query.accessories);
     console.log('[PRODUCTS] User:', req.user?.email || 'no user data');
 
     const limit = parseInt(req.query.limit) || 50;
     const offset = parseInt(req.query.offset) || 0;
     const unsoldOnly = req.query.unsold === 'true';
+    const accessoriesOnly = req.query.accessories === 'true';
     
-    console.log('[PRODUCTS] unsoldOnly flag:', unsoldOnly);
+    console.log('[PRODUCTS] unsoldOnly flag:', unsoldOnly, 'accessoriesOnly flag:', accessoriesOnly);
 
     try {
         // Build filter
@@ -1806,6 +1807,32 @@ app.get('/api/admin/products', requireAuth, requireDB, async (req, res) => {
                 // Must be an actual AirPod part (not an accessory)
                 {
                     part_type: { $in: ['left', 'right', 'case'] }
+                }
+            ];
+        }
+        
+        if (accessoriesOnly) {
+            // Only show accessories that are available for sale
+            filter.$and = [
+                // Must NOT be sold or faulty
+                {
+                    $or: [
+                        { status: { $in: ['in_stock', 'active'] } },
+                        { status: { $exists: false } },
+                        { status: null }
+                    ]
+                },
+                // Must NOT have a sales_order_number (means it's been sold)
+                {
+                    $or: [
+                        { sales_order_number: { $exists: false } },
+                        { sales_order_number: null },
+                        { sales_order_number: '' }
+                    ]
+                },
+                // Must be an accessory
+                {
+                    part_type: { $in: ['ear_tips', 'box', 'cable', 'other'] }
                 }
             ];
         }
@@ -1889,6 +1916,41 @@ app.get('/api/admin/products', requireAuth, requireDB, async (req, res) => {
         });
         
         res.json({ products: productsWithStringIds, total });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Lookup product by security barcode
+app.get('/api/admin/products/lookup-barcode', requireAuth, requireDB, async (req, res) => {
+    const barcode = req.query.barcode?.trim().toUpperCase();
+    
+    if (!barcode) {
+        return res.status(400).json({ error: 'Barcode parameter is required' });
+    }
+    
+    console.log('[PRODUCTS] Looking up barcode:', barcode);
+    
+    try {
+        const product = await db.collection('products').findOne({ 
+            security_barcode: barcode 
+        });
+        
+        if (!product) {
+            console.log('[PRODUCTS] No product found with barcode:', barcode);
+            return res.status(404).json({ error: 'Product not found' });
+        }
+        
+        console.log('[PRODUCTS] Found product:', product._id);
+        
+        // Convert ObjectId to string
+        const productData = {
+            ...product,
+            _id: product._id.toString()
+        };
+        
+        res.json({ product: productData });
     } catch (err) {
         console.error('Database error:', err);
         res.status(500).json({ error: 'Database error: ' + err.message });
