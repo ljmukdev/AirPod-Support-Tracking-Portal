@@ -1540,15 +1540,28 @@ app.post('/api/admin/product', requireAuth, requireDB, (req, res, next) => {
         files_count: req.files ? req.files.length : 0
     });
     
-    if (!serial_number || !security_barcode || !part_type) {
-        return res.status(400).json({ 
-            error: 'Serial number, security barcode, and part type are required',
-            received: {
-                serial_number: !!serial_number,
-                security_barcode: !!security_barcode,
-                part_type: !!part_type
-            }
-        });
+    // Validate required fields - serial_number and security_barcode are optional if skip_photos_security is true
+    if (!skip_photos_security) {
+        if (!serial_number || !security_barcode || !part_type) {
+            return res.status(400).json({ 
+                error: 'Serial number, security barcode, and part type are required (unless skipping photos/security)',
+                received: {
+                    serial_number: !!serial_number,
+                    security_barcode: !!security_barcode,
+                    part_type: !!part_type
+                }
+            });
+        }
+    } else {
+        // Part type is always required
+        if (!part_type) {
+            return res.status(400).json({ 
+                error: 'Part type is required',
+                received: {
+                    part_type: !!part_type
+                }
+            });
+        }
     }
     
     if (!['left', 'right', 'case'].includes(part_type.toLowerCase())) {
@@ -1722,8 +1735,8 @@ app.post('/api/admin/product', requireAuth, requireDB, (req, res, next) => {
         }
         
         const product = {
-            serial_number: serial_number.trim(),
-            security_barcode: security_barcode.trim().toUpperCase(), // Store in uppercase
+            serial_number: serial_number ? serial_number.trim() : (skip_photos_security ? 'N/A' : null),
+            security_barcode: security_barcode ? security_barcode.trim().toUpperCase() : (skip_photos_security ? null : null), // Store in uppercase, or null if skipping
             part_type: part_type.toLowerCase(),
             generation: generation ? generation.trim() : null,
             part_model_number: part_model_number ? part_model_number.trim() : null,
@@ -1885,10 +1898,20 @@ app.put('/api/admin/product/:id', requireAuth, requireDB, (req, res, next) => {
     const isSaleUpdate = sales_order_number && !serial_number && !security_barcode && !part_type;
 
     if (!isSaleUpdate) {
-        if (!serial_number || !security_barcode || !part_type) {
-            return res.status(400).json({
-                error: 'Serial number, security barcode, and part type are required'
-            });
+        // Validate required fields - serial_number and security_barcode are optional if skip_photos_security is true
+        if (!skip_photos_security) {
+            if (!serial_number || !security_barcode || !part_type) {
+                return res.status(400).json({
+                    error: 'Serial number, security barcode, and part type are required (unless skipping photos/security)'
+                });
+            }
+        } else {
+            // Part type is always required
+            if (!part_type) {
+                return res.status(400).json({ 
+                    error: 'Part type is required'
+                });
+            }
         }
 
         if (!['left', 'right', 'case'].includes(part_type.toLowerCase())) {
@@ -1961,8 +1984,8 @@ app.put('/api/admin/product/:id', requireAuth, requireDB, (req, res, next) => {
         const updateData = {};
 
         if (!isSaleUpdate) {
-            updateData.serial_number = serial_number.trim();
-            updateData.security_barcode = security_barcode.trim().toUpperCase();
+            updateData.serial_number = serial_number ? serial_number.trim() : (skip_photos_security ? 'N/A' : null);
+            updateData.security_barcode = security_barcode ? security_barcode.trim().toUpperCase() : (skip_photos_security ? null : null);
             updateData.part_type = part_type.toLowerCase();
             updateData.generation = generation ? generation.trim() : null;
             updateData.part_model_number = part_model_number ? part_model_number.trim() : null;

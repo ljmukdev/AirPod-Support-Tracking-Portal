@@ -857,13 +857,19 @@ if (productForm) {
         const addProductButton = document.getElementById('addProductButton');
         
         // Validation - check required fields
-        if (!serialNumber) {
-            showError('Serial number is required');
-            return;
-        }
-        if (!securityBarcode) {
-            showError('Security barcode is required');
-            return;
+        // Serial number and security barcode are optional if skip checkbox is checked
+        if (!skipPhotoSecurity) {
+            if (!serialNumber) {
+                showError('Serial number is required (or check "Skip photo & security code requirements")');
+                return;
+            }
+            if (!securityBarcode) {
+                showError('Security barcode is required (or check "Skip photo & security code requirements")');
+                return;
+            }
+        } else {
+            // If skipping, use placeholder values if empty
+            // These will be handled on the server side
         }
         if (!partModelNumber) {
             showError('Part/Model number is required');
@@ -888,8 +894,9 @@ if (productForm) {
         try {
             // Use FormData to support file uploads
             const formData = new FormData();
-            formData.append('serial_number', serialNumber);
-            formData.append('security_barcode', securityBarcode);
+            // If skip checkbox is checked and fields are empty, use placeholder values
+            formData.append('serial_number', serialNumber || (skipPhotoSecurity ? 'N/A' : ''));
+            formData.append('security_barcode', securityBarcode || (skipPhotoSecurity ? 'N/A' : ''));
             formData.append('part_type', partType);
             formData.append('generation', generation);
             formData.append('part_model_number', partModelNumber);
