@@ -345,6 +345,100 @@ h3 {
     background-color: #e0e0e0;
 }
 
+/* Support bubble */
+.support-bubble {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: #1aa3b4;
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.15);
+    cursor: pointer;
+    z-index: 999;
+    font-weight: 600;
+}
+
+.support-bubble svg {
+    display: block;
+}
+
+.support-bubble:hover {
+    background: #138496;
+}
+
+.support-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    z-index: 1000;
+}
+
+.support-modal.open {
+    display: flex;
+}
+
+.support-modal-content {
+    background: #fff;
+    border-radius: 12px;
+    padding: 24px;
+    width: 100%;
+    max-width: 420px;
+    position: relative;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.support-modal-content h3 {
+    margin-top: 0;
+}
+
+.support-modal-close {
+    position: absolute;
+    right: 12px;
+    top: 10px;
+    border: none;
+    background: transparent;
+    font-size: 22px;
+    cursor: pointer;
+}
+
+.support-form {
+    display: grid;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.support-form input,
+.support-form select,
+.support-form textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.95rem;
+}
+
+.support-form-status {
+    font-size: 0.9rem;
+}
+
+.support-form-status.success {
+    color: #155724;
+}
+
+.support-form-status.error {
+    color: #b00020;
+}
+
 /* Forms */
 .form-group {
     margin-bottom: 24px;
