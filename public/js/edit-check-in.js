@@ -83,6 +83,8 @@ function displayItems() {
         const needsAudible = ['left', 'right'].includes(item.item_type);
         const needsConnectivity = ['case', 'left', 'right'].includes(item.item_type);
         const needsSerial = ['case', 'left', 'right'].includes(item.item_type);
+        const evidencePhotos = item.issue_photos || [];
+        const evidenceNotes = item.issue_notes || '';
         
         return `
             <div class="item-form" data-item-index="${index}">
@@ -148,9 +150,66 @@ function displayItems() {
                     </div>
                 </div>
                 ` : ''}
+
+                <div class="issue-evidence" id="issue_evidence_${index}">
+                    <label for="issue_notes_${index}" style="font-weight: 600;">Fault notes</label>
+                    <textarea id="issue_notes_${index}" data-field="issue_notes" data-index="${index}" rows="3" placeholder="Add notes about the fault or damage...">${escapeHtml(evidenceNotes)}</textarea>
+                    <label for="issue_photos_${index}" style="font-weight: 600; margin-top: 8px; display: block;">Add photos (optional)</label>
+                    <input type="file" id="issue_photos_${index}" name="issue_photos_${index}" accept="image/*" multiple>
+                    ${evidencePhotos.length > 0 ? `
+                    <div class="issue-photo-list">
+                        ${evidencePhotos.map((photo, photoIndex) => `
+                            <a href="${photo}" target="_blank" rel="noreferrer">Photo ${photoIndex + 1}</a>
+                        `).join('')}
+                    </div>
+                    ` : ''}
+                    <small style="color: #666;">This section appears when visual or audible condition is Poor or Not Working.</small>
+                </div>
             </div>
         `;
     }).join('');
+
+    setupIssueEvidenceListeners(items);
+    if (typeof setupUppercaseFields === 'function') {
+        setupUppercaseFields();
+    }
+}
+
+function setupIssueEvidenceListeners(items) {
+    items.forEach((item, index) => {
+        const section = document.querySelector(`.item-form[data-item-index="${index}"]`);
+        if (!section) {
+            return;
+        }
+        const evidence = document.getElementById(`issue_evidence_${index}`);
+        if (!evidence) {
+            return;
+        }
+
+        const updateVisibility = () => {
+            const conditionSelect = section.querySelector(`select[data-field="condition"][data-index="${index}"]`);
+            const audibleSelect = section.querySelector(`select[data-field="audible_condition"][data-index="${index}"]`);
+            const conditionValue = conditionSelect ? conditionSelect.value : null;
+            const audibleValue = audibleSelect ? audibleSelect.value : null;
+
+            const shouldShow = conditionValue === 'poor' || audibleValue === 'poor' || audibleValue === 'not_working';
+            if (shouldShow) {
+                evidence.classList.add('active');
+            } else {
+                evidence.classList.remove('active');
+            }
+        };
+
+        const conditionSelect = section.querySelector(`select[data-field="condition"][data-index="${index}"]`);
+        const audibleSelect = section.querySelector(`select[data-field="audible_condition"][data-index="${index}"]`);
+        if (conditionSelect) {
+            conditionSelect.addEventListener('change', updateVisibility);
+        }
+        if (audibleSelect) {
+            audibleSelect.addEventListener('change', updateVisibility);
+        }
+        updateVisibility();
+    });
 }
 
 async function saveChanges(e) {
@@ -187,14 +246,21 @@ async function saveChanges(e) {
         
         console.log('[EDIT-CHECK-IN] Saving updated items:', updatedItems);
         
+        const formData = new FormData();
+        formData.append('items', JSON.stringify(updatedItems));
+
+        updatedItems.forEach((_, index) => {
+            const photosInput = document.getElementById(`issue_photos_${index}`);
+            if (photosInput && photosInput.files && photosInput.files.length > 0) {
+                Array.from(photosInput.files).forEach((file) => {
+                    formData.append(`issue_photos_${index}`, file);
+                });
+            }
+        });
+
         const response = await authenticatedFetch(`${window.API_BASE}/api/admin/check-in/${checkInId}`, {
             method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                items: updatedItems
-            })
+            body: formData
         });
         
         if (!response.ok) {
@@ -239,4 +305,11 @@ function showError(message) {
     document.getElementById('loadingMessage').style.display = 'none';
     document.getElementById('errorMessage').style.display = 'block';
     document.getElementById('errorMessage').textContent = message;
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
