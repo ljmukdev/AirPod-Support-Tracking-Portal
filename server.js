@@ -2639,30 +2639,38 @@ async function generateSellerEmail(purchase, checkIn, baseUrl) {
         };
     });
 
-    const prompt = `Write a concise, professional seller message based ONLY on the facts below. Do not add new facts.
+    const prompt = `Write a professional message from a BUYER (LJMUK) to their SELLER about issues found during inspection. Write ONLY from the buyer's perspective. Do not add new facts.
 
-Purchase:
+Context: We are the BUYER who purchased these items from a SELLER on ${purchase.platform || 'eBay'}. We have inspected them and found issues. We need to contact the seller to request a resolution.
+
+Purchase Details:
 - Platform: ${purchase.platform || 'N/A'}
-- Order: ${purchase.order_number || 'N/A'}
-- Seller: ${purchase.seller_name || 'N/A'}
-- Generation: ${purchase.generation || 'AirPods'}
-- Price: £${totalPrice.toFixed(2)}
+- Order Number: ${purchase.order_number || 'N/A'}
+- Seller Name: ${purchase.seller_name || 'N/A'}
+- Product: ${purchase.generation || 'AirPods'}
+- Amount Paid: £${totalPrice.toFixed(2)}
 
-Inspection:
+Our Inspection Results:
 - Total items inspected: ${totalItems}
-- Items affected: ${affectedItems}
-- Affected percentage: ${affectedPercent !== null ? affectedPercent + '%' : 'N/A'}
-- Proposed partial refund: £${partialRefundAmount}
+- Items with issues: ${affectedItems}
+- Percentage affected: ${affectedPercent !== null ? affectedPercent + '%' : 'N/A'}
+- Partial refund we are requesting: £${partialRefundAmount}
 
-Issues by item (include notes and photo links exactly as provided):
+Issues Found (include photo URLs without brackets):
 ${JSON.stringify(issueSummaries, null, 2)}
 
 Requirements:
-- Be accurate and only reflect the facts above.
-- Include the photo links as full URLs in the message.
-- Mention the affected count and percentage.
-- Offer either return for full refund or partial refund amount.
-- Close with a polite sign-off from LJMUK.`;
+1. Write from BUYER's perspective (we purchased from the seller)
+2. Be professional but friendly
+3. Explain what issues we found during our inspection
+4. Include photo URLs directly in the text (NO brackets or markdown around URLs)
+5. Mention the affected item count and percentage
+6. REQUEST (not offer) either:
+   - Return for full refund, OR
+   - Keep items with partial refund of £${partialRefundAmount}
+7. Ask the seller how they would like to proceed
+8. Sign off as "Kind regards, LJMUK" or similar
+9. Keep it concise (under 300 words)`;
 
     console.log('[AI-SELLER-EMAIL] Calling Claude API...');
 
