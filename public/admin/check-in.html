@@ -345,7 +345,7 @@
                     <h2 style="margin-top: 0;">Enter Tracking Number</h2>
                     <p style="color: #666;">Search for a purchase by its tracking number to begin check-in</p>
                     <div class="search-input-group">
-                        <input type="text" id="trackingNumberInput" placeholder="Enter tracking number..." autocomplete="off">
+                        <input type="text" id="trackingNumberInput" placeholder="Enter tracking number..." autocomplete="off" style="text-transform: uppercase;" oninput="this.value = this.value.toUpperCase()">
                         <button type="button" id="searchButton">Search</button>
                     </div>
                 </div>

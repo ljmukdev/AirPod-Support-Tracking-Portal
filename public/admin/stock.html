@@ -457,8 +457,9 @@
                             id="trackingNumber" 
                             name="trackingNumber" 
                             placeholder="Paste or enter tracking number here"
-                            style="flex: 1; padding: 12px; font-size: 1rem;"
+                            style="flex: 1; padding: 12px; font-size: 1rem; text-transform: uppercase;"
                             autocomplete="off"
+                            oninput="this.value = this.value.toUpperCase()"
                         >
                         <button type="button" class="button button-secondary" id="scanTrackingBarcode" style="min-width: 120px;">
                             📷 Scan
