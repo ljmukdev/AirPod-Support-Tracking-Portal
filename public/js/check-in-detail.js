@@ -97,6 +97,49 @@ function displayItems() {
         return;
     }
     
+    const buildItemIssues = (item) => {
+        const itemIssues = [];
+
+        if (item.is_genuine === false) {
+            itemIssues.push({
+                severity: 'critical',
+                description: 'Item appears to be counterfeit or not genuine'
+            });
+        }
+
+        if (['fair', 'poor'].includes(item.condition)) {
+            itemIssues.push({
+                severity: item.condition === 'poor' ? 'high' : 'medium',
+                description: `Visual condition is ${item.condition}`
+            });
+        }
+
+        if (['left', 'right'].includes(item.item_type) && item.audible_condition) {
+            if (['poor', 'not_working'].includes(item.audible_condition)) {
+                itemIssues.push({
+                    severity: item.audible_condition === 'not_working' ? 'critical' : 'high',
+                    description: item.audible_condition === 'not_working'
+                        ? 'No audible sound - item not working'
+                        : `Poor sound quality - audible condition is ${item.audible_condition}`
+                });
+            } else if (item.audible_condition === 'fair') {
+                itemIssues.push({
+                    severity: 'medium',
+                    description: 'Fair sound quality - audible condition is fair'
+                });
+            }
+        }
+
+        if (item.connects_correctly === false) {
+            itemIssues.push({
+                severity: 'high',
+                description: 'Item has connectivity/pairing issues'
+            });
+        }
+
+        return itemIssues;
+    };
+
     container.innerHTML = items.map(item => {
         const itemName = getItemDisplayName(item.item_type);
         const itemIssueMatch = checkInData.issues_detected
@@ -112,7 +155,7 @@ function displayItems() {
                 return true;
             })
             : null;
-        const itemIssues = itemIssueMatch ? itemIssueMatch.issues : [];
+        const itemIssues = itemIssueMatch ? itemIssueMatch.issues : buildItemIssues(item);
         
         let issuesBadges = '';
         if (itemIssues.length > 0) {
