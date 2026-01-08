@@ -1777,10 +1777,20 @@ app.get('/api/admin/products', requireAuth, requireDB, async (req, res) => {
 
     const limit = parseInt(req.query.limit) || 50;
     const offset = parseInt(req.query.offset) || 0;
+    const unsoldOnly = req.query.unsold === 'true';
 
     try {
+        // Build filter
+        const filter = {};
+        if (unsoldOnly) {
+            filter.$or = [
+                { status: { $ne: 'sold' } },
+                { status: { $exists: false } }
+            ];
+        }
+        
         const products = await db.collection('products')
-            .find({})
+            .find(filter)
             .sort({ date_added: -1 })
             .limit(limit)
             .skip(offset)
@@ -8881,6 +8891,281 @@ app.get('/api/setup-instructions/:identifier', requireDB, async (req, res) => {
         });
     } catch (err) {
         console.error('[Setup Instructions] Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// ===== SALES & P/L API ENDPOINTS =====
+
+// Get all sales with P&L calculations
+app.get('/api/admin/sales', requireAuth, requireDB, async (req, res) => {
+    try {
+        const sales = await db.collection('sales').find({}).sort({ sale_date: -1 }).toArray();
+        res.json({ success: true, sales });
+    } catch (err) {
+        console.error('Error fetching sales:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Get sales summary (total revenue, costs, profit)
+app.get('/api/admin/sales/summary', requireAuth, requireDB, async (req, res) => {
+    try {
+        const sales = await db.collection('sales').find({}).toArray();
+        
+        const summary = {
+            total_revenue: 0,
+            total_costs: 0,
+            total_profit: 0,
+            sale_count: sales.length
+        };
+        
+        sales.forEach(sale => {
+            summary.total_revenue += sale.sale_price || 0;
+            summary.total_costs += sale.total_cost || 0;
+        });
+        
+        summary.total_profit = summary.total_revenue - summary.total_costs;
+        
+        res.json(summary);
+    } catch (err) {
+        console.error('Error fetching sales summary:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Create new sale
+app.post('/api/admin/sales', requireAuth, requireDB, async (req, res) => {
+    try {
+        const {
+            product_id,
+            product_name,
+            product_serial,
+            product_cost,
+            platform,
+            order_number,
+            sale_price,
+            sale_date,
+            consumables,
+            consumables_cost,
+            total_cost,
+            notes
+        } = req.body;
+        
+        // Validation
+        if (!product_id || !sale_price || !sale_date) {
+            return res.status(400).json({ error: 'Product ID, sale price, and sale date are required' });
+        }
+        
+        // Create sale record
+        const sale = {
+            product_id: new ObjectId(product_id),
+            product_name: product_name || 'Unknown',
+            product_serial: product_serial || 'N/A',
+            product_cost: parseFloat(product_cost) || 0,
+            platform: platform || 'Unknown',
+            order_number: order_number || null,
+            sale_price: parseFloat(sale_price),
+            sale_date: new Date(sale_date),
+            consumables: consumables || [],
+            consumables_cost: parseFloat(consumables_cost) || 0,
+            total_cost: parseFloat(total_cost) || 0,
+            profit: parseFloat(sale_price) - parseFloat(total_cost),
+            notes: notes || '',
+            created_at: new Date(),
+            created_by: req.user.email
+        };
+        
+        const result = await db.collection('sales').insertOne(sale);
+        
+        // Update product status to sold and set sales_order_number
+        await db.collection('products').updateOne(
+            { _id: new ObjectId(product_id) },
+            { 
+                $set: { 
+                    status: 'sold',
+                    sales_order_number: order_number,
+                    sale_date: new Date(sale_date),
+                    sale_price: parseFloat(sale_price)
+                } 
+            }
+        );
+        
+        // Update consumable stock quantities
+        if (consumables && consumables.length > 0) {
+            for (const consumable of consumables) {
+                await db.collection('consumables').updateOne(
+                    { _id: new ObjectId(consumable.consumable_id) },
+                    { 
+                        $inc: { quantity_in_stock: -consumable.quantity },
+                        $push: {
+                            usage_history: {
+                                date: new Date(),
+                                quantity: consumable.quantity,
+                                reason: `Used in sale: ${order_number || product_name}`,
+                                user: req.user.email
+                            }
+                        }
+                    }
+                );
+            }
+        }
+        
+        res.json({ 
+            success: true, 
+            message: 'Sale created successfully',
+            sale_id: result.insertedId
+        });
+    } catch (err) {
+        console.error('Error creating sale:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Get single sale
+app.get('/api/admin/sales/:id', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid sale ID' });
+    }
+    
+    try {
+        const sale = await db.collection('sales').findOne({ _id: new ObjectId(id) });
+        
+        if (!sale) {
+            return res.status(404).json({ error: 'Sale not found' });
+        }
+        
+        res.json({ success: true, sale });
+    } catch (err) {
+        console.error('Error fetching sale:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Delete sale (marks product as unsold again)
+app.delete('/api/admin/sales/:id', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid sale ID' });
+    }
+    
+    try {
+        const sale = await db.collection('sales').findOne({ _id: new ObjectId(id) });
+        
+        if (!sale) {
+            return res.status(404).json({ error: 'Sale not found' });
+        }
+        
+        // Delete the sale
+        await db.collection('sales').deleteOne({ _id: new ObjectId(id) });
+        
+        // Update product back to unsold
+        await db.collection('products').updateOne(
+            { _id: new ObjectId(sale.product_id) },
+            { 
+                $set: { status: 'in_stock' },
+                $unset: { 
+                    sales_order_number: "",
+                    sale_date: "",
+                    sale_price: ""
+                }
+            }
+        );
+        
+        // Restore consumable stock
+        if (sale.consumables && sale.consumables.length > 0) {
+            for (const consumable of sale.consumables) {
+                await db.collection('consumables').updateOne(
+                    { _id: new ObjectId(consumable.consumable_id) },
+                    { 
+                        $inc: { quantity_in_stock: consumable.quantity },
+                        $push: {
+                            usage_history: {
+                                date: new Date(),
+                                quantity: consumable.quantity,
+                                reason: `Restored from deleted sale: ${sale.order_number || sale.product_name}`,
+                                user: req.user.email
+                            }
+                        }
+                    }
+                );
+            }
+        }
+        
+        res.json({ success: true, message: 'Sale deleted successfully' });
+    } catch (err) {
+        console.error('Error deleting sale:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// ===== CONSUMABLE TEMPLATES API ENDPOINTS =====
+
+// Get all consumable templates
+app.get('/api/admin/consumable-templates', requireAuth, requireDB, async (req, res) => {
+    try {
+        const templates = await db.collection('consumable_templates')
+            .find({})
+            .sort({ name: 1 })
+            .toArray();
+        res.json({ success: true, templates });
+    } catch (err) {
+        console.error('Error fetching templates:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Create consumable template
+app.post('/api/admin/consumable-templates', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { name, description, consumables } = req.body;
+        
+        if (!name || !consumables || consumables.length === 0) {
+            return res.status(400).json({ error: 'Name and consumables are required' });
+        }
+        
+        const template = {
+            name: name.trim(),
+            description: description || '',
+            consumables: consumables,
+            created_at: new Date(),
+            created_by: req.user.email
+        };
+        
+        const result = await db.collection('consumable_templates').insertOne(template);
+        
+        res.json({ 
+            success: true, 
+            message: 'Template created successfully',
+            template_id: result.insertedId
+        });
+    } catch (err) {
+        console.error('Error creating template:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Delete consumable template
+app.delete('/api/admin/consumable-templates/:id', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid template ID' });
+    }
+    
+    try {
+        const result = await db.collection('consumable_templates').deleteOne({ _id: new ObjectId(id) });
+        
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ error: 'Template not found' });
+        }
+        
+        res.json({ success: true, message: 'Template deleted successfully' });
+    } catch (err) {
+        console.error('Error deleting template:', err);
         res.status(500).json({ error: 'Database error: ' + err.message });
     }
 });
