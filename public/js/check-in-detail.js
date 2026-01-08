@@ -104,11 +104,10 @@ function displayItems() {
                 if (issue.item_type !== item.item_type) {
                     return false;
                 }
-                if (issue.set_number && item.set_number) {
-                    return issue.set_number === item.set_number;
-                }
-                if (issue.set_number && !item.set_number) {
-                    return false;
+                const issueSet = issue.set_number || null;
+                const itemSet = item.set_number || null;
+                if (issueSet || itemSet) {
+                    return issueSet === itemSet;
                 }
                 return true;
             })
