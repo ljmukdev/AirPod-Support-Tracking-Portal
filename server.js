@@ -1931,18 +1931,22 @@ app.get('/api/admin/products/lookup-barcode', requireAuth, requireDB, async (req
     }
     
     console.log('[PRODUCTS] Looking up barcode:', barcode);
-    
+
     try {
-        const product = await db.collection('products').findOne({ 
-            security_barcode: barcode 
+        // Search by both security barcode and serial number
+        const product = await db.collection('products').findOne({
+            $or: [
+                { security_barcode: barcode },
+                { serial_number: barcode }
+            ]
         });
         
         if (!product) {
-            console.log('[PRODUCTS] No product found with barcode:', barcode);
+            console.log('[PRODUCTS] No product found with barcode or serial number:', barcode);
             return res.status(404).json({ error: 'Product not found' });
         }
-        
-        console.log('[PRODUCTS] Found product:', product._id);
+
+        console.log('[PRODUCTS] Found product:', product._id, 'via', product.security_barcode ? 'security barcode' : 'serial number');
         
         // Convert ObjectId to string
         const productData = {

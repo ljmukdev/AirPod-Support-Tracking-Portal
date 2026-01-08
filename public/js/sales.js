@@ -280,7 +280,7 @@ async function lookupProductByBarcode(barcode) {
         } else {
             statusDiv.style.backgroundColor = '#fee2e2';
             statusDiv.style.color = '#dc2626';
-            statusDiv.innerHTML = '<strong>❌ Product Not Found</strong><br>No product with this security barcode exists.';
+            statusDiv.innerHTML = '<strong>❌ Product Not Found</strong><br>No product with this serial number or security barcode exists.';
             selectedProductId.value = '';
             productCost = 0;
             updatePreview();
