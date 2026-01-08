@@ -1528,6 +1528,7 @@ app.post('/api/admin/product', requireAuth, requireDB, (req, res, next) => {
     const notes = req.body.notes;
     const ebay_order_number = req.body.ebay_order_number;
     const sales_order_number = req.body.sales_order_number;
+    const skip_photos_security = req.body.skip_photos_security === 'true' || req.body.skip_photos_security === true;
     
     // Log received data for debugging
     console.log('Received product data:', {
@@ -1729,6 +1730,7 @@ app.post('/api/admin/product', requireAuth, requireDB, (req, res, next) => {
             notes: notes ? notes.trim() : null,
             ebay_order_number: ebay_order_number ? ebay_order_number.trim() : null,
             sales_order_number: sales_order_number ? sales_order_number.trim() : null,
+            skip_photos_security: skip_photos_security || false,
             photos: photos, // Array of photo paths
             tracking_number: null,
             tracking_date: null,
@@ -1877,6 +1879,7 @@ app.put('/api/admin/product/:id', requireAuth, requireDB, (req, res, next) => {
     const sale_price = req.body.sale_price;
     const sale_notes = req.body.sale_notes;
     const consumables = req.body.consumables;
+    const skip_photos_security = req.body.skip_photos_security === 'true' || req.body.skip_photos_security === true;
 
     // If this is a sale update (has sales_order_number), allow it without full validation
     const isSaleUpdate = sales_order_number && !serial_number && !security_barcode && !part_type;
@@ -1965,6 +1968,7 @@ app.put('/api/admin/product/:id', requireAuth, requireDB, (req, res, next) => {
             updateData.part_model_number = part_model_number ? part_model_number.trim() : null;
             updateData.notes = notes ? notes.trim() : null;
             updateData.ebay_order_number = ebay_order_number ? ebay_order_number.trim() : null;
+            updateData.skip_photos_security = skip_photos_security;
         }
 
         // Add sale-specific fields
@@ -3132,7 +3136,13 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                 { security_barcode: null },
                 { security_barcode: '' }
             ],
-            status: { $ne: 'sold' } // Only for items not yet sold
+            status: { $ne: 'sold' }, // Only for items not yet sold
+            // Exclude products that don't require photos/security codes
+            $or: [
+                { skip_photos_security: { $exists: false } },
+                { skip_photos_security: false },
+                { skip_photos_security: null }
+            ]
         }).toArray();
         
         for (const product of productsNeedingAttention) {

@@ -774,6 +774,11 @@ async function editProduct(id) {
                     document.getElementById('salesOrderNumber').value = product.sales_order_number || '';
                 }
                 
+                // Set skip photos/security checkbox
+                if (document.getElementById('skipPhotosecurity')) {
+                    document.getElementById('skipPhotosecurity').checked = product.skip_photos_security || false;
+                }
+                
                 // Update button text and show cancel button
                 if (addProductButton) {
                     addProductButton.textContent = 'Update Product';
@@ -847,6 +852,7 @@ if (productForm) {
         const notes = document.getElementById('notes').value.trim();
         const ebayOrderNumber = document.getElementById('ebayOrderNumber').value.trim();
         const salesOrderNumber = document.getElementById('salesOrderNumber') ? document.getElementById('salesOrderNumber').value.trim() : '';
+        const skipPhotoSecurity = document.getElementById('skipPhotosecurity') ? document.getElementById('skipPhotosecurity').checked : false;
         const productPhotos = document.getElementById('productPhotos');
         const addProductButton = document.getElementById('addProductButton');
         
@@ -890,6 +896,7 @@ if (productForm) {
             if (notes) formData.append('notes', notes);
             if (ebayOrderNumber) formData.append('ebay_order_number', ebayOrderNumber);
             if (salesOrderNumber) formData.append('sales_order_number', salesOrderNumber);
+            formData.append('skip_photos_security', skipPhotoSecurity);
             
             // Append photos if selected (use selectedFiles array)
             if (selectedFiles && selectedFiles.length > 0) {
