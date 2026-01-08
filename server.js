@@ -1116,7 +1116,7 @@ async function initializeDatabase() {
                 console.error('Warning: Could not create consumable_stock_history indexes:', err.message);
             }
         }
-
+        
         console.log('Database indexes created');
         
         // Check if parts collection is empty and populate
@@ -1542,15 +1542,15 @@ app.post('/api/admin/product', requireAuth, requireDB, (req, res, next) => {
     
     // Validate required fields - serial_number and security_barcode are optional if skip_photos_security is true
     if (!skip_photos_security) {
-        if (!serial_number || !security_barcode || !part_type) {
-            return res.status(400).json({ 
+    if (!serial_number || !security_barcode || !part_type) {
+        return res.status(400).json({ 
                 error: 'Serial number, security barcode, and part type are required (unless skipping photos/security)',
-                received: {
-                    serial_number: !!serial_number,
-                    security_barcode: !!security_barcode,
-                    part_type: !!part_type
-                }
-            });
+            received: {
+                serial_number: !!serial_number,
+                security_barcode: !!security_barcode,
+                part_type: !!part_type
+            }
+        });
         }
     } else {
         // Part type is always required
@@ -1564,8 +1564,9 @@ app.post('/api/admin/product', requireAuth, requireDB, (req, res, next) => {
         }
     }
     
-    if (!['left', 'right', 'case'].includes(part_type.toLowerCase())) {
-        return res.status(400).json({ error: 'Part type must be left, right, or case' });
+    const validPartTypes = ['left', 'right', 'case', 'ear_tips', 'box', 'cable', 'other'];
+    if (!validPartTypes.includes(part_type.toLowerCase())) {
+        return res.status(400).json({ error: 'Part type must be one of: left, right, case, ear_tips, box, cable, other' });
     }
     
     try {
@@ -1900,8 +1901,8 @@ app.put('/api/admin/product/:id', requireAuth, requireDB, (req, res, next) => {
     if (!isSaleUpdate) {
         // Validate required fields - serial_number and security_barcode are optional if skip_photos_security is true
         if (!skip_photos_security) {
-            if (!serial_number || !security_barcode || !part_type) {
-                return res.status(400).json({
+    if (!serial_number || !security_barcode || !part_type) {
+        return res.status(400).json({ 
                     error: 'Serial number, security barcode, and part type are required (unless skipping photos/security)'
                 });
             }
@@ -1914,8 +1915,9 @@ app.put('/api/admin/product/:id', requireAuth, requireDB, (req, res, next) => {
             }
         }
 
-        if (!['left', 'right', 'case'].includes(part_type.toLowerCase())) {
-            return res.status(400).json({ error: 'Part type must be left, right, or case' });
+        const validPartTypes = ['left', 'right', 'case', 'ear_tips', 'box', 'cable', 'other'];
+        if (!validPartTypes.includes(part_type.toLowerCase())) {
+            return res.status(400).json({ error: 'Part type must be one of: left, right, case, ear_tips, box, cable, other' });
         }
     }
     
@@ -2043,12 +2045,12 @@ app.put('/api/admin/product/:id', requireAuth, requireDB, (req, res, next) => {
                 }
             }
         }
-
+        
         const result = await db.collection('products').updateOne(
             { _id: new ObjectId(id) },
             { $set: updateData }
         );
-
+        
         if (result.matchedCount === 0) {
             res.status(404).json({ error: 'Product not found' });
         } else {

@@ -839,6 +839,58 @@ function cancelEdit() {
     }
 }
 
+// Add event listener for part type changes to handle accessories
+const partTypeField = document.getElementById('partType');
+const generationField = document.getElementById('generation');
+const partSelectionField = document.getElementById('partSelection');
+const skipPhotoSecurityCheckbox = document.getElementById('skipPhotosecurity');
+
+if (partTypeField) {
+    partTypeField.addEventListener('change', function() {
+        const selectedType = this.value;
+        const isAccessory = ['ear_tips', 'box', 'cable', 'other'].includes(selectedType);
+        
+        if (isAccessory) {
+            // Auto-check skip photos/security for accessories
+            if (skipPhotoSecurityCheckbox) {
+                skipPhotoSecurityCheckbox.checked = true;
+            }
+            
+            // Make generation and part selection optional (visually)
+            if (generationField) {
+                generationField.removeAttribute('required');
+                const generationLabel = generationField.previousElementSibling;
+                if (generationLabel && generationLabel.tagName === 'LABEL') {
+                    generationLabel.textContent = 'Generation (optional for accessories)';
+                }
+            }
+            if (partSelectionField) {
+                partSelectionField.removeAttribute('required');
+                const partSelectionLabel = partSelectionField.previousElementSibling;
+                if (partSelectionLabel && partSelectionLabel.tagName === 'LABEL') {
+                    partSelectionLabel.textContent = 'Part Selection (optional for accessories)';
+                }
+            }
+        } else {
+            // Restore required status for AirPod parts
+            if (generationField) {
+                generationField.setAttribute('required', 'required');
+                const generationLabel = generationField.previousElementSibling;
+                if (generationLabel && generationLabel.tagName === 'LABEL') {
+                    generationLabel.textContent = 'Generation';
+                }
+            }
+            if (partSelectionField) {
+                partSelectionField.setAttribute('required', 'required');
+                const partSelectionLabel = partSelectionField.previousElementSibling;
+                if (partSelectionLabel && partSelectionLabel.tagName === 'LABEL') {
+                    partSelectionLabel.textContent = 'Part Selection';
+                }
+            }
+        }
+    });
+}
+
 if (productForm) {
     productForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -875,14 +927,22 @@ if (productForm) {
             showError('Part/Model number is required');
             return;
         }
-        if (!generation) {
-            showError('Generation is required');
-            return;
+        
+        // Check if this is an accessory type
+        const isAccessory = ['ear_tips', 'box', 'cable', 'other'].includes(partType);
+        
+        // Generation and Part Selection are only required for AirPod parts (left, right, case)
+        if (!isAccessory) {
+            if (!generation) {
+                showError('Generation is required for AirPod parts');
+                return;
+            }
+            if (!partSelection) {
+                showError('Part selection is required for AirPod parts');
+                return;
+            }
         }
-        if (!partSelection) {
-            showError('Part selection is required');
-            return;
-        }
+        
         if (!partType) {
             showError('Part type is required');
             return;
@@ -898,7 +958,8 @@ if (productForm) {
             formData.append('serial_number', serialNumber || (skipPhotoSecurity ? 'N/A' : ''));
             formData.append('security_barcode', securityBarcode || (skipPhotoSecurity ? 'N/A' : ''));
             formData.append('part_type', partType);
-            formData.append('generation', generation);
+            // For accessories, generation and part selection are optional
+            formData.append('generation', generation || (isAccessory ? 'N/A' : ''));
             formData.append('part_model_number', partModelNumber);
             if (notes) formData.append('notes', notes);
             if (ebayOrderNumber) formData.append('ebay_order_number', ebayOrderNumber);
