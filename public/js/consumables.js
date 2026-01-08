@@ -151,10 +151,15 @@ function renderConsumables(consumables) {
         // Location display
         const locationDisplay = item.location || '<span style="color: #999;">—</span>';
 
-        // Item name with size
-        const itemNameDisplay = item.size
+        // Item name with size and optional link
+        let itemNameDisplay = item.size
             ? `<strong>${escapeHtml(item.item_name)}</strong><br><span style="font-size: 0.85rem; color: #666;">${escapeHtml(item.size)}</span>`
             : `<strong>${escapeHtml(item.item_name)}</strong>`;
+
+        // Add product link icon if URL exists
+        if (item.product_url && item.product_url.trim()) {
+            itemNameDisplay += ` <a href="${escapeHtml(item.product_url)}" target="_blank" rel="noopener noreferrer" title="View product page" style="color: #0066cc; text-decoration: none;">🔗</a>`;
+        }
 
         return `
             <tr data-consumable-id="${escapeHtml(String(item._id || item.id))}">

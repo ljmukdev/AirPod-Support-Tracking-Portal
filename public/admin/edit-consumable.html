@@ -307,6 +307,13 @@
                             <input type="text" id="supplier" name="supplier" placeholder="Supplier name">
                         </div>
 
+                        <!-- Product URL -->
+                        <div class="form-group">
+                            <label for="productUrl">Product Link / URL</label>
+                            <input type="url" id="productUrl" name="productUrl" placeholder="https://example.com/product">
+                            <p style="font-size: 0.75rem; color: #666; margin-top: 4px;">Link to product page or supplier listing</p>
+                        </div>
+
                         <!-- Location -->
                         <div class="form-group">
                             <label for="location">Storage Location</label>
@@ -422,6 +429,7 @@
                 document.getElementById('reorderQuantity').value = consumable.reorder_quantity || '';
                 document.getElementById('unitCost').value = consumable.unit_cost || '';
                 document.getElementById('supplier').value = consumable.supplier || '';
+                document.getElementById('productUrl').value = consumable.product_url || '';
                 document.getElementById('location').value = consumable.location || '';
                 document.getElementById('status').value = consumable.status || 'active';
                 document.getElementById('notes').value = consumable.notes || '';
@@ -632,6 +640,7 @@
                 reorder_quantity: document.getElementById('reorderQuantity').value ? parseInt(document.getElementById('reorderQuantity').value) : null,
                 unit_cost: document.getElementById('unitCost').value ? parseFloat(document.getElementById('unitCost').value) : null,
                 supplier: document.getElementById('supplier').value.trim(),
+                product_url: document.getElementById('productUrl').value.trim(),
                 location: document.getElementById('location').value.trim(),
                 status: document.getElementById('status').value,
                 expiry_date: document.getElementById('expiryDate').value || null,
