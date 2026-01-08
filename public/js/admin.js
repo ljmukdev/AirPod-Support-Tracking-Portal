@@ -737,35 +737,39 @@ async function editProduct(id) {
                 document.getElementById('serialNumber').value = product.serial_number || '';
                 document.getElementById('securityBarcode').value = product.security_barcode || '';
                 document.getElementById('partModelNumber').value = product.part_model_number || '';
-                
-                // Set generation and trigger change to populate part selection
-                const generationSelect = document.getElementById('generation');
-                if (generationSelect && product.generation) {
-                    generationSelect.value = product.generation;
-                    generationSelect.dispatchEvent(new Event('change'));
-                    
-                    // Wait for dropdown to populate, then set part selection
-                    setTimeout(() => {
-                        const partSelectionSelect = document.getElementById('partSelection');
-                        if (partSelectionSelect) {
-                            // Find the option that matches the part model number
-                            const options = Array.from(partSelectionSelect.options);
-                            const matchingOption = options.find(opt => 
-                                opt.dataset.modelNumber === product.part_model_number
-                            );
-                            if (matchingOption) {
-                                partSelectionSelect.value = matchingOption.value;
-                                partSelectionSelect.dispatchEvent(new Event('change'));
-                            }
-                        }
-                    }, 200);
-                }
-                
-                // Set part type and trigger change event to handle accessories
+
+                // Set part type FIRST (before generation) so accessories get properly handled
                 const partTypeSelect = document.getElementById('partType');
+                const isAccessory = product.part_type && ['ear_tips', 'box', 'cable', 'other'].includes(product.part_type);
+
                 if (partTypeSelect && product.part_type) {
                     partTypeSelect.value = product.part_type;
                     partTypeSelect.dispatchEvent(new Event('change'));
+                }
+
+                // Set generation and trigger change to populate part selection (only for non-accessories)
+                if (!isAccessory) {
+                    const generationSelect = document.getElementById('generation');
+                    if (generationSelect && product.generation) {
+                        generationSelect.value = product.generation;
+                        generationSelect.dispatchEvent(new Event('change'));
+
+                        // Wait for dropdown to populate, then set part selection
+                        setTimeout(() => {
+                            const partSelectionSelect = document.getElementById('partSelection');
+                            if (partSelectionSelect) {
+                                // Find the option that matches the part model number
+                                const options = Array.from(partSelectionSelect.options);
+                                const matchingOption = options.find(opt =>
+                                    opt.dataset.modelNumber === product.part_model_number
+                                );
+                                if (matchingOption) {
+                                    partSelectionSelect.value = matchingOption.value;
+                                    partSelectionSelect.dispatchEvent(new Event('change'));
+                                }
+                            }
+                        }, 200);
+                    }
                 }
                 
                 // Set notes and eBay order numbers
