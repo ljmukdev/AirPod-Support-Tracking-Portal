@@ -859,7 +859,14 @@ if (partTypeField) {
             // Hide generation and part selection fields for accessories
             if (generationField) {
                 generationField.removeAttribute('required');
-                generationField.value = ''; // Clear the value
+                // Set a placeholder value to satisfy any validation
+                if (!generationField.querySelector('option[value="N/A"]')) {
+                    const naOption = document.createElement('option');
+                    naOption.value = 'N/A';
+                    naOption.textContent = 'N/A';
+                    generationField.appendChild(naOption);
+                }
+                generationField.value = 'N/A';
                 const generationFormGroup = generationField.closest('.form-group');
                 if (generationFormGroup) {
                     generationFormGroup.style.display = 'none';
@@ -867,7 +874,14 @@ if (partTypeField) {
             }
             if (partSelectionField) {
                 partSelectionField.removeAttribute('required');
-                partSelectionField.value = ''; // Clear the value
+                // Set a placeholder value to satisfy any validation
+                if (!partSelectionField.querySelector('option[value="N/A"]')) {
+                    const naOption = document.createElement('option');
+                    naOption.value = 'N/A';
+                    naOption.textContent = 'N/A';
+                    partSelectionField.appendChild(naOption);
+                }
+                partSelectionField.value = 'N/A';
                 const partSelectionFormGroup = partSelectionField.closest('.form-group');
                 if (partSelectionFormGroup) {
                     partSelectionFormGroup.style.display = 'none';
@@ -877,6 +891,12 @@ if (partTypeField) {
             // Show and restore required status for AirPod parts
             if (generationField) {
                 generationField.setAttribute('required', 'required');
+                // Remove N/A option if it exists
+                const naOption = generationField.querySelector('option[value="N/A"]');
+                if (naOption) {
+                    naOption.remove();
+                }
+                generationField.value = ''; // Reset to empty
                 const generationFormGroup = generationField.closest('.form-group');
                 if (generationFormGroup) {
                     generationFormGroup.style.display = 'block';
@@ -884,6 +904,12 @@ if (partTypeField) {
             }
             if (partSelectionField) {
                 partSelectionField.setAttribute('required', 'required');
+                // Remove N/A option if it exists
+                const naOption = partSelectionField.querySelector('option[value="N/A"]');
+                if (naOption) {
+                    naOption.remove();
+                }
+                partSelectionField.value = ''; // Reset to empty
                 const partSelectionFormGroup = partSelectionField.closest('.form-group');
                 if (partSelectionFormGroup) {
                     partSelectionFormGroup.style.display = 'block';
@@ -891,6 +917,11 @@ if (partTypeField) {
             }
         }
     });
+    
+    // Trigger the change event on page load to handle pre-selected values (e.g., when editing)
+    if (partTypeField.value) {
+        partTypeField.dispatchEvent(new Event('change'));
+    }
 }
 
 if (productForm) {
@@ -935,15 +966,17 @@ if (productForm) {
         
         // Generation and Part Selection are only required for AirPod parts (left, right, case)
         if (!isAccessory) {
-            if (!generation) {
+            if (!generation || generation === '') {
                 showError('Generation is required for AirPod parts');
                 return;
             }
-            if (!partSelection) {
+            if (!partSelection || partSelection === '') {
                 showError('Part selection is required for AirPod parts');
                 return;
             }
         }
+        // For accessories, generation and partSelection should be 'N/A'
+        // This is handled by the change event listener above
         
         if (!partType) {
             showError('Part type is required');
