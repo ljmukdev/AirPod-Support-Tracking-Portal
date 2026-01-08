@@ -3162,12 +3162,8 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                 { security_barcode: '' }
             ],
             status: { $ne: 'sold' }, // Only for items not yet sold
-            // Exclude products that don't require photos/security codes
-            $or: [
-                { skip_photos_security: { $exists: false } },
-                { skip_photos_security: false },
-                { skip_photos_security: null }
-            ]
+            // Exclude products that don't require photos/security codes (accessories like boxes, cables, ear tips)
+            skip_photos_security: { $ne: true }
         }).toArray();
         
         for (const product of productsNeedingAttention) {
