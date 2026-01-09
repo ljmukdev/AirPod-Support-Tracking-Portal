@@ -465,6 +465,87 @@
                                 >
                             </div>
 
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
+                                <div class="form-group">
+                                    <label for="saleSubtotal">Subtotal (£)</label>
+                                    <input
+                                        type="number"
+                                        id="saleSubtotal"
+                                        name="saleSubtotal"
+                                        step="0.01"
+                                        min="0"
+                                        placeholder="0.00"
+                                    >
+                                </div>
+                                <div class="form-group">
+                                    <label for="salePostageCharged">Postage Charged (£)</label>
+                                    <input
+                                        type="number"
+                                        id="salePostageCharged"
+                                        name="salePostageCharged"
+                                        step="0.01"
+                                        min="0"
+                                        placeholder="0.00"
+                                    >
+                                </div>
+                                <div class="form-group">
+                                    <label for="saleTransactionFees">Transaction Fees (£)</label>
+                                    <input
+                                        type="number"
+                                        id="saleTransactionFees"
+                                        name="saleTransactionFees"
+                                        step="0.01"
+                                        min="0"
+                                        placeholder="0.00"
+                                    >
+                                </div>
+                                <div class="form-group">
+                                    <label for="salePostageLabelCost">Postage Label Cost (£)</label>
+                                    <input
+                                        type="number"
+                                        id="salePostageLabelCost"
+                                        name="salePostageLabelCost"
+                                        step="0.01"
+                                        min="0"
+                                        placeholder="0.00"
+                                    >
+                                </div>
+                                <div class="form-group">
+                                    <label for="saleAdFeeGeneral">Ad Fee (General) (£)</label>
+                                    <input
+                                        type="number"
+                                        id="saleAdFeeGeneral"
+                                        name="saleAdFeeGeneral"
+                                        step="0.01"
+                                        min="0"
+                                        placeholder="0.00"
+                                    >
+                                </div>
+                                <div class="form-group">
+                                    <label for="saleOrderTotal">Order Total (£)</label>
+                                    <input
+                                        type="number"
+                                        id="saleOrderTotal"
+                                        name="saleOrderTotal"
+                                        step="0.01"
+                                        min="0"
+                                        placeholder="0.00"
+                                        readonly
+                                    >
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="outwardTrackingNumber">Outward Postage Tracking Number</label>
+                                <input
+                                    type="text"
+                                    id="outwardTrackingNumber"
+                                    name="outwardTrackingNumber"
+                                    placeholder="Enter tracking number"
+                                    autocomplete="off"
+                                >
+                            </div>
+
                             <div class="form-group">
                                 <label for="saleNotes">Notes (Optional)</label>
                                 <textarea
@@ -571,6 +652,11 @@
                 searchProduct();
             }
         });
+        document.getElementById('saleSubtotal').addEventListener('input', updateOrderTotal);
+        document.getElementById('salePostageCharged').addEventListener('input', updateOrderTotal);
+        document.getElementById('saleTransactionFees').addEventListener('input', updateOrderTotal);
+        document.getElementById('salePostageLabelCost').addEventListener('input', updateOrderTotal);
+        document.getElementById('saleAdFeeGeneral').addEventListener('input', updateOrderTotal);
 
         // Fetch available consumables on page load
         function fetchConsumables() {
@@ -613,10 +699,12 @@
             const select = document.getElementById('consumableTemplateSelect');
             if (!select) return;
             const options = availableTemplates.map(template => {
-                return `<option value="${template._id}">${template.name}</option>`;
+                const targetType = template.target_type || 'any';
+                return `<option value="${template._id}" data-target="${targetType}">${template.name}</option>`;
             });
             select.innerHTML = ['<option value="">Select a template</option>', ...options].join('');
             select.disabled = availableTemplates.length === 0;
+            maybeAutoSelectTemplate();
         }
 
         function displayConsumables() {
@@ -675,6 +763,17 @@
             }).join('');
         }
 
+        function updateOrderTotal() {
+            const subtotal = parseFloat(document.getElementById('saleSubtotal').value) || 0;
+            const postageCharged = parseFloat(document.getElementById('salePostageCharged').value) || 0;
+            const transactionFees = parseFloat(document.getElementById('saleTransactionFees').value) || 0;
+            const postageLabelCost = parseFloat(document.getElementById('salePostageLabelCost').value) || 0;
+            const adFeeGeneral = parseFloat(document.getElementById('saleAdFeeGeneral').value) || 0;
+
+            const orderTotal = subtotal + postageCharged - transactionFees - postageLabelCost - adFeeGeneral;
+            document.getElementById('saleOrderTotal').value = orderTotal.toFixed(2);
+        }
+
         function toggleConsumableQuantity(checkbox) {
             const quantityDiv = document.getElementById('quantity-' + checkbox.dataset.id);
             if (!quantityDiv) return;
@@ -727,6 +826,33 @@
             }
         });
 
+        function getTemplateTargetForProduct(partType) {
+            if (!partType) return null;
+            const normalizedPartType = String(partType).toLowerCase();
+            if (normalizedPartType === 'left' || normalizedPartType === 'right') {
+                return 'airpod';
+            }
+            if (normalizedPartType === 'case') {
+                return 'case';
+            }
+            return null;
+        }
+
+        function maybeAutoSelectTemplate() {
+            const select = document.getElementById('consumableTemplateSelect');
+            if (!select || !selectedProduct || availableTemplates.length === 0) {
+                return;
+            }
+
+            const targetType = getTemplateTargetForProduct(selectedProduct.part_type);
+            if (!targetType) return;
+
+            const option = Array.from(select.options).find(item => item.dataset.target === targetType);
+            if (option) {
+                select.value = option.value;
+            }
+        }
+
         function searchProduct() {
             const searchValue = document.getElementById('searchProduct').value.trim();
 
@@ -770,6 +896,7 @@
             document.getElementById('productName').textContent = product.product_name || '-';
             document.getElementById('productPartType').textContent = product.part_type || '-';
             document.getElementById('productId').value = product._id;
+            maybeAutoSelectTemplate();
         }
 
         document.getElementById('saleForm').addEventListener('submit', function(e) {
@@ -816,7 +943,14 @@
                 sales_order_number: salesOrderNumber,
                 sale_date: document.getElementById('saleDate').value || null,
                 sale_price: document.getElementById('salePrice').value || null,
+                subtotal: document.getElementById('saleSubtotal').value || null,
+                postage_charged: document.getElementById('salePostageCharged').value || null,
+                transaction_fees: document.getElementById('saleTransactionFees').value || null,
+                postage_label_cost: document.getElementById('salePostageLabelCost').value || null,
+                ad_fee_general: document.getElementById('saleAdFeeGeneral').value || null,
+                order_total: document.getElementById('saleOrderTotal').value || null,
                 sale_notes: document.getElementById('saleNotes').value.trim() || null,
+                outward_tracking_number: document.getElementById('outwardTrackingNumber').value.trim() || null,
                 consumables: selectedConsumables
             };
 
