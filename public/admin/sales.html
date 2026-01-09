@@ -488,6 +488,24 @@
         </div>
     </div>
 
+    <!-- Consumable Picker Modal -->
+    <div id="consumablePickerModal" class="modal" style="z-index: 11000;">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2 id="consumablePickerTitle">Select consumables</h2>
+                <button class="modal-close" type="button" onclick="closeConsumablePickerModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin: 0 0 12px 0; color: #6b7280; font-size: 13px;">Tick the consumables to add, then set quantities.</p>
+                <div id="consumablePickerList" style="max-height: 320px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 6px; background: #ffffff;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="button button-secondary" id="consumablePickerCancel">Cancel</button>
+                <button type="button" class="button button-primary" id="consumablePickerConfirm">Add Selected</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Templates Modal -->
     <div id="templatesModal" class="modal">
         <div class="modal-content" style="max-width: 700px;">
