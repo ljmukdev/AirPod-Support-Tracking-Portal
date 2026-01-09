@@ -80,8 +80,16 @@ function setupEventListeners() {
     document.getElementById('loadTemplateBtn')?.addEventListener('click', loadTemplate);
     
     // Search and Filter
-    document.getElementById('searchSales')?.addEventListener('input', filterSales);
-    document.getElementById('filterPeriod')?.addEventListener('change', filterSales);
+    document.getElementById('filterSearch')?.addEventListener('input', filterSales);
+    document.getElementById('headerSearch')?.addEventListener('input', filterSales);
+    document.getElementById('filterSort')?.addEventListener('change', filterSales);
+    document.getElementById('filterPeriod')?.addEventListener('change', handlePeriodChange);
+    document.getElementById('filterDateFrom')?.addEventListener('change', filterSales);
+    document.getElementById('filterDateTo')?.addEventListener('change', filterSales);
+    document.getElementById('filterPlatform')?.addEventListener('change', filterSales);
+    document.getElementById('filterProductType')?.addEventListener('change', filterSales);
+    document.getElementById('filterProfit')?.addEventListener('change', filterSales);
+    document.getElementById('clearFilters')?.addEventListener('click', clearAllFilters);
     
     // Add Template Button in templates modal
     document.getElementById('addTemplateBtn')?.addEventListener('click', openCreateTemplateModal);
@@ -122,15 +130,27 @@ async function loadSales() {
     }
 }
 
+let allSalesData = [];
+
 function displaySales(sales) {
     const tbody = document.getElementById('salesTableBody');
-    
-    if (!sales || sales.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 40px;">No sales found</td></tr>';
+    allSalesData = sales || [];
+
+    // Apply filters
+    const filtered = applyFilters(allSalesData);
+
+    // Update count
+    const countEl = document.getElementById('salesCount');
+    if (countEl) {
+        countEl.textContent = `${filtered.length} ${filtered.length === 1 ? 'sale' : 'sales'}`;
+    }
+
+    if (!filtered || filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="11" class="table-loading">No sales found matching filters</td></tr>';
         return;
     }
-    
-    tbody.innerHTML = sales.map(sale => {
+
+    tbody.innerHTML = filtered.map(sale => {
         const saleDate = new Date(sale.sale_date).toLocaleDateString();
         const amountPaid = typeof sale.order_total === 'number'
             ? sale.order_total
@@ -191,13 +211,180 @@ function displaySales(sales) {
     }).join('');
 }
 
-function filterSales() {
-    const searchTerm = document.getElementById('searchSales')?.value.toLowerCase() || '';
+function applyFilters(sales) {
+    let filtered = [...sales];
+
+    // Search filter (both sidebar and header)
+    const sidebarSearch = (document.getElementById('filterSearch')?.value || '').toLowerCase().trim();
+    const headerSearch = (document.getElementById('headerSearch')?.value || '').toLowerCase().trim();
+    const searchTerm = sidebarSearch || headerSearch;
+
+    if (searchTerm) {
+        filtered = filtered.filter(sale => {
+            const orderNumber = (sale.order_number || '').toLowerCase();
+            const productName = (sale.product_name || '').toLowerCase();
+            const productSerial = (sale.product_serial || '').toLowerCase();
+            return orderNumber.includes(searchTerm) ||
+                   productName.includes(searchTerm) ||
+                   productSerial.includes(searchTerm);
+        });
+    }
+
+    // Platform filter
+    const platform = document.getElementById('filterPlatform')?.value || '';
+    if (platform) {
+        filtered = filtered.filter(sale => sale.platform === platform);
+    }
+
+    // Product type filter
+    const productType = document.getElementById('filterProductType')?.value || '';
+    if (productType) {
+        filtered = filtered.filter(sale => {
+            const productName = sale.product_name || '';
+            return productName.includes(productType);
+        });
+    }
+
+    // Profit range filter
+    const profitFilter = document.getElementById('filterProfit')?.value || '';
+    if (profitFilter) {
+        filtered = filtered.filter(sale => {
+            const profit = typeof sale.profit === 'number' ? sale.profit : 0;
+            switch (profitFilter) {
+                case 'positive':
+                    return profit > 0;
+                case 'negative':
+                    return profit < 0;
+                case 'high':
+                    return profit > 20;
+                case 'medium':
+                    return profit >= 10 && profit <= 20;
+                case 'low':
+                    return profit < 10;
+                default:
+                    return true;
+            }
+        });
+    }
+
+    // Date range filter
     const period = document.getElementById('filterPeriod')?.value || 'all';
-    
-    // This would filter the sales based on search and period
-    // For now, just reload
-    loadSales();
+    if (period !== 'all') {
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+        filtered = filtered.filter(sale => {
+            const saleDate = new Date(sale.sale_date);
+            switch (period) {
+                case 'today':
+                    return saleDate >= today;
+                case 'week': {
+                    const weekAgo = new Date(today);
+                    weekAgo.setDate(today.getDate() - 7);
+                    return saleDate >= weekAgo;
+                }
+                case 'month': {
+                    const monthAgo = new Date(today);
+                    monthAgo.setMonth(today.getMonth() - 1);
+                    return saleDate >= monthAgo;
+                }
+                case 'year': {
+                    const yearAgo = new Date(today);
+                    yearAgo.setFullYear(today.getFullYear() - 1);
+                    return saleDate >= yearAgo;
+                }
+                case 'custom': {
+                    const dateFrom = document.getElementById('filterDateFrom')?.value;
+                    const dateTo = document.getElementById('filterDateTo')?.value;
+                    if (dateFrom && dateTo) {
+                        return saleDate >= new Date(dateFrom) && saleDate <= new Date(dateTo);
+                    }
+                    return true;
+                }
+                default:
+                    return true;
+            }
+        });
+    }
+
+    // Sort
+    const sortBy = document.getElementById('filterSort')?.value || 'date_desc';
+    filtered.sort((a, b) => {
+        switch (sortBy) {
+            case 'date_desc':
+                return new Date(b.sale_date) - new Date(a.sale_date);
+            case 'date_asc':
+                return new Date(a.sale_date) - new Date(b.sale_date);
+            case 'profit_desc': {
+                const profitA = typeof a.profit === 'number' ? a.profit : 0;
+                const profitB = typeof b.profit === 'number' ? b.profit : 0;
+                return profitB - profitA;
+            }
+            case 'profit_asc': {
+                const profitA = typeof a.profit === 'number' ? a.profit : 0;
+                const profitB = typeof b.profit === 'number' ? b.profit : 0;
+                return profitA - profitB;
+            }
+            case 'amount_desc': {
+                const amountA = typeof a.order_total === 'number' ? a.order_total : (typeof a.sale_price === 'number' ? a.sale_price : 0);
+                const amountB = typeof b.order_total === 'number' ? b.order_total : (typeof b.sale_price === 'number' ? b.sale_price : 0);
+                return amountB - amountA;
+            }
+            case 'amount_asc': {
+                const amountA = typeof a.order_total === 'number' ? a.order_total : (typeof a.sale_price === 'number' ? a.sale_price : 0);
+                const amountB = typeof b.order_total === 'number' ? b.order_total : (typeof b.sale_price === 'number' ? b.sale_price : 0);
+                return amountA - amountB;
+            }
+            default:
+                return 0;
+        }
+    });
+
+    return filtered;
+}
+
+function filterSales() {
+    // Re-render with current data and filters
+    displaySales(allSalesData);
+}
+
+function handlePeriodChange() {
+    const period = document.getElementById('filterPeriod')?.value || 'all';
+    const customDateRange = document.getElementById('customDateRange');
+
+    if (customDateRange) {
+        if (period === 'custom') {
+            customDateRange.style.display = 'block';
+        } else {
+            customDateRange.style.display = 'none';
+        }
+    }
+
+    filterSales();
+}
+
+function clearAllFilters() {
+    // Clear all filter inputs
+    const filterSearch = document.getElementById('filterSearch');
+    const headerSearch = document.getElementById('headerSearch');
+    const filterSort = document.getElementById('filterSort');
+    const filterPeriod = document.getElementById('filterPeriod');
+    const filterPlatform = document.getElementById('filterPlatform');
+    const filterProductType = document.getElementById('filterProductType');
+    const filterProfit = document.getElementById('filterProfit');
+    const customDateRange = document.getElementById('customDateRange');
+
+    if (filterSearch) filterSearch.value = '';
+    if (headerSearch) headerSearch.value = '';
+    if (filterSort) filterSort.value = 'date_desc';
+    if (filterPeriod) filterPeriod.value = 'all';
+    if (filterPlatform) filterPlatform.value = '';
+    if (filterProductType) filterProductType.value = '';
+    if (filterProfit) filterProfit.value = '';
+    if (customDateRange) customDateRange.style.display = 'none';
+
+    // Re-apply filters
+    filterSales();
 }
 
 // ===== SUMMARY/P&L =====
