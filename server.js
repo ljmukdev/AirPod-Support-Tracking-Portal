@@ -1529,7 +1529,8 @@ app.post('/api/admin/product', requireAuth, requireDB, (req, res, next) => {
     const ebay_order_number = req.body.ebay_order_number;
     const sales_order_number = req.body.sales_order_number;
     const skip_photos_security = req.body.skip_photos_security === 'true' || req.body.skip_photos_security === true;
-    
+    const spares_repairs = req.body.spares_repairs === 'true' || req.body.spares_repairs === true;
+
     // Log received data for debugging
     console.log('Received product data:', {
         serial_number: serial_number ? 'present' : 'missing',
@@ -1751,7 +1752,7 @@ app.post('/api/admin/product', requireAuth, requireDB, (req, res, next) => {
             notes: notes ? notes.trim() : null,
             ebay_order_number: ebay_order_number ? ebay_order_number.trim() : null,
             sales_order_number: sales_order_number ? sales_order_number.trim() : null,
-            skip_photos_security: skip_photos_security || false,
+            skip_photos_security: skip_photos_security || spares_repairs || false,
             photos: photos, // Array of photo paths
             tracking_number: null,
             tracking_date: null,
@@ -1759,7 +1760,7 @@ app.post('/api/admin/product', requireAuth, requireDB, (req, res, next) => {
             confirmation_checked: false,
             confirmation_date: null,
             purchase_price: 0, // Default to 0 for directly added products (can be updated later)
-            status: 'in_stock' // Set initial status
+            status: spares_repairs ? 'spares_repairs' : 'in_stock' // Set status based on spares/repairs flag
         };
         
         const result = await db.collection('products').insertOne(product);

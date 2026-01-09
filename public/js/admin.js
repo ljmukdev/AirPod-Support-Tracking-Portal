@@ -928,14 +928,15 @@ if (productForm) {
         const salesOrderNumber = document.getElementById('salesOrderNumber') ? document.getElementById('salesOrderNumber').value.trim() : '';
         const productPhotos = document.getElementById('productPhotos');
         const addProductButton = document.getElementById('addProductButton');
-        
+        const sparesRepairs = document.getElementById('sparesRepairs') ? document.getElementById('sparesRepairs').checked : false;
+
         // Check if this is an accessory type - accessories automatically skip photo/security requirements
         const isAccessory = ['ear_tips', 'box', 'cable', 'other'].includes(partType);
-        const skipPhotoSecurity = isAccessory; // Accessories automatically skip, others don't
-        
+        const skipPhotoSecurity = isAccessory || sparesRepairs; // Accessories and spares/repairs both skip
+
         // Validation - check required fields
-        // Serial number and security barcode are optional for accessories
-        if (!isAccessory) {
+        // Serial number and security barcode are optional for accessories and spares/repairs
+        if (!isAccessory && !sparesRepairs) {
             if (!serialNumber) {
                 showError('Serial number is required for AirPod parts');
                 return;
@@ -988,6 +989,7 @@ if (productForm) {
             if (ebayOrderNumber) formData.append('ebay_order_number', ebayOrderNumber);
             if (salesOrderNumber) formData.append('sales_order_number', salesOrderNumber);
             formData.append('skip_photos_security', skipPhotoSecurity);
+            formData.append('spares_repairs', sparesRepairs);
             
             // Append photos if selected (use selectedFiles array)
             if (selectedFiles && selectedFiles.length > 0) {
