@@ -2338,7 +2338,26 @@ app.put('/api/admin/product/:id/sales-order', requireAuth, requireDB, async (req
 app.get('/api/admin/purchases', requireAuth, requireDB, async (req, res) => {
     try {
         const purchases = await db.collection('purchases').find({}).sort({ purchase_date: -1 }).toArray();
-        res.json({ success: true, purchases });
+
+        // Enrich each purchase with associated serial numbers from products
+        const enrichedPurchases = await Promise.all(purchases.map(async (purchase) => {
+            // Find all products that reference this purchase
+            const products = await db.collection('products').find({
+                purchase_id: purchase._id.toString()
+            }).toArray();
+
+            // Extract serial numbers
+            const serial_numbers = products
+                .map(product => product.serial_number)
+                .filter(serial => serial); // Remove null/undefined values
+
+            return {
+                ...purchase,
+                serial_numbers
+            };
+        }));
+
+        res.json({ success: true, purchases: enrichedPurchases });
     } catch (err) {
         console.error('Database error:', err);
         res.status(500).json({ error: 'Database error: ' + err.message });
