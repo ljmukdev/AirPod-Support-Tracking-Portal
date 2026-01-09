@@ -270,16 +270,27 @@ function filterPurchases() {
     const searchTerm = document.getElementById('searchPurchases')?.value.toLowerCase() || '';
     const platformFilter = document.getElementById('filterPlatform')?.value || '';
     const generationFilter = document.getElementById('filterGeneration')?.value || '';
-    
+
     const filtered = allPurchases.filter(purchase => {
         // Search filter
         if (searchTerm) {
-            const searchText = (
+            // Build searchable text from purchase fields
+            let searchText = (
                 (purchase.order_number || '') + ' ' +
                 (purchase.seller_name || '') + ' ' +
                 (purchase.generation || '')
             ).toLowerCase();
-            
+
+            // Add serial numbers to search if available
+            if (purchase.serial_numbers && Array.isArray(purchase.serial_numbers)) {
+                searchText += ' ' + purchase.serial_numbers.join(' ').toLowerCase();
+            }
+
+            // Also check individual serial number fields if they exist
+            if (purchase.serial_number) {
+                searchText += ' ' + purchase.serial_number.toLowerCase();
+            }
+
             if (!searchText.includes(searchTerm)) {
                 return false;
             }
