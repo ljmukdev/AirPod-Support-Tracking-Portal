@@ -123,9 +123,14 @@ function displaySales(sales) {
     
     tbody.innerHTML = sales.map(sale => {
         const saleDate = new Date(sale.sale_date).toLocaleDateString();
-        const profit = (sale.sale_price - sale.total_cost).toFixed(2);
-        const margin = sale.sale_price > 0 ? ((profit / sale.sale_price) * 100).toFixed(1) : '0.0';
-        const profitColor = profit >= 0 ? '#10b981' : '#ef4444';
+        const salePrice = typeof sale.sale_price === 'number' ? sale.sale_price : 0;
+        const totalCost = typeof sale.total_cost === 'number' ? sale.total_cost : 0;
+        const profitValue = typeof sale.profit === 'number'
+            ? sale.profit
+            : (salePrice - totalCost);
+        const profit = profitValue.toFixed(2);
+        const margin = salePrice > 0 ? ((profitValue / salePrice) * 100).toFixed(1) : '0.0';
+        const profitColor = profitValue >= 0 ? '#10b981' : '#ef4444';
         
         return `
             <tr>
@@ -135,9 +140,12 @@ function displaySales(sales) {
                     <div style="font-size: 0.85rem; color: #666;">${sale.product_serial || 'N/A'}</div>
                 </td>
                 <td>${sale.platform || 'N/A'}</td>
-                <td>${sale.order_number || 'N/A'}</td>
-                <td style="font-weight: 600;">£${sale.sale_price.toFixed(2)}</td>
-                <td>£${sale.total_cost.toFixed(2)}</td>
+                <td>
+                    <div>${sale.order_number || 'N/A'}</div>
+                    ${sale.outward_tracking_number ? `<div style="font-size: 0.85rem; color: #666;">Tracking: ${sale.outward_tracking_number}</div>` : ''}
+                </td>
+                <td style="font-weight: 600;">£${salePrice.toFixed(2)}</td>
+                <td>£${totalCost.toFixed(2)}</td>
                 <td style="font-weight: 700; color: ${profitColor};">£${profit}</td>
                 <td style="font-weight: 600; color: ${profitColor};">${margin}%</td>
                 <td>
@@ -891,6 +899,13 @@ async function loadTemplates() {
         const currentConsumables = consumablesData.consumables || [];
         
         container.innerHTML = templatesData.templates.map(template => {
+            const targetLabelMap = {
+                airpod: 'Left/Right AirPod',
+                case: 'Case',
+                any: 'Any product'
+            };
+            const templateTarget = template.target_type || 'any';
+            const targetLabel = targetLabelMap[templateTarget] || 'Any product';
             // Calculate current costs based on live consumable data
             let totalCost = 0;
             let hasInvalidItems = false;
@@ -926,6 +941,9 @@ async function loadTemplates() {
                         <div>
                             <h3 style="margin: 0 0 5px 0;">${template.name}</h3>
                             <p style="margin: 0; color: #666; font-size: 0.9rem;">${template.description || 'No description'}</p>
+                            <p style="margin: 6px 0 0 0; color: #4b5563; font-size: 0.85rem;">
+                                Applies to: <strong>${targetLabel}</strong>
+                            </p>
                             ${hasInvalidItems ? '<p style="margin: 5px 0 0 0; color: #ef4444; font-size: 0.85rem;">⚠️ Some consumables no longer exist</p>' : ''}
                         </div>
                         <button onclick="deleteTemplate('${template._id}')" class="button button-secondary button-sm">Delete</button>
@@ -1039,12 +1057,18 @@ async function handleTemplateSubmit(e) {
     
     const name = document.getElementById('templateName').value.trim();
     const description = document.getElementById('templateDescription').value.trim();
+    const targetType = document.getElementById('templateTarget').value;
     
     if (!name) {
         alert('Please enter a template name');
         return;
     }
     
+    if (!targetType) {
+        alert('Please select a product type for this template');
+        return;
+    }
+
     if (templateConsumables.length === 0) {
         alert('Please add at least one consumable');
         return;
@@ -1057,6 +1081,7 @@ async function handleTemplateSubmit(e) {
             body: JSON.stringify({
                 name: name,
                 description: description,
+                target_type: targetType,
                 consumables: templateConsumables
             })
         });
