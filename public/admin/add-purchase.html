@@ -320,6 +320,13 @@
                             <input type="number" id="purchasePrice" name="purchasePrice" step="0.01" min="0" required placeholder="0.00">
                         </div>
 
+                        <!-- Refund Amount (Optional) -->
+                        <div class="form-group">
+                            <label for="refundAmount">Refund Amount (£)</label>
+                            <input type="number" id="refundAmount" name="refundAmount" step="0.01" min="0" placeholder="0.00">
+                            <small style="color: #666; display: block; margin-top: 4px;">Enter any partial refunds received for faulty items</small>
+                        </div>
+
                         <!-- Condition -->
                         <div class="form-group">
                             <label for="condition">Condition *</label>
@@ -571,6 +578,7 @@
                     items_purchased: checkedItems,
                     quantity: parseInt(formData.get('quantity')),
                     purchase_price: parseFloat(formData.get('purchasePrice')),
+                    refund_amount: formData.get('refundAmount') ? parseFloat(formData.get('refundAmount')) : 0,
                     condition: formData.get('condition'),
                     status: formData.get('status'),
                     feedback_left: document.getElementById('feedbackLeft').checked,
