@@ -891,6 +891,13 @@ async function loadTemplates() {
         const currentConsumables = consumablesData.consumables || [];
         
         container.innerHTML = templatesData.templates.map(template => {
+            const targetLabelMap = {
+                airpod: 'Left/Right AirPod',
+                case: 'Case',
+                any: 'Any product'
+            };
+            const templateTarget = template.target_type || 'any';
+            const targetLabel = targetLabelMap[templateTarget] || 'Any product';
             // Calculate current costs based on live consumable data
             let totalCost = 0;
             let hasInvalidItems = false;
@@ -926,6 +933,9 @@ async function loadTemplates() {
                         <div>
                             <h3 style="margin: 0 0 5px 0;">${template.name}</h3>
                             <p style="margin: 0; color: #666; font-size: 0.9rem;">${template.description || 'No description'}</p>
+                            <p style="margin: 6px 0 0 0; color: #4b5563; font-size: 0.85rem;">
+                                Applies to: <strong>${targetLabel}</strong>
+                            </p>
                             ${hasInvalidItems ? '<p style="margin: 5px 0 0 0; color: #ef4444; font-size: 0.85rem;">⚠️ Some consumables no longer exist</p>' : ''}
                         </div>
                         <button onclick="deleteTemplate('${template._id}')" class="button button-secondary button-sm">Delete</button>
@@ -1039,12 +1049,18 @@ async function handleTemplateSubmit(e) {
     
     const name = document.getElementById('templateName').value.trim();
     const description = document.getElementById('templateDescription').value.trim();
+    const targetType = document.getElementById('templateTarget').value;
     
     if (!name) {
         alert('Please enter a template name');
         return;
     }
     
+    if (!targetType) {
+        alert('Please select a product type for this template');
+        return;
+    }
+
     if (templateConsumables.length === 0) {
         alert('Please add at least one consumable');
         return;
@@ -1057,6 +1073,7 @@ async function handleTemplateSubmit(e) {
             body: JSON.stringify({
                 name: name,
                 description: description,
+                target_type: targetType,
                 consumables: templateConsumables
             })
         });

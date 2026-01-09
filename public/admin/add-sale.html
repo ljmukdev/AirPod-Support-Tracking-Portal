@@ -167,7 +167,7 @@
                         </a>
                         <ul class="nav-submenu">
                             <li><a href="stock.html" class="nav-link" data-page="stock">Stock</a></li>
-                            <li><a href="sales.html" class="nav-link" data-page="sales">Sales</a></li>
+                            <li><a href="sales-orders.html" class="nav-link" data-page="sales-orders">Sales Orders</a></li>
                         </ul>
                     </li>
                     <li class="nav-item">
@@ -465,6 +465,87 @@
                                 >
                             </div>
 
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
+                                <div class="form-group">
+                                    <label for="saleSubtotal">Subtotal (£)</label>
+                                    <input
+                                        type="number"
+                                        id="saleSubtotal"
+                                        name="saleSubtotal"
+                                        step="0.01"
+                                        min="0"
+                                        placeholder="0.00"
+                                    >
+                                </div>
+                                <div class="form-group">
+                                    <label for="salePostageCharged">Postage Charged (£)</label>
+                                    <input
+                                        type="number"
+                                        id="salePostageCharged"
+                                        name="salePostageCharged"
+                                        step="0.01"
+                                        min="0"
+                                        placeholder="0.00"
+                                    >
+                                </div>
+                                <div class="form-group">
+                                    <label for="saleTransactionFees">Transaction Fees (£)</label>
+                                    <input
+                                        type="number"
+                                        id="saleTransactionFees"
+                                        name="saleTransactionFees"
+                                        step="0.01"
+                                        min="0"
+                                        placeholder="0.00"
+                                    >
+                                </div>
+                                <div class="form-group">
+                                    <label for="salePostageLabelCost">Postage Label Cost (£)</label>
+                                    <input
+                                        type="number"
+                                        id="salePostageLabelCost"
+                                        name="salePostageLabelCost"
+                                        step="0.01"
+                                        min="0"
+                                        placeholder="0.00"
+                                    >
+                                </div>
+                                <div class="form-group">
+                                    <label for="saleAdFeeGeneral">Ad Fee (General) (£)</label>
+                                    <input
+                                        type="number"
+                                        id="saleAdFeeGeneral"
+                                        name="saleAdFeeGeneral"
+                                        step="0.01"
+                                        min="0"
+                                        placeholder="0.00"
+                                    >
+                                </div>
+                                <div class="form-group">
+                                    <label for="saleOrderTotal">Order Total (£)</label>
+                                    <input
+                                        type="number"
+                                        id="saleOrderTotal"
+                                        name="saleOrderTotal"
+                                        step="0.01"
+                                        min="0"
+                                        placeholder="0.00"
+                                        readonly
+                                    >
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="outwardTrackingNumber">Outward Postage Tracking Number</label>
+                                <input
+                                    type="text"
+                                    id="outwardTrackingNumber"
+                                    name="outwardTrackingNumber"
+                                    placeholder="Enter tracking number"
+                                    autocomplete="off"
+                                >
+                            </div>
+
                             <div class="form-group">
                                 <label for="saleNotes">Notes (Optional)</label>
                                 <textarea
@@ -481,6 +562,19 @@
                             <p style="font-size: 0.85rem; color: #666; margin-bottom: 15px;">
                                 Select any consumables used for this sale. Stock levels will be automatically deducted.
                             </p>
+                            <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 16px;">
+                                <div style="min-width: 240px; flex: 1;">
+                                    <label for="consumableTemplateSelect" style="display: block; font-size: 0.85rem; color: #666; margin-bottom: 6px;">
+                                        Apply Consumable Template
+                                    </label>
+                                    <select id="consumableTemplateSelect" style="width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px;">
+                                        <option value="">Select a template</option>
+                                    </select>
+                                </div>
+                                <button type="button" class="button button-secondary" id="applyTemplateButton" style="height: 38px; align-self: flex-end;">
+                                    Apply Template
+                                </button>
+                            </div>
 
                             <div id="consumablesContainer" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; margin-bottom: 20px;">
                                 <div style="color: #999; font-style: italic;">Loading consumables...</div>
@@ -548,6 +642,8 @@
         // Add Sale Form Logic
         let selectedProduct = null;
         let availableConsumables = [];
+        let availableTemplates = [];
+        const consumableIdMap = new Map();
 
         document.getElementById('searchButton').addEventListener('click', searchProduct);
         document.getElementById('searchProduct').addEventListener('keypress', function(e) {
@@ -556,6 +652,11 @@
                 searchProduct();
             }
         });
+        document.getElementById('saleSubtotal').addEventListener('input', updateOrderTotal);
+        document.getElementById('salePostageCharged').addEventListener('input', updateOrderTotal);
+        document.getElementById('saleTransactionFees').addEventListener('input', updateOrderTotal);
+        document.getElementById('salePostageLabelCost').addEventListener('input', updateOrderTotal);
+        document.getElementById('saleAdFeeGeneral').addEventListener('input', updateOrderTotal);
 
         // Fetch available consumables on page load
         function fetchConsumables() {
@@ -564,6 +665,13 @@
                 .then(data => {
                     if (data.consumables) {
                         availableConsumables = data.consumables;
+                        consumableIdMap.clear();
+                        availableConsumables.forEach(consumable => {
+                            const id = String(consumable._id || consumable.id || '');
+                            if (id) {
+                                consumableIdMap.set(id, consumable);
+                            }
+                        });
                         displayConsumables();
                     }
                 })
@@ -571,6 +679,32 @@
                     console.error('Error fetching consumables:', error);
                     document.getElementById('consumablesContainer').innerHTML = '<div style="color: #999; font-style: italic;">Failed to load consumables</div>';
                 });
+        }
+
+        function fetchConsumableTemplates() {
+            authenticatedFetch('/api/admin/consumable-templates')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.templates) {
+                        availableTemplates = data.templates;
+                        renderTemplateOptions();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching consumable templates:', error);
+                });
+        }
+
+        function renderTemplateOptions() {
+            const select = document.getElementById('consumableTemplateSelect');
+            if (!select) return;
+            const options = availableTemplates.map(template => {
+                const targetType = template.target_type || 'any';
+                return `<option value="${template._id}" data-target="${targetType}">${template.name}</option>`;
+            });
+            select.innerHTML = ['<option value="">Select a template</option>', ...options].join('');
+            select.disabled = availableTemplates.length === 0;
+            maybeAutoSelectTemplate();
         }
 
         function displayConsumables() {
@@ -581,35 +715,42 @@
                 return;
             }
 
-            container.innerHTML = availableConsumables.map(consumable => `
+            container.innerHTML = availableConsumables.map(consumable => {
+                const id = String(consumable._id || consumable.id || '');
+                const name = consumable.item_name || consumable.name || 'Unnamed consumable';
+                const stockLevel = Number.isFinite(consumable.quantity_in_stock)
+                    ? consumable.quantity_in_stock
+                    : (Number.isFinite(consumable.stock_level) ? consumable.stock_level : 0);
+                const unit = consumable.unit_type || consumable.unit || 'units';
+                return `
                 <div style="border: 1px solid #e8ecf1; border-radius: 8px; padding: 15px; background-color: #fafbfc;">
                     <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
                         <input
                             type="checkbox"
                             class="consumable-checkbox"
-                            data-id="${consumable._id}"
-                            data-name="${consumable.name}"
-                            data-stock="${consumable.stock_level}"
+                            data-id="${id}"
+                            data-name="${name}"
+                            data-stock="${stockLevel}"
                             style="margin-top: 3px;"
                             onchange="toggleConsumableQuantity(this)"
                         >
                         <div style="flex: 1;">
                             <div style="font-weight: 500; color: var(--text-dark); margin-bottom: 5px;">
-                                ${consumable.name}
+                                ${name}
                             </div>
                             <div style="font-size: 0.85rem; color: #666;">
-                                Stock: ${consumable.stock_level} ${consumable.unit || 'units'}
+                                Stock: ${stockLevel} ${unit}
                             </div>
-                            <div id="quantity-${consumable._id}" style="margin-top: 10px; display: none;">
+                            <div id="quantity-${id}" style="margin-top: 10px; display: none;">
                                 <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 5px;">
                                     Quantity Used:
                                 </label>
                                 <input
                                     type="number"
                                     class="consumable-quantity"
-                                    data-id="${consumable._id}"
+                                    data-id="${id}"
                                     min="1"
-                                    max="${consumable.stock_level}"
+                                    max="${stockLevel}"
                                     value="1"
                                     style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"
                                     placeholder="Enter quantity"
@@ -618,20 +759,99 @@
                         </div>
                     </label>
                 </div>
-            `).join('');
+            `;
+            }).join('');
+        }
+
+        function updateOrderTotal() {
+            const subtotal = parseFloat(document.getElementById('saleSubtotal').value) || 0;
+            const postageCharged = parseFloat(document.getElementById('salePostageCharged').value) || 0;
+            const transactionFees = parseFloat(document.getElementById('saleTransactionFees').value) || 0;
+            const postageLabelCost = parseFloat(document.getElementById('salePostageLabelCost').value) || 0;
+            const adFeeGeneral = parseFloat(document.getElementById('saleAdFeeGeneral').value) || 0;
+
+            const orderTotal = subtotal + postageCharged - transactionFees - postageLabelCost - adFeeGeneral;
+            document.getElementById('saleOrderTotal').value = orderTotal.toFixed(2);
         }
 
         function toggleConsumableQuantity(checkbox) {
             const quantityDiv = document.getElementById('quantity-' + checkbox.dataset.id);
-            if (checkbox.checked) {
-                quantityDiv.style.display = 'block';
-            } else {
-                quantityDiv.style.display = 'none';
-            }
+            if (!quantityDiv) return;
+            quantityDiv.style.display = checkbox.checked ? 'block' : 'none';
         }
 
         // Fetch consumables when page loads
         fetchConsumables();
+        fetchConsumableTemplates();
+
+        document.getElementById('applyTemplateButton').addEventListener('click', function() {
+            const select = document.getElementById('consumableTemplateSelect');
+            const templateId = select.value;
+            if (!templateId) {
+                showError('Please select a consumable template to apply');
+                return;
+            }
+
+            const template = availableTemplates.find(item => String(item._id) === String(templateId));
+            if (!template) {
+                showError('Selected template could not be found');
+                return;
+            }
+
+            let missingItems = 0;
+            template.consumables.forEach(templateItem => {
+                const consumableId = String(templateItem.consumable_id);
+                const consumable = consumableIdMap.get(consumableId);
+                if (!consumable) {
+                    missingItems += 1;
+                    return;
+                }
+                const checkbox = document.querySelector(`.consumable-checkbox[data-id="${consumableId}"]`);
+                const quantityInput = document.querySelector(`.consumable-quantity[data-id="${consumableId}"]`);
+                if (!checkbox || !quantityInput) return;
+
+                const stockLevel = parseInt(checkbox.dataset.stock, 10) || 0;
+                const desiredQuantity = templateItem.quantity || 1;
+                const finalQuantity = desiredQuantity > stockLevel ? stockLevel : desiredQuantity;
+
+                checkbox.checked = true;
+                toggleConsumableQuantity(checkbox);
+                quantityInput.value = finalQuantity || 1;
+            });
+
+            if (missingItems > 0) {
+                showError('Some consumables in this template no longer exist. Please update the template.');
+            } else {
+                showSuccess('Template applied. Review consumable quantities below.');
+            }
+        });
+
+        function getTemplateTargetForProduct(partType) {
+            if (!partType) return null;
+            const normalizedPartType = String(partType).toLowerCase();
+            if (normalizedPartType === 'left' || normalizedPartType === 'right') {
+                return 'airpod';
+            }
+            if (normalizedPartType === 'case') {
+                return 'case';
+            }
+            return null;
+        }
+
+        function maybeAutoSelectTemplate() {
+            const select = document.getElementById('consumableTemplateSelect');
+            if (!select || !selectedProduct || availableTemplates.length === 0) {
+                return;
+            }
+
+            const targetType = getTemplateTargetForProduct(selectedProduct.part_type);
+            if (!targetType) return;
+
+            const option = Array.from(select.options).find(item => item.dataset.target === targetType);
+            if (option) {
+                select.value = option.value;
+            }
+        }
 
         function searchProduct() {
             const searchValue = document.getElementById('searchProduct').value.trim();
@@ -676,6 +896,7 @@
             document.getElementById('productName').textContent = product.product_name || '-';
             document.getElementById('productPartType').textContent = product.part_type || '-';
             document.getElementById('productId').value = product._id;
+            maybeAutoSelectTemplate();
         }
 
         document.getElementById('saleForm').addEventListener('submit', function(e) {
@@ -701,7 +922,7 @@
                 const consumableId = checkbox.dataset.id;
                 const quantityInput = document.querySelector(`.consumable-quantity[data-id="${consumableId}"]`);
                 const quantity = parseInt(quantityInput.value) || 1;
-                const stockLevel = parseInt(checkbox.dataset.stock);
+                const stockLevel = parseInt(checkbox.dataset.stock, 10) || 0;
 
                 if (quantity > stockLevel) {
                     showError(`Quantity for ${checkbox.dataset.name} exceeds available stock (${stockLevel})`);
@@ -722,7 +943,14 @@
                 sales_order_number: salesOrderNumber,
                 sale_date: document.getElementById('saleDate').value || null,
                 sale_price: document.getElementById('salePrice').value || null,
+                subtotal: document.getElementById('saleSubtotal').value || null,
+                postage_charged: document.getElementById('salePostageCharged').value || null,
+                transaction_fees: document.getElementById('saleTransactionFees').value || null,
+                postage_label_cost: document.getElementById('salePostageLabelCost').value || null,
+                ad_fee_general: document.getElementById('saleAdFeeGeneral').value || null,
+                order_total: document.getElementById('saleOrderTotal').value || null,
                 sale_notes: document.getElementById('saleNotes').value.trim() || null,
+                outward_tracking_number: document.getElementById('outwardTrackingNumber').value.trim() || null,
                 consumables: selectedConsumables
             };
 

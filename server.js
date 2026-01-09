@@ -2154,8 +2154,29 @@ app.put('/api/admin/product/:id', requireAuth, requireDB, (req, res, next) => {
         if (sale_price) {
             updateData.sale_price = parseFloat(sale_price);
         }
+        if (req.body.subtotal !== undefined && req.body.subtotal !== null) {
+            updateData.subtotal = parseFloat(req.body.subtotal);
+        }
+        if (req.body.postage_charged !== undefined && req.body.postage_charged !== null) {
+            updateData.postage_charged = parseFloat(req.body.postage_charged);
+        }
+        if (req.body.transaction_fees !== undefined && req.body.transaction_fees !== null) {
+            updateData.transaction_fees = parseFloat(req.body.transaction_fees);
+        }
+        if (req.body.postage_label_cost !== undefined && req.body.postage_label_cost !== null) {
+            updateData.postage_label_cost = parseFloat(req.body.postage_label_cost);
+        }
+        if (req.body.ad_fee_general !== undefined && req.body.ad_fee_general !== null) {
+            updateData.ad_fee_general = parseFloat(req.body.ad_fee_general);
+        }
+        if (req.body.order_total !== undefined && req.body.order_total !== null) {
+            updateData.order_total = parseFloat(req.body.order_total);
+        }
         if (sale_notes) {
             updateData.sale_notes = sale_notes.trim();
+        }
+        if (req.body.outward_tracking_number) {
+            updateData.outward_tracking_number = req.body.outward_tracking_number.trim();
         }
 
         // Add photos if any were uploaded
@@ -9259,15 +9280,19 @@ app.get('/api/admin/consumable-templates', requireAuth, requireDB, async (req, r
 // Create consumable template
 app.post('/api/admin/consumable-templates', requireAuth, requireDB, async (req, res) => {
     try {
-        const { name, description, consumables } = req.body;
+        const { name, description, consumables, target_type } = req.body;
         
         if (!name || !consumables || consumables.length === 0) {
             return res.status(400).json({ error: 'Name and consumables are required' });
         }
+
+        const allowedTargets = ['airpod', 'case', 'any'];
+        const normalizedTarget = allowedTargets.includes(target_type) ? target_type : 'any';
         
         const template = {
             name: name.trim(),
             description: description || '',
+            target_type: normalizedTarget,
             consumables: consumables,
             created_at: new Date(),
             created_by: req.user.email
