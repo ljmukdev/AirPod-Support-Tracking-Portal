@@ -1685,6 +1685,11 @@ body.add-product-page .form-fields-card {
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
+.modal-content-solid {
+    border: 1px solid #d1d5db;
+    box-shadow: none;
+}
+
 .modal-header {
     padding: 20px;
     background-color: var(--primary-navy);
