@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stock | LJM AirPod Support</title>
+    <title>Sales Orders | LJM AirPod Support</title>
     <link rel="stylesheet" href="../css/styles.css?v=1.2.5.032">
 
     <script>
@@ -304,9 +304,9 @@
         
         <!-- Page Content -->
         <div class="admin-content">
-            <!-- Stock Header -->
+            <!-- Sales Orders Header -->
             <div class="products-header">
-                <h1 class="products-title">Stock (In Inventory)</h1>
+                <h1 class="products-title">Sales Orders</h1>
                 <div class="products-header-actions">
                     <div class="search-box">
                         <input
@@ -554,18 +554,18 @@
         })();
     </script>
     <script>
-        // Filter to show only stock items (no sales_order_number)
+        // Filter to show only items with sales order numbers
         (function() {
-            // Override the loadProducts function to filter stock only
+            // Override the loadProducts function to filter sold items only
             const originalFetch = window.authenticatedFetch;
             window.authenticatedFetch = function(url, options) {
                 return originalFetch(url, options).then(response => {
                     if (url.includes('/api/admin/products')) {
                         return response.clone().json().then(data => {
                             if (data.products) {
-                                // Filter to only show products without sales_order_number (in stock)
+                                // Filter to only show products with sales_order_number (sold)
                                 data.products = data.products.filter(product => 
-                                    !product.sales_order_number || product.sales_order_number === null || product.sales_order_number === ''
+                                    product.sales_order_number && product.sales_order_number !== null && product.sales_order_number !== ''
                                 );
                                 data.total = data.products.length;
                             }
