@@ -194,13 +194,19 @@ function displaySales(sales) {
                 <td>£${consumablesCost.toFixed(2)}</td>
                 <td style="font-weight: 700; color: ${profitColor};">£${profit}</td>
                 <td>
-                    <button class="button-icon" onclick="viewSale('${sale._id}')" title="Edit Sale">
+                    <button class="button-icon" onclick="viewSale('${sale._id}')" title="View Sale">
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                             <path d="M8 3C4.5 3 2 8 2 8s2.5 5 6 5 6-5 6-5-2.5-5-6-5z" stroke="currentColor" stroke-width="1.5"/>
                             <circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.5"/>
                         </svg>
                     </button>
-                    <button class="button-icon" onclick="deleteSale('${sale._id}')" title="Delete">
+                    <button class="button-icon" onclick="editSale('${sale._id}')" title="Edit Sale">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                            <path d="M11.5 1.5l3 3L6 13H3v-3L11.5 1.5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M10 3l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                    <button class="button-icon" onclick="deleteSale('${sale._id}')" title="Delete Sale">
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                             <path d="M2 4h12M5 4V3h6v1M5 7v6M8 7v6M11 7v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                         </svg>
@@ -1418,9 +1424,13 @@ async function deleteTemplate(id) {
     }
 }
 
-// ===== VIEW/DELETE SALE =====
+// ===== VIEW/EDIT/DELETE SALE =====
 
 async function viewSale(id) {
+    openEditSaleModal(id);
+}
+
+async function editSale(id) {
     openEditSaleModal(id);
 }
 
@@ -1453,6 +1463,7 @@ function showError(message) {
 
 // Make functions available globally for onclick handlers
 window.viewSale = viewSale;
+window.editSale = editSale;
 window.deleteSale = deleteSale;
 window.removeConsumable = removeConsumable;
 window.closeSaleModal = closeSaleModal;
