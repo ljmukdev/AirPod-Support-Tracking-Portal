@@ -5,6 +5,63 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sales & P&L | LJM AirPod Support</title>
     <link rel="stylesheet" href="../css/styles.css?v=1.2.5.031">
+    <style>
+        /* Sales Modal Cohesive Design */
+        #saleModal .modal-content {
+            background-color: #f8f9fa;
+        }
+
+        #saleModal .modal-body {
+            padding: 24px;
+            background-color: #f8f9fa;
+        }
+
+        #saleModal .form-group input,
+        #saleModal .form-group select,
+        #saleModal .form-group textarea {
+            background-color: #ffffff;
+            border: 1px solid #dee2e6;
+            box-shadow: none;
+        }
+
+        #saleModal .form-group input:focus,
+        #saleModal .form-group select:focus,
+        #saleModal .form-group textarea:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        #saleModal .button {
+            box-shadow: none;
+            border: 1px solid #dee2e6;
+        }
+
+        #saleModal .button-primary {
+            border-color: transparent;
+        }
+
+        #saleModal .form-group label {
+            color: #374151;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        #saleModal .form-group small {
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        /* Remove floating appearance from sections */
+        #consumablesList {
+            background-color: #ffffff !important;
+            border-color: #dee2e6 !important;
+        }
+
+        #accessorySearchResults {
+            border-color: #dee2e6 !important;
+        }
+    </style>
 </head>
 <body class="admin-panel">
     <!-- Sidebar Navigation -->
@@ -340,7 +397,7 @@
                         <label for="accessorySearch">Search for Accessory *</label>
                         <input type="text" id="accessorySearch" placeholder="Type to search accessories (e.g., 'cable', 'box', 'AirPods Pro')...">
                         <small style="color: #666;">Search by product name, generation, or type - the system will show the nearest match</small>
-                        <div id="accessorySearchResults" style="margin-top: 8px; max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; display: none; background: white;"></div>
+                        <div id="accessorySearchResults" style="margin-top: 8px; max-height: 300px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 6px; display: none; background: #ffffff;"></div>
                         <div id="accessoryStatus" style="margin-top: 8px; padding: 8px; border-radius: 4px; display: none;"></div>
                     </div>
 
@@ -387,17 +444,17 @@
                                 + Add Consumable
                             </button>
                         </div>
-                        <div id="consumablesList" style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px; min-height: 100px; background: #fafafa;">
-                            <p style="text-align: center; color: #999;">No consumables added yet</p>
+                        <div id="consumablesList" style="border: 1px solid #dee2e6; border-radius: 6px; padding: 12px; min-height: 100px; background: #ffffff;">
+                            <p style="text-align: center; color: #9ca3af;">No consumables added yet</p>
                         </div>
-                        <div style="margin-top: 10px; padding: 10px; background: transparent; border-radius: 6px; border: 1px solid #e5e7eb; text-align: right;">
-                            <strong style="color: #111;">Total Consumables: £<span id="consumablesCost">0.00</span></strong>
+                        <div style="margin-top: 10px; padding: 12px; background: #ffffff; border-radius: 6px; border: 1px solid #dee2e6; text-align: right;">
+                            <strong style="color: #111; font-size: 14px;">Total Consumables: £<span id="consumablesCost">0.00</span></strong>
                         </div>
                     </div>
 
                     <!-- P&L Preview -->
-                    <div style="margin-top: 20px; padding: 15px; background: transparent; border-radius: 6px; border: 2px solid #e5e7eb; border-left: 4px solid #3b82f6;">
-                        <h3 style="margin: 0 0 15px 0; font-size: 16px; color: #111;">Profit/Loss Preview</h3>
+                    <div style="margin-top: 20px; padding: 16px; background: #ffffff; border-radius: 6px; border: 1px solid #dee2e6; border-left: 4px solid #3b82f6;">
+                        <h3 style="margin: 0 0 15px 0; font-size: 15px; color: #111; font-weight: 600;">Profit/Loss Preview</h3>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                             <div>
                                 <div style="color: #6b7280; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Sale Price</div>
