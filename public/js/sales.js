@@ -1436,21 +1436,23 @@ async function editSale(id) {
 
 async function deleteSale(id) {
     if (!confirm('Delete this sale? This will mark the product as unsold again.')) return;
-    
+
     try {
         const response = await authenticatedFetch(`${API_BASE}/api/admin/sales/${id}`, {
             method: 'DELETE'
         });
-        
+
         if (response.ok) {
+            alert('Sale deleted successfully!');
             loadSales();
             loadSummary();
         } else {
-            alert('Failed to delete sale');
+            const error = await response.json();
+            alert(`Failed to delete sale: ${error.error || error.message || 'Unknown error'}`);
         }
     } catch (error) {
         console.error('Error deleting sale:', error);
-        alert('Error deleting sale');
+        alert(`Error deleting sale: ${error.message || 'Unknown error'}`);
     }
 }
 
