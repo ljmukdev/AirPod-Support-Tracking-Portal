@@ -1911,17 +1911,29 @@ app.get('/api/admin/products', requireAuth, requireDB, async (req, res) => {
             // Calculate working parts count (only left, right, case)
             const workingParts = ['left', 'right', 'case'];
             const items = purchase.items_purchased || [];
-            const workingPartsCount = items.filter(item => workingParts.includes(item)).length;
+            const workingPartsPerSet = items.filter(item => workingParts.includes(item)).length;
+
+            // Multiply by quantity to get total working parts
+            const quantity = purchase.quantity || 1;
+            const totalWorkingParts = workingPartsPerSet * quantity;
+
+            // Calculate effective purchase price (subtract any refunds)
+            const refundAmount = purchase.refund_amount || 0;
+            const effectivePrice = parseFloat(purchase.purchase_price) - refundAmount;
 
             // Calculate part value
-            const partValue = workingPartsCount > 0
-                ? parseFloat(purchase.purchase_price) / workingPartsCount
+            const partValue = totalWorkingParts > 0
+                ? effectivePrice / totalWorkingParts
                 : null;
 
             purchaseMap[purchase._id.toString()] = {
                 purchase_price: purchase.purchase_price,
+                refund_amount: refundAmount,
+                effective_price: effectivePrice,
                 items_purchased: items,
-                working_parts_count: workingPartsCount,
+                quantity: quantity,
+                working_parts_per_set: workingPartsPerSet,
+                total_working_parts: totalWorkingParts,
                 part_value: partValue
             };
         });
@@ -2413,6 +2425,7 @@ app.post('/api/admin/purchases', requireAuth, requireDB, async (req, res) => {
             items_purchased,
             quantity,
             purchase_price,
+            refund_amount,
             condition,
             status,
             feedback_left,
@@ -2422,12 +2435,12 @@ app.post('/api/admin/purchases', requireAuth, requireDB, async (req, res) => {
             serial_numbers,
             notes
         } = req.body;
-        
+
         // Validation
         if (!platform || !order_number || !seller_name || !purchase_date || !generation || !items_purchased || !Array.isArray(items_purchased) || items_purchased.length === 0 || !quantity || purchase_price === undefined || !status) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
-        
+
         const purchase = {
             platform,
             order_number,
@@ -2439,6 +2452,7 @@ app.post('/api/admin/purchases', requireAuth, requireDB, async (req, res) => {
             items_purchased: items_purchased, // Array of items: case, left, right, box, ear_tips, cable, protective_case
             quantity: parseInt(quantity),
             purchase_price: parseFloat(purchase_price),
+            refund_amount: refund_amount ? parseFloat(refund_amount) : 0,
             condition: condition || 'good',
             status: status, // paid, awaiting_despatch, awaiting_delivery, delivered, awaiting_return, returned, refunded
             feedback_left: feedback_left === true,
@@ -4663,6 +4677,7 @@ app.put('/api/admin/purchases/:id', requireAuth, requireDB, async (req, res) => 
             items_purchased,
             quantity,
             purchase_price,
+            refund_amount,
             condition,
             status,
             feedback_left,
@@ -4672,12 +4687,12 @@ app.put('/api/admin/purchases/:id', requireAuth, requireDB, async (req, res) => 
             serial_numbers,
             notes
         } = req.body;
-        
+
         // Validation
         if (!platform || !order_number || !seller_name || !purchase_date || !generation || !items_purchased || !Array.isArray(items_purchased) || items_purchased.length === 0 || !quantity || purchase_price === undefined || !status) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
-        
+
         const updateData = {
             platform,
             order_number,
@@ -4689,6 +4704,7 @@ app.put('/api/admin/purchases/:id', requireAuth, requireDB, async (req, res) => 
             items_purchased,
             quantity: parseInt(quantity),
             purchase_price: parseFloat(purchase_price),
+            refund_amount: refund_amount !== undefined ? parseFloat(refund_amount) : 0,
             condition: condition || 'good',
             status: status, // paid, awaiting_despatch, awaiting_delivery, delivered, awaiting_return, returned, refunded
             feedback_left: feedback_left === true,

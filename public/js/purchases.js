@@ -193,10 +193,17 @@ function renderPurchases(purchases) {
 
         // Calculate Part Value: price / number of working parts (excluding accessories)
         const workingParts = ['left', 'right', 'case'];
-        const workingPartsCount = itemsPurchased.filter(item => workingParts.includes(item)).length;
+        const workingPartsPerSet = itemsPurchased.filter(item => workingParts.includes(item)).length;
+        const quantity = purchase.quantity || 1;
+        const totalWorkingParts = workingPartsPerSet * quantity;
+
+        // Calculate effective price (subtract any refunds)
+        const refundAmount = purchase.refund_amount || 0;
+        const effectivePrice = parseFloat(purchase.purchase_price) - refundAmount;
+
         let partValueDisplay = '<span style="color: #999;">—</span>';
-        if (workingPartsCount > 0) {
-            const partValue = parseFloat(purchase.purchase_price) / workingPartsCount;
+        if (totalWorkingParts > 0) {
+            const partValue = effectivePrice / totalWorkingParts;
             partValueDisplay = `<span style="font-weight: 600; color: #6c757d;">£${partValue.toFixed(2)}</span>`;
         }
         
