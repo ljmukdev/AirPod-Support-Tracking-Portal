@@ -74,9 +74,9 @@ async function loadPurchases() {
 
 function renderPurchases(purchases) {
     const tableBody = document.getElementById('purchasesTable');
-    
+
     if (purchases.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="13" style="text-align: center; padding: 40px; color: #666;">No purchases found. <a href="add-purchase.html">Add your first purchase</a></td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="14" style="text-align: center; padding: 40px; color: #666;">No purchases found. <a href="add-purchase.html">Add your first purchase</a></td></tr>';
         return;
     }
     
@@ -190,6 +190,15 @@ function renderPurchases(purchases) {
             const ancLabel = purchase.anc_type === 'anc' ? 'ANC' : 'Non-ANC';
             generationDisplay += `<br><span style="font-size: 0.8rem; color: #666;">(${ancLabel})</span>`;
         }
+
+        // Calculate Part Value: price / number of working parts (excluding accessories)
+        const workingParts = ['left', 'right', 'case'];
+        const workingPartsCount = itemsPurchased.filter(item => workingParts.includes(item)).length;
+        let partValueDisplay = '<span style="color: #999;">—</span>';
+        if (workingPartsCount > 0) {
+            const partValue = parseFloat(purchase.purchase_price) / workingPartsCount;
+            partValueDisplay = `<span style="font-weight: 600; color: #6c757d;">£${partValue.toFixed(2)}</span>`;
+        }
         
         return `
             <tr data-purchase-id="${escapeHtml(String(purchase._id || purchase.id))}">
@@ -200,6 +209,7 @@ function renderPurchases(purchases) {
                 <td style="line-height: 1.6;">${itemsBadges || '<span style="color: #999;">—</span>'}</td>
                 <td style="text-align: center;">${escapeHtml(String(purchase.quantity))}</td>
                 <td style="font-weight: 600; color: var(--accent-teal);">£${parseFloat(purchase.purchase_price).toFixed(2)}</td>
+                <td>${partValueDisplay}</td>
                 <td>${conditionBadge}</td>
                 <td>${statusBadge}</td>
                 <td>${trackingDisplay}</td>
