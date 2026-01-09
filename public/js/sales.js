@@ -13,6 +13,22 @@ let productCost = 0;
 let templateConsumables = [];
 let allConsumables = [];
 
+// Helper function to generate display names for products
+function getDisplayName(partType, generation) {
+    const typeMap = {
+        'left': 'Left Earbud',
+        'right': 'Right Earbud',
+        'case': 'Charging Case',
+        'ear_tips': 'Ear Tips',
+        'box': 'Original Box',
+        'cable': 'Charging Cable',
+        'other': 'Accessory'
+    };
+
+    const displayName = typeMap[partType] || partType;
+    return generation ? `${generation} - ${displayName}` : displayName;
+}
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
     loadSales();
@@ -48,10 +64,11 @@ function setupEventListeners() {
     // Security Barcode Input
     document.getElementById('securityBarcode')?.addEventListener('input', handleBarcodeInput);
     document.getElementById('securityBarcode')?.addEventListener('blur', handleBarcodeBlur);
-    
-    // Accessory Selection Change
-    document.getElementById('accessoryProduct')?.addEventListener('change', handleAccessoryChange);
-    
+
+    // Accessory Search Input
+    document.getElementById('accessorySearch')?.addEventListener('input', handleAccessorySearch);
+    document.getElementById('accessorySearch')?.addEventListener('focus', handleAccessorySearch);
+
     // Sale Price Input
     document.getElementById('salePrice')?.addEventListener('input', updatePreview);
     
@@ -184,35 +201,39 @@ function handleSelectionMethodChange(e) {
     const barcodeGroup = document.getElementById('barcodeInputGroup');
     const accessoryGroup = document.getElementById('accessorySelectGroup');
     const barcodeInput = document.getElementById('securityBarcode');
-    const accessorySelect = document.getElementById('accessoryProduct');
+    const accessorySearch = document.getElementById('accessorySearch');
     const selectedProductId = document.getElementById('selectedProductId');
     const barcodeStatus = document.getElementById('barcodeStatus');
-    
+    const accessoryStatus = document.getElementById('accessoryStatus');
+    const accessoryResults = document.getElementById('accessorySearchResults');
+
     if (method === 'barcode') {
-        // Show barcode input, hide accessory dropdown
+        // Show barcode input, hide accessory search
         barcodeGroup.style.display = 'block';
         accessoryGroup.style.display = 'none';
         barcodeInput.value = '';
-        accessorySelect.value = '';
+        accessorySearch.value = '';
         selectedProductId.value = '';
         barcodeStatus.style.display = 'none';
+        accessoryStatus.style.display = 'none';
+        accessoryResults.style.display = 'none';
         productCost = 0;
     } else {
-        // Show accessory dropdown, hide barcode input
+        // Show accessory search, hide barcode input
         barcodeGroup.style.display = 'none';
         accessoryGroup.style.display = 'block';
         barcodeInput.value = '';
-        accessorySelect.value = '';
+        accessorySearch.value = '';
         selectedProductId.value = '';
         barcodeStatus.style.display = 'none';
+        accessoryStatus.style.display = 'none';
+        accessoryResults.style.display = 'none';
         productCost = 0;
-        
-        // Load accessories if not already loaded
-        if (accessorySelect.options.length === 1) {
-            loadAvailableAccessories();
-        }
+
+        // Focus on search input
+        setTimeout(() => accessorySearch.focus(), 100);
     }
-    
+
     updatePreview();
 }
 
@@ -267,10 +288,11 @@ async function lookupProductByBarcode(barcode) {
                 selectedProductId.value = '';
                 productCost = 0;
             } else {
+                const displayName = product.product_name || product.product_type || getDisplayName(product.part_type, product.generation);
                 statusDiv.style.backgroundColor = '#d1fae5';
                 statusDiv.style.color = '#065f46';
                 statusDiv.innerHTML = `
-                    <strong>✅ Product Found:</strong> ${product.product_type || product.part_type}<br>
+                    <strong>✅ Product Found:</strong> ${displayName}<br>
                     Serial: ${product.serial_number || 'N/A'} | Cost: £${(product.purchase_price || 0).toFixed(2)}
                 `;
                 selectedProductId.value = product._id;
@@ -296,21 +318,140 @@ async function lookupProductByBarcode(barcode) {
     }
 }
 
-function handleAccessoryChange() {
-    const select = document.getElementById('accessoryProduct');
-    const selectedOption = select.options[select.selectedIndex];
-    const selectedProductId = document.getElementById('selectedProductId');
-    
-    if (selectedOption && selectedOption.value) {
-        selectedProductId.value = selectedOption.value;
-        productCost = parseFloat(selectedOption.dataset.cost) || 0;
-    } else {
-        selectedProductId.value = '';
-        productCost = 0;
+let accessorySearchTimeout = null;
+
+function handleAccessorySearch(e) {
+    const searchInput = e.target;
+    const query = searchInput.value.trim();
+
+    // Clear any existing timeout
+    if (accessorySearchTimeout) {
+        clearTimeout(accessorySearchTimeout);
     }
-    
+
+    // If empty, show all accessories
+    if (!query) {
+        accessorySearchTimeout = setTimeout(() => {
+            searchAccessories('');
+        }, 300);
+        return;
+    }
+
+    // Set a timeout to search after user stops typing
+    accessorySearchTimeout = setTimeout(() => {
+        searchAccessories(query);
+    }, 300);
+}
+
+async function searchAccessories(query) {
+    const resultsDiv = document.getElementById('accessorySearchResults');
+    const statusDiv = document.getElementById('accessoryStatus');
+
+    try {
+        // Fetch all available accessories
+        const response = await authenticatedFetch(`${API_BASE}/api/admin/products?accessories=true`);
+        const data = await response.json();
+
+        if (!data.products || data.products.length === 0) {
+            resultsDiv.style.display = 'none';
+            statusDiv.style.display = 'block';
+            statusDiv.style.backgroundColor = '#fee2e2';
+            statusDiv.style.color = '#dc2626';
+            statusDiv.textContent = 'No accessories available for sale';
+            return;
+        }
+
+        let products = data.products;
+
+        // Filter by search query if provided
+        if (query) {
+            const lowerQuery = query.toLowerCase();
+            products = products.filter(product => {
+                const name = (product.product_name || product.product_type || '').toLowerCase();
+                const serial = (product.serial_number || '').toLowerCase();
+                const generation = (product.generation || '').toLowerCase();
+                const partType = (product.part_type || '').toLowerCase();
+
+                return name.includes(lowerQuery) ||
+                       serial.includes(lowerQuery) ||
+                       generation.includes(lowerQuery) ||
+                       partType.includes(lowerQuery);
+            });
+        }
+
+        if (products.length === 0) {
+            resultsDiv.style.display = 'none';
+            statusDiv.style.display = 'block';
+            statusDiv.style.backgroundColor = '#fef3c7';
+            statusDiv.style.color = '#92400e';
+            statusDiv.textContent = `No accessories found matching "${query}"`;
+            return;
+        }
+
+        // Display results
+        statusDiv.style.display = 'none';
+        resultsDiv.style.display = 'block';
+        resultsDiv.innerHTML = products.map(product => {
+            const displayName = product.product_name || product.product_type || getDisplayName(product.part_type, product.generation);
+            const serial = product.serial_number || 'N/A';
+            const cost = (product.purchase_price || 0).toFixed(2);
+
+            return `
+                <div class="accessory-result-item"
+                     data-id="${product._id}"
+                     data-name="${displayName}"
+                     data-serial="${serial}"
+                     data-cost="${product.purchase_price || 0}"
+                     style="padding: 12px; border-bottom: 1px solid #e5e7eb; cursor: pointer; transition: background 0.2s;"
+                     onmouseover="this.style.background='#f3f4f6'"
+                     onmouseout="this.style.background='white'"
+                     onclick="selectAccessory('${product._id}', '${displayName}', '${serial}', ${product.purchase_price || 0})">
+                    <div style="font-weight: 600; color: #111;">${displayName}</div>
+                    <div style="font-size: 0.875rem; color: #666; margin-top: 4px;">
+                        Serial: ${serial} | Cost: £${cost}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+    } catch (error) {
+        console.error('Error searching accessories:', error);
+        resultsDiv.style.display = 'none';
+        statusDiv.style.display = 'block';
+        statusDiv.style.backgroundColor = '#fee2e2';
+        statusDiv.style.color = '#dc2626';
+        statusDiv.textContent = 'Error searching accessories. Please try again.';
+    }
+}
+
+function selectAccessory(productId, name, serial, cost) {
+    const selectedProductId = document.getElementById('selectedProductId');
+    const searchInput = document.getElementById('accessorySearch');
+    const resultsDiv = document.getElementById('accessorySearchResults');
+    const statusDiv = document.getElementById('accessoryStatus');
+
+    // Set the selected product
+    selectedProductId.value = productId;
+    productCost = cost || 0;
+
+    // Update search input to show selection
+    searchInput.value = name;
+
+    // Hide results, show selection confirmation
+    resultsDiv.style.display = 'none';
+    statusDiv.style.display = 'block';
+    statusDiv.style.backgroundColor = '#d1fae5';
+    statusDiv.style.color = '#065f46';
+    statusDiv.innerHTML = `
+        <strong>✅ Selected:</strong> ${name}<br>
+        Serial: ${serial} | Cost: £${cost.toFixed(2)}
+    `;
+
     updatePreview();
 }
+
+// Make selectAccessory available globally
+window.selectAccessory = selectAccessory;
 
 async function openAddSaleModal() {
     currentSaleId = null;
@@ -337,36 +478,7 @@ async function openAddSaleModal() {
     document.getElementById('saleModal').style.display = 'flex';
 }
 
-async function loadAvailableAccessories() {
-    try {
-        console.log('Loading available accessories...');
-        const response = await authenticatedFetch(`${API_BASE}/api/admin/products?accessories=true`);
-        const data = await response.json();
-        
-        console.log('Accessories response:', data);
-        
-        const select = document.getElementById('accessoryProduct');
-        select.innerHTML = '<option value="">Select an accessory...</option>';
-        
-        if (data.products && data.products.length > 0) {
-            console.log(`Found ${data.products.length} available accessories`);
-            data.products.forEach(product => {
-                const option = document.createElement('option');
-                option.value = product._id;
-                const partName = product.part_name || product.product_type || product.part_type;
-                option.textContent = `${partName} - ${product.serial_number || 'N/A'} (£${product.purchase_price?.toFixed(2) || '0.00'})`;
-                option.dataset.cost = product.purchase_price || 0;
-                option.dataset.name = partName;
-                select.appendChild(option);
-            });
-        } else {
-            console.log('No accessories found');
-            select.innerHTML = '<option value="">No unsold accessories available</option>';
-        }
-    } catch (error) {
-        console.error('Error loading accessories:', error);
-    }
-}
+// Accessory search is now handled by handleAccessorySearch and searchAccessories functions above
 
 
 function updatePreview() {
@@ -402,21 +514,21 @@ async function handleSaleSubmit(e) {
     let productName = 'Unknown';
     let productSerial = 'N/A';
     const selectionMethod = document.querySelector('input[name="selectionMethod"]:checked').value;
-    
+
     if (selectionMethod === 'accessory') {
-        const select = document.getElementById('accessoryProduct');
-        const selectedOption = select.options[select.selectedIndex];
-        if (selectedOption) {
-            productName = selectedOption.dataset.name || 'Unknown';
-            productSerial = 'N/A';
+        // For accessory, get from the status div that shows the selected product
+        const statusDiv = document.getElementById('accessoryStatus');
+        if (statusDiv && statusDiv.textContent.includes('Selected:')) {
+            const nameMatch = statusDiv.textContent.match(/Selected:\s*([^\n]+)/);
+            const serialMatch = statusDiv.textContent.match(/Serial:\s*([^\|]+)/);
+            if (nameMatch) productName = nameMatch[1].trim();
+            if (serialMatch) productSerial = serialMatch[1].trim();
         }
     } else {
-        // For barcode, we need to get the details from the status display
-        // or fetch from the backend
+        // For barcode, get from the barcode status display
         const statusDiv = document.getElementById('barcodeStatus');
         if (statusDiv && statusDiv.textContent.includes('Product Found')) {
-            // Extract from status display
-            const serialMatch = statusDiv.textContent.match(/Serial: ([^\|]+)/);
+            const serialMatch = statusDiv.textContent.match(/Serial:\s*([^\|]+)/);
             const typeMatch = statusDiv.textContent.match(/Found:\s*([^\n]+)/);
             if (serialMatch) productSerial = serialMatch[1].trim();
             if (typeMatch) productName = typeMatch[1].trim();

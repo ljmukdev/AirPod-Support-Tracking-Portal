@@ -1735,11 +1735,18 @@ app.post('/api/admin/product', requireAuth, requireDB, (req, res, next) => {
             console.log(`📸 Total photos processed: ${photos.length}/${req.files.length}`);
         }
         
+        // Generate descriptive names for consistency with check-in split products
+        const productType = getItemDisplayName(part_type.toLowerCase());
+        const generationText = generation ? generation.trim() : 'Unknown';
+        const productName = `${generationText} - ${productType}`;
+
         const product = {
             serial_number: serial_number ? serial_number.trim() : (skip_photos_security ? 'N/A' : null),
             security_barcode: security_barcode ? security_barcode.trim().toUpperCase() : (skip_photos_security ? null : null), // Store in uppercase, or null if skipping
             part_type: part_type.toLowerCase(),
-            generation: generation ? generation.trim() : null,
+            product_type: productType, // Add descriptive product type
+            product_name: productName, // Add descriptive product name
+            generation: generationText,
             part_model_number: part_model_number ? part_model_number.trim() : null,
             notes: notes ? notes.trim() : null,
             ebay_order_number: ebay_order_number ? ebay_order_number.trim() : null,
@@ -1750,7 +1757,9 @@ app.post('/api/admin/product', requireAuth, requireDB, (req, res, next) => {
             tracking_date: null,
             date_added: new Date(),
             confirmation_checked: false,
-            confirmation_date: null
+            confirmation_date: null,
+            purchase_price: 0, // Default to 0 for directly added products (can be updated later)
+            status: 'in_stock' // Set initial status
         };
         
         const result = await db.collection('products').insertOne(product);
