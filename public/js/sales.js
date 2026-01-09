@@ -123,9 +123,14 @@ function displaySales(sales) {
     
     tbody.innerHTML = sales.map(sale => {
         const saleDate = new Date(sale.sale_date).toLocaleDateString();
-        const profit = (sale.sale_price - sale.total_cost).toFixed(2);
-        const margin = sale.sale_price > 0 ? ((profit / sale.sale_price) * 100).toFixed(1) : '0.0';
-        const profitColor = profit >= 0 ? '#10b981' : '#ef4444';
+        const salePrice = typeof sale.sale_price === 'number' ? sale.sale_price : 0;
+        const totalCost = typeof sale.total_cost === 'number' ? sale.total_cost : 0;
+        const profitValue = typeof sale.profit === 'number'
+            ? sale.profit
+            : (salePrice - totalCost);
+        const profit = profitValue.toFixed(2);
+        const margin = salePrice > 0 ? ((profitValue / salePrice) * 100).toFixed(1) : '0.0';
+        const profitColor = profitValue >= 0 ? '#10b981' : '#ef4444';
         
         return `
             <tr>
@@ -135,9 +140,12 @@ function displaySales(sales) {
                     <div style="font-size: 0.85rem; color: #666;">${sale.product_serial || 'N/A'}</div>
                 </td>
                 <td>${sale.platform || 'N/A'}</td>
-                <td>${sale.order_number || 'N/A'}</td>
-                <td style="font-weight: 600;">£${sale.sale_price.toFixed(2)}</td>
-                <td>£${sale.total_cost.toFixed(2)}</td>
+                <td>
+                    <div>${sale.order_number || 'N/A'}</div>
+                    ${sale.outward_tracking_number ? `<div style="font-size: 0.85rem; color: #666;">Tracking: ${sale.outward_tracking_number}</div>` : ''}
+                </td>
+                <td style="font-weight: 600;">£${salePrice.toFixed(2)}</td>
+                <td>£${totalCost.toFixed(2)}</td>
                 <td style="font-weight: 700; color: ${profitColor};">£${profit}</td>
                 <td style="font-weight: 600; color: ${profitColor};">${margin}%</td>
                 <td>

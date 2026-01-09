@@ -939,24 +939,50 @@
             showSpinner();
             hideMessages();
 
+            const productCost = parseFloat(selectedProduct.purchase_price) || 0;
+            const transactionFees = parseFloat(document.getElementById('saleTransactionFees').value) || 0;
+            const postageLabelCost = parseFloat(document.getElementById('salePostageLabelCost').value) || 0;
+            const adFeeGeneral = parseFloat(document.getElementById('saleAdFeeGeneral').value) || 0;
+            const consumablesCost = selectedConsumables.reduce((sum, item) => {
+                const consumable = consumableIdMap.get(String(item.consumable_id));
+                const unitCost = consumable
+                    ? (parseFloat(consumable.unit_cost) || parseFloat(consumable.price_per_unit) || 0)
+                    : 0;
+                return sum + (unitCost * item.quantity);
+            }, 0);
+            const totalCost = productCost + consumablesCost + transactionFees + postageLabelCost + adFeeGeneral;
+            const orderTotalValue = document.getElementById('saleOrderTotal').value;
+            const salePriceValue = orderTotalValue || document.getElementById('salePrice').value || 0;
+
+            const saleDateValue = document.getElementById('saleDate').value || new Date().toISOString().split('T')[0];
+
             const saleData = {
+                product_id: selectedProduct._id,
+                product_name: selectedProduct.product_name || selectedProduct.generation || 'Unknown Product',
+                product_serial: selectedProduct.serial_number || 'N/A',
+                product_cost: productCost,
+                platform: 'Manual Entry',
+                order_number: salesOrderNumber,
                 sales_order_number: salesOrderNumber,
-                sale_date: document.getElementById('saleDate').value || null,
-                sale_price: document.getElementById('salePrice').value || null,
+                sale_date: saleDateValue,
+                sale_price: salePriceValue,
                 subtotal: document.getElementById('saleSubtotal').value || null,
                 postage_charged: document.getElementById('salePostageCharged').value || null,
-                transaction_fees: document.getElementById('saleTransactionFees').value || null,
-                postage_label_cost: document.getElementById('salePostageLabelCost').value || null,
-                ad_fee_general: document.getElementById('saleAdFeeGeneral').value || null,
-                order_total: document.getElementById('saleOrderTotal').value || null,
+                transaction_fees: transactionFees,
+                postage_label_cost: postageLabelCost,
+                ad_fee_general: adFeeGeneral,
+                order_total: orderTotalValue || null,
                 sale_notes: document.getElementById('saleNotes').value.trim() || null,
                 outward_tracking_number: document.getElementById('outwardTrackingNumber').value.trim() || null,
-                consumables: selectedConsumables
+                consumables: selectedConsumables,
+                consumables_cost: consumablesCost,
+                total_cost: totalCost,
+                notes: document.getElementById('saleNotes').value.trim() || null
             };
 
             // Update product with sale information
-            authenticatedFetch('/api/admin/product/' + selectedProduct._id, {
-                method: 'PUT',
+            authenticatedFetch('/api/admin/sales', {
+                method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
@@ -972,7 +998,7 @@
                         window.location.href = 'sales.html';
                     }, 1500);
                 } else {
-                    showError(data.message || 'Failed to record sale');
+                    showError(data.message || data.error || 'Failed to record sale');
                 }
             })
             .catch(error => {

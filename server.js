@@ -9108,14 +9108,24 @@ app.post('/api/admin/sales', requireAuth, requireDB, async (req, res) => {
             consumables,
             consumables_cost,
             total_cost,
-            notes
+            notes,
+            subtotal,
+            postage_charged,
+            transaction_fees,
+            postage_label_cost,
+            ad_fee_general,
+            order_total,
+            outward_tracking_number
         } = req.body;
         
         // Validation
-        if (!product_id || !sale_price || !sale_date) {
+        if (!product_id || !sale_date || (sale_price === undefined && order_total === undefined)) {
             return res.status(400).json({ error: 'Product ID, sale price, and sale date are required' });
         }
         
+        const normalizedSalePrice = parseFloat(order_total || sale_price) || 0;
+        const normalizedTotalCost = parseFloat(total_cost) || 0;
+
         // Create sale record
         const sale = {
             product_id: new ObjectId(product_id),
@@ -9124,13 +9134,20 @@ app.post('/api/admin/sales', requireAuth, requireDB, async (req, res) => {
             product_cost: parseFloat(product_cost) || 0,
             platform: platform || 'Unknown',
             order_number: order_number || null,
-            sale_price: parseFloat(sale_price),
+            sale_price: normalizedSalePrice,
             sale_date: new Date(sale_date),
             consumables: consumables || [],
             consumables_cost: parseFloat(consumables_cost) || 0,
-            total_cost: parseFloat(total_cost) || 0,
-            profit: parseFloat(sale_price) - parseFloat(total_cost),
+            total_cost: normalizedTotalCost,
+            profit: normalizedSalePrice - normalizedTotalCost,
             notes: notes || '',
+            subtotal: parseFloat(subtotal) || 0,
+            postage_charged: parseFloat(postage_charged) || 0,
+            transaction_fees: parseFloat(transaction_fees) || 0,
+            postage_label_cost: parseFloat(postage_label_cost) || 0,
+            ad_fee_general: parseFloat(ad_fee_general) || 0,
+            order_total: parseFloat(order_total) || null,
+            outward_tracking_number: outward_tracking_number ? outward_tracking_number.trim() : null,
             created_at: new Date(),
             created_by: req.user.email
         };
@@ -9145,7 +9162,15 @@ app.post('/api/admin/sales', requireAuth, requireDB, async (req, res) => {
                     status: 'sold',
                     sales_order_number: order_number,
                     sale_date: new Date(sale_date),
-                    sale_price: parseFloat(sale_price)
+                    sale_price: normalizedSalePrice,
+                    subtotal: parseFloat(subtotal) || 0,
+                    postage_charged: parseFloat(postage_charged) || 0,
+                    transaction_fees: parseFloat(transaction_fees) || 0,
+                    postage_label_cost: parseFloat(postage_label_cost) || 0,
+                    ad_fee_general: parseFloat(ad_fee_general) || 0,
+                    order_total: parseFloat(order_total) || null,
+                    outward_tracking_number: outward_tracking_number ? outward_tracking_number.trim() : null,
+                    sale_notes: notes || ''
                 } 
             }
         );
@@ -9229,7 +9254,15 @@ app.delete('/api/admin/sales/:id', requireAuth, requireDB, async (req, res) => {
                 $unset: { 
                     sales_order_number: "",
                     sale_date: "",
-                    sale_price: ""
+                    sale_price: "",
+                    subtotal: "",
+                    postage_charged: "",
+                    transaction_fees: "",
+                    postage_label_cost: "",
+                    ad_fee_general: "",
+                    order_total: "",
+                    outward_tracking_number: "",
+                    sale_notes: ""
                 }
             }
         );
