@@ -314,34 +314,34 @@
                 <div class="modal-body">
                     <!-- Product Selection -->
                     <div class="form-group">
-                        <label>Product Selection Method *</label>
+                        <label>What are you selling? *</label>
                         <div style="display: flex; gap: 15px; margin-bottom: 10px;">
                             <label style="display: flex; align-items: center; gap: 5px;">
                                 <input type="radio" name="selectionMethod" value="barcode" checked>
-                                <span>Scan Security Barcode (AirPods)</span>
+                                <span>AirPod Part (Left, Right, or Case)</span>
                             </label>
                             <label style="display: flex; align-items: center; gap: 5px;">
                                 <input type="radio" name="selectionMethod" value="accessory">
-                                <span>Select Accessory</span>
+                                <span>Accessory (Box, Cable, Tips, etc.)</span>
                             </label>
                         </div>
                     </div>
 
-                    <!-- Security Barcode Input (for AirPods) -->
+                    <!-- Security Barcode Input (for AirPod Parts) -->
                     <div class="form-group" id="barcodeInputGroup">
-                        <label for="securityBarcode">Search Product *</label>
-                        <input type="text" id="securityBarcode" placeholder="Enter serial number or security barcode..." style="text-transform: uppercase;">
-                        <small style="color: #666;">Enter the serial number or security barcode to find the product</small>
+                        <label for="securityBarcode">Security Barcode or Serial Number *</label>
+                        <input type="text" id="securityBarcode" placeholder="Scan or enter security barcode / serial number..." style="text-transform: uppercase;">
+                        <small style="color: #666;">The security barcode connects this part through the entire system flow</small>
                         <div id="barcodeStatus" style="margin-top: 8px; padding: 8px; border-radius: 4px; display: none;"></div>
                     </div>
 
-                    <!-- Accessory Dropdown -->
+                    <!-- Accessory Search -->
                     <div class="form-group" id="accessorySelectGroup" style="display: none;">
-                        <label for="accessoryProduct">Accessory *</label>
-                        <select id="accessoryProduct">
-                            <option value="">Select an accessory...</option>
-                        </select>
-                        <small style="color: #666;">Only unsold accessories are shown</small>
+                        <label for="accessorySearch">Search for Accessory *</label>
+                        <input type="text" id="accessorySearch" placeholder="Type to search accessories (e.g., 'cable', 'box', 'AirPods Pro')...">
+                        <small style="color: #666;">Search by product name, generation, or type - the system will show the nearest match</small>
+                        <div id="accessorySearchResults" style="margin-top: 8px; max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; display: none; background: white;"></div>
+                        <div id="accessoryStatus" style="margin-top: 8px; padding: 8px; border-radius: 4px; display: none;"></div>
                     </div>
 
                     <!-- Hidden field to store selected product ID -->
