@@ -1115,7 +1115,7 @@ async function loadProducts() {
         
         if (response.ok && data.products) {
             if (data.products.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="13" style="text-align: center; padding: 20px;">No products found</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="14" style="text-align: center; padding: 20px;">No products found</td></tr>';
                 return;
             }
             
@@ -1212,7 +1212,13 @@ async function loadProducts() {
             const statusDisplay = '<select class="status-select" data-product-id="' + escapeHtml(String(product.id)) + '" data-original-status="' + escapeHtml(productStatus) + '" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #ddd; font-size: 0.9rem; cursor: pointer; min-width: 150px; background-color: white;">' +
                 statusOptionsHtml +
                 '</select>';
-            
+
+            // Part Value display
+            let partValueDisplay = '<span style="color: #999;">—</span>';
+            if (product.part_value !== null && product.part_value !== undefined) {
+                partValueDisplay = `<span style="font-weight: 600; color: #6c757d;">£${parseFloat(product.part_value).toFixed(2)}</span>`;
+            }
+
             return `
                 <tr data-product-id="${escapeHtml(String(product.id))}">
                     <td>${escapeHtml(product.serial_number || '')}</td>
@@ -1221,6 +1227,7 @@ async function loadProducts() {
                     <td>${escapeHtml(product.part_model_number || '')}</td>
                     <td>${partTypeMap[product.part_type] || product.part_type}</td>
                     <td>${escapeHtml(product.ebay_order_number || '')}</td>
+                    <td>${partValueDisplay}</td>
                     <td>${photosDisplay}</td>
                     <td>${formattedDate}</td>
                     <td>${trackingDisplay}</td>
@@ -1339,11 +1346,11 @@ async function loadProducts() {
                 setProductsForFiltering(data.products);
             }
         } else {
-            tableBody.innerHTML = '<tr><td colspan="13" style="text-align: center; padding: 20px; color: red;">Error loading products</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="14" style="text-align: center; padding: 20px; color: red;">Error loading products</td></tr>';
         }
     } catch (error) {
         console.error('Load products error:', error);
-        tableBody.innerHTML = '<tr><td colspan="13" style="text-align: center; padding: 20px; color: red;">Network error. Please refresh the page.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="14" style="text-align: center; padding: 20px; color: red;">Network error. Please refresh the page.</td></tr>';
     }
 }
 
@@ -1360,7 +1367,7 @@ async function renderProductsTable(products) {
     const statusOptions = await loadStatusOptions();
 
     if (products.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="13" style="text-align: center; padding: 20px;">No products match your filters</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="14" style="text-align: center; padding: 20px;">No products match your filters</td></tr>';
         return;
     }
 
@@ -1444,6 +1451,12 @@ async function renderProductsTable(products) {
             statusOptionsHtml +
             '</select>';
 
+        // Part Value display
+        let partValueDisplay = '<span style="color: #999;">—</span>';
+        if (product.part_value !== null && product.part_value !== undefined) {
+            partValueDisplay = `<span style="font-weight: 600; color: #6c757d;">£${parseFloat(product.part_value).toFixed(2)}</span>`;
+        }
+
         return `
             <tr data-product-id="${escapeHtml(String(product.id))}">
                 <td>${escapeHtml(product.serial_number || '')}</td>
@@ -1452,6 +1465,7 @@ async function renderProductsTable(products) {
                 <td>${escapeHtml(product.part_model_number || '')}</td>
                 <td>${partTypeMap[product.part_type] || product.part_type}</td>
                 <td>${escapeHtml(product.ebay_order_number || '')}</td>
+                <td>${partValueDisplay}</td>
                 <td>${photosDisplay}</td>
                 <td>${formattedDate}</td>
                 <td>${trackingDisplay}</td>

@@ -1897,18 +1897,47 @@ app.get('/api/admin/products', requireAuth, requireDB, async (req, res) => {
             warrantyMap[warranty.security_barcode] = warranty;
         });
         
+        // Fetch purchase information to calculate part values
+        const purchaseIds = [...new Set(products.map(p => p.purchase_id).filter(Boolean))];
+        const purchases = purchaseIds.length > 0
+            ? await db.collection('purchases').find({
+                _id: { $in: purchaseIds.map(id => new ObjectId(id)) }
+            }).toArray()
+            : [];
+
+        // Create a map of purchase_id -> purchase info with part value
+        const purchaseMap = {};
+        purchases.forEach(purchase => {
+            // Calculate working parts count (only left, right, case)
+            const workingParts = ['left', 'right', 'case'];
+            const items = purchase.items_purchased || [];
+            const workingPartsCount = items.filter(item => workingParts.includes(item)).length;
+
+            // Calculate part value
+            const partValue = workingPartsCount > 0
+                ? parseFloat(purchase.purchase_price) / workingPartsCount
+                : null;
+
+            purchaseMap[purchase._id.toString()] = {
+                purchase_price: purchase.purchase_price,
+                items_purchased: items,
+                working_parts_count: workingPartsCount,
+                part_value: partValue
+            };
+        });
+
         // Convert MongoDB ObjectId to string for JSON response and add warranty info
         const productsWithStringIds = products.map(product => {
             // Try to find warranty by exact match or normalized barcode
             const productBarcodeNormalized = normalizeSecurityBarcode(product.security_barcode);
             const warranty = warrantyMap[product.security_barcode] || warrantyMap[productBarcodeNormalized];
-            
+
             const productData = {
                 ...product,
                 id: product._id.toString(),
                 _id: undefined
             };
-            
+
             // Add warranty information
             if (warranty) {
                 productData.warranty = {
@@ -1920,10 +1949,16 @@ app.get('/api/admin/products', requireAuth, requireDB, async (req, res) => {
                     extended_warranty: warranty.extended_warranty || 'none'
                 };
             }
-            
+
+            // Add purchase part value information
+            if (product.purchase_id && purchaseMap[product.purchase_id]) {
+                productData.part_value = purchaseMap[product.purchase_id].part_value;
+                productData.purchase_price = purchaseMap[product.purchase_id].purchase_price;
+            }
+
             return productData;
         });
-        
+
         res.json({ products: productsWithStringIds, total });
     } catch (err) {
         console.error('Database error:', err);
