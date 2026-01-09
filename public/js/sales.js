@@ -591,30 +591,31 @@ async function addConsumableRow() {
         }
         
         // Show numbered list of consumables
-        const options = data.consumables.map((c, i) => 
-            `${i + 1}. ${c.name} - £${c.price_per_unit?.toFixed(2) || '0.00'} each (${c.quantity_in_stock || 0} in stock)`
+        const options = data.consumables.map((c, i) =>
+            `${i + 1}. ${c.item_name || c.name} - £${c.unit_cost?.toFixed(2) || c.price_per_unit?.toFixed(2) || '0.00'} each (${c.quantity_in_stock || 0} in stock)`
         ).join('\n');
-        
+
         const selection = prompt(`Select a consumable:\n\n${options}\n\nEnter number:`);
-        
+
         if (!selection) return;
-        
+
         const index = parseInt(selection) - 1;
         const consumable = data.consumables[index];
-        
+
         if (consumable) {
-            const quantity = parseInt(prompt(`How many ${consumable.name}?`, '1')) || 1;
-            
+            const consumableName = consumable.item_name || consumable.name;
+            const quantity = parseInt(prompt(`How many ${consumableName}?`, '1')) || 1;
+
             // Check if enough stock
             if (quantity > (consumable.quantity_in_stock || 0)) {
                 const proceed = confirm(`Warning: Only ${consumable.quantity_in_stock || 0} in stock. Add ${quantity} anyway?`);
                 if (!proceed) return;
             }
-            
+
             selectedConsumables.push({
                 consumable_id: consumable._id,
-                name: consumable.name,
-                cost: consumable.price_per_unit || 0,
+                name: consumableName,
+                cost: consumable.unit_cost || consumable.price_per_unit || 0,
                 quantity: quantity
             });
             
@@ -698,22 +699,23 @@ async function loadTemplate() {
                 
                 for (const templateItem of template.consumables) {
                     // Find current consumable by ID
-                    const currentConsumable = currentConsumables.find(c => 
+                    const currentConsumable = currentConsumables.find(c =>
                         c._id === templateItem.consumable_id
                     );
-                    
+
                     if (currentConsumable) {
                         // Use current data from inventory
                         selectedConsumables.push({
                             consumable_id: currentConsumable._id,
-                            name: currentConsumable.name,
-                            cost: currentConsumable.price_per_unit || 0,
+                            name: currentConsumable.item_name || currentConsumable.name,
+                            cost: currentConsumable.unit_cost || currentConsumable.price_per_unit || 0,
                             quantity: templateItem.quantity
                         });
                     } else {
                         // Consumable no longer exists - show warning but include with stored data
-                        console.warn(`Consumable ${templateItem.name} (ID: ${templateItem.consumable_id}) no longer exists`);
-                        alert(`Warning: Consumable "${templateItem.name}" no longer exists in inventory. It will be skipped.`);
+                        const templateName = templateItem.name || templateItem.item_name;
+                        console.warn(`Consumable ${templateName} (ID: ${templateItem.consumable_id}) no longer exists`);
+                        alert(`Warning: Consumable "${templateName}" no longer exists in inventory. It will be skipped.`);
                     }
                 }
                 
@@ -768,21 +770,23 @@ async function loadTemplates() {
             
             const consumablesList = template.consumables.map(c => {
                 const currentConsumable = currentConsumables.find(curr => curr._id === c.consumable_id);
-                
+
                 if (currentConsumable) {
-                    const currentCost = (currentConsumable.price_per_unit || 0) * c.quantity;
+                    const currentCost = (currentConsumable.unit_cost || currentConsumable.price_per_unit || 0) * c.quantity;
                     totalCost += currentCost;
+                    const consumableName = currentConsumable.item_name || currentConsumable.name;
                     return `
                         <div style="display: flex; justify-content: space-between; padding: 4px 0;">
-                            <span>${currentConsumable.name} × ${c.quantity}</span>
+                            <span>${consumableName} × ${c.quantity}</span>
                             <span>£${currentCost.toFixed(2)}</span>
                         </div>
                     `;
                 } else {
                     hasInvalidItems = true;
+                    const templateName = c.name || c.item_name;
                     return `
                         <div style="display: flex; justify-content: space-between; padding: 4px 0; color: #ef4444;">
-                            <span>${c.name} × ${c.quantity} <em>(not found)</em></span>
+                            <span>${templateName} × ${c.quantity} <em>(not found)</em></span>
                             <span>-</span>
                         </div>
                     `;
@@ -847,29 +851,30 @@ async function addTemplateConsumable() {
     }
     
     // Show numbered list with prices and stock
-    const options = allConsumables.map((c, i) => 
-        `${i + 1}. ${c.name} - £${c.price_per_unit?.toFixed(2) || '0.00'} each (${c.quantity_in_stock || 0} in stock)`
+    const options = allConsumables.map((c, i) =>
+        `${i + 1}. ${c.item_name || c.name} - £${c.unit_cost?.toFixed(2) || c.price_per_unit?.toFixed(2) || '0.00'} each (${c.quantity_in_stock || 0} in stock)`
     ).join('\n');
-    
+
     const selection = prompt(`Select a consumable:\n\n${options}\n\nEnter number:`);
-    
+
     if (!selection) return;
-    
+
     const index = parseInt(selection) - 1;
     const consumable = allConsumables[index];
-    
+
     if (consumable) {
-        const quantity = parseInt(prompt(`How many ${consumable.name}?`, '1')) || 1;
-        
+        const consumableName = consumable.item_name || consumable.name;
+        const quantity = parseInt(prompt(`How many ${consumableName}?`, '1')) || 1;
+
         if (quantity < 1) {
             alert('Quantity must be at least 1');
             return;
         }
-        
+
         templateConsumables.push({
             consumable_id: consumable._id,
-            name: consumable.name,
-            cost: consumable.price_per_unit || 0,
+            name: consumableName,
+            cost: consumable.unit_cost || consumable.price_per_unit || 0,
             quantity: quantity
         });
         
