@@ -1882,10 +1882,166 @@ function setupTrackingModalListeners() {
     }
 }
 
+// ==========================================
+// VIEW PRODUCT MODAL FUNCTIONALITY
+// ==========================================
+
+let currentViewProductId = null;
+
+async function openViewProductModal(productId) {
+    currentViewProductId = productId;
+
+    const modal = document.getElementById('viewProductModal');
+    const productInfoDiv = document.getElementById('viewProductInfo');
+    const photosGrid = document.getElementById('photosGrid');
+
+    if (!modal) return;
+
+    // Show modal
+    modal.style.display = 'flex';
+
+    // Reset content
+    productInfoDiv.innerHTML = '<p><strong>Loading product details...</strong></p>';
+    photosGrid.innerHTML = '<p style="color: #666;">Loading photos...</p>';
+
+    try {
+        const response = await authenticatedFetch(`${API_BASE}/api/admin/product/${encodeURIComponent(String(productId))}`);
+
+        if (response.ok) {
+            const product = await response.json();
+
+            // Display product info
+            const partTypeMap = {
+                'left': 'Left AirPod',
+                'right': 'Right AirPod',
+                'case': 'Case'
+            };
+            const partType = partTypeMap[product.part_type] || product.part_type || 'Unknown';
+            const generation = product.generation || 'Unknown';
+            const serialNumber = product.serial_number || '—';
+            const securityBarcode = product.security_barcode || '—';
+            const dateAdded = product.date_added ? new Date(product.date_added).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+
+            productInfoDiv.innerHTML = `
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                    <p style="margin: 0;"><strong>Product:</strong> ${escapeHtml(generation)}</p>
+                    <p style="margin: 0;"><strong>Part Type:</strong> ${escapeHtml(partType)}</p>
+                    <p style="margin: 0;"><strong>Serial Number:</strong> ${escapeHtml(serialNumber)}</p>
+                    <p style="margin: 0;"><strong>Security Barcode:</strong> ${escapeHtml(securityBarcode)}</p>
+                    <p style="margin: 0;"><strong>Date Added:</strong> ${escapeHtml(dateAdded)}</p>
+                    ${product.ebay_order_number ? `<p style="margin: 0;"><strong>Purchase Order:</strong> ${escapeHtml(product.ebay_order_number)}</p>` : ''}
+                </div>
+            `;
+
+            // Display photos
+            if (product.photos && product.photos.length > 0) {
+                photosGrid.innerHTML = product.photos.map((photo, index) => {
+                    const photoUrl = photo.startsWith('/') ? photo : '/' + photo;
+                    return `
+                        <div style="position: relative; cursor: pointer;" onclick="openPhotoLightbox('${escapeHtml(photoUrl)}')">
+                            <img
+                                src="${escapeHtml(photoUrl)}"
+                                alt="Product photo ${index + 1}"
+                                style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px; border: 1px solid #e5e7eb;"
+                                onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTUwIiBoZWlnaHQ9IjE1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTUwIiBoZWlnaHQ9IjE1MCIgZmlsbD0iI2Y0ZjRmNSIvPjx0ZXh0IHg9Ijc1IiB5PSI3NSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE0IiBmaWxsPSIjOTk5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iMC4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg=='; this.style.objectFit='contain';"
+                            >
+                            <div style="position: absolute; bottom: 5px; right: 5px; background: rgba(0,0,0,0.6); color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">
+                                ${index + 1}/${product.photos.length}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                photosGrid.innerHTML = '<p style="color: #666; grid-column: 1/-1;">No photos uploaded for this product.</p>';
+            }
+        } else {
+            productInfoDiv.innerHTML = '<p style="color: red;">Failed to load product details</p>';
+            photosGrid.innerHTML = '';
+        }
+    } catch (error) {
+        console.error('Load product error:', error);
+        productInfoDiv.innerHTML = '<p style="color: red;">Network error loading product</p>';
+        photosGrid.innerHTML = '';
+    }
+}
+
+function closeViewProductModal() {
+    const modal = document.getElementById('viewProductModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+    currentViewProductId = null;
+}
+
+function openPhotoLightbox(photoUrl) {
+    const lightbox = document.getElementById('photoLightbox');
+    const lightboxImg = document.getElementById('lightboxImage');
+
+    if (lightbox && lightboxImg) {
+        lightboxImg.src = photoUrl;
+        lightbox.style.display = 'flex';
+    }
+}
+
+function closePhotoLightbox() {
+    const lightbox = document.getElementById('photoLightbox');
+    if (lightbox) {
+        lightbox.style.display = 'none';
+    }
+}
+
+// Set up view product modal listeners
+function setupViewProductModalListeners() {
+    const modal = document.getElementById('viewProductModal');
+    const closeBtn = document.getElementById('closeViewProductModal');
+    const closeFooterBtn = document.getElementById('closeViewProductBtn');
+    const lightbox = document.getElementById('photoLightbox');
+    const closeLightboxBtn = document.getElementById('closeLightbox');
+
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeViewProductModal);
+    }
+
+    if (closeFooterBtn) {
+        closeFooterBtn.addEventListener('click', closeViewProductModal);
+    }
+
+    // Close modal when clicking outside
+    if (modal) {
+        modal.addEventListener('click', function(event) {
+            if (event.target === modal) {
+                closeViewProductModal();
+            }
+        });
+    }
+
+    // Lightbox close
+    if (closeLightboxBtn) {
+        closeLightboxBtn.addEventListener('click', closePhotoLightbox);
+    }
+
+    if (lightbox) {
+        lightbox.addEventListener('click', function(event) {
+            if (event.target === lightbox) {
+                closePhotoLightbox();
+            }
+        });
+    }
+}
+
+// Set up view modal listeners when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupViewProductModalListeners);
+} else {
+    setupViewProductModalListeners();
+}
+
 // Make functions available globally
 window.deleteProduct = deleteProduct;
 window.editProduct = editProduct;
 window.openTrackingModal = openTrackingModal;
+window.openViewProductModal = openViewProductModal;
+window.openPhotoLightbox = openPhotoLightbox;
 window.authenticatedFetch = authenticatedFetch;
 
 // Cancel edit button

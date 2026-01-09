@@ -136,6 +136,7 @@ async function renderProductsTable(products) {
                             </svg>
                         </button>
                         <div class="actions-dropdown" id="actions-${escapeHtml(String(product.id))}">
+                            <button onclick="openViewProductModal('${escapeHtml(String(product.id))}')">View</button>
                             <button onclick="openTrackingModal('${escapeHtml(String(product.id))}')">Add Tracking</button>
                             <button onclick="editProduct('${escapeHtml(String(product.id))}')">Edit</button>
                             <button onclick="deleteProduct('${escapeHtml(String(product.id))}')">Delete</button>
