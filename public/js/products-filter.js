@@ -522,6 +522,9 @@ async function renderProducts(products) {
                 <td>${daysRemaining}</td>
                 <td>
                     <div class="action-buttons">
+                        <button class="view-button" data-action="view" data-product-id="${escapeHtml(String(product.id))}">
+                            View
+                        </button>
                         <button class="track-button" data-action="track" data-product-id="${escapeHtml(String(product.id))}">
                             Track
                         </button>
@@ -691,6 +694,15 @@ function attachEventListeners() {
             const productId = e.target.getAttribute('data-product-id');
             if (productId && typeof openTrackingModal === 'function') {
                 openTrackingModal(productId);
+            }
+        });
+    });
+
+    tableBody.querySelectorAll('[data-action="view"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const productId = e.target.getAttribute('data-product-id');
+            if (productId && typeof openViewProductModal === 'function') {
+                openViewProductModal(productId);
             }
         });
     });
