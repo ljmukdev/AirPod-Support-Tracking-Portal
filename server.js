@@ -1961,6 +1961,45 @@ app.get('/api/admin/products/lookup-barcode', requireAuth, requireDB, async (req
     }
 });
 
+// Search for product by serial number or security barcode
+app.get('/api/admin/products/search', requireAuth, requireDB, async (req, res) => {
+    const query = req.query.q?.trim().toUpperCase();
+    
+    if (!query) {
+        return res.status(400).json({ error: 'Search query parameter (q) is required' });
+    }
+    
+    console.log('[PRODUCTS] Searching for product:', query);
+    
+    try {
+        // Search by serial number OR security barcode
+        const product = await db.collection('products').findOne({ 
+            $or: [
+                { serial_number: query },
+                { security_barcode: query }
+            ]
+        });
+        
+        if (!product) {
+            console.log('[PRODUCTS] No product found matching:', query);
+            return res.status(404).json({ error: 'Product not found' });
+        }
+        
+        console.log('[PRODUCTS] Found product:', product._id);
+        
+        // Convert ObjectId to string
+        const productData = {
+            ...product,
+            _id: product._id.toString()
+        };
+        
+        res.json({ product: productData });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // Update product (Admin only)
 app.put('/api/admin/product/:id', requireAuth, requireDB, (req, res, next) => {
     // Use multer middleware for file uploads (optional)

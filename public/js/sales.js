@@ -897,4 +897,3 @@ window.closeCreateTemplateModal = closeCreateTemplateModal;
 window.removeTemplateConsumable = removeTemplateConsumable;
 
 })(); // End of IIFE
-})(); // End of IIFE
