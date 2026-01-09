@@ -9084,6 +9084,7 @@ async function buildSalesLedger(db) {
                 order_number: product.sales_order_number || null,
                 sale_price: salePrice,
                 sale_date: saleDate,
+                product_cost: productCost,
                 total_cost: totalCost,
                 profit: salePrice - totalCost,
                 notes: product.sale_notes || '',
@@ -9092,6 +9093,7 @@ async function buildSalesLedger(db) {
                 transaction_fees: transactionFees,
                 postage_label_cost: postageLabelCost,
                 ad_fee_general: adFeeGeneral,
+                consumables_cost: 0,
                 order_total: parseFloat(product.order_total) || null,
                 outward_tracking_number: product.outward_tracking_number || null
             };

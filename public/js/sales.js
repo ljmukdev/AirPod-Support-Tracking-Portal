@@ -126,19 +126,28 @@ function displaySales(sales) {
     const tbody = document.getElementById('salesTableBody');
     
     if (!sales || sales.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 40px;">No sales found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 40px;">No sales found</td></tr>';
         return;
     }
     
     tbody.innerHTML = sales.map(sale => {
         const saleDate = new Date(sale.sale_date).toLocaleDateString();
-        const salePrice = typeof sale.sale_price === 'number' ? sale.sale_price : 0;
-        const totalCost = typeof sale.total_cost === 'number' ? sale.total_cost : 0;
+        const amountPaid = typeof sale.order_total === 'number'
+            ? sale.order_total
+            : (typeof sale.sale_price === 'number' ? sale.sale_price : 0);
+        const purchasePrice = typeof sale.product_cost === 'number' ? sale.product_cost : 0;
+        const transactionFees = typeof sale.transaction_fees === 'number' ? sale.transaction_fees : 0;
+        const adFeeGeneral = typeof sale.ad_fee_general === 'number' ? sale.ad_fee_general : 0;
+        const feesTotal = transactionFees + adFeeGeneral;
+        const postageCost = typeof sale.postage_label_cost === 'number' ? sale.postage_label_cost : 0;
+        const consumablesCost = typeof sale.consumables_cost === 'number' ? sale.consumables_cost : 0;
+        const totalCost = typeof sale.total_cost === 'number'
+            ? sale.total_cost
+            : (purchasePrice + feesTotal + postageCost + consumablesCost);
         const profitValue = typeof sale.profit === 'number'
             ? sale.profit
-            : (salePrice - totalCost);
+            : (amountPaid - totalCost);
         const profit = profitValue.toFixed(2);
-        const margin = salePrice > 0 ? ((profitValue / salePrice) * 100).toFixed(1) : '0.0';
         const profitColor = profitValue >= 0 ? '#10b981' : '#ef4444';
         
         return `
@@ -153,10 +162,17 @@ function displaySales(sales) {
                     <div>${sale.order_number || 'N/A'}</div>
                     ${sale.outward_tracking_number ? `<div style="font-size: 0.85rem; color: #666;">Tracking: ${sale.outward_tracking_number}</div>` : ''}
                 </td>
-                <td style="font-weight: 600;">£${salePrice.toFixed(2)}</td>
-                <td>£${totalCost.toFixed(2)}</td>
+                <td style="font-weight: 600;">£${amountPaid.toFixed(2)}</td>
+                <td>£${purchasePrice.toFixed(2)}</td>
+                <td>
+                    £${feesTotal.toFixed(2)}
+                    ${(transactionFees || adFeeGeneral)
+                        ? `<div style="font-size: 0.8rem; color: #666;">(${transactionFees.toFixed(2)} fees + ${adFeeGeneral.toFixed(2)} ad)</div>`
+                        : ''}
+                </td>
+                <td>£${postageCost.toFixed(2)}</td>
+                <td>£${consumablesCost.toFixed(2)}</td>
                 <td style="font-weight: 700; color: ${profitColor};">£${profit}</td>
-                <td style="font-weight: 600; color: ${profitColor};">${margin}%</td>
                 <td>
                     <button class="button-icon" onclick="viewSale('${sale._id}')" title="Edit Sale">
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
