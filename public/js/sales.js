@@ -146,7 +146,7 @@ function displaySales(sales) {
     }
 
     if (!filtered || filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="11" class="table-loading">No sales found matching filters</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="12" class="table-loading">No sales found matching filters</td></tr>';
         return;
     }
 
@@ -169,7 +169,17 @@ function displaySales(sales) {
             : (amountPaid - totalCost);
         const profit = profitValue.toFixed(2);
         const profitColor = profitValue >= 0 ? '#10b981' : '#ef4444';
-        
+
+        // Sales order number as clickable link to edit sale
+        const salesOrderLink = sale.order_number
+            ? `<a href="#" onclick="editSale('${sale._id}'); return false;" style="color: #0ea5e9; text-decoration: none; font-weight: 500;">${sale.order_number}</a>`
+            : 'N/A';
+
+        // Purchase order number as clickable link to purchases page
+        const purchaseOrderLink = sale.purchase_order_number
+            ? `<a href="purchases.html?order=${encodeURIComponent(sale.purchase_order_number)}" style="color: #0ea5e9; text-decoration: none; font-weight: 500;">${sale.purchase_order_number}</a>`
+            : '<span style="color: #999;">N/A</span>';
+
         return `
             <tr>
                 <td>${saleDate}</td>
@@ -179,9 +189,10 @@ function displaySales(sales) {
                 </td>
                 <td>${sale.platform || 'N/A'}</td>
                 <td>
-                    <div>${sale.order_number || 'N/A'}</div>
+                    <div>${salesOrderLink}</div>
                     ${sale.outward_tracking_number ? `<div style="font-size: 0.85rem; color: #666;">Tracking: ${sale.outward_tracking_number}</div>` : ''}
                 </td>
+                <td>${purchaseOrderLink}</td>
                 <td style="font-weight: 600;">£${amountPaid.toFixed(2)}</td>
                 <td>£${purchasePrice.toFixed(2)}</td>
                 <td>
