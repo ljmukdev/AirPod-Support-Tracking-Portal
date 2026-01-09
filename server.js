@@ -9056,10 +9056,61 @@ app.get('/api/setup-instructions/:identifier', requireDB, async (req, res) => {
 
 // ===== SALES & P/L API ENDPOINTS =====
 
+async function buildSalesLedger(db) {
+    const sales = await db.collection('sales').find({}).toArray();
+    const salesByProduct = new Set(sales.map(sale => String(sale.product_id || '')));
+
+    const productsWithSales = await db.collection('products').find({
+        sales_order_number: { $exists: true, $ne: '' }
+    }).toArray();
+
+    const derivedSales = productsWithSales
+        .filter(product => !salesByProduct.has(String(product._id)))
+        .map(product => {
+            const salePrice = parseFloat(product.order_total || product.sale_price) || 0;
+            const transactionFees = parseFloat(product.transaction_fees) || 0;
+            const postageLabelCost = parseFloat(product.postage_label_cost) || 0;
+            const adFeeGeneral = parseFloat(product.ad_fee_general) || 0;
+            const productCost = parseFloat(product.purchase_price) || 0;
+            const totalCost = productCost + transactionFees + postageLabelCost + adFeeGeneral;
+            const saleDate = product.sale_date ? new Date(product.sale_date) : null;
+
+            return {
+                _id: `product-${product._id}`,
+                product_id: product._id,
+                product_name: product.product_name || product.generation || 'Unknown Product',
+                product_serial: product.serial_number || 'N/A',
+                platform: 'Product Record',
+                order_number: product.sales_order_number || null,
+                sale_price: salePrice,
+                sale_date: saleDate,
+                total_cost: totalCost,
+                profit: salePrice - totalCost,
+                notes: product.sale_notes || '',
+                subtotal: parseFloat(product.subtotal) || 0,
+                postage_charged: parseFloat(product.postage_charged) || 0,
+                transaction_fees: transactionFees,
+                postage_label_cost: postageLabelCost,
+                ad_fee_general: adFeeGeneral,
+                order_total: parseFloat(product.order_total) || null,
+                outward_tracking_number: product.outward_tracking_number || null
+            };
+        });
+
+    const combinedSales = [...sales, ...derivedSales];
+    combinedSales.sort((a, b) => {
+        const aDate = a.sale_date ? new Date(a.sale_date) : new Date(0);
+        const bDate = b.sale_date ? new Date(b.sale_date) : new Date(0);
+        return bDate - aDate;
+    });
+
+    return combinedSales;
+}
+
 // Get all sales with P&L calculations
 app.get('/api/admin/sales', requireAuth, requireDB, async (req, res) => {
     try {
-        const sales = await db.collection('sales').find({}).sort({ sale_date: -1 }).toArray();
+        const sales = await buildSalesLedger(db);
         res.json({ success: true, sales });
     } catch (err) {
         console.error('Error fetching sales:', err);
@@ -9070,7 +9121,7 @@ app.get('/api/admin/sales', requireAuth, requireDB, async (req, res) => {
 // Get sales summary (total revenue, costs, profit)
 app.get('/api/admin/sales/summary', requireAuth, requireDB, async (req, res) => {
     try {
-        const sales = await db.collection('sales').find({}).toArray();
+        const sales = await buildSalesLedger(db);
         
         const summary = {
             total_revenue: 0,
@@ -9224,6 +9275,133 @@ app.get('/api/admin/sales/:id', requireAuth, requireDB, async (req, res) => {
         res.json({ success: true, sale });
     } catch (err) {
         console.error('Error fetching sale:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Update sale (including consumables)
+app.put('/api/admin/sales/:id', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid sale ID' });
+    }
+    
+    try {
+        const existingSale = await db.collection('sales').findOne({ _id: new ObjectId(id) });
+        
+        if (!existingSale) {
+            return res.status(404).json({ error: 'Sale not found' });
+        }
+        
+        const {
+            product_id,
+            product_name,
+            product_serial,
+            product_cost,
+            platform,
+            order_number,
+            sale_price,
+            sale_date,
+            consumables,
+            consumables_cost,
+            total_cost,
+            notes,
+            subtotal,
+            postage_charged,
+            transaction_fees,
+            postage_label_cost,
+            ad_fee_general,
+            order_total,
+            outward_tracking_number
+        } = req.body;
+        
+        if (product_id && String(product_id) !== String(existingSale.product_id)) {
+            return res.status(400).json({ error: 'Editing the product for a sale is not supported' });
+        }
+        
+        const updatedConsumables = Array.isArray(consumables) ? consumables : existingSale.consumables || [];
+        const oldConsumables = existingSale.consumables || [];
+        const oldMap = new Map(oldConsumables.map(item => [String(item.consumable_id), item.quantity || 0]));
+        const newMap = new Map(updatedConsumables.map(item => [String(item.consumable_id), item.quantity || 0]));
+        const allConsumableIds = new Set([...oldMap.keys(), ...newMap.keys()]);
+        
+        for (const consumableId of allConsumableIds) {
+            const oldQty = oldMap.get(consumableId) || 0;
+            const newQty = newMap.get(consumableId) || 0;
+            const delta = newQty - oldQty;
+            
+            if (!delta) continue;
+            
+            await db.collection('consumables').updateOne(
+                { _id: new ObjectId(consumableId) },
+                { 
+                    $inc: { quantity_in_stock: -delta },
+                    $push: {
+                        usage_history: {
+                            date: new Date(),
+                            quantity: Math.abs(delta),
+                            reason: `Sale update: ${order_number || existingSale.order_number || existingSale.product_name}`,
+                            user: req.user.email
+                        }
+                    }
+                }
+            );
+        }
+        
+        const normalizedSalePrice = parseFloat(order_total || sale_price || existingSale.sale_price) || 0;
+        const normalizedTotalCost = parseFloat(total_cost ?? existingSale.total_cost) || 0;
+        
+        const updateData = {
+            product_name: product_name || existingSale.product_name,
+            product_serial: product_serial || existingSale.product_serial,
+            product_cost: parseFloat(product_cost ?? existingSale.product_cost) || 0,
+            platform: platform || existingSale.platform,
+            order_number: order_number || existingSale.order_number,
+            sale_price: normalizedSalePrice,
+            sale_date: sale_date ? new Date(sale_date) : existingSale.sale_date,
+            consumables: updatedConsumables,
+            consumables_cost: parseFloat(consumables_cost ?? existingSale.consumables_cost) || 0,
+            total_cost: normalizedTotalCost,
+            profit: normalizedSalePrice - normalizedTotalCost,
+            notes: notes ?? existingSale.notes ?? '',
+            subtotal: parseFloat(subtotal ?? existingSale.subtotal) || 0,
+            postage_charged: parseFloat(postage_charged ?? existingSale.postage_charged) || 0,
+            transaction_fees: parseFloat(transaction_fees ?? existingSale.transaction_fees) || 0,
+            postage_label_cost: parseFloat(postage_label_cost ?? existingSale.postage_label_cost) || 0,
+            ad_fee_general: parseFloat(ad_fee_general ?? existingSale.ad_fee_general) || 0,
+            order_total: order_total !== undefined ? parseFloat(order_total) || 0 : existingSale.order_total || null,
+            outward_tracking_number: outward_tracking_number ? outward_tracking_number.trim() : existingSale.outward_tracking_number || null
+        };
+        
+        await db.collection('sales').updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updateData }
+        );
+        
+        await db.collection('products').updateOne(
+            { _id: new ObjectId(existingSale.product_id) },
+            { 
+                $set: {
+                    status: 'sold',
+                    sales_order_number: updateData.order_number,
+                    sale_date: updateData.sale_date,
+                    sale_price: updateData.sale_price,
+                    subtotal: updateData.subtotal,
+                    postage_charged: updateData.postage_charged,
+                    transaction_fees: updateData.transaction_fees,
+                    postage_label_cost: updateData.postage_label_cost,
+                    ad_fee_general: updateData.ad_fee_general,
+                    order_total: updateData.order_total,
+                    outward_tracking_number: updateData.outward_tracking_number,
+                    sale_notes: updateData.notes
+                }
+            }
+        );
+        
+        res.json({ success: true, message: 'Sale updated successfully' });
+    } catch (err) {
+        console.error('Error updating sale:', err);
         res.status(500).json({ error: 'Database error: ' + err.message });
     }
 });
