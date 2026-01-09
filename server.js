@@ -2381,6 +2381,53 @@ app.put('/api/admin/product/:id/sales-order', requireAuth, requireDB, async (req
 
 // ===== PURCHASES MANAGEMENT API ENDPOINTS =====
 
+// Migration endpoint: Sync existing refund_received to refund_amount
+app.post('/api/admin/purchases/migrate-refunds', requireAuth, requireDB, async (req, res) => {
+    try {
+        console.log('[MIGRATION] Starting refund sync migration...');
+
+        // Find all purchases that have refund_received but no refund_amount
+        const purchasesWithRefunds = await db.collection('purchases').find({
+            refund_received: { $exists: true, $gt: 0 },
+            $or: [
+                { refund_amount: { $exists: false } },
+                { refund_amount: 0 }
+            ]
+        }).toArray();
+
+        console.log(`[MIGRATION] Found ${purchasesWithRefunds.length} purchases with refunds to migrate`);
+
+        let updated = 0;
+        const details = [];
+
+        for (const purchase of purchasesWithRefunds) {
+            const refundValue = parseFloat(purchase.refund_received);
+
+            await db.collection('purchases').updateOne(
+                { _id: purchase._id },
+                { $set: { refund_amount: refundValue } }
+            );
+
+            const detail = `Synced £${refundValue.toFixed(2)} refund for purchase ${purchase.order_number || purchase._id}`;
+            console.log(`[MIGRATION] ${detail}`);
+            details.push(detail);
+            updated++;
+        }
+
+        console.log(`[MIGRATION] Complete! Updated ${updated} purchase records.`);
+
+        res.json({
+            success: true,
+            message: `Successfully synced ${updated} refund amounts`,
+            updated: updated,
+            details: details
+        });
+    } catch (err) {
+        console.error('[MIGRATION] Error:', err);
+        res.status(500).json({ error: 'Migration failed: ' + err.message });
+    }
+});
+
 // Get all purchases (Admin only)
 app.get('/api/admin/purchases', requireAuth, requireDB, async (req, res) => {
     try {
@@ -4502,13 +4549,26 @@ app.post('/api/admin/check-in/:id/mark-resolved', requireAuth, requireDB, async 
             // If partial/full refund received immediately, update purchase cost
             if (refund_amount && parseFloat(refund_amount) > 0) {
                 const purchase = await db.collection('purchases').findOne({ _id: new ObjectId(checkIn.purchase_id) });
-                if (purchase && purchase.total_price_paid) {
-                    const newTotal = Math.max(0, purchase.total_price_paid - parseFloat(refund_amount));
+                if (purchase) {
+                    const refundValue = parseFloat(refund_amount);
+                    const updateFields = {
+                        refund_received: refundValue,
+                        refund_amount: refundValue  // Sync to refund_amount for part value calculation
+                    };
+
+                    // Update legacy total_price_paid if it exists
+                    if (purchase.total_price_paid) {
+                        const newTotal = Math.max(0, purchase.total_price_paid - refundValue);
+                        updateFields.total_price_paid = newTotal;
+                        console.log(`[WORKFLOW] Updated purchase total from £${purchase.total_price_paid} to £${newTotal} (refund: £${refund_amount})`);
+                    }
+
                     await db.collection('purchases').updateOne(
                         { _id: new ObjectId(checkIn.purchase_id) },
-                        { $set: { total_price_paid: newTotal, refund_received: parseFloat(refund_amount) } }
+                        { $set: updateFields }
                     );
-                    console.log(`[WORKFLOW] Updated purchase total from £${purchase.total_price_paid} to £${newTotal} (refund: £${refund_amount})`);
+
+                    console.log(`[WORKFLOW] Synced refund amount (£${refund_amount}) to purchase record for part value calculation`);
                 }
             }
         }
@@ -4763,19 +4823,22 @@ app.post('/api/admin/purchases/:id/confirm-refund', requireAuth, requireDB, asyn
         // Update purchase record
         await db.collection('purchases').updateOne(
             { _id: new ObjectId(id) },
-            { 
-                $set: { 
+            {
+                $set: {
                     'return_tracking.refund_verified': true,
                     'return_tracking.refund_verified_at': now,
                     'return_tracking.actual_refund_amount': refundValue,
                     total_price_paid: newCost,
                     refund_received: refundValue,
+                    refund_amount: refundValue,  // Sync to refund_amount for part value calculation
                     status: 'refunded',
                     last_updated_at: now,
                     last_updated_by: req.user.email
                 }
             }
         );
+
+        console.log(`[REFUND-VERIFY] Synced refund amount (£${refund_amount}) to purchase record for part value calculation`);
 
         // If items were split into products, update their purchase prices proportionally
         const checkIns = await db.collection('check_ins').find({
