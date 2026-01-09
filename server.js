@@ -9194,6 +9194,25 @@ async function buildSalesLedger(db) {
     const sales = await db.collection('sales').find({}).toArray();
     const salesByProduct = new Set(sales.map(sale => String(sale.product_id || '')));
 
+    // Enrich sales with purchase order number from products
+    const productIds = sales.map(sale => sale.product_id).filter(Boolean);
+    const products = await db.collection('products').find({
+        _id: { $in: productIds.map(id => new ObjectId(id)) }
+    }).toArray();
+
+    const productMap = {};
+    products.forEach(product => {
+        productMap[product._id.toString()] = product;
+    });
+
+    // Add purchase_order_number to sales from products
+    sales.forEach(sale => {
+        const product = productMap[String(sale.product_id)];
+        if (product && product.ebay_order_number) {
+            sale.purchase_order_number = product.ebay_order_number;
+        }
+    });
+
     const productsWithSales = await db.collection('products').find({
         sales_order_number: { $exists: true, $ne: '' }
     }).toArray();
@@ -9216,6 +9235,7 @@ async function buildSalesLedger(db) {
                 product_serial: product.serial_number || 'N/A',
                 platform: 'Product Record',
                 order_number: product.sales_order_number || null,
+                purchase_order_number: product.ebay_order_number || null,  // Add purchase order number
                 sale_price: salePrice,
                 sale_date: saleDate,
                 product_cost: productCost,
