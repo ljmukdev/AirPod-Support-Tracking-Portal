@@ -242,32 +242,32 @@
                                 + Add Consumable
                             </button>
                         </div>
-                        <div id="consumablesList" style="border: 1px solid #ddd; border-radius: 6px; padding: 10px; min-height: 100px;">
+                        <div id="consumablesList" style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px; min-height: 100px; background: #fafafa;">
                             <p style="text-align: center; color: #999;">No consumables added yet</p>
                         </div>
-                        <div style="margin-top: 10px; padding: 10px; background: #f9fafb; border-radius: 6px;">
-                            <strong>Consumables Cost: £<span id="consumablesCost">0.00</span></strong>
+                        <div style="margin-top: 10px; padding: 10px; background: transparent; border-radius: 6px; border: 1px solid #e5e7eb; text-align: right;">
+                            <strong style="color: #111;">Total Consumables: £<span id="consumablesCost">0.00</span></strong>
                         </div>
                     </div>
 
                     <!-- P&L Preview -->
-                    <div style="margin-top: 20px; padding: 15px; background: #f0f9ff; border-radius: 6px; border: 1px solid #bfdbfe;">
-                        <h3 style="margin: 0 0 10px 0; font-size: 16px;">Profit/Loss Preview</h3>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div style="margin-top: 20px; padding: 15px; background: transparent; border-radius: 6px; border: 2px solid #e5e7eb; border-left: 4px solid #3b82f6;">
+                        <h3 style="margin: 0 0 15px 0; font-size: 16px; color: #111;">Profit/Loss Preview</h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                             <div>
-                                <div style="color: #666; font-size: 14px;">Sale Price:</div>
-                                <div style="font-size: 18px; font-weight: 600;">£<span id="previewSalePrice">0.00</span></div>
+                                <div style="color: #6b7280; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Sale Price</div>
+                                <div style="font-size: 18px; font-weight: 600; color: #111;">£<span id="previewSalePrice">0.00</span></div>
                             </div>
                             <div>
-                                <div style="color: #666; font-size: 14px;">Product Cost:</div>
-                                <div style="font-size: 18px;">£<span id="previewProductCost">0.00</span></div>
+                                <div style="color: #6b7280; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Product Cost</div>
+                                <div style="font-size: 18px; color: #111;">£<span id="previewProductCost">0.00</span></div>
                             </div>
                             <div>
-                                <div style="color: #666; font-size: 14px;">Consumables Cost:</div>
-                                <div style="font-size: 18px;">£<span id="previewConsumablesCost">0.00</span></div>
+                                <div style="color: #6b7280; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Consumables Cost</div>
+                                <div style="font-size: 18px; color: #111;">£<span id="previewConsumablesCost">0.00</span></div>
                             </div>
                             <div>
-                                <div style="color: #666; font-size: 14px;">Profit:</div>
+                                <div style="color: #6b7280; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Profit</div>
                                 <div style="font-size: 20px; font-weight: 700;" id="previewProfit">£0.00</div>
                             </div>
                         </div>

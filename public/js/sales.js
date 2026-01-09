@@ -270,8 +270,10 @@ async function lookupProductByBarcode(barcode) {
     
     try {
         statusDiv.style.display = 'block';
-        statusDiv.style.backgroundColor = '#f3f4f6';
+        statusDiv.style.backgroundColor = 'transparent';
         statusDiv.style.color = '#666';
+        statusDiv.style.border = '1px solid #d1d5db';
+        statusDiv.style.borderLeft = '4px solid #9ca3af';
         statusDiv.textContent = 'Looking up product...';
         
         const response = await authenticatedFetch(`${API_BASE}/api/admin/products/lookup-barcode?barcode=${encodeURIComponent(barcode)}`);
@@ -282,35 +284,43 @@ async function lookupProductByBarcode(barcode) {
             
             // Check if product is available for sale
             if (product.sales_order_number || product.status === 'sold' || product.status === 'faulty') {
-                statusDiv.style.backgroundColor = '#fee2e2';
+                statusDiv.style.backgroundColor = 'transparent';
                 statusDiv.style.color = '#dc2626';
-                statusDiv.innerHTML = `<strong>❌ Product Not Available</strong><br>This product has already been sold or is marked as faulty.`;
+                statusDiv.style.border = '1px solid #ef4444';
+                statusDiv.style.borderLeft = '4px solid #ef4444';
+                statusDiv.innerHTML = `<strong>❌ Product Not Available</strong><br><span style="color: #666; font-size: 0.9rem;">This product has already been sold or is marked as faulty.</span>`;
                 selectedProductId.value = '';
                 productCost = 0;
             } else {
                 const displayName = product.product_name || product.product_type || getDisplayName(product.part_type, product.generation);
-                statusDiv.style.backgroundColor = '#d1fae5';
-                statusDiv.style.color = '#065f46';
+                statusDiv.style.backgroundColor = 'transparent';
+                statusDiv.style.color = '#059669';
+                statusDiv.style.border = '1px solid #10b981';
+                statusDiv.style.borderLeft = '4px solid #10b981';
                 statusDiv.innerHTML = `
                     <strong>✅ Product Found:</strong> ${displayName}<br>
-                    Serial: ${product.serial_number || 'N/A'} | Cost: £${(product.purchase_price || 0).toFixed(2)}
+                    <span style="color: #666; font-size: 0.9rem;">Serial: ${product.serial_number || 'N/A'} | Cost: £${(product.purchase_price || 0).toFixed(2)}</span>
                 `;
                 selectedProductId.value = product._id;
                 productCost = product.purchase_price || 0;
                 updatePreview();
             }
         } else {
-            statusDiv.style.backgroundColor = '#fee2e2';
+            statusDiv.style.backgroundColor = 'transparent';
             statusDiv.style.color = '#dc2626';
-            statusDiv.innerHTML = '<strong>❌ Product Not Found</strong><br>No product with this serial number or security barcode exists.';
+            statusDiv.style.border = '1px solid #ef4444';
+            statusDiv.style.borderLeft = '4px solid #ef4444';
+            statusDiv.innerHTML = '<strong>❌ Product Not Found</strong><br><span style="color: #666; font-size: 0.9rem;">No product with this serial number or security barcode exists.</span>';
             selectedProductId.value = '';
             productCost = 0;
             updatePreview();
         }
     } catch (error) {
         console.error('Error looking up barcode:', error);
-        statusDiv.style.backgroundColor = '#fee2e2';
+        statusDiv.style.backgroundColor = 'transparent';
         statusDiv.style.color = '#dc2626';
+        statusDiv.style.border = '1px solid #ef4444';
+        statusDiv.style.borderLeft = '4px solid #ef4444';
         statusDiv.textContent = '❌ Error looking up product. Please try again.';
         selectedProductId.value = '';
         productCost = 0;
@@ -355,8 +365,10 @@ async function searchAccessories(query) {
         if (!data.products || data.products.length === 0) {
             resultsDiv.style.display = 'none';
             statusDiv.style.display = 'block';
-            statusDiv.style.backgroundColor = '#fee2e2';
+            statusDiv.style.backgroundColor = 'transparent';
             statusDiv.style.color = '#dc2626';
+            statusDiv.style.border = '1px solid #ef4444';
+            statusDiv.style.borderLeft = '4px solid #ef4444';
             statusDiv.textContent = 'No accessories available for sale';
             return;
         }
@@ -382,8 +394,10 @@ async function searchAccessories(query) {
         if (products.length === 0) {
             resultsDiv.style.display = 'none';
             statusDiv.style.display = 'block';
-            statusDiv.style.backgroundColor = '#fef3c7';
-            statusDiv.style.color = '#92400e';
+            statusDiv.style.backgroundColor = 'transparent';
+            statusDiv.style.color = '#d97706';
+            statusDiv.style.border = '1px solid #f59e0b';
+            statusDiv.style.borderLeft = '4px solid #f59e0b';
             statusDiv.textContent = `No accessories found matching "${query}"`;
             return;
         }
@@ -418,8 +432,10 @@ async function searchAccessories(query) {
         console.error('Error searching accessories:', error);
         resultsDiv.style.display = 'none';
         statusDiv.style.display = 'block';
-        statusDiv.style.backgroundColor = '#fee2e2';
+        statusDiv.style.backgroundColor = 'transparent';
         statusDiv.style.color = '#dc2626';
+        statusDiv.style.border = '1px solid #ef4444';
+        statusDiv.style.borderLeft = '4px solid #ef4444';
         statusDiv.textContent = 'Error searching accessories. Please try again.';
     }
 }
@@ -440,11 +456,13 @@ function selectAccessory(productId, name, serial, cost) {
     // Hide results, show selection confirmation
     resultsDiv.style.display = 'none';
     statusDiv.style.display = 'block';
-    statusDiv.style.backgroundColor = '#d1fae5';
-    statusDiv.style.color = '#065f46';
+    statusDiv.style.backgroundColor = 'transparent';
+    statusDiv.style.color = '#059669';
+    statusDiv.style.border = '1px solid #10b981';
+    statusDiv.style.borderLeft = '4px solid #10b981';
     statusDiv.innerHTML = `
         <strong>✅ Selected:</strong> ${name}<br>
-        Serial: ${serial} | Cost: £${cost.toFixed(2)}
+        <span style="color: #666; font-size: 0.9rem;">Serial: ${serial} | Cost: £${cost.toFixed(2)}</span>
     `;
 
     updatePreview();
