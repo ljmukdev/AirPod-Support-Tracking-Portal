@@ -95,6 +95,15 @@ function setupEventListeners() {
     document.getElementById('consumablePickerConfirm')?.addEventListener('click', handleConsumablePickerConfirm);
 }
 
+function normalizeConsumableId(value) {
+    return value ? String(value) : '';
+}
+
+function normalizeQuantity(value) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+}
+
 // ===== SALES LIST =====
 
 async function loadSales() {
@@ -123,9 +132,14 @@ function displaySales(sales) {
     
     tbody.innerHTML = sales.map(sale => {
         const saleDate = new Date(sale.sale_date).toLocaleDateString();
-        const profit = (sale.sale_price - sale.total_cost).toFixed(2);
-        const margin = sale.sale_price > 0 ? ((profit / sale.sale_price) * 100).toFixed(1) : '0.0';
-        const profitColor = profit >= 0 ? '#10b981' : '#ef4444';
+        const salePrice = typeof sale.sale_price === 'number' ? sale.sale_price : 0;
+        const totalCost = typeof sale.total_cost === 'number' ? sale.total_cost : 0;
+        const profitValue = typeof sale.profit === 'number'
+            ? sale.profit
+            : (salePrice - totalCost);
+        const profit = profitValue.toFixed(2);
+        const margin = salePrice > 0 ? ((profitValue / salePrice) * 100).toFixed(1) : '0.0';
+        const profitColor = profitValue >= 0 ? '#10b981' : '#ef4444';
         
         return `
             <tr>
@@ -135,13 +149,16 @@ function displaySales(sales) {
                     <div style="font-size: 0.85rem; color: #666;">${sale.product_serial || 'N/A'}</div>
                 </td>
                 <td>${sale.platform || 'N/A'}</td>
-                <td>${sale.order_number || 'N/A'}</td>
-                <td style="font-weight: 600;">£${sale.sale_price.toFixed(2)}</td>
-                <td>£${sale.total_cost.toFixed(2)}</td>
+                <td>
+                    <div>${sale.order_number || 'N/A'}</div>
+                    ${sale.outward_tracking_number ? `<div style="font-size: 0.85rem; color: #666;">Tracking: ${sale.outward_tracking_number}</div>` : ''}
+                </td>
+                <td style="font-weight: 600;">£${salePrice.toFixed(2)}</td>
+                <td>£${totalCost.toFixed(2)}</td>
                 <td style="font-weight: 700; color: ${profitColor};">£${profit}</td>
                 <td style="font-weight: 600; color: ${profitColor};">${margin}%</td>
                 <td>
-                    <button class="button-icon" onclick="viewSale('${sale._id}')" title="View Details">
+                    <button class="button-icon" onclick="viewSale('${sale._id}')" title="Edit Sale">
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                             <path d="M8 3C4.5 3 2 8 2 8s2.5 5 6 5 6-5 6-5-2.5-5-6-5z" stroke="currentColor" stroke-width="1.5"/>
                             <circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.5"/>
@@ -480,6 +497,7 @@ async function openAddSaleModal() {
     currentSaleId = null;
     selectedConsumables = [];
     productCost = 0;
+    setSaleEditingState(false);
     
     document.getElementById('saleModalTitle').textContent = 'Add Sale';
     document.getElementById('saleForm').reset();
@@ -499,6 +517,94 @@ async function openAddSaleModal() {
     updatePreview();
     
     document.getElementById('saleModal').style.display = 'flex';
+}
+
+function setSaleEditingState(isEditing) {
+    const selectionInputs = document.querySelectorAll('input[name="selectionMethod"]');
+    selectionInputs.forEach(input => {
+        input.disabled = isEditing;
+    });
+
+    const barcodeInput = document.getElementById('saleBarcode');
+    if (barcodeInput) {
+        barcodeInput.disabled = isEditing;
+    }
+
+    const accessorySelect = document.getElementById('accessorySelect');
+    if (accessorySelect) {
+        accessorySelect.disabled = isEditing;
+    }
+}
+
+async function openEditSaleModal(id) {
+    currentSaleId = id;
+    selectedConsumables = [];
+    productCost = 0;
+
+    document.getElementById('saleModalTitle').textContent = 'Edit Sale';
+    document.getElementById('saleForm').reset();
+    setupDateDefault();
+    setSaleEditingState(true);
+    const barcodeRadio = document.querySelector('input[name="selectionMethod"][value="barcode"]');
+    if (barcodeRadio) {
+        barcodeRadio.checked = true;
+    }
+
+    const barcodeInputGroup = document.getElementById('barcodeInputGroup');
+    const accessorySelectGroup = document.getElementById('accessorySelectGroup');
+    if (barcodeInputGroup) barcodeInputGroup.style.display = 'block';
+    if (accessorySelectGroup) accessorySelectGroup.style.display = 'none';
+
+    try {
+        const response = await authenticatedFetch(`${API_BASE}/api/admin/sales/${id}`);
+        const data = await response.json();
+
+        if (!response.ok || !data.sale) {
+            alert(data.error || 'Failed to load sale details');
+            setSaleEditingState(false);
+            return;
+        }
+
+        const sale = data.sale;
+        document.getElementById('selectedProductId').value = sale.product_id;
+        document.getElementById('saleOrderNumber').value = sale.order_number || '';
+        document.getElementById('salePlatform').value = sale.platform || 'Other';
+        document.getElementById('salePrice').value = sale.sale_price ?? '';
+        document.getElementById('saleDate').value = sale.sale_date ? new Date(sale.sale_date).toISOString().split('T')[0] : '';
+        document.getElementById('saleNotes').value = sale.notes || '';
+        productCost = parseFloat(sale.product_cost) || 0;
+
+        const barcodeStatus = document.getElementById('barcodeStatus');
+        if (barcodeStatus) {
+            barcodeStatus.style.display = 'block';
+            barcodeStatus.textContent = `Product: ${sale.product_name || 'Unknown'} | Serial: ${sale.product_serial || 'N/A'}`;
+        }
+
+        const consumablesResponse = await authenticatedFetch(`${API_BASE}/api/admin/consumables`);
+        const consumablesData = await consumablesResponse.json();
+        const currentConsumables = consumablesData.consumables || [];
+        const consumablesMap = new Map(currentConsumables.map(item => [normalizeConsumableId(item._id), item]));
+
+        selectedConsumables = (sale.consumables || []).map(item => {
+            const consumableId = normalizeConsumableId(item.consumable_id);
+            const consumable = consumablesMap.get(consumableId);
+            return {
+                consumable_id: consumableId,
+                name: consumable?.item_name || consumable?.name || item.name || 'Unknown',
+                cost: consumable?.unit_cost ?? consumable?.price_per_unit ?? item.cost ?? 0,
+                quantity: normalizeQuantity(item.quantity)
+            };
+        });
+
+        displayConsumables();
+        updatePreview();
+
+        document.getElementById('saleModal').style.display = 'flex';
+    } catch (error) {
+        console.error('Error loading sale:', error);
+        alert('Error loading sale details');
+        setSaleEditingState(false);
+    }
 }
 
 // Accessory search is now handled by handleAccessorySearch and searchAccessories functions above
@@ -521,6 +627,7 @@ function updatePreview() {
 
 function closeSaleModal() {
     document.getElementById('saleModal').style.display = 'none';
+    setSaleEditingState(false);
 }
 
 async function handleSaleSubmit(e) {
@@ -891,6 +998,13 @@ async function loadTemplates() {
         const currentConsumables = consumablesData.consumables || [];
         
         container.innerHTML = templatesData.templates.map(template => {
+            const targetLabelMap = {
+                airpod: 'Left/Right AirPod',
+                case: 'Case',
+                any: 'Any product'
+            };
+            const templateTarget = template.target_type || 'any';
+            const targetLabel = targetLabelMap[templateTarget] || 'Any product';
             // Calculate current costs based on live consumable data
             let totalCost = 0;
             let hasInvalidItems = false;
@@ -926,6 +1040,9 @@ async function loadTemplates() {
                         <div>
                             <h3 style="margin: 0 0 5px 0;">${template.name}</h3>
                             <p style="margin: 0; color: #666; font-size: 0.9rem;">${template.description || 'No description'}</p>
+                            <p style="margin: 6px 0 0 0; color: #4b5563; font-size: 0.85rem;">
+                                Applies to: <strong>${targetLabel}</strong>
+                            </p>
                             ${hasInvalidItems ? '<p style="margin: 5px 0 0 0; color: #ef4444; font-size: 0.85rem;">⚠️ Some consumables no longer exist</p>' : ''}
                         </div>
                         <button onclick="deleteTemplate('${template._id}')" class="button button-secondary button-sm">Delete</button>
@@ -1039,12 +1156,18 @@ async function handleTemplateSubmit(e) {
     
     const name = document.getElementById('templateName').value.trim();
     const description = document.getElementById('templateDescription').value.trim();
+    const targetType = document.getElementById('templateTarget').value;
     
     if (!name) {
         alert('Please enter a template name');
         return;
     }
     
+    if (!targetType) {
+        alert('Please select a product type for this template');
+        return;
+    }
+
     if (templateConsumables.length === 0) {
         alert('Please add at least one consumable');
         return;
@@ -1057,6 +1180,7 @@ async function handleTemplateSubmit(e) {
             body: JSON.stringify({
                 name: name,
                 description: description,
+                target_type: targetType,
                 consumables: templateConsumables
             })
         });
@@ -1094,8 +1218,7 @@ async function deleteTemplate(id) {
 // ===== VIEW/DELETE SALE =====
 
 async function viewSale(id) {
-    // TODO: Implement view sale details
-    alert(`View sale details for ${id} (coming soon)`);
+    openEditSaleModal(id);
 }
 
 async function deleteSale(id) {
