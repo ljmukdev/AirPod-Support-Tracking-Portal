@@ -12,6 +12,7 @@ let selectedConsumables = [];
 let productCost = 0;
 let templateConsumables = [];
 let allConsumables = [];
+let consumablePickerConfirmHandler = null;
 
 // Helper function to generate display names for products
 function getDisplayName(partType, generation) {
@@ -88,6 +89,10 @@ function setupEventListeners() {
     // Template Creation Modal
     document.getElementById('createTemplateForm')?.addEventListener('submit', handleTemplateSubmit);
     document.getElementById('addTemplateConsumableBtn')?.addEventListener('click', addTemplateConsumable);
+
+    // Consumable Picker Modal
+    document.getElementById('consumablePickerCancel')?.addEventListener('click', closeConsumablePickerModal);
+    document.getElementById('consumablePickerConfirm')?.addEventListener('click', handleConsumablePickerConfirm);
 }
 
 // ===== SALES LIST =====
@@ -597,6 +602,108 @@ async function handleSaleSubmit(e) {
 
 // ===== CONSUMABLES =====
 
+function openConsumablePicker({ consumables, title, confirmLabel, onConfirm }) {
+    const modal = document.getElementById('consumablePickerModal');
+    const list = document.getElementById('consumablePickerList');
+    const titleEl = document.getElementById('consumablePickerTitle');
+    const confirmBtn = document.getElementById('consumablePickerConfirm');
+
+    if (!modal || !list || !titleEl || !confirmBtn) {
+        alert('Consumable picker is unavailable. Please refresh and try again.');
+        return;
+    }
+
+    titleEl.textContent = title || 'Select consumables';
+    confirmBtn.textContent = confirmLabel || 'Add Selected';
+    consumablePickerConfirmHandler = onConfirm;
+
+    if (!consumables || consumables.length === 0) {
+        list.innerHTML = '<p style="text-align: center; color: #999; padding: 16px 0;">No consumables available.</p>';
+        modal.style.display = 'flex';
+        return;
+    }
+
+    list.innerHTML = consumables.map((consumable, index) => {
+        const name = consumable.item_name || consumable.name;
+        const cost = consumable.unit_cost ?? consumable.price_per_unit ?? 0;
+        const stock = consumable.quantity_in_stock ?? 0;
+        const checkboxId = `consumable-check-${index}`;
+        const quantityId = `consumable-qty-${index}`;
+
+        return `
+            <div style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-bottom: 1px solid #f3f4f6;">
+                <input type="checkbox" id="${checkboxId}" data-id="${consumable._id}" data-name="${name}" data-cost="${cost}" data-stock="${stock}">
+                <label for="${checkboxId}" style="flex: 1;">
+                    <div style="font-weight: 600; color: #111;">${name}</div>
+                    <div style="font-size: 12px; color: #6b7280;">£${Number(cost).toFixed(2)} each · ${stock} in stock</div>
+                </label>
+                <input type="number" id="${quantityId}" min="1" value="1" disabled
+                    style="width: 80px; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 6px;">
+            </div>
+        `;
+    }).join('');
+
+    list.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
+        checkbox.addEventListener('change', (event) => {
+            const target = event.currentTarget;
+            const quantityInput = target.closest('div')?.querySelector('input[type="number"]');
+            if (quantityInput) {
+                quantityInput.disabled = !target.checked;
+                if (target.checked && (!quantityInput.value || Number(quantityInput.value) < 1)) {
+                    quantityInput.value = '1';
+                }
+            }
+        });
+    });
+
+    modal.style.display = 'flex';
+}
+
+function closeConsumablePickerModal() {
+    const modal = document.getElementById('consumablePickerModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+    consumablePickerConfirmHandler = null;
+}
+
+function handleConsumablePickerConfirm() {
+    if (!consumablePickerConfirmHandler) {
+        closeConsumablePickerModal();
+        return;
+    }
+
+    const selections = getConsumablePickerSelections();
+    if (selections.length === 0) {
+        alert('Select at least one consumable.');
+        return;
+    }
+
+    consumablePickerConfirmHandler(selections);
+    closeConsumablePickerModal();
+}
+
+function getConsumablePickerSelections() {
+    const list = document.getElementById('consumablePickerList');
+    if (!list) {
+        return [];
+    }
+
+    return Array.from(list.querySelectorAll('input[type="checkbox"]:checked')).map((checkbox) => {
+        const row = checkbox.closest('div');
+        const quantityInput = row?.querySelector('input[type="number"]');
+        const quantity = Number(quantityInput?.value || 0);
+
+        return {
+            id: checkbox.dataset.id,
+            name: checkbox.dataset.name,
+            cost: Number(checkbox.dataset.cost || 0),
+            stock: Number(checkbox.dataset.stock || 0),
+            quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 0
+        };
+    }).filter(item => item.quantity > 0);
+}
+
 async function addConsumableRow() {
     // Load available consumables
     try {
@@ -608,40 +715,42 @@ async function addConsumableRow() {
             return;
         }
         
-        // Show numbered list of consumables
-        const options = data.consumables.map((c, i) =>
-            `${i + 1}. ${c.item_name || c.name} - £${c.unit_cost?.toFixed(2) || c.price_per_unit?.toFixed(2) || '0.00'} each (${c.quantity_in_stock || 0} in stock)`
-        ).join('\n');
+        openConsumablePicker({
+            consumables: data.consumables,
+            title: 'Select consumables',
+            confirmLabel: 'Add Selected',
+            onConfirm: (items) => {
+                let hasUpdates = false;
 
-        const selection = prompt(`Select a consumable:\n\n${options}\n\nEnter number:`);
+                items.forEach((item) => {
+                    if (item.quantity > item.stock) {
+                        const proceed = confirm(`Warning: Only ${item.stock} in stock for ${item.name}. Add ${item.quantity} anyway?`);
+                        if (!proceed) {
+                            return;
+                        }
+                    }
 
-        if (!selection) return;
+                    const existing = selectedConsumables.find((entry) => entry.consumable_id === item.id);
+                    if (existing) {
+                        existing.quantity += item.quantity;
+                    } else {
+                        selectedConsumables.push({
+                            consumable_id: item.id,
+                            name: item.name,
+                            cost: item.cost,
+                            quantity: item.quantity
+                        });
+                    }
 
-        const index = parseInt(selection) - 1;
-        const consumable = data.consumables[index];
+                    hasUpdates = true;
+                });
 
-        if (consumable) {
-            const consumableName = consumable.item_name || consumable.name;
-            const quantity = parseInt(prompt(`How many ${consumableName}?`, '1')) || 1;
-
-            // Check if enough stock
-            if (quantity > (consumable.quantity_in_stock || 0)) {
-                const proceed = confirm(`Warning: Only ${consumable.quantity_in_stock || 0} in stock. Add ${quantity} anyway?`);
-                if (!proceed) return;
+                if (hasUpdates) {
+                    displayConsumables();
+                    updatePreview();
+                }
             }
-
-            selectedConsumables.push({
-                consumable_id: consumable._id,
-                name: consumableName,
-                cost: consumable.unit_cost || consumable.price_per_unit || 0,
-                quantity: quantity
-            });
-            
-            displayConsumables();
-            updatePreview();
-        } else {
-            alert('Invalid selection. Please try again.');
-        }
+        });
     } catch (error) {
         console.error('Error loading consumables:', error);
         alert('Error loading consumables. Please try again.');
@@ -867,39 +976,34 @@ async function addTemplateConsumable() {
         alert('No consumables available. Please add consumables first.');
         return;
     }
-    
-    // Show numbered list with prices and stock
-    const options = allConsumables.map((c, i) =>
-        `${i + 1}. ${c.item_name || c.name} - £${c.unit_cost?.toFixed(2) || c.price_per_unit?.toFixed(2) || '0.00'} each (${c.quantity_in_stock || 0} in stock)`
-    ).join('\n');
 
-    const selection = prompt(`Select a consumable:\n\n${options}\n\nEnter number:`);
+    openConsumablePicker({
+        consumables: allConsumables,
+        title: 'Select consumables for template',
+        confirmLabel: 'Add to Template',
+        onConfirm: (items) => {
+            let hasUpdates = false;
 
-    if (!selection) return;
+            items.forEach((item) => {
+                const existing = templateConsumables.find((entry) => entry.consumable_id === item.id);
+                if (existing) {
+                    existing.quantity += item.quantity;
+                } else {
+                    templateConsumables.push({
+                        consumable_id: item.id,
+                        name: item.name,
+                        cost: item.cost,
+                        quantity: item.quantity
+                    });
+                }
+                hasUpdates = true;
+            });
 
-    const index = parseInt(selection) - 1;
-    const consumable = allConsumables[index];
-
-    if (consumable) {
-        const consumableName = consumable.item_name || consumable.name;
-        const quantity = parseInt(prompt(`How many ${consumableName}?`, '1')) || 1;
-
-        if (quantity < 1) {
-            alert('Quantity must be at least 1');
-            return;
+            if (hasUpdates) {
+                displayTemplateConsumables();
+            }
         }
-
-        templateConsumables.push({
-            consumable_id: consumable._id,
-            name: consumableName,
-            cost: consumable.unit_cost || consumable.price_per_unit || 0,
-            quantity: quantity
-        });
-        
-        displayTemplateConsumables();
-    } else {
-        alert('Invalid selection. Please try again.');
-    }
+    });
 }
 
 function displayTemplateConsumables() {
@@ -1030,5 +1134,6 @@ window.closeTemplatesModal = closeTemplatesModal;
 window.deleteTemplate = deleteTemplate;
 window.closeCreateTemplateModal = closeCreateTemplateModal;
 window.removeTemplateConsumable = removeTemplateConsumable;
+window.closeConsumablePickerModal = closeConsumablePickerModal;
 
 })(); // End of IIFE
