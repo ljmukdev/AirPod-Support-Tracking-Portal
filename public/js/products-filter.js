@@ -406,7 +406,7 @@ async function renderProducts(products) {
     if (!tableBody) return;
     
     if (products.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="13" style="text-align: center; padding: 20px;">No products match the current filters</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="14" style="text-align: center; padding: 20px;">No products match the current filters</td></tr>';
         return;
     }
     
@@ -465,21 +465,27 @@ async function renderProducts(products) {
             'right': 'Right AirPod',
             'case': 'Case'
         };
-        
-        // eBay Order Number (editable) - for column 6
+
+        // Purchase Order Number (editable)
         const ebayOrderNumber = product.ebay_order_number || '';
         const hasEbayOrder = ebayOrderNumber && ebayOrderNumber.trim();
         const ebayOrderClass = hasEbayOrder ? 'has-ebay-order' : 'no-ebay-order';
-        const ebayOrderInput = `<input 
-            type="text" 
-            class="ebay-order-input ${ebayOrderClass}" 
-            data-product-id="${escapeHtml(String(product.id))}" 
+        const ebayOrderInput = `<input
+            type="text"
+            class="ebay-order-input ${ebayOrderClass}"
+            data-product-id="${escapeHtml(String(product.id))}"
             value="${escapeHtml(ebayOrderNumber)}"
             placeholder="Paste order number"
             style="width: 100%; padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem;"
         >`;
-        
-        // Tracking Status (shipping tracking) - for column 9
+
+        // Part Value display
+        let partValueDisplay = '<span style="color: #999;">—</span>';
+        if (product.part_value !== null && product.part_value !== undefined) {
+            partValueDisplay = `<span style="font-weight: 600; color: #6c757d;">£${parseFloat(product.part_value).toFixed(2)}</span>`;
+        }
+
+        // Tracking Status (shipping tracking)
         let trackingDisplay = '<span style="color: #999;">Not tracked</span>';
         if (product.tracking_number) {
             const trackingDate = product.tracking_date ? new Date(product.tracking_date).toLocaleDateString() : '';
@@ -514,6 +520,7 @@ async function renderProducts(products) {
                 <td>${escapeHtml(product.part_model_number || '')}</td>
                 <td>${partTypeMap[product.part_type] || product.part_type}</td>
                 <td>${ebayOrderInput}</td>
+                <td>${partValueDisplay}</td>
                 <td>${photosDisplay}</td>
                 <td>${formattedDate}</td>
                 <td>${trackingDisplay}</td>
@@ -542,14 +549,14 @@ async function renderProducts(products) {
 }
 
 function updateCounts(filteredCount) {
-    const filteredCountEl = document.getElementById('filteredCount');
-    const totalCountEl = document.getElementById('totalCount');
-    
-    if (filteredCountEl) {
-        filteredCountEl.textContent = filteredCount;
-    }
-    if (totalCountEl) {
-        totalCountEl.textContent = allProductsData.length;
+    const productsCountEl = document.getElementById('productsCount');
+
+    if (productsCountEl) {
+        if (filteredCount === allProductsData.length) {
+            productsCountEl.textContent = `${filteredCount} product${filteredCount !== 1 ? 's' : ''}`;
+        } else {
+            productsCountEl.textContent = `${filteredCount} of ${allProductsData.length} products`;
+        }
     }
 }
 
