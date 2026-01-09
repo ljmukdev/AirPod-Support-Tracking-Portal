@@ -8,7 +8,10 @@ var API_BASE = window.API_BASE;
 
 // Store all products in memory
 let allProductsData = [];
-let statusOptionsCache = [];
+// Use window.statusOptionsCache to avoid conflict with admin.js
+if (!window.statusOptionsCache) {
+    window.statusOptionsCache = [];
+}
 let filtersInitialized = false;
 
 // Universal search function
@@ -127,20 +130,20 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 async function loadStatusOptions() {
-    if (statusOptionsCache.length > 0) {
-        return statusOptionsCache;
+    if (window.statusOptionsCache && window.statusOptionsCache.length > 0) {
+        return window.statusOptionsCache;
     }
-    
+
     try {
         const response = await authenticatedFetch(`${API_BASE}/api/admin/settings`, {
             credentials: 'include'
         });
         const data = await response.json();
-        
+
         if (response.ok && data.settings && data.settings.product_status_options) {
-            statusOptionsCache = data.settings.product_status_options;
+            window.statusOptionsCache = data.settings.product_status_options;
         } else {
-            statusOptionsCache = [
+            window.statusOptionsCache = [
                 { value: 'active', label: 'Active' },
                 { value: 'delivered_no_warranty', label: 'Delivered (No Warranty)' },
                 { value: 'returned', label: 'Returned' },
@@ -149,15 +152,15 @@ async function loadStatusOptions() {
         }
     } catch (error) {
         console.error('Error loading status options:', error);
-        statusOptionsCache = [
+        window.statusOptionsCache = [
             { value: 'active', label: 'Active' },
             { value: 'delivered_no_warranty', label: 'Delivered (No Warranty)' },
             { value: 'returned', label: 'Returned' },
             { value: 'pending', label: 'Pending' }
         ];
     }
-    
-    return statusOptionsCache;
+
+    return window.statusOptionsCache;
 }
 
 async function initFilters() {
