@@ -9629,10 +9629,23 @@ app.get('/api/setup-instructions/:identifier', requireDB, async (req, res) => {
 
 async function buildSalesLedger(db) {
     const sales = await db.collection('sales').find({}).toArray();
-    const salesByProduct = new Set(sales.map(sale => String(sale.product_id || '')));
+
+    // Collect all product IDs from both single products and products array
+    const allProductIds = new Set();
+    sales.forEach(sale => {
+        if (sale.product_id) {
+            allProductIds.add(String(sale.product_id));
+        }
+        if (sale.products && Array.isArray(sale.products)) {
+            sale.products.forEach(p => {
+                if (p.product_id) allProductIds.add(String(p.product_id));
+            });
+        }
+    });
+    const salesByProduct = allProductIds;
 
     // Enrich sales with purchase order number from products
-    const productIds = sales.map(sale => sale.product_id).filter(Boolean);
+    const productIds = Array.from(allProductIds).filter(Boolean);
     const products = await db.collection('products').find({
         _id: { $in: productIds.map(id => new ObjectId(id)) }
     }).toArray();
@@ -9642,11 +9655,23 @@ async function buildSalesLedger(db) {
         productMap[product._id.toString()] = product;
     });
 
-    // Add purchase_order_number to sales from products
+    // Add purchase_order_number and products info to sales
     sales.forEach(sale => {
-        const product = productMap[String(sale.product_id)];
+        // Get purchase order from the first product (or single product)
+        const firstProductId = sale.products?.[0]?.product_id || sale.product_id;
+        const product = productMap[String(firstProductId)];
         if (product && product.ebay_order_number) {
             sale.purchase_order_number = product.ebay_order_number;
+        }
+
+        // Ensure products array is present for display purposes
+        if (!sale.products && sale.product_id) {
+            sale.products = [{
+                product_id: sale.product_id,
+                product_name: sale.product_name,
+                product_serial: sale.product_serial,
+                product_cost: sale.product_cost
+            }];
         }
     });
 
@@ -9745,6 +9770,7 @@ app.post('/api/admin/sales', requireAuth, requireDB, async (req, res) => {
             product_name,
             product_serial,
             product_cost,
+            products, // New: array of products for multi-product sales
             platform,
             order_number,
             sale_price,
@@ -9761,21 +9787,44 @@ app.post('/api/admin/sales', requireAuth, requireDB, async (req, res) => {
             order_total,
             outward_tracking_number
         } = req.body;
-        
-        // Validation
-        if (!product_id || !sale_date || (sale_price === undefined && order_total === undefined)) {
-            return res.status(400).json({ error: 'Product ID, sale price, and sale date are required' });
-        }
-        
-        const normalizedSalePrice = parseFloat(order_total || sale_price) || 0;
-        const normalizedTotalCost = parseFloat(total_cost) || 0;
 
-        // Create sale record
+        // Build products array - support both single product (backward compatible) and multiple products
+        let saleProducts = [];
+        if (products && Array.isArray(products) && products.length > 0) {
+            // New multi-product format
+            saleProducts = products.map(p => ({
+                product_id: new ObjectId(p.product_id),
+                product_name: p.product_name || 'Unknown',
+                product_serial: p.product_serial || 'N/A',
+                product_cost: parseFloat(p.product_cost) || 0
+            }));
+        } else if (product_id) {
+            // Legacy single product format - convert to array
+            saleProducts = [{
+                product_id: new ObjectId(product_id),
+                product_name: product_name || 'Unknown',
+                product_serial: product_serial || 'N/A',
+                product_cost: parseFloat(product_cost) || 0
+            }];
+        }
+
+        // Validation
+        if (saleProducts.length === 0 || !sale_date || (sale_price === undefined && order_total === undefined)) {
+            return res.status(400).json({ error: 'At least one product, sale price, and sale date are required' });
+        }
+
+        const normalizedSalePrice = parseFloat(order_total || sale_price) || 0;
+        const totalProductCost = saleProducts.reduce((sum, p) => sum + p.product_cost, 0);
+        const normalizedTotalCost = parseFloat(total_cost) || totalProductCost + (parseFloat(consumables_cost) || 0);
+
+        // Create sale record with products array
+        // Keep product_id for backward compatibility (first product)
         const sale = {
-            product_id: new ObjectId(product_id),
-            product_name: product_name || 'Unknown',
-            product_serial: product_serial || 'N/A',
-            product_cost: parseFloat(product_cost) || 0,
+            product_id: saleProducts[0].product_id,
+            product_name: saleProducts.length === 1 ? saleProducts[0].product_name : `${saleProducts.length} Products`,
+            product_serial: saleProducts.length === 1 ? saleProducts[0].product_serial : saleProducts.map(p => p.product_serial).join(', '),
+            product_cost: totalProductCost,
+            products: saleProducts, // New field: array of all products
             platform: platform || 'Unknown',
             order_number: order_number || null,
             sale_price: normalizedSalePrice,
@@ -9795,42 +9844,44 @@ app.post('/api/admin/sales', requireAuth, requireDB, async (req, res) => {
             created_at: new Date(),
             created_by: req.user.email
         };
-        
+
         const result = await db.collection('sales').insertOne(sale);
-        
-        // Update product status to sold and set sales_order_number
-        await db.collection('products').updateOne(
-            { _id: new ObjectId(product_id) },
-            { 
-                $set: { 
-                    status: 'sold',
-                    sales_order_number: order_number,
-                    sale_date: new Date(sale_date),
-                    sale_price: normalizedSalePrice,
-                    subtotal: parseFloat(subtotal) || 0,
-                    postage_charged: parseFloat(postage_charged) || 0,
-                    transaction_fees: parseFloat(transaction_fees) || 0,
-                    postage_label_cost: parseFloat(postage_label_cost) || 0,
-                    ad_fee_general: parseFloat(ad_fee_general) || 0,
-                    order_total: parseFloat(order_total) || null,
-                    outward_tracking_number: outward_tracking_number ? outward_tracking_number.trim() : null,
-                    sale_notes: notes || ''
-                } 
-            }
-        );
-        
+
+        // Update ALL products' status to sold and set sales_order_number
+        for (const prod of saleProducts) {
+            await db.collection('products').updateOne(
+                { _id: prod.product_id },
+                {
+                    $set: {
+                        status: 'sold',
+                        sales_order_number: order_number,
+                        sale_date: new Date(sale_date),
+                        sale_price: normalizedSalePrice,
+                        subtotal: parseFloat(subtotal) || 0,
+                        postage_charged: parseFloat(postage_charged) || 0,
+                        transaction_fees: parseFloat(transaction_fees) || 0,
+                        postage_label_cost: parseFloat(postage_label_cost) || 0,
+                        ad_fee_general: parseFloat(ad_fee_general) || 0,
+                        order_total: parseFloat(order_total) || null,
+                        outward_tracking_number: outward_tracking_number ? outward_tracking_number.trim() : null,
+                        sale_notes: notes || ''
+                    }
+                }
+            );
+        }
+
         // Update consumable stock quantities
         if (consumables && consumables.length > 0) {
             for (const consumable of consumables) {
                 await db.collection('consumables').updateOne(
                     { _id: new ObjectId(consumable.consumable_id) },
-                    { 
+                    {
                         $inc: { quantity_in_stock: -consumable.quantity },
                         $push: {
                             usage_history: {
                                 date: new Date(),
                                 quantity: consumable.quantity,
-                                reason: `Used in sale: ${order_number || product_name}`,
+                                reason: `Used in sale: ${order_number || sale.product_name}`,
                                 user: req.user.email
                             }
                         }
@@ -9838,9 +9889,9 @@ app.post('/api/admin/sales', requireAuth, requireDB, async (req, res) => {
                 );
             }
         }
-        
-        res.json({ 
-            success: true, 
+
+        res.json({
+            success: true,
             message: 'Sale created successfully',
             sale_id: result.insertedId
         });
@@ -10002,48 +10053,60 @@ app.put('/api/admin/sales/:id', requireAuth, requireDB, async (req, res) => {
 // Delete sale (marks product as unsold again)
 app.delete('/api/admin/sales/:id', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;
-    
+
     if (!ObjectId.isValid(id)) {
         return res.status(400).json({ error: 'Invalid sale ID' });
     }
-    
+
     try {
         const sale = await db.collection('sales').findOne({ _id: new ObjectId(id) });
-        
+
         if (!sale) {
             return res.status(404).json({ error: 'Sale not found' });
         }
-        
+
         // Delete the sale
         await db.collection('sales').deleteOne({ _id: new ObjectId(id) });
-        
-        // Update product back to unsold
-        await db.collection('products').updateOne(
-            { _id: new ObjectId(sale.product_id) },
-            { 
-                $set: { status: 'in_stock' },
-                $unset: { 
-                    sales_order_number: "",
-                    sale_date: "",
-                    sale_price: "",
-                    subtotal: "",
-                    postage_charged: "",
-                    transaction_fees: "",
-                    postage_label_cost: "",
-                    ad_fee_general: "",
-                    order_total: "",
-                    outward_tracking_number: "",
-                    sale_notes: ""
+
+        // Build list of all product IDs to mark as unsold
+        const productIdsToUpdate = [];
+        if (sale.products && Array.isArray(sale.products)) {
+            sale.products.forEach(p => {
+                if (p.product_id) productIdsToUpdate.push(new ObjectId(p.product_id));
+            });
+        } else if (sale.product_id) {
+            productIdsToUpdate.push(new ObjectId(sale.product_id));
+        }
+
+        // Update ALL products back to unsold
+        if (productIdsToUpdate.length > 0) {
+            await db.collection('products').updateMany(
+                { _id: { $in: productIdsToUpdate } },
+                {
+                    $set: { status: 'in_stock' },
+                    $unset: {
+                        sales_order_number: "",
+                        sale_date: "",
+                        sale_price: "",
+                        subtotal: "",
+                        postage_charged: "",
+                        transaction_fees: "",
+                        postage_label_cost: "",
+                        ad_fee_general: "",
+                        order_total: "",
+                        outward_tracking_number: "",
+                        sale_notes: ""
+                    }
                 }
-            }
-        );
-        
+            );
+        }
+
         // Restore consumable stock
         if (sale.consumables && sale.consumables.length > 0) {
             for (const consumable of sale.consumables) {
                 await db.collection('consumables').updateOne(
                     { _id: new ObjectId(consumable.consumable_id) },
-                    { 
+                    {
                         $inc: { quantity_in_stock: consumable.quantity },
                         $push: {
                             usage_history: {
@@ -10057,7 +10120,7 @@ app.delete('/api/admin/sales/:id', requireAuth, requireDB, async (req, res) => {
                 );
             }
         }
-        
+
         res.json({ success: true, message: 'Sale deleted successfully' });
     } catch (err) {
         console.error('Error deleting sale:', err);
