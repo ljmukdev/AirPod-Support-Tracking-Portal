@@ -243,6 +243,20 @@ function renderTicketCard(ticket) {
                     <span>${ticket.notes.length} note${ticket.notes.length === 1 ? '' : 's'}</span>
                 </div>
                 ` : ''}
+                ${ticket.screenshots?.length > 0 ? `
+                <div class="ticket-meta-row">
+                    <svg class="ticket-meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 16L8.586 11.414C9.367 10.633 10.633 10.633 11.414 11.414L16 16M14 14L15.586 12.414C16.367 11.633 17.633 11.633 18.414 12.414L20 14M14 8H14.01M6 20H18C19.1046 20 20 19.1046 20 18V6C20 4.89543 19.1046 4 18 4H6C4.89543 4 4 4.89543 4 6V18C4 19.1046 4.89543 20 6 20Z"/>
+                    </svg>
+                    <span>${ticket.screenshots.length} screenshot${ticket.screenshots.length === 1 ? '' : 's'}</span>
+                </div>
+                <div class="ticket-screenshots">
+                    ${ticket.screenshots.slice(0, 3).map(s => `
+                        <img src="${s.url}" class="ticket-screenshot-thumb" alt="Screenshot" onclick="openLightbox('${s.url}')">
+                    `).join('')}
+                    ${ticket.screenshots.length > 3 ? `<span style="font-size: 0.8rem; color: #6b7280; align-self: center;">+${ticket.screenshots.length - 3} more</span>` : ''}
+                </div>
+                ` : ''}
             </div>
             <div class="ticket-actions">
                 <button class="button button-secondary" onclick="openTicketModal('${ticket.ticket_id}')">View / Edit</button>
@@ -404,6 +418,21 @@ function renderTicketModal(ticket) {
             </div>
         </div>
 
+        <!-- Screenshots Section -->
+        ${ticket.screenshots?.length > 0 ? `
+        <div style="margin-bottom: 24px;">
+            <label style="display: block; font-weight: 600; margin-bottom: 12px; color: #374151;">Screenshots (${ticket.screenshots.length})</label>
+            <div class="screenshot-gallery">
+                ${ticket.screenshots.map(s => `
+                    <div class="screenshot-gallery-item">
+                        <img src="${s.url}" alt="${escapeHtml(s.filename || 'Screenshot')}" onclick="openLightbox('${s.url}')">
+                        <div class="screenshot-info">${escapeHtml(s.filename || 'Screenshot')}</div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+        ` : ''}
+
         <!-- Notes Section -->
         <div class="notes-section">
             <h4 style="margin: 0 0 16px 0; font-size: 1.1rem; color: #111827;">Notes & Updates</h4>
@@ -553,3 +582,30 @@ function showError(message) {
         </div>
     `;
 }
+
+// Lightbox functions
+function openLightbox(imageUrl) {
+    const lightbox = document.getElementById('screenshotLightbox');
+    const img = document.getElementById('lightboxImage');
+    img.src = imageUrl;
+    lightbox.classList.add('open');
+}
+
+function closeLightbox() {
+    const lightbox = document.getElementById('screenshotLightbox');
+    lightbox.classList.remove('open');
+    document.getElementById('lightboxImage').src = '';
+}
+
+// Close lightbox on escape key or click outside
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closeLightbox();
+    }
+});
+
+document.getElementById('screenshotLightbox')?.addEventListener('click', (e) => {
+    if (e.target.id === 'screenshotLightbox') {
+        closeLightbox();
+    }
+});

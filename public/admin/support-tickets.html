@@ -353,6 +353,99 @@
             background: white;
             min-width: 140px;
         }
+        /* Screenshot styles */
+        .ticket-screenshots {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+        .ticket-screenshot-thumb {
+            width: 60px;
+            height: 60px;
+            border-radius: 6px;
+            object-fit: cover;
+            border: 1px solid #e5e7eb;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .ticket-screenshot-thumb:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .screenshot-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+        }
+        .screenshot-gallery-item {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #e5e7eb;
+            background: #f9fafb;
+        }
+        .screenshot-gallery-item img {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            display: block;
+            cursor: pointer;
+        }
+        .screenshot-gallery-item img:hover {
+            opacity: 0.9;
+        }
+        .screenshot-gallery-item .screenshot-info {
+            padding: 8px;
+            font-size: 0.75rem;
+            color: #6b7280;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        /* Lightbox */
+        .screenshot-lightbox {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.9);
+            z-index: 20000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .screenshot-lightbox.open {
+            display: flex;
+        }
+        .screenshot-lightbox img {
+            max-width: 90%;
+            max-height: 90%;
+            border-radius: 8px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        .screenshot-lightbox-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .screenshot-lightbox-close:hover {
+            background: rgba(255,255,255,0.2);
+        }
     </style>
 </head>
 <body class="admin-panel">
@@ -582,6 +675,12 @@
                 </button>
             </div>
         </div>
+    </div>
+
+    <!-- Screenshot Lightbox -->
+    <div class="screenshot-lightbox" id="screenshotLightbox">
+        <button class="screenshot-lightbox-close" onclick="closeLightbox()">&times;</button>
+        <img id="lightboxImage" src="" alt="Screenshot">
     </div>
 
     <script src="../js/admin.js"></script>

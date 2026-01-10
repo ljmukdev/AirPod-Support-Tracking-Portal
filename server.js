@@ -3063,78 +3063,102 @@ function generateTicketId() {
     return `ST-${dateStr}-${random}`;
 }
 
-// Support/Suggestion submission endpoint - saves to database
-app.post('/api/support', async (req, res) => {
-    try {
-        const { type, message, userEmail, page } = req.body || {};
-
-        if (!message || !message.trim()) {
-            return res.status(400).json({ success: false, error: 'Message is required' });
+// Support/Suggestion submission endpoint - saves to database (with optional screenshots)
+app.post('/api/support', (req, res) => {
+    // Use multer to handle file uploads (up to 5 screenshots)
+    upload.array('screenshots', 5)(req, res, async (uploadErr) => {
+        if (uploadErr) {
+            console.error('[SUPPORT] File upload error:', uploadErr.message);
+            // Continue without files if upload fails
         }
 
-        // Generate unique ticket ID
-        let ticketId = generateTicketId();
+        try {
+            const { type, message, userEmail, page } = req.body || {};
 
-        // Ensure ticket ID is unique
-        let attempts = 0;
-        while (attempts < 5) {
-            const existing = await db.collection('support_tickets').findOne({ ticket_id: ticketId });
-            if (!existing) break;
-            ticketId = generateTicketId();
-            attempts++;
-        }
-
-        // Map type to category
-        const typeMap = {
-            'fault': 'fault',
-            'suggestion': 'suggestion',
-            'feature': 'feature_request',
-            'feature_request': 'feature_request'
-        };
-        const ticketType = typeMap[type] || 'fault';
-
-        // Create the support ticket
-        const ticket = {
-            ticket_id: ticketId,
-            type: ticketType,
-            message: message.trim(),
-            user_email: userEmail?.trim() || null,
-            page: page || null,
-            status: 'open',
-            priority: ticketType === 'fault' ? 'medium' : 'low',
-            assigned_to: null,
-            created_at: new Date(),
-            updated_at: new Date(),
-            notes: []
-        };
-
-        await db.collection('support_tickets').insertOne(ticket);
-        console.log(`[SUPPORT] New ticket created: ${ticketId} (${ticketType})`);
-
-        // Optionally still send email notification
-        const requestType = type === 'suggestion' ? 'Suggestion' : (type === 'feature' || type === 'feature_request' ? 'Feature Request' : 'Fault / Issue');
-        const fromEmail = userEmail || 'Not provided';
-        const pageInfo = page || 'Unknown page';
-        const emailBody = `New ${requestType} submission\n\nTicket ID: ${ticketId}\n\nMessage:\n${message.trim()}\n\nPage: ${pageInfo}\nSubmitted by: ${fromEmail}\n\nView in admin: /admin/support-tickets.html`;
-
-        if (emailTransporter) {
-            try {
-                await emailTransporter.sendMail({
-                    from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-                    to: 'support@ljmuk.co.uk',
-                    subject: `[${ticketId}] Support Request (${requestType})`,
-                    text: emailBody
-                });
-            } catch (emailErr) {
-                console.warn('[SUPPORT] Failed to send email notification:', emailErr.message);
+            if (!message || !message.trim()) {
+                return res.status(400).json({ success: false, error: 'Message is required' });
             }
-        }
 
-        res.json({ success: true, ticket_id: ticketId });
-    } catch (err) {
-        console.error('[SUPPORT] Error creating support ticket:', err);
-        res.status(500).json({ success: false, error: 'Failed to create support ticket' });
-    }
+            // Generate unique ticket ID
+            let ticketId = generateTicketId();
+
+            // Ensure ticket ID is unique
+            let attempts = 0;
+            while (attempts < 5) {
+                const existing = await db.collection('support_tickets').findOne({ ticket_id: ticketId });
+                if (!existing) break;
+                ticketId = generateTicketId();
+                attempts++;
+            }
+
+            // Process uploaded screenshots
+            const screenshots = [];
+            if (req.files && req.files.length > 0) {
+                for (const file of req.files) {
+                    screenshots.push({
+                        url: `/uploads/${file.filename}`,
+                        filename: file.originalname,
+                        size: file.size,
+                        uploaded_at: new Date()
+                    });
+                }
+                console.log(`[SUPPORT] ${screenshots.length} screenshot(s) uploaded for ticket ${ticketId}`);
+            }
+
+            // Map type to category
+            const typeMap = {
+                'fault': 'fault',
+                'suggestion': 'suggestion',
+                'feature': 'feature_request',
+                'feature_request': 'feature_request'
+            };
+            const ticketType = typeMap[type] || 'fault';
+
+            // Create the support ticket
+            const ticket = {
+                ticket_id: ticketId,
+                type: ticketType,
+                message: message.trim(),
+                user_email: userEmail?.trim() || null,
+                page: page || null,
+                screenshots: screenshots,
+                status: 'open',
+                priority: ticketType === 'fault' ? 'medium' : 'low',
+                assigned_to: null,
+                created_at: new Date(),
+                updated_at: new Date(),
+                notes: []
+            };
+
+            await db.collection('support_tickets').insertOne(ticket);
+            console.log(`[SUPPORT] New ticket created: ${ticketId} (${ticketType})`);
+
+            // Optionally still send email notification
+            const requestType = type === 'suggestion' ? 'Suggestion' : (type === 'feature' || type === 'feature_request' ? 'Feature Request' : 'Fault / Issue');
+            const fromEmail = userEmail || 'Not provided';
+            const pageInfo = page || 'Unknown page';
+            const screenshotInfo = screenshots.length > 0 ? `\n\nScreenshots: ${screenshots.length} attached` : '';
+            const emailBody = `New ${requestType} submission\n\nTicket ID: ${ticketId}\n\nMessage:\n${message.trim()}\n\nPage: ${pageInfo}\nSubmitted by: ${fromEmail}${screenshotInfo}\n\nView in admin: /admin/support-tickets.html`;
+
+            if (emailTransporter) {
+                try {
+                    await emailTransporter.sendMail({
+                        from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+                        to: 'support@ljmuk.co.uk',
+                        subject: `[${ticketId}] Support Request (${requestType})`,
+                        text: emailBody
+                    });
+                } catch (emailErr) {
+                    console.warn('[SUPPORT] Failed to send email notification:', emailErr.message);
+                }
+            }
+
+            res.json({ success: true, ticket_id: ticketId });
+        } catch (err) {
+            console.error('[SUPPORT] Error creating support ticket:', err);
+            res.status(500).json({ success: false, error: 'Failed to create support ticket' });
+        }
+    });
 });
 
 // Get all support tickets (Admin only)
