@@ -4180,7 +4180,7 @@ app.post('/api/admin/check-in/:id/split', requireAuth, requireDB, async (req, re
             
             const product = {
                 serial_number: item.serial_number || null,
-                security_number: null,
+                security_barcode: null,
                 product_name: productName,
                 part_number: partNumber,
                 part_model_number: partNumber,
