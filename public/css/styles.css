@@ -439,6 +439,98 @@ h3 {
     color: #b00020;
 }
 
+/* Screenshot upload area */
+.screenshot-upload-area {
+    margin-top: 4px;
+}
+
+.screenshot-drop-zone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 20px;
+    border: 2px dashed #d1d5db;
+    border-radius: 8px;
+    background: #f9fafb;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: #6b7280;
+    font-size: 0.85rem;
+}
+
+.screenshot-drop-zone:hover {
+    border-color: #1aa3b4;
+    background: #f0fdfa;
+}
+
+.screenshot-drop-zone.dragover {
+    border-color: #1aa3b4;
+    background: #ccfbf1;
+}
+
+.screenshot-drop-zone svg {
+    color: #9ca3af;
+}
+
+.screenshot-preview-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.screenshot-preview-item {
+    position: relative;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid #e5e7eb;
+    background: #f9fafb;
+}
+
+.screenshot-preview-item img {
+    width: 100%;
+    height: 60px;
+    object-fit: cover;
+    display: block;
+}
+
+.screenshot-preview-item .screenshot-remove-btn {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: rgba(239, 68, 68, 0.9);
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.screenshot-preview-item .screenshot-remove-btn:hover {
+    background: #dc2626;
+}
+
+.screenshot-preview-item .screenshot-filename {
+    display: block;
+    padding: 4px;
+    font-size: 0.7rem;
+    color: #6b7280;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    background: #f3f4f6;
+}
+
 /* Forms */
 .form-group {
     margin-bottom: 24px;

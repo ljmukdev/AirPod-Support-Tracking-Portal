@@ -258,6 +258,17 @@ function initSupportBubble() {
                 </select>
                 <label for="supportMessage">Message</label>
                 <textarea id="supportMessage" name="supportMessage" rows="4" placeholder="Describe the issue, suggestion, or feature request..." required></textarea>
+                <label for="supportScreenshots">Screenshots (optional)</label>
+                <div class="screenshot-upload-area" id="screenshotUploadArea">
+                    <input type="file" id="supportScreenshots" name="screenshots" accept="image/*" multiple style="display: none;">
+                    <div class="screenshot-drop-zone" id="screenshotDropZone">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                        </svg>
+                        <span>Click or drag to add screenshots (max 5)</span>
+                    </div>
+                    <div class="screenshot-preview-list" id="screenshotPreviewList"></div>
+                </div>
                 <label for="supportEmail">Your Email (optional)</label>
                 <input type="email" id="supportEmail" name="supportEmail" placeholder="name@example.com">
                 <button type="submit" class="button button-primary">Submit Request</button>
@@ -272,6 +283,12 @@ function initSupportBubble() {
     const closeButton = modal.querySelector('.support-modal-close');
     const form = modal.querySelector('#supportForm');
     const status = modal.querySelector('#supportFormStatus');
+    const fileInput = modal.querySelector('#supportScreenshots');
+    const dropZone = modal.querySelector('#screenshotDropZone');
+    const previewList = modal.querySelector('#screenshotPreviewList');
+
+    // Track selected files
+    let selectedFiles = [];
 
     const openModal = () => {
         modal.classList.add('open');
@@ -279,6 +296,79 @@ function initSupportBubble() {
     const closeModal = () => {
         modal.classList.remove('open');
     };
+
+    // Screenshot handling functions
+    const updatePreviewList = () => {
+        previewList.innerHTML = '';
+        selectedFiles.forEach((file, index) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const previewItem = document.createElement('div');
+                previewItem.className = 'screenshot-preview-item';
+                previewItem.innerHTML = `
+                    <img src="${e.target.result}" alt="Screenshot ${index + 1}">
+                    <button type="button" class="screenshot-remove-btn" data-index="${index}" aria-label="Remove screenshot">×</button>
+                    <span class="screenshot-filename">${file.name}</span>
+                `;
+                previewList.appendChild(previewItem);
+
+                // Add remove handler
+                previewItem.querySelector('.screenshot-remove-btn').addEventListener('click', () => {
+                    selectedFiles.splice(index, 1);
+                    updatePreviewList();
+                });
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // Update drop zone visibility
+        if (selectedFiles.length >= 5) {
+            dropZone.style.display = 'none';
+        } else {
+            dropZone.style.display = 'flex';
+            dropZone.querySelector('span').textContent = selectedFiles.length > 0
+                ? `Add more (${5 - selectedFiles.length} remaining)`
+                : 'Click or drag to add screenshots (max 5)';
+        }
+    };
+
+    const addFiles = (files) => {
+        const remaining = 5 - selectedFiles.length;
+        const filesToAdd = Array.from(files).slice(0, remaining);
+
+        for (const file of filesToAdd) {
+            if (file.type.startsWith('image/')) {
+                selectedFiles.push(file);
+            }
+        }
+        updatePreviewList();
+    };
+
+    // Click to upload
+    dropZone.addEventListener('click', () => {
+        fileInput.click();
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        addFiles(e.target.files);
+        fileInput.value = ''; // Reset to allow same file selection
+    });
+
+    // Drag and drop
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        addFiles(e.dataTransfer.files);
+    });
 
     bubbleButton.addEventListener('click', openModal);
     closeButton.addEventListener('click', closeModal);
@@ -292,26 +382,30 @@ function initSupportBubble() {
         event.preventDefault();
         status.textContent = '';
 
-        const payload = {
-            type: form.supportType.value,
-            message: form.supportMessage.value.trim(),
-            userEmail: form.supportEmail.value.trim() || null,
-            page: window.location.pathname
-        };
+        const message = form.supportMessage.value.trim();
 
-        if (!payload.message) {
+        if (!message) {
             status.textContent = 'Please enter a message.';
             status.classList.add('error');
             return;
         }
 
+        // Use FormData for file uploads
+        const formData = new FormData();
+        formData.append('type', form.supportType.value);
+        formData.append('message', message);
+        formData.append('userEmail', form.supportEmail.value.trim() || '');
+        formData.append('page', window.location.pathname);
+
+        // Add screenshots
+        selectedFiles.forEach(file => {
+            formData.append('screenshots', file);
+        });
+
         try {
             const response = await fetch(`${API_BASE}/api/support`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(payload)
+                body: formData
             });
             const data = await response.json();
             if (!response.ok || !data.success) {
@@ -321,6 +415,8 @@ function initSupportBubble() {
             status.classList.remove('error');
             status.classList.add('success');
             form.reset();
+            selectedFiles = [];
+            updatePreviewList();
         } catch (error) {
             status.textContent = error.message || 'Failed to send message.';
             status.classList.remove('success');
