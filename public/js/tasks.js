@@ -105,7 +105,8 @@ function filterAndDisplayTasks() {
                 task.title.toLowerCase().includes(searchTerm) ||
                 task.description.toLowerCase().includes(searchTerm) ||
                 (task.tracking_number && task.tracking_number.toLowerCase().includes(searchTerm)) ||
-                (task.seller && task.seller.toLowerCase().includes(searchTerm))
+                (task.seller && task.seller.toLowerCase().includes(searchTerm)) ||
+                (task.order_number && task.order_number.toLowerCase().includes(searchTerm))
             );
         });
     }
