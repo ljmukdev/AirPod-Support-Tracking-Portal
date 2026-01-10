@@ -6000,6 +6000,49 @@ app.get('/api/admin/consumables/alerts/low-stock', requireAuth, requireDB, async
     }
 });
 
+// Get stock history for a consumable (Admin only)
+app.get('/api/admin/consumables/:id/history', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid consumable ID' });
+    }
+
+    try {
+        const consumable = await db.collection('consumables').findOne({ _id: new ObjectId(id) });
+
+        if (!consumable) {
+            return res.status(404).json({ error: 'Consumable not found' });
+        }
+
+        // Get all stock history for this consumable
+        const history = await db.collection('consumable_stock_history').find({
+            consumable_id: new ObjectId(id)
+        }).sort({ timestamp: -1 }).limit(50).toArray();
+
+        // Also get check-ins
+        const checkIns = await db.collection('consumable_check_ins').find({
+            consumable_id: new ObjectId(id)
+        }).sort({ checked_at: -1 }).limit(20).toArray();
+
+        res.json({
+            success: true,
+            consumable: {
+                _id: consumable._id,
+                item_name: consumable.item_name,
+                sku: consumable.sku,
+                current_stock: consumable.quantity_in_stock,
+                unit_type: consumable.unit_type
+            },
+            history: history,
+            check_ins: checkIns
+        });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // Get reorder suggestions for a consumable based on usage history (Admin only)
 app.get('/api/admin/consumables/:id/reorder-suggestions', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;
