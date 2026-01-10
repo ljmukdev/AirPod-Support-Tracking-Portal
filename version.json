@@ -1,8 +1,89 @@
 {
-  "version": "1.2.3",
-  "build": "2024-12-19",
-  "revision": "007",
+  "version": "1.2.5",
+  "build": "2025-12-16",
+  "revision": "031",
   "changelog": [
+    {
+      "version": "1.2.3",
+      "date": "2024-12-19",
+      "changes": [
+        "Restored Stripe as primary payment method - Stripe handles one-off card payments",
+        "Commented out GoCardless code (GoCardless is for Direct Debits, not one-off payments)",
+        "Stripe payment flow fully functional with payment intents and Elements integration"
+      ]
+    },
+    {
+      "version": "1.2.3",
+      "date": "2024-12-19",
+      "changes": [
+        "Reordered warranty registration steps: Contact Info (step 2), Setup Instructions (step 3), added Stripe payment (step 7)",
+        "Added loadSetupInstructions function to fetch and display setup instructions from admin portal on step 3",
+        "Fixed progress bar to update when showing verification steps and authenticity checks - now shows Step 1 of 7 throughout verification",
+        "Removed verification step counter (Step X of 5) to eliminate confusion - now only shows main progress bar (Step X of 7)",
+        "Fixed progress bar to update correctly when moving from verification steps to Contact Information step",
+        "Fixed progress bar to show immediately when security code is entered or when coming from home page with barcode",
+        "Fixed duplicate event listeners in markings verification",
+        "Fixed step counter to correctly show Step 1 during verification and authenticity checks",
+        "Fixed progress bar visibility on step 1 when product is displayed"
+      ]
+    },
+    {
+      "version": "1.2.3",
+      "date": "2024-12-19",
+      "changes": [
+        "Added second-level authenticity check page - when user selects 'Yes' on serial number uniqueness, shows CE/R-NZ markings verification",
+        "Added authenticity check page - when user selects 'No' on serial number uniqueness, shows authenticity graphics with explanation",
+        "Both authenticity pages display relevant authenticity images from database for the purchased part"
+      ]
+    },
+    {
+      "version": "1.2.3",
+      "date": "2024-12-19",
+      "changes": [
+        "Added setup instructions management system - admin panel, API endpoints, and dynamic display on warranty registration page",
+        "Fixed header alignment to match content card and improved responsive design for mobile and desktop",
+        "Fixed API_BASE redeclaration error in setup-instructions-manager.js"
+      ]
+    },
+    {
+      "version": "1.2.3",
+      "date": "2024-12-19",
+      "changes": [
+        "Fixed API to include part_name in verify-barcode response by looking up from airpod_parts collection",
+        "Fixed associated parts lookup to use correct collection name (airpod_parts)"
+      ]
+    },
+    {
+      "version": "1.2.3",
+      "date": "2024-12-19",
+      "changes": [
+        "Updated purchased part display on step 1 to show part name with model number (e.g., 'Earbuds (Left) - USB-C (A3048)')"
+      ]
+    },
+    {
+      "version": "1.2.3",
+      "date": "2024-12-19",
+      "changes": [
+        "Updated extended warranty card layout - three benefit icons now display on same line"
+      ]
+    },
+    {
+      "version": "1.2.3",
+      "date": "2024-12-19",
+      "changes": [
+        "Fixed undefined showSuccessAnimation function call error on warranty registration completion"
+      ]
+    },
+    {
+      "version": "1.2.3",
+      "date": "2024-12-19",
+      "changes": [
+        "Fixed compatible parts API response parsing - now correctly extracts compatibleParts array",
+        "Fixed compatible parts display to use example images from database instead of silhouette placeholders",
+        "Simplified associated parts selection - replaced autocomplete with checkbox list filtered by generation",
+        "Associated parts now only show parts from the same generation to reduce scrolling"
+      ]
+    },
     {
       "version": "1.2.3",
       "date": "2024-12-19",

@@ -1,10 +1,5 @@
 // Warranties Management JavaScript
-
-// Define API_BASE globally if not already defined
-if (typeof window.API_BASE === 'undefined') {
-    window.API_BASE = '';
-}
-var API_BASE = window.API_BASE;
+// Note: Uses window.API_BASE which is set by admin.js
 
 // Format date for display
 function formatDate(dateString) {
@@ -40,23 +35,39 @@ function formatWarrantyType(type) {
 async function loadWarranties() {
     const spinner = document.getElementById('spinner');
     const warrantiesList = document.getElementById('warrantiesList');
-    
+
     try {
         spinner.classList.add('active');
-        
-        const response = await fetch(`${API_BASE}/api/admin/warranties`, {
+
+        console.log('[FRONTEND] Loading warranties...');
+        const response = await authenticatedFetch(`${window.API_BASE || ""}/api/admin/warranties`, {
             credentials: 'include'
         });
-        
+
+        console.log('[FRONTEND] Warranties response status:', response.status);
+
         if (!response.ok) {
             if (response.status === 401) {
+                console.error('[FRONTEND] Unauthorized - redirecting to login');
                 window.location.href = 'login.html';
                 return;
             }
-            throw new Error('Failed to load warranties');
+
+            // Try to get error details from response
+            let errorMessage = 'Failed to load warranties';
+            try {
+                const errorData = await response.json();
+                console.error('[FRONTEND] Error response:', errorData);
+                errorMessage = errorData.error || errorData.message || errorMessage;
+            } catch (e) {
+                console.error('[FRONTEND] Could not parse error response');
+            }
+
+            throw new Error(errorMessage);
         }
-        
+
         const data = await response.json();
+        console.log('[FRONTEND] Received warranties:', data.warranties?.length || 0);
         spinner.classList.remove('active');
         
         if (!data.warranties || data.warranties.length === 0) {
@@ -157,7 +168,7 @@ async function handleDelete(event) {
     button.textContent = 'Deleting...';
     
     try {
-        const response = await fetch(`${API_BASE}/api/admin/warranty/${warrantyId}`, {
+        const response = await authenticatedFetch(`${window.API_BASE || ""}/api/admin/warranty/${warrantyId}`, {
             method: 'DELETE',
             credentials: 'include'
         });

@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Warranty Registration Complete - LJM AirPod Support">
+    <title>Registration Complete | LJM AirPod Support</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        .success-container {
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 40px;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .success-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 30px;
+            background: #28a745;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            color: white;
+        }
+        .success-title {
+            text-align: center;
+            color: #28a745;
+            margin-bottom: 20px;
+            font-size: 32px;
+        }
+        .success-message {
+            text-align: center;
+            color: #666;
+            margin-bottom: 40px;
+            font-size: 18px;
+            line-height: 1.6;
+        }
+        .receipt-box {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 30px;
+            margin: 30px 0;
+        }
+        .receipt-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #333;
+            border-bottom: 2px solid #dee2e6;
+            padding-bottom: 10px;
+        }
+        .receipt-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .receipt-item:last-child {
+            border-bottom: none;
+        }
+        .receipt-label {
+            color: #666;
+            font-weight: 500;
+        }
+        .receipt-value {
+            color: #333;
+            font-weight: 600;
+        }
+        .receipt-total {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            font-size: 20px;
+            font-weight: bold;
+        }
+        .receipt-total .receipt-label {
+            color: #333;
+        }
+        .receipt-total .receipt-value {
+            color: #28a745;
+            font-size: 24px;
+        }
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #007bff;
+            padding: 20px;
+            margin: 30px 0;
+            border-radius: 4px;
+        }
+        .info-box h3 {
+            margin-top: 0;
+            color: #007bff;
+        }
+        .info-box p {
+            margin: 10px 0;
+            color: #333;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 40px;
+            flex-wrap: wrap;
+        }
+        .button-primary {
+            background: #007bff;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: background 0.3s;
+        }
+        .button-primary:hover {
+            background: #0056b3;
+        }
+        .button-secondary {
+            background: #6c757d;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: background 0.3s;
+        }
+        .button-secondary:hover {
+            background: #545b62;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <a href="index.html" class="home-link">Home</a>
+        <div class="header-logo">
+            <div class="logo-circle">
+                <span class="logo-text">LJM</span>
+            </div>
+        </div>
+        <h1>LJM</h1>
+    </header>
+
+    <main class="container">
+        <div class="success-container">
+            <div id="loadingState" class="loading">
+                <p>Loading your registration details...</p>
+            </div>
+
+            <div id="successState" style="display: none;">
+                <div class="success-icon">✓</div>
+                <h2 class="success-title">Registration Complete!</h2>
+                <p class="success-message">
+                    Thank you for registering your warranty. A confirmation email with your receipt has been sent to <strong id="customerEmail"></strong>.
+                </p>
+
+                <div class="receipt-box">
+                    <div class="receipt-title">Receipt</div>
+                    <div class="receipt-item">
+                        <span class="receipt-label">Warranty ID:</span>
+                        <span class="receipt-value" id="warrantyId"></span>
+                    </div>
+                    <div class="receipt-item">
+                        <span class="receipt-label">Registration Date:</span>
+                        <span class="receipt-value" id="registrationDate"></span>
+                    </div>
+                    <div class="receipt-item">
+                        <span class="receipt-label">Product:</span>
+                        <span class="receipt-value" id="productInfo"></span>
+                    </div>
+                    <div class="receipt-item">
+                        <span class="receipt-label">Warranty Plan:</span>
+                        <span class="receipt-value" id="warrantyPlan"></span>
+                    </div>
+                    <div class="receipt-item" id="accessoriesRow" style="display: none;">
+                        <span class="receipt-label">Accessories:</span>
+                        <span class="receipt-value" id="accessories"></span>
+                    </div>
+                    <div class="receipt-total">
+                        <span class="receipt-label">Total Paid:</span>
+                        <span class="receipt-value" id="totalAmount">£0.00</span>
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    <h3>What's Next?</h3>
+                    <p><strong>✓ Your warranty is now active</strong> - Coverage starts from today</p>
+                    <p><strong>✓ Check your email</strong> - A detailed receipt has been sent to your registered email address</p>
+                    <p><strong>✓ Keep your warranty ID</strong> - You'll need this if you need to make a claim: <strong id="warrantyIdCopy"></strong></p>
+                    <p><strong>✓ Standard 30-day warranty</strong> is included with your purchase</p>
+                    <p id="extendedWarrantyInfo" style="display: none;"><strong>✓ Extended warranty</strong> is active until <strong id="extendedWarrantyEnd"></strong></p>
+                </div>
+
+                <div class="action-buttons">
+                    <a href="index.html" class="button-primary">Return to Home</a>
+                    <a href="troubleshooting.html" class="button-secondary">Need Help?</a>
+                </div>
+            </div>
+
+            <div id="errorState" class="error" style="display: none;">
+                <h3>Error</h3>
+                <p id="errorMessage"></p>
+                <div class="action-buttons">
+                    <a href="warranty-registration.html" class="button-primary">Try Again</a>
+                    <a href="index.html" class="button-secondary">Return to Home</a>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <p>&copy; 2024 LJM. All rights reserved.</p>
+    </footer>
+
+    <script>
+        // Get warranty ID and email from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const warrantyId = urlParams.get('warranty_id');
+        const email = urlParams.get('email');
+
+        if (!warrantyId) {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('errorState').style.display = 'block';
+            document.getElementById('errorMessage').textContent = 'Warranty ID not found. Please check your registration or contact support.';
+        } else {
+            // Fetch warranty details from API
+            fetch(`/api/warranty/${warrantyId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+
+                    // Hide loading, show success
+                    document.getElementById('loadingState').style.display = 'none';
+                    document.getElementById('successState').style.display = 'block';
+
+                    // Populate receipt
+                    document.getElementById('warrantyId').textContent = data.warranty_id || warrantyId;
+                    document.getElementById('warrantyIdCopy').textContent = data.warranty_id || warrantyId;
+                    document.getElementById('customerEmail').textContent = data.customer_email || email || 'your email';
+                    
+                    // Format registration date
+                    const regDate = new Date(data.registration_date || Date.now());
+                    document.getElementById('registrationDate').textContent = regDate.toLocaleDateString('en-GB', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                    });
+
+                    // Product info
+                    document.getElementById('productInfo').textContent = data.product_name || 'AirPod Replacement Part';
+
+                    // Warranty plan
+                    const warrantyPlanMap = {
+                        'none': 'Standard 30-day warranty',
+                        '3month': '3 Month Extended Warranty',
+                        '6month': '6 Month Extended Warranty',
+                        '12month': '12 Month Extended Warranty'
+                    };
+                    document.getElementById('warrantyPlan').textContent = warrantyPlanMap[data.extended_warranty] || 'Standard 30-day warranty';
+
+                    // Extended warranty end date
+                    if (data.extended_warranty && data.extended_warranty !== 'none' && data.extended_warranty_end) {
+                        const endDate = new Date(data.extended_warranty_end);
+                        document.getElementById('extendedWarrantyEnd').textContent = endDate.toLocaleDateString('en-GB', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                        });
+                        document.getElementById('extendedWarrantyInfo').style.display = 'block';
+                    }
+
+                    // Calculate warranty price and accessories price separately
+                    const warrantyPrice = data.extended_warranty && data.extended_warranty !== 'none' ? 
+                        (data.warranty_price - (data.accessories?.reduce((sum, acc) => sum + (acc.price || 0), 0) || 0)) : 0;
+                    const accessoriesPrice = data.accessories?.reduce((sum, acc) => sum + (acc.price || 0), 0) || 0;
+                    const total = data.warranty_price || 0; // Already in pounds
+                    
+                    // Add warranty price row if extended warranty was purchased
+                    if (warrantyPrice > 0) {
+                        const warrantyPriceRow = document.createElement('div');
+                        warrantyPriceRow.className = 'receipt-item';
+                        warrantyPriceRow.innerHTML = `
+                            <span class="receipt-label">Extended Warranty:</span>
+                            <span class="receipt-value">£${warrantyPrice.toFixed(2)}</span>
+                        `;
+                        document.getElementById('accessoriesRow').parentNode.insertBefore(warrantyPriceRow, document.getElementById('accessoriesRow'));
+                    }
+                    
+                    // Accessories (if any)
+                    if (data.accessories && data.accessories.length > 0) {
+                        document.getElementById('accessoriesRow').style.display = 'flex';
+                        const accessoriesList = data.accessories.map(acc => {
+                            const accPrice = parseFloat(acc.price || 0);
+                            return `${acc.name} (£${accPrice.toFixed(2)})`;
+                        }).join(', ');
+                        document.getElementById('accessories').textContent = accessoriesList;
+                    }
+                    
+                    // Total amount
+                    document.getElementById('totalAmount').textContent = `£${total.toFixed(2)}`;
+                })
+                .catch(error => {
+                    console.error('Error fetching warranty details:', error);
+                    document.getElementById('loadingState').style.display = 'none';
+                    document.getElementById('errorState').style.display = 'block';
+                    document.getElementById('errorMessage').textContent = error.message || 'Failed to load warranty details. Please contact support with your warranty ID: ' + warrantyId;
+                });
+        }
+    </script>
+</body>
+</html>
+
+
+

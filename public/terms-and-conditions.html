@@ -6,38 +6,291 @@
     <meta name="description" content="LJM AirPod Support - Terms and Conditions">
     <title>Terms & Conditions | LJM AirPod Support</title>
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/global-header.css">
     <style>
-        .terms-container {
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 20px;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header - Match homepage */
+        .header {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 1px 0 rgba(0, 0, 0, 0.05);
+            padding: 20px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            transition: box-shadow 0.3s ease;
+        }
+
+        .header.scrolled {
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        @media (min-width: 640px) {
+            .header-content {
+                padding: 0 32px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .header-content {
+                padding: 0 48px;
+            }
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 44px;
+            height: 44px;
+            background: #284064;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: white;
+            font-size: 15px;
+            letter-spacing: -0.5px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border: 2px solid #f5f7fa;
+        }
+
+        .logo-text {
+            color: #1a1a1a;
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+        }
+
+        .logo-text span {
+            color: #6c757d;
+            font-weight: 400;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 36px;
+        }
+
+        .nav-links a {
+            color: #6c757d;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.2s;
+            position: relative;
+        }
+
+        .nav-links a:hover {
+            color: #1a1a1a;
+        }
+
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #284064;
+            transform: scaleX(0);
+            transition: transform 0.2s;
+        }
+
+        .nav-links a:hover::after {
+            transform: scaleX(1);
+        }
+
+        @media (max-width: 640px) {
+            .nav-links {
+                display: none;
+            }
+        }
+
+        /* Container - Match homepage */
+        .container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px 24px 40px 24px;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        @media (min-width: 640px) {
+            .container {
+                padding-left: 32px;
+                padding-right: 32px;
+            }
+        }
+
+        @media (min-width: 768px) {
+            .container {
+                padding-top: 30px;
+                padding-bottom: 60px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .container {
+                padding-left: 48px;
+                padding-right: 48px;
+            }
+        }
+
+        /* Card - Match homepage */
+        .card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            padding: 36px 48px;
+            text-align: center;
+            position: relative;
+        }
+
+        @media (min-width: 768px) {
+            .card-header {
+                padding: 40px 48px;
+            }
+        }
+
+        .card-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.02'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3Ccircle cx='30' cy='10' r='2'/%3E%3Ccircle cx='30' cy='50' r='2'/%3E%3Ccircle cx='10' cy='30' r='2'/%3E%3Ccircle cx='50' cy='30' r='2'/%3E%3Ccircle cx='10' cy='10' r='2'/%3E%3Ccircle cx='50' cy='50' r='2'/%3E%3Ccircle cx='10' cy='50' r='2'/%3E%3Ccircle cx='50' cy='10' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            background-repeat: repeat;
+        }
+
+        .card-header h1 {
+            color: white;
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            position: relative;
+            z-index: 1;
+            letter-spacing: -0.5px;
+        }
+
+        .card-header p {
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 16px;
+            line-height: 1.6;
+            position: relative;
+            z-index: 1;
+            max-width: 480px;
+            margin: 0 auto;
+        }
+
+        .card-body {
+            padding: 36px 48px;
+        }
+
+        @media (min-width: 768px) {
+            .card-body {
+                padding: 40px 48px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .card-header {
+                padding: 32px 24px;
+            }
+            
+            .card-header h1 {
+                font-size: 26px;
+            }
+            
+            .card-body {
+                padding: 32px 24px;
+            }
+        }
+
+        /* Terms content styling */
         .terms-section {
             margin: 30px 0;
-            padding: 25px;
-            background: var(--background-white);
-            border-radius: var(--border-radius);
-            box-shadow: var(--shadow);
         }
-        .terms-section h2 {
-            color: var(--primary-navy);
+
+        .terms-section:first-of-type {
             margin-top: 0;
+        }
+
+        .terms-section h2 {
+            color: #1a1a1a;
+            font-size: 24px;
+            font-weight: 700;
+            margin-top: 0;
+            margin-bottom: 20px;
             padding-bottom: 15px;
-            border-bottom: 2px solid var(--secondary-gray);
+            border-bottom: 2px solid #e8ecf1;
         }
+
         .terms-section h3 {
-            color: var(--accent-teal);
+            color: #284064;
+            font-size: 18px;
+            font-weight: 600;
             margin-top: 25px;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
         }
+
+        .terms-section p {
+            color: #1a1a1a;
+            line-height: 1.8;
+            margin-bottom: 16px;
+        }
+
         .terms-section ul, .terms-section ol {
             margin: 15px 0;
             padding-left: 30px;
         }
+
         .terms-section li {
             margin: 10px 0;
             line-height: 1.8;
+            color: #1a1a1a;
         }
+
         .highlight-box {
             background: #fff3cd;
             border-left: 4px solid #ffc107;
@@ -45,12 +298,30 @@
             margin: 20px 0;
             border-radius: 4px;
         }
+
         .exclusion-box {
             background: #f8d7da;
             border-left: 4px solid #dc3545;
             padding: 15px;
             margin: 20px 0;
             border-radius: 4px;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #284064;
+            color: white;
+            text-decoration: none;
+            border-radius: 12px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .button:hover {
+            background: #1e2f4a;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(40, 64, 100, 0.3);
         }
     </style>
 
@@ -81,234 +352,38 @@
     </script>
 </head>
 <body>
-    <header class="header">
-        <a href="index.html" class="home-link">Home</a>
-        <div class="header-logo">
-            <div class="logo-circle">
-                <span class="logo-text">LJM</span>
+    <!-- Header -->
+    <header class="header" id="mainHeader">
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-icon">LJM</div>
+                <div class="logo-text">Support <span>Center</span></div>
             </div>
+            <nav class="nav-links">
+                <a href="index.html">Home</a>
+                <a href="terms-and-conditions.html">Terms</a>
+                <a href="privacy-policy.html">Privacy</a>
+            </nav>
         </div>
-        <h1>LJM</h1>
     </header>
 
-    <main class="container terms-container">
-        <div class="terms-section">
-            <h1>Terms & Conditions</h1>
-            <p><strong>Last Updated:</strong> January 2024</p>
-            <p>These Terms and Conditions ("Terms") govern your use of LJM AirPod Support services and warranty coverage. By using our services, you agree to be bound by these Terms.</p>
-        </div>
-
-        <div class="terms-section">
-            <h2>1. Standard 30-Day Warranty</h2>
-            <h3>1.1 Coverage</h3>
-            <p>Every product purchased from LJM includes a free 30-day warranty from the date of purchase that covers:</p>
-            <ul>
-                <li>Manufacturing defects</li>
-                <li>Non-functionality upon receipt</li>
-                <li>Battery issues (for cases)</li>
-                <li>Connectivity problems (for AirPods)</li>
-            </ul>
-
-            <h3>1.2 Warranty Registration</h3>
-            <p>To activate your warranty, you must register it through our online portal within 30 days of purchase. Registration is free and includes:</p>
-            <ul>
-                <li>Automatic warranty activation</li>
-                <li>Email confirmation with warranty certificate</li>
-                <li>Access to warranty support services</li>
-            </ul>
-
-            <h3>1.3 Warranty Claims Process</h3>
-            <p>To make a warranty claim:</p>
-            <ol>
-                <li>Contact LJM support via email or phone with your warranty ID</li>
-                <li>Provide proof of purchase and warranty registration</li>
-                <li>Describe the issue with photographs if applicable</li>
-                <li>Return the product if requested for inspection (at our expense)</li>
-            </ol>
-        </div>
-
-        <div class="terms-section">
-            <h2>2. Extended Warranty Plans</h2>
-            <h3>2.1 Available Plans</h3>
-            <ul id="warrantyPricingList">
-                <li><strong>3-Month Extended:</strong> <span id="price3months">£4.99</span> - Extends coverage to 4 months total</li>
-                <li><strong>6-Month Extended:</strong> <span id="price6months">£7.99</span> - Extends coverage to 7 months total</li>
-                <li><strong>12-Month Extended:</strong> <span id="price12months">£12.99</span> - Extends coverage to 13 months total</li>
-            </ul>
-            <p style="font-size: 0.9rem; color: #666; font-style: italic; margin-top: 10px;">
-                * Pricing is subject to change. Current prices are displayed above and at the time of warranty registration.
-            </p>
-
-            <h3>2.2 Extended Warranty Coverage</h3>
-            <p>Extended warranties provide the same coverage as the standard warranty, extended for the selected period. Coverage begins immediately after the standard 30-day warranty expires.</p>
-
-            <h3>2.3 Payment</h3>
-            <p>Extended warranty fees are due at the time of warranty registration. Payment methods accepted include major credit/debit cards and PayPal.</p>
-        </div>
-
-        <div class="terms-section">
-            <h2>3. Warranty Exclusions</h2>
-            <div class="exclusion-box">
-                <p><strong>IMPORTANT:</strong> The following are excluded from warranty coverage:</p>
+    <!-- Main Content -->
+    <main class="container">
+        <div class="card">
+            <div class="card-header">
+                <h1>Terms & Conditions <span id="termsVersionBadge" style="font-size: 18px; font-weight: 400; opacity: 0.9; margin-left: 12px;">V1.0</span></h1>
+                <p id="termsLastUpdated">Last Updated: January 2024</p>
             </div>
+            
+            <div class="card-body">
+                <div id="termsContent" style="color: #1a1a1a; line-height: 1.8;">
+                    <p style="text-align: center; color: #6c757d;">Loading terms and conditions...</p>
+                </div>
 
-            <h3>3.1 Physical Damage</h3>
-            <ul>
-                <li>Accidental damage (drops, impacts, crushing)</li>
-                <li>Water damage or liquid contact</li>
-                <li>Fire or extreme heat damage</li>
-                <li>Damage from pets or animals</li>
-                <li>Cosmetic damage (scratches, scuffs, wear and tear)</li>
-                <li>Damage to charging ports or connectors</li>
-            </ul>
-
-            <h3>3.2 Misuse and Abuse</h3>
-            <ul>
-                <li>Intentional damage or destruction</li>
-                <li>Modification or tampering with the product</li>
-                <li>Use of non-Apple or incompatible accessories</li>
-                <li>Excessive force applied to any components</li>
-                <li>Opening or disassembling the product (voids warranty)</li>
-                <li>Using the product in ways not intended by the manufacturer</li>
-            </ul>
-
-            <h3>3.3 Loss and Theft</h3>
-            <ul>
-                <li>Lost or stolen products</li>
-                <li>Products not returned for inspection when requested</li>
-            </ul>
-
-            <h3>3.4 Wear and Tear</h3>
-            <ul>
-                <li>Normal wear and tear expected from regular use</li>
-                <li>Battery degradation over time (beyond manufacturer specifications)</li>
-                <li>Reduced performance due to age</li>
-            </ul>
-
-            <h3>3.5 Compatibility Issues</h3>
-            <ul>
-                <li>Compatibility issues with devices or software</li>
-                <li>Pairing issues due to user error or device incompatibility</li>
-                <li>Issues arising from using non-Apple devices</li>
-            </ul>
-
-            <h3>3.6 Pre-Existing Conditions</h3>
-            <ul>
-                <li>Issues that existed before purchase (as documented in product photos)</li>
-                <li>Cosmetic blemishes that were disclosed at time of sale</li>
-                <li>Known limitations stated in product description</li>
-            </ul>
-        </div>
-
-        <div class="terms-section">
-            <h2>4. Warranty Claim Limitations</h2>
-            <h3>4.1 Abuse Protection</h3>
-            <div class="highlight-box">
-                <p><strong>To protect against warranty abuse:</strong></p>
-                <ul>
-                    <li>Each warranty covers a maximum of 2 claims per warranty period</li>
-                    <li>Repeated claims for the same issue may be denied</li>
-                    <li>LJM reserves the right to inspect products before approving claims</li>
-                    <li>False or fraudulent claims will result in warranty voidance</li>
-                    <li>LJM may require proof of purchase and warranty registration</li>
-                </ul>
+                <div style="text-align: center; margin: 40px 0;">
+                    <a href="index.html" class="button">Back to Home</a>
+                </div>
             </div>
-
-            <h3>4.2 Replacement Policy</h3>
-            <ul>
-                <li>LJM will repair or replace products at our discretion</li>
-                <li>Replacements may be refurbished units of equal or better condition</li>
-                <li>Original product must be returned before replacement is sent</li>
-                <li>Warranty does not cover return shipping costs for customer convenience returns</li>
-            </ul>
-
-            <h3>4.3 Refund Policy</h3>
-            <ul>
-                <li>Refunds are not available under warranty</li>
-                <li>Standard return policy applies for non-warranty returns (within 14 days, unopened)</li>
-                <li>Extended warranty fees are non-refundable except as required by law</li>
-            </ul>
-        </div>
-
-        <div class="terms-section">
-            <h2>5. Customer Responsibilities</h2>
-            <ul>
-                <li>Register your warranty within 30 days of purchase</li>
-                <li>Keep your warranty ID and proof of purchase</li>
-                <li>Use the product according to manufacturer guidelines</li>
-                <li>Contact support promptly if issues arise</li>
-                <li>Provide accurate information when making claims</li>
-                <li>Return products for inspection when requested</li>
-            </ul>
-        </div>
-
-        <div class="terms-section">
-            <h2>6. Data Protection and Privacy</h2>
-            <h3>6.1 Data Collection</h3>
-            <p>We collect the following information for warranty registration:</p>
-            <ul>
-                <li>Name and contact details (email, phone)</li>
-                <li>Product information (serial number, security barcode)</li>
-                <li>Purchase information (eBay order number if applicable)</li>
-            </ul>
-
-            <h3>6.2 Marketing Communications</h3>
-            <p>If you opt-in to marketing communications:</p>
-            <ul>
-                <li>You will receive infrequent updates about new services and promotions</li>
-                <li>You can unsubscribe at any time via email or through your account</li>
-                <li>Your data will not be shared with third parties for marketing purposes</li>
-            </ul>
-
-            <h3>6.3 Data Usage</h3>
-            <p>Your data is used solely for:</p>
-            <ul>
-                <li>Warranty administration and support</li>
-                <li>Product quality improvement</li>
-                <li>Marketing communications (if consented)</li>
-                <li>Legal compliance and fraud prevention</li>
-            </ul>
-        </div>
-
-        <div class="terms-section">
-            <h2>7. Limitation of Liability</h2>
-            <h3>7.1 Maximum Liability</h3>
-            <p>LJM's total liability under any warranty claim shall not exceed the original purchase price of the product.</p>
-
-            <h3>7.2 Indirect Damages</h3>
-            <p>LJM is not liable for:</p>
-            <ul>
-                <li>Indirect, incidental, or consequential damages</li>
-                <li>Loss of data or information</li>
-                <li>Loss of use or business interruption</li>
-                <li>Personal injury or property damage</li>
-            </ul>
-
-            <h3>7.3 Force Majeure</h3>
-            <p>LJM is not liable for delays or failures in performance due to circumstances beyond our reasonable control.</p>
-        </div>
-
-        <div class="terms-section">
-            <h2>8. General Terms</h2>
-            <h3>8.1 Modifications</h3>
-            <p>LJM reserves the right to modify these Terms at any time. Continued use of our services constitutes acceptance of modified Terms.</p>
-
-            <h3>8.2 Governing Law</h3>
-            <p>These Terms are governed by the laws of the United Kingdom. Any disputes shall be subject to the exclusive jurisdiction of UK courts.</p>
-
-            <h3>8.3 Contact Information</h3>
-            <p>For warranty claims or questions about these Terms, contact:</p>
-            <ul>
-                <li>Email: airpodsupport@ljmuk.co.uk</li>
-                <li>Include your warranty ID in all communications</li>
-            </ul>
-
-            <h3>8.4 Severability</h3>
-            <p>If any provision of these Terms is found to be invalid, the remaining provisions shall remain in full force and effect.</p>
-        </div>
-
-        <div style="text-align: center; margin: 40px 0;">
-            <a href="warranty-registration.html" class="button">Back to Warranty Registration</a>
         </div>
     </main>
 
@@ -317,27 +392,170 @@
     </footer>
 
     <script>
-        // Load dynamic warranty pricing
-        async function loadWarrantyPricing() {
-            try {
-                const response = await fetch('/api/warranty/pricing');
-                if (response.ok) {
-                    const pricing = await response.json();
-                    document.getElementById('price3months').textContent = `£${pricing['3months'].toFixed(2)}`;
-                    document.getElementById('price6months').textContent = `£${pricing['6months'].toFixed(2)}`;
-                    document.getElementById('price12months').textContent = `£${pricing['12months'].toFixed(2)}`;
+        // Format Terms & Conditions content with proper headings, font sizes, and professional styling
+        function formatTermsContent(content) {
+            if (!content) return '';
+            
+            // Split into lines and format
+            const lines = content.split('\n');
+            const formattedLines = [];
+            let inList = false;
+            let listItems = [];
+            let isOrderedList = false;
+            
+            lines.forEach((line, index) => {
+                const trimmed = line.trim();
+                if (!trimmed) {
+                    // Empty line - close list if open, then add empty line
+                    if (inList) {
+                        const listTag = isOrderedList ? 'ol' : 'ul';
+                        formattedLines.push(`<${listTag} style="margin: 15px 0; padding-left: 30px;">${listItems.join('')}</${listTag}>`);
+                        inList = false;
+                        listItems = [];
+                    }
+                    formattedLines.push('');
+                    return;
                 }
-            } catch (error) {
-                console.error('Error loading warranty pricing:', error);
-                // Keep default prices if API fails
+
+                // Check if line starts with a number followed by a period (section heading like "1. Standard 30-Day Warranty")
+                const sectionMatch = trimmed.match(/^(\d+)\.\s+(.+)$/);
+                if (sectionMatch) {
+                    if (inList) {
+                        const listTag = isOrderedList ? 'ol' : 'ul';
+                        formattedLines.push(`<${listTag} style="margin: 15px 0; padding-left: 30px;">${listItems.join('')}</${listTag}>`);
+                        inList = false;
+                        listItems = [];
+                    }
+                    formattedLines.push(`<h2 style="color: #1a1a1a; font-size: 24px; font-weight: 700; margin-top: 30px; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #e8ecf1;">${sectionMatch[1]}. ${sectionMatch[2]}</h2>`);
+                    return;
+                }
+
+                // Check if line starts with a number.number (subsection heading like "1.1 Coverage")
+                const subsectionMatch = trimmed.match(/^(\d+)\.(\d+)\s+(.+)$/);
+                if (subsectionMatch) {
+                    if (inList) {
+                        const listTag = isOrderedList ? 'ol' : 'ul';
+                        formattedLines.push(`<${listTag} style="margin: 15px 0; padding-left: 30px;">${listItems.join('')}</${listTag}>`);
+                        inList = false;
+                        listItems = [];
+                    }
+                    formattedLines.push(`<h3 style="color: #284064; font-size: 18px; font-weight: 600; margin-top: 25px; margin-bottom: 12px;">${subsectionMatch[1]}.${subsectionMatch[2]} ${subsectionMatch[3]}</h3>`);
+                    return;
+                }
+
+                // Check if line starts with bullet point or dash
+                if (trimmed.match(/^[-•*]\s+/)) {
+                    if (!inList) {
+                        inList = true;
+                        isOrderedList = false;
+                    }
+                    const listItem = trimmed.replace(/^[-•*]\s+/, '');
+                    listItems.push(`<li style="margin: 10px 0; line-height: 1.8; color: #1a1a1a;">${listItem}</li>`);
+                    return;
+                }
+
+                // Check if line starts with a number followed by closing parenthesis (numbered list)
+                if (trimmed.match(/^\d+\)\s+/)) {
+                    if (!inList) {
+                        inList = true;
+                        isOrderedList = true;
+                    }
+                    const listItem = trimmed.replace(/^\d+\)\s+/, '');
+                    listItems.push(`<li style="margin: 10px 0; line-height: 1.8; color: #1a1a1a;">${listItem}</li>`);
+                    return;
+                }
+
+                // Close list if we hit a non-list item
+                if (inList) {
+                    const listTag = isOrderedList ? 'ol' : 'ul';
+                    formattedLines.push(`<${listTag} style="margin: 15px 0; padding-left: 30px;">${listItems.join('')}</${listTag}>`);
+                    inList = false;
+                    listItems = [];
+                }
+
+                // Regular paragraph
+                formattedLines.push(`<p style="color: #1a1a1a; line-height: 1.8; margin-bottom: 16px;">${trimmed}</p>`);
+            });
+
+            // Close any remaining list
+            if (inList) {
+                const listTag = isOrderedList ? 'ol' : 'ul';
+                formattedLines.push(`<${listTag} style="margin: 15px 0; padding-left: 30px;">${listItems.join('')}</${listTag}>`);
+            }
+
+            return formattedLines.join('');
+        }
+
+        // Format date for display
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            try {
+                const date = new Date(dateString);
+                const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                return `${months[date.getMonth()]} ${date.getFullYear()}`;
+            } catch (e) {
+                return '';
             }
         }
-        
-        // Load pricing on page load
+
+        // Load Terms & Conditions from API
+        async function loadTermsAndConditions() {
+            try {
+                const response = await fetch('/api/warranty-terms/current');
+                if (response.ok) {
+                    const data = await response.json();
+                    const termsContentEl = document.getElementById('termsContent');
+                    const termsVersionBadge = document.getElementById('termsVersionBadge');
+                    const termsLastUpdated = document.getElementById('termsLastUpdated');
+                    
+                    if (termsContentEl) {
+                        const content = data.content || 'No terms and conditions available.';
+                        // Format the terms content with proper headings, font sizes, and styling
+                        const formattedContent = formatTermsContent(content);
+                        termsContentEl.innerHTML = formattedContent;
+                    }
+                    
+                    if (termsVersionBadge) {
+                        // Format version as V1.0, V2.0, etc.
+                        const version = data.version || 1;
+                        termsVersionBadge.textContent = `V${version}.0`;
+                    }
+                    
+                    if (termsLastUpdated) {
+                        // Format last updated text with version and date
+                        const version = data.version || 1;
+                        let updateText = `Version ${version}`;
+                        if (data.created_at) {
+                            const formattedDate = formatDate(data.created_at);
+                            if (formattedDate) {
+                                updateText += ` - Last Updated: ${formattedDate}`;
+                            }
+                        }
+                        termsLastUpdated.textContent = updateText;
+                    }
+                    
+                    console.log('[Terms Page] Loaded version', data.version, 'created_at:', data.created_at);
+                } else {
+                    console.error('[Terms Page] Failed to load terms');
+                    const termsContentEl = document.getElementById('termsContent');
+                    if (termsContentEl) {
+                        termsContentEl.innerHTML = '<p style="color: #dc3545; text-align: center;">Unable to load terms and conditions. Please try again later.</p>';
+                    }
+                }
+            } catch (error) {
+                console.error('[Terms Page] Error loading terms:', error);
+                const termsContentEl = document.getElementById('termsContent');
+                if (termsContentEl) {
+                    termsContentEl.innerHTML = '<p style="color: #dc3545; text-align: center;">Unable to load terms and conditions. Please try again later.</p>';
+                }
+            }
+        }
+
+        // Load terms on page load
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', loadWarrantyPricing);
+            document.addEventListener('DOMContentLoaded', loadTermsAndConditions);
         } else {
-            loadWarrantyPricing();
+            loadTermsAndConditions();
         }
     </script>
     <script src="js/version.js"></script>

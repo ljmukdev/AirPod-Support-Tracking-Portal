@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consumables Inventory | LJM Admin</title>
+    <link rel="stylesheet" href="../css/styles.css?v=1.2.5.032">
+</head>
+<body class="admin-panel">
+    <!-- Sidebar Navigation -->
+    <aside class="admin-sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <div class="logo-circle">
+                    <span class="logo-text">LJM</span>
+                </div>
+                <div>
+                    <div class="sidebar-logo-text">LJM Admin</div>
+                    <div class="sidebar-subtitle">Dashboard</div>
+                </div>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-section">
+                <div class="nav-section-header">ADMIN</div>
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="dashboard.html" class="nav-link" data-page="dashboard">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 10L9 4L9 10L17 10M3 10L3 16M3 10L17 10M17 10L17 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="parts.html" class="nav-link" data-page="parts">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <rect x="3" y="3" width="6" height="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <rect x="11" y="3" width="6" height="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <rect x="3" y="11" width="6" height="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <rect x="11" y="11" width="6" height="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Manage Parts</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="setup-instructions.html" class="nav-link" data-page="setup-instructions">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M10 2L3 6L3 10C3 14.5 6.5 18.5 10 19C13.5 18.5 17 14.5 17 10L17 6L10 2Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M10 10L10 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <circle cx="10" cy="7" r="1" fill="currentColor"/>
+                            </svg>
+                            <span>Setup Instructions</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="products.html" class="nav-link" data-page="products">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M4 4H16V16H4V4Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M4 8H16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                <path d="M8 4V16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                            <span>Products</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="purchases.html" class="nav-link" data-page="purchases">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 5L10 2L17 5M3 5L3 15L10 18M3 5L10 8M17 5L17 15L10 18M17 5L10 8M10 8L10 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Purchases</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="sales.html" class="nav-link" data-page="sales">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 2L5 9L2 12L5 15L8 12L15 5M14 7L17 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <circle cx="14.5" cy="5.5" r="1.5" fill="currentColor"/>
+                            </svg>
+                            <span>Sales</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="consumables.html" class="nav-link active" data-page="consumables">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 3H17V8H3V3Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M3 10H17V15H3V10Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M7 3V8M13 3V8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                <path d="M7 10V15M13 10V15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                            <span>Consumables</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="check-in.html" class="nav-link" data-page="check-in">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M7 10L9 12L13 8M18 10C18 14.4183 14.4183 18 10 18C5.58172 18 2 14.4183 2 10C2 5.58172 5.58172 2 10 2C14.4183 2 18 5.58172 18 10Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Check-In</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="tasks.html" class="nav-link" data-page="tasks">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M9 5H7C5.89543 5 5 5.89543 5 7V15C5 16.1046 5.89543 17 7 17H13C14.1046 17 15 16.1046 15 15V7C15 5.89543 14.1046 5 13 5H11M9 5C9 3.89543 9.89543 3 11 3H9C7.89543 3 7 3.89543 7 5M9 5C9 6.10457 9.89543 7 11 7H9C7.89543 7 7 6.10457 7 5M8 10H12M8 13H12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Tasks</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="support-tickets.html" class="nav-link" data-page="support-tickets">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M18 13V14C18 14.7956 17.6839 15.5587 17.1213 16.1213C16.5587 16.6839 15.7956 17 15 17H5L2 20V5C2 4.20435 2.31607 3.44129 2.87868 2.87868C3.44129 2.31607 4.20435 2 5 2H15C15.7956 2 16.5587 2.31607 17.1213 2.87868C17.6839 3.44129 18 4.20435 18 5V13Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M6 7H14M6 11H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Support Tickets</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-header">WARRANTIES</div>
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="warranties.html" class="nav-link" data-page="warranties">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M10 2L3 6L3 10C3 14.5 6.5 18.5 10 19C13.5 18.5 17 14.5 17 10L17 6L10 2Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Warranties</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="warranty-pricing.html" class="nav-link" data-page="warranty-pricing">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M10 2L12 8L18 8L13 12L15 18L10 14L5 18L7 12L2 8L8 8L10 2Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Pricing</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="warranty-terms.html" class="nav-link" data-page="warranty-terms">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M4 4H16V16H4V4Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M7 7H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                <path d="M7 10H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                <path d="M7 13H11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                            <span>T&Cs</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-header">SALES</div>
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="addon-sales.html" class="nav-link" data-page="addon-sales">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M6 6L14 14M14 6L6 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"/>
+                            </svg>
+                            <span>Add-On Sales</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-header">ANALYTICS</div>
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="analytics.html" class="nav-link" data-page="analytics">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 16L3 12M7 16L7 8M11 16L11 10M15 16L15 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Analytics</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-header">SETTINGS</div>
+                <ul class="nav-menu">
+                    <li class="nav-item has-submenu">
+                        <a href="settings.html" class="nav-link" data-page="settings" onclick="event.preventDefault(); toggleSubmenu(this.parentElement);">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M10 12C11.1046 12 12 11.1046 12 10C12 8.89543 11.1046 8 10 8C8.89543 8 8 8.89543 8 10C8 11.1046 8.89543 12 10 12Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M16.5 10C16.5 10.5 16.6 11 16.7 11.5L18.5 12.5C18.8 12.7 18.9 13.1 18.7 13.4L17.1 15.9C16.9 16.2 16.5 16.3 16.2 16.1L14.2 15.1C13.7 15.4 13.2 15.6 12.7 15.7L12.5 17.8C12.5 18.1 12.2 18.4 11.9 18.4H8.1C7.8 18.4 7.5 18.1 7.5 17.8L7.3 15.7C6.8 15.6 6.3 15.4 5.8 15.1L3.8 16.1C3.5 16.3 3.1 16.2 2.9 15.9L1.3 13.4C1.1 13.1 1.2 12.7 1.5 12.5L3.3 11.5C3.4 11 3.5 10.5 3.5 10C3.5 9.5 3.4 9 3.3 8.5L1.5 7.5C1.2 7.3 1.1 6.9 1.3 6.6L2.9 4.1C3.1 3.8 3.5 3.7 3.8 3.9L5.8 4.9C6.3 4.6 6.8 4.4 7.3 4.3L7.5 2.2C7.5 1.9 7.8 1.6 8.1 1.6H11.9C12.2 1.6 12.5 1.9 12.5 2.2L12.7 4.3C13.2 4.4 13.7 4.6 14.2 4.9L16.2 3.9C16.5 3.7 16.9 3.8 17.1 4.1L18.7 6.6C18.9 6.9 18.8 7.3 18.5 7.5L16.7 8.5C16.6 9 16.5 9.5 16.5 10Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Settings</span>
+                        </a>
+                        <ul class="nav-submenu">
+                            <li class="nav-item">
+                                <a href="settings.html#email-settings" class="nav-link" data-page="settings" data-section="email">
+                                    <span>Email Configuration</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="settings.html#page-field-options" class="nav-link" data-page="settings" data-section="status">
+                                    <span>Page Field Options</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <div class="sidebar-footer">
+            <a href="downloads.html" class="sidebar-footer-link" data-page="downloads">
+                <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M10 13L10 3M10 13L6 9M10 13L14 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M3 16L17 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+                <span>Downloads</span>
+            </a>
+            <button class="sidebar-footer-link sidebar-logout" id="logoutButton">
+                <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M13 15L17 10L13 5M17 10H7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M7 3H4C3.44772 3 3 3.44772 3 4V16C3 16.5523 3.44772 17 4 17H7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>Logout</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <div class="admin-main">
+        <!-- Top Utility Bar -->
+        <header class="admin-topbar">
+            <div class="topbar-left">
+                <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 5H17M3 10H17M3 15H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                </button>
+                <form class="topbar-search-form" action="search-product.html" method="get">
+                    <input
+                        type="text"
+                        name="security_barcode"
+                        class="topbar-search-input"
+                        placeholder="Search products..."
+                        autocomplete="off"
+                    >
+                    <button type="submit" class="topbar-search-button" aria-label="Search">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M8.33333 13.6667C11.2789 13.6667 13.6667 11.2789 13.6667 8.33333C13.6667 5.38781 11.2789 3 8.33333 3C5.38781 3 3 5.38781 3 8.33333C3 11.2789 5.38781 13.6667 8.33333 13.6667Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M15 15L12.1 12.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </form>
+                <div class="topbar-actions">
+                    <a href="search-product.html" class="topbar-action-button is-secondary">Search Products</a>
+                    <a href="parts.html" class="topbar-action-button">Add Part</a>
+                    <a href="add-product.html" class="topbar-action-button">Add Product</a>
+                    <a href="add-purchase.html" class="topbar-action-button">Add Purchase</a>
+                    <a href="addon-sales.html" class="topbar-action-button">Add Sale</a>
+                </div>
+            </div>
+            <div class="topbar-right">
+                <div class="topbar-user">
+                    <span class="topbar-user-name">Admin</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Page Content -->
+        <div class="admin-content">
+            <!-- Consumables Header -->
+            <div class="products-header">
+                <h1 class="products-title">Consumables Inventory</h1>
+                <div class="products-header-actions">
+                    <div class="search-box">
+                        <input
+                            type="text"
+                            id="searchConsumables"
+                            class="search-input"
+                            placeholder="Search item name / SKU..."
+                            autocomplete="off"
+                        >
+                    </div>
+                    <a href="add-consumable.html" class="btn-primary">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M8 3V13M3 8H13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        Add Item
+                    </a>
+                </div>
+            </div>
+
+            <!-- Low Stock Alert -->
+            <div id="lowStockAlert" class="alert-banner" style="display: none; background: #fff3cd; border: 1px solid #ffc107; padding: 12px 20px; border-radius: 8px; margin-bottom: 20px;">
+                <strong>Low Stock Alert:</strong> <span id="lowStockCount">0</span> items need restocking.
+            </div>
+
+            <!-- Consumables Table -->
+            <div class="products-layout">
+                <aside class="products-sidebar">
+                    <div class="sidebar-section">
+                        <h3 class="sidebar-heading">Category</h3>
+                        <select id="filterCategory" class="sidebar-select">
+                            <option value="">All Categories</option>
+                            <option value="packaging">Packaging</option>
+                            <option value="shipping">Shipping</option>
+                            <option value="cleaning">Cleaning</option>
+                            <option value="cables">Cables</option>
+                            <option value="ear-tips">Ear Tips</option>
+                            <option value="protective">Protective Cases</option>
+                            <option value="labels">Labels</option>
+                            <option value="general">General</option>
+                        </select>
+                    </div>
+
+                    <div class="sidebar-section">
+                        <h3 class="sidebar-heading">Status</h3>
+                        <select id="filterStatus" class="sidebar-select">
+                            <option value="">All Status</option>
+                            <option value="active">Active</option>
+                            <option value="low-stock">Low Stock</option>
+                            <option value="discontinued">Discontinued</option>
+                        </select>
+                    </div>
+
+                    <button id="clearFilters" class="sidebar-btn">Clear filters</button>
+
+                    <div class="sidebar-count">
+                        <span id="consumablesCount">0 items</span>
+                    </div>
+
+                    <div class="sidebar-section" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">
+                        <h3 class="sidebar-heading">Total Value</h3>
+                        <div style="font-size: 1.5rem; font-weight: 600; color: var(--accent-teal);" id="totalValue">
+                            £0.00
+                        </div>
+                    </div>
+                </aside>
+
+                <main class="products-main">
+                    <div class="products-table-wrapper">
+                        <table class="products-table">
+                            <thead>
+                                <tr>
+                                    <th>Item Name</th>
+                                    <th>SKU</th>
+                                    <th>Category</th>
+                                    <th>Quantity</th>
+                                    <th>Unit</th>
+                                    <th>Unit Cost</th>
+                                    <th>Total Value</th>
+                                    <th>Reorder Level</th>
+                                    <th>Status</th>
+                                    <th>Location</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="consumablesTable">
+                                <tr>
+                                    <td colspan="11" class="table-loading">Loading consumables...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </main>
+            </div>
+        </div>
+    </div>
+
+    <!-- Restock Modal -->
+    <div id="restockModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); align-items: center; justify-content: center; z-index: 1000;">
+        <div style="background: white; padding: 24px; border-radius: 10px; max-width: 420px; width: 90%; box-shadow: 0 12px 30px rgba(0,0,0,0.2);">
+            <h3 style="margin-top: 0;">Restock Consumable</h3>
+            <p id="restockItemName" style="margin: 0 0 16px 0; color: #666;"></p>
+            <form id="restockForm">
+                <div class="form-group">
+                    <label for="restockQuantity">Restock Quantity</label>
+                    <input type="number" id="restockQuantity" min="1" step="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="restockReason">Reason / Notes</label>
+                    <input type="text" id="restockReason" placeholder="Optional notes">
+                </div>
+                <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 16px;">
+                    <button type="button" class="button button-secondary" id="cancelRestock">Cancel</button>
+                    <button type="submit" class="button button-primary">Restock</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Stock Check Modal -->
+    <div id="stockCheckModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); align-items: center; justify-content: center; z-index: 1000;">
+        <div style="background: white; padding: 24px; border-radius: 10px; max-width: 460px; width: 90%; box-shadow: 0 12px 30px rgba(0,0,0,0.2);">
+            <h3 style="margin-top: 0;">Consumable Stock Check</h3>
+            <p id="stockCheckItemName" style="margin: 0 0 16px 0; color: #666;"></p>
+            <form id="stockCheckForm">
+                <div class="form-group">
+                    <label for="checkedQuantity">Checked Quantity</label>
+                    <input type="number" id="checkedQuantity" min="0" step="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="faultyQuantity">Faulty Quantity</label>
+                    <input type="number" id="faultyQuantity" min="0" step="1" value="0">
+                </div>
+                <div class="form-group">
+                    <label for="breakageQuantity">Breakage Quantity</label>
+                    <input type="number" id="breakageQuantity" min="0" step="1" value="0">
+                </div>
+                <div class="form-group">
+                    <label for="stockCheckNotes">Notes</label>
+                    <textarea id="stockCheckNotes" rows="3" placeholder="Optional inspection notes"></textarea>
+                </div>
+                <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 16px;">
+                    <button type="button" class="button button-secondary" id="cancelStockCheck">Cancel</button>
+                    <button type="submit" class="button button-primary">Save Check-In</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Sidebar Overlay for Mobile -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <script src="../js/admin.js?v=1.0.6"></script>
+    <script src="../js/main.js?v=1.0.0"></script>
+    <script src="../js/consumables.js?v=1.0.0"></script>
+    <script>
+        // Sidebar toggle functionality
+        (function() {
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const sidebar = document.querySelector('.admin-sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+
+            if (sidebarToggle && sidebar) {
+                sidebarToggle.addEventListener('click', function() {
+                    sidebar.classList.toggle('sidebar-open');
+                    if (overlay) {
+                        overlay.classList.toggle('active');
+                    }
+                });
+
+                if (overlay) {
+                    overlay.addEventListener('click', function() {
+                        sidebar.classList.remove('sidebar-open');
+                        overlay.classList.remove('active');
+                    });
+                }
+            }
+
+            // Set active nav item
+            const currentPage = window.location.pathname.split('/').pop() || 'dashboard.html';
+            const navLinks = document.querySelectorAll('.nav-link, .sidebar-footer-link');
+            navLinks.forEach(link => {
+                const href = link.getAttribute('href');
+                if (href && (href === currentPage || currentPage.includes(href.replace('.html', '')))) {
+                    link.classList.add('active');
+                }
+            });
+        })();
+    </script>
+</body>
+</html>

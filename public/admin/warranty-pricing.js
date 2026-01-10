@@ -1,10 +1,5 @@
 // Warranty Pricing Management JavaScript
-
-// Define API_BASE globally if not already defined
-if (typeof window.API_BASE === 'undefined') {
-    window.API_BASE = '';
-}
-var API_BASE = window.API_BASE;
+// Uses window.API_BASE set by admin.js
 
 // Utility functions
 function showError(message) {
@@ -37,7 +32,7 @@ function hideMessages() {
 // Load current pricing
 async function loadPricing() {
     try {
-        const response = await fetch(`${API_BASE}/api/admin/warranty-pricing`);
+        const response = await authenticatedFetch(`${window.API_BASE || ""}/api/admin/warranty-pricing`);
         const data = await response.json();
         
         if (response.ok) {
@@ -121,7 +116,7 @@ if (pricingForm) {
         try {
             console.log('Saving warranty pricing:', formData); // Debug log
             
-            const response = await fetch(`${API_BASE}/api/admin/warranty-pricing`, {
+            const response = await authenticatedFetch(`${window.API_BASE || ""}/api/admin/warranty-pricing`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phone Photo Upload | LJM AirPod Support</title>
+    <link rel="stylesheet" href="css/styles.css?v=1.2.5.030">
+    <style>
+        body {
+            background: #f5f7fb;
+        }
+        .mobile-upload-container {
+            max-width: 640px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+        .mobile-upload-card {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+        }
+        .upload-status {
+            margin-top: 12px;
+            font-size: 0.9rem;
+        }
+        .upload-status.success {
+            color: #1f7a1f;
+        }
+        .upload-status.error {
+            color: #c62828;
+        }
+    </style>
+</head>
+<body>
+    <div class="mobile-upload-container">
+        <div class="mobile-upload-card">
+            <h2 style="margin-top: 0;">📸 Upload Photos from Your Phone</h2>
+            <p style="color: #555;">
+                Select photos from your library or take new photos. They will be ready to load on your laptop form.
+            </p>
+            <div class="form-group">
+                <label>Select Photos</label>
+                <div style="display: flex; gap: 10px; flex-direction: column; margin-bottom: 15px;">
+                    <input
+                        type="file"
+                        id="phonePhotos"
+                        accept="image/*"
+                        multiple
+                        style="display: none;"
+                    >
+                    <label for="phonePhotos" class="button button-secondary" style="width: 100%; text-align: center; cursor: pointer; margin: 0; display: block;">
+                        🖼️ Choose from Photo Library
+                    </label>
+                    
+                    <input
+                        type="file"
+                        id="phonePhotosCamera"
+                        accept="image/*"
+                        capture="environment"
+                        multiple
+                        style="display: none;"
+                    >
+                    <label for="phonePhotosCamera" class="button button-secondary" style="width: 100%; text-align: center; cursor: pointer; margin: 0; display: block;">
+                        📷 Take New Photos
+                    </label>
+                </div>
+                <div id="selectedPhotosInfo" style="font-size: 0.9rem; color: #666; margin-bottom: 10px; display: none;">
+                    <strong id="selectedCount">0</strong> photo(s) selected
+                </div>
+            </div>
+            <button type="button" class="button" id="uploadPhonePhotos">
+                Upload Photos
+            </button>
+            <div id="uploadStatus" class="upload-status"></div>
+        </div>
+    </div>
+
+    <script src="js/mobile-photo-upload.js"></script>
+</body>
+</html>

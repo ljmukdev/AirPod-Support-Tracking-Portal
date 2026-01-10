@@ -5,7 +5,190 @@ if (typeof window.API_BASE === 'undefined') {
     window.API_BASE = '';
 }
 // Reference the global API_BASE
-var API_BASE = window.API_BASE;
+const API_BASE = window.API_BASE;
+
+// Session Management Configuration
+const SESSION_CONFIG = {
+    IDLE_TIMEOUT: 15 * 60 * 1000, // 15 minutes in milliseconds
+    WARNING_BEFORE_LOGOUT: 2 * 60 * 1000, // Show warning 2 minutes before logout
+    STORAGE_TYPE: 'localStorage' // Use localStorage (persists across tabs and page reloads)
+};
+
+// Idle timeout management
+let idleTimer = null;
+let warningTimer = null;
+let lastActivity = Date.now();
+
+// Get storage (sessionStorage or localStorage based on config)
+function getStorage() {
+    return SESSION_CONFIG.STORAGE_TYPE === 'sessionStorage' ? sessionStorage : localStorage;
+}
+
+// Migrate tokens to the configured storage (one-time migration)
+function migrateTokenStorage() {
+    // If using localStorage, migrate from sessionStorage to localStorage
+    if (SESSION_CONFIG.STORAGE_TYPE === 'localStorage') {
+        const sessionAccessToken = sessionStorage.getItem('accessToken');
+        const localAccessToken = localStorage.getItem('accessToken');
+
+        // Migrate from sessionStorage to localStorage if tokens exist in session but not local
+        if (sessionAccessToken && !localAccessToken) {
+            console.log('[SESSION] Migrating tokens from sessionStorage to localStorage');
+
+            localStorage.setItem('accessToken', sessionAccessToken);
+
+            const sessionRefreshToken = sessionStorage.getItem('refreshToken');
+            if (sessionRefreshToken) {
+                localStorage.setItem('refreshToken', sessionRefreshToken);
+            }
+
+            const sessionUser = sessionStorage.getItem('user');
+            if (sessionUser) {
+                localStorage.setItem('user', sessionUser);
+            }
+        }
+
+        // Clear sessionStorage tokens after migration
+        sessionStorage.removeItem('accessToken');
+        sessionStorage.removeItem('refreshToken');
+        sessionStorage.removeItem('user');
+    }
+    // If using sessionStorage, migrate from localStorage to sessionStorage
+    else if (SESSION_CONFIG.STORAGE_TYPE === 'sessionStorage') {
+        const localAccessToken = localStorage.getItem('accessToken');
+        const sessionAccessToken = sessionStorage.getItem('accessToken');
+
+        if (localAccessToken && !sessionAccessToken) {
+            console.log('[SESSION] Migrating tokens from localStorage to sessionStorage');
+
+            sessionStorage.setItem('accessToken', localAccessToken);
+
+            const localRefreshToken = localStorage.getItem('refreshToken');
+            if (localRefreshToken) {
+                sessionStorage.setItem('refreshToken', localRefreshToken);
+            }
+
+            const localUser = localStorage.getItem('user');
+            if (localUser) {
+                sessionStorage.setItem('user', localUser);
+            }
+        }
+
+        // Clear localStorage tokens after migration
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+    }
+}
+
+// Run migration on page load
+migrateTokenStorage();
+
+// Reset idle timer on user activity
+function resetIdleTimer() {
+    lastActivity = Date.now();
+
+    // Clear existing timers
+    if (idleTimer) clearTimeout(idleTimer);
+    if (warningTimer) clearTimeout(warningTimer);
+
+    // Set warning timer (2 minutes before logout)
+    warningTimer = setTimeout(() => {
+        showIdleWarning();
+    }, SESSION_CONFIG.IDLE_TIMEOUT - SESSION_CONFIG.WARNING_BEFORE_LOGOUT);
+
+    // Set logout timer
+    idleTimer = setTimeout(() => {
+        handleIdleLogout();
+    }, SESSION_CONFIG.IDLE_TIMEOUT);
+}
+
+// Show warning before auto-logout
+function showIdleWarning() {
+    const minutesLeft = Math.floor(SESSION_CONFIG.WARNING_BEFORE_LOGOUT / 60000);
+    const warningMessage = `You will be logged out in ${minutesLeft} minutes due to inactivity. Move your mouse or press a key to stay logged in.`;
+
+    // Create warning banner
+    let warningBanner = document.getElementById('idle-warning-banner');
+    if (!warningBanner) {
+        warningBanner = document.createElement('div');
+        warningBanner.id = 'idle-warning-banner';
+        warningBanner.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #ff9800;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            z-index: 10000;
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        `;
+        document.body.appendChild(warningBanner);
+    }
+    warningBanner.textContent = warningMessage;
+    warningBanner.style.display = 'block';
+}
+
+// Hide warning banner
+function hideIdleWarning() {
+    const warningBanner = document.getElementById('idle-warning-banner');
+    if (warningBanner) {
+        warningBanner.style.display = 'none';
+    }
+}
+
+// Handle auto-logout due to inactivity
+function handleIdleLogout() {
+    console.log('[SESSION] Auto-logout due to inactivity');
+
+    // Clear tokens
+    const storage = getStorage();
+    storage.removeItem('accessToken');
+    storage.removeItem('refreshToken');
+    storage.removeItem('user');
+
+    // Show logout message
+    alert('You have been logged out due to inactivity. Please log in again.');
+
+    // Redirect to login
+    window.location.href = '/admin/login';
+}
+
+// Initialize activity tracking
+function initActivityTracking() {
+    // Don't track on login page
+    if (window.location.pathname.includes('login')) {
+        return;
+    }
+
+    // Track various user activities
+    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+
+    // Throttle activity tracking (don't reset timer on every single event)
+    let throttleTimer = null;
+    const throttleDelay = 1000; // Only reset timer once per second max
+
+    activityEvents.forEach(eventType => {
+        document.addEventListener(eventType, () => {
+            hideIdleWarning(); // Hide warning on any activity
+
+            if (!throttleTimer) {
+                throttleTimer = setTimeout(() => {
+                    resetIdleTimer();
+                    throttleTimer = null;
+                }, throttleDelay);
+            }
+        }, true);
+    });
+
+    // Start initial timer
+    resetIdleTimer();
+
+    console.log(`[SESSION] Activity tracking initialized (timeout: ${SESSION_CONFIG.IDLE_TIMEOUT / 60000} minutes)`);
+}
 
 // Utility functions
 function showError(message, elementId = 'errorMessage') {
@@ -44,20 +227,25 @@ function hideSpinner() {
     }
 }
 
-// Auto-uppercase conversion for serial number, security barcode, and part number fields
+// Auto-uppercase conversion for serial number, security barcode, and related fields
 function setupUppercaseFields() {
-    const serialNumberField = document.getElementById('serialNumber');
-    const securityBarcodeField = document.getElementById('securityBarcode');
-    const partModelNumberField = document.getElementById('partModelNumber');
-    
+    const fields = Array.from(document.querySelectorAll('input[type="text"], input[type="search"], textarea'));
+    const targets = fields.filter((field) => {
+        const id = field.id || '';
+        const name = field.name || '';
+        return /serial|security/i.test(id) || /serial|security/i.test(name);
+    });
+
     // Function to convert to uppercase on input
     function convertToUppercase(e) {
         const start = e.target.selectionStart;
         const end = e.target.selectionEnd;
         e.target.value = e.target.value.toUpperCase();
-        e.target.setSelectionRange(start, end); // Maintain cursor position
+        if (typeof start === 'number' && typeof end === 'number') {
+            e.target.setSelectionRange(start, end); // Maintain cursor position
+        }
     }
-    
+
     // Function to convert to uppercase on paste
     function convertPasteToUppercase(e) {
         e.preventDefault();
@@ -67,35 +255,22 @@ function setupUppercaseFields() {
         const currentValue = e.target.value;
         const newValue = currentValue.substring(0, start) + paste.toUpperCase() + currentValue.substring(end);
         e.target.value = newValue;
-        e.target.setSelectionRange(start + paste.length, start + paste.length);
-    }
-    
-    if (serialNumberField) {
-        serialNumberField.addEventListener('input', convertToUppercase);
-        serialNumberField.addEventListener('paste', convertPasteToUppercase);
-        // Also convert existing value if any
-        if (serialNumberField.value) {
-            serialNumberField.value = serialNumberField.value.toUpperCase();
+        if (typeof start === 'number') {
+            e.target.setSelectionRange(start + paste.length, start + paste.length);
         }
     }
-    
-    if (securityBarcodeField) {
-        securityBarcodeField.addEventListener('input', convertToUppercase);
-        securityBarcodeField.addEventListener('paste', convertPasteToUppercase);
-        // Also convert existing value if any
-        if (securityBarcodeField.value) {
-            securityBarcodeField.value = securityBarcodeField.value.toUpperCase();
+
+    targets.forEach((field) => {
+        if (field.dataset.uppercaseBound === 'true') {
+            return;
         }
-    }
-    
-    if (partModelNumberField) {
-        partModelNumberField.addEventListener('input', convertToUppercase);
-        partModelNumberField.addEventListener('paste', convertPasteToUppercase);
-        // Also convert existing value if any
-        if (partModelNumberField.value) {
-            partModelNumberField.value = partModelNumberField.value.toUpperCase();
+        field.dataset.uppercaseBound = 'true';
+        field.addEventListener('input', convertToUppercase);
+        field.addEventListener('paste', convertPasteToUppercase);
+        if (field.value) {
+            field.value = field.value.toUpperCase();
         }
-    }
+    });
 }
 
 // Setup uppercase conversion when page loads
@@ -105,18 +280,155 @@ if (document.readyState === 'loading') {
     setupUppercaseFields();
 }
 
+// Support bubble is now handled by main.js with screenshot/annotation support
+
+// Toggle submenu function (for Settings dropdown)
+function toggleSubmenu(navItem) {
+    if (navItem && navItem.classList) {
+        navItem.classList.toggle('expanded');
+    }
+}
+
+// Make toggleSubmenu available globally
+window.toggleSubmenu = toggleSubmenu;
+
+// Check for token in URL (from User Service callback) - MUST be called FIRST on page load
+function checkUrlToken() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    const refreshToken = urlParams.get('refresh_token');
+
+    if (token) {
+        const storage = getStorage();
+        console.log(`✅ Found token in URL, storing in ${SESSION_CONFIG.STORAGE_TYPE}`);
+        // Store tokens from URL immediately using configured storage
+        storage.setItem('accessToken', token);
+        if (refreshToken) {
+            storage.setItem('refreshToken', refreshToken);
+        }
+
+        // Mark that we just processed a token from URL (to prevent immediate redirect)
+        sessionStorage.setItem('tokenJustProcessed', 'true');
+        sessionStorage.setItem('tokenProcessedAt', Date.now().toString());
+
+        // Clean up URL (remove token from query string) immediately
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+
+        // Remove flag after 5 seconds (enough time for page to load)
+        setTimeout(() => {
+            sessionStorage.removeItem('tokenJustProcessed');
+            sessionStorage.removeItem('tokenProcessedAt');
+        }, 5000);
+
+        return true; // Indicate token was found and stored
+    }
+    return false; // No token found
+}
+
+// Call this IMMEDIATELY when script loads (before DOMContentLoaded)
+checkUrlToken();
+
 // Check authentication status
 async function checkAuth() {
+    // Check if we just processed a token from URL (within last 5 seconds)
+    const tokenJustProcessed = sessionStorage.getItem('tokenJustProcessed') === 'true';
+    const tokenProcessedAt = sessionStorage.getItem('tokenProcessedAt');
+    const timeSinceProcessed = tokenProcessedAt ? Date.now() - parseInt(tokenProcessedAt) : Infinity;
+
+    if (tokenJustProcessed && timeSinceProcessed < 5000) {
+        console.log('⏳ Token just processed from URL (' + Math.round(timeSinceProcessed) + 'ms ago), skipping auth check to prevent redirect loop');
+        return; // Don't check auth immediately, let the page load
+    }
+
+    // Don't check auth on login page
+    if (window.location.pathname.includes('login')) {
+        return;
+    }
+
     try {
-        const response = await fetch(`${API_BASE}/api/admin/check-auth`);
-        const data = await response.json();
-        
-        if (!data.authenticated && window.location.pathname.includes('dashboard')) {
-            window.location.href = '/admin/login';
+        const storage = getStorage();
+        const token = storage.getItem('accessToken') || document.cookie.split('; ').find(row => row.startsWith('accessToken='))?.split('=')[1];
+
+        if (!token) {
+            // Only redirect if we're on a protected page
+            if (window.location.pathname.includes('dashboard') ||
+                (window.location.pathname.includes('admin') && !window.location.pathname.includes('login'))) {
+                console.log('❌ No token found, redirecting to login');
+                window.location.href = '/admin/login';
+            }
+            return;
+        }
+
+        // Verify token with User Service (but don't block if it fails immediately after getting token from URL)
+        const USER_SERVICE_URL = 'https://autorestock-user-service-production.up.railway.app';
+        try {
+            const response = await fetch(`${USER_SERVICE_URL}/api/v1/auth/verify`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            // Only logout on 401 Unauthorized (actual auth failure)
+            // Don't logout on service errors (404, 500, etc.) - those are non-fatal
+            if (response.status === 401) {
+                // Token is actually invalid/expired - logout required
+                console.error('❌ Token verification failed: 401 Unauthorized');
+                storage.removeItem('accessToken');
+                storage.removeItem('refreshToken');
+                storage.removeItem('user');
+                if (window.location.pathname.includes('dashboard') ||
+                    (window.location.pathname.includes('admin') && !window.location.pathname.includes('login'))) {
+                    window.location.href = '/admin/login';
+                }
+            } else if (!response.ok) {
+                // Service error (404, 500, etc.) - log warning but keep user logged in
+                console.warn(`⚠️ Token verification service error: ${response.status} - keeping session active`);
+            } else {
+                const data = await response.json();
+                if (data.success) {
+                    console.log('✅ Token verified successfully');
+                } else {
+                    console.warn('⚠️ Token verification returned non-success, but not 401 - keeping session active');
+                }
+            }
+        } catch (verifyError) {
+            // If verification fails due to network error, don't redirect immediately
+            // This prevents redirect loops during network issues
+            console.warn('⚠️ Token verification error (non-fatal):', verifyError);
         }
     } catch (error) {
-        console.error('Auth check error:', error);
+        // Unexpected error in auth check - log but DON'T logout
+        // Only logout on explicit 401 responses, not on unexpected errors
+        console.error('❌ Auth check error (non-fatal):', error);
+        console.warn('⚠️ Keeping user logged in despite auth check error');
     }
+}
+
+// Helper function to add auth headers to fetch requests
+function authenticatedFetch(url, options = {}) {
+    const storage = getStorage();
+    const token = storage.getItem('accessToken');
+    const headers = {
+        ...options.headers
+    };
+
+    // Only set Content-Type if not already set and not sending FormData
+    if (!headers['Content-Type'] && !(options.body instanceof FormData)) {
+        headers['Content-Type'] = 'application/json';
+    }
+
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+        console.log(`[AUTH] Making authenticated request to ${url} with token: ${token.substring(0, 20)}...`);
+    } else {
+        console.warn(`[AUTH] ⚠️  No token found in ${SESSION_CONFIG.STORAGE_TYPE} for request to ${url}`);
+    }
+
+    return fetch(url, {
+        ...options,
+        headers
+    });
 }
 
 // Login form
@@ -138,25 +450,112 @@ if (loginForm) {
         showSpinner();
         
         try {
-            const response = await fetch(`${API_BASE}/api/admin/login`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ username, password })
-            });
+            // Try legacy login first (for existing accounts)
+            let legacyData;
+            try {
+                const legacyResponse = await fetch('/api/admin/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        username: username,
+                        password: password
+                    })
+                });
+                
+                // Check if response is JSON
+                const contentType = legacyResponse.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    legacyData = await legacyResponse.json();
+                } else {
+                    // Server returned HTML (error page) instead of JSON
+                    const text = await legacyResponse.text();
+                    console.error('Legacy login returned non-JSON response:', text.substring(0, 200));
+                    throw new Error(`Server error (${legacyResponse.status}): Server returned HTML instead of JSON. The server may be down or misconfigured.`);
+                }
+                
+                if (legacyResponse.ok && legacyData.success) {
+                    // Legacy login successful - redirect to dashboard
+                    console.log('✅ Legacy login successful');
+                    window.location.href = '/admin/dashboard';
+                    return;
+                }
+                
+                // If credentials are wrong, show error
+                if (legacyResponse.status === 401) {
+                    showError(legacyData.message || 'Invalid username or password');
+                    loginButton.disabled = false;
+                    hideSpinner();
+                    return;
+                }
+            } catch (legacyError) {
+                console.error('Legacy login error:', legacyError);
+                // If legacy login fails due to server error, try User Service
+                console.log('Legacy login failed, trying User Service...');
+            }
             
-            const data = await response.json();
-            
-            if (response.ok && data.success) {
-                window.location.href = '/admin/dashboard';
-            } else {
-                showError(data.error || 'Invalid credentials');
-                loginButton.disabled = false;
+            // If legacy login fails, try User Service
+            if (!legacyData || !legacyData.success) {
+                console.log('Trying User Service login...');
+                const USER_SERVICE_URL = 'https://autorestock-user-service-production.up.railway.app';
+
+                const response = await fetch(`${USER_SERVICE_URL}/api/v1/users/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        email: username, // Use email field (username is email)
+                        password: password,
+                        serviceName: 'AirPod-Support-Tracking-Portal'
+                    })
+                });
+
+                console.log('User Service login response status:', response.status);
+
+                let data;
+                try {
+                    data = await response.json();
+                } catch (parseError) {
+                    const text = await response.text();
+                    console.error('Failed to parse response:', text);
+                    showError(`Server error (${response.status}): ${text || response.statusText}`);
+                    loginButton.disabled = false;
+                    hideSpinner();
+                    return;
+                }
+
+                if (response.ok && data.success) {
+                    // Store tokens in session storage
+                    const storage = getStorage();
+                    storage.setItem('accessToken', data.data.accessToken);
+                    storage.setItem('refreshToken', data.data.refreshToken);
+                    storage.setItem('user', JSON.stringify(data.data.user));
+
+                    console.log(`[SESSION] Tokens stored in ${SESSION_CONFIG.STORAGE_TYPE}`);
+
+                    // Redirect to dashboard
+                    window.location.href = '/admin/dashboard';
+                } else {
+                    // Show detailed error message
+                    const errorMsg = data.message || data.error || 'Invalid credentials';
+                    console.error('Login failed:', errorMsg, data);
+
+                    let userFriendlyMsg = errorMsg;
+                    if (response.status === 401) {
+                        userFriendlyMsg = `Authentication failed: ${errorMsg}. Please check your credentials or use the "Login with User Service" button above.`;
+                    }
+
+                    showError(userFriendlyMsg);
+                    loginButton.disabled = false;
+                }
             }
         } catch (error) {
             console.error('Login error:', error);
-            showError('Network error. Please try again.');
+            showError(`Network error: ${error.message}. Please check your connection and try again.`);
             loginButton.disabled = false;
         } finally {
             hideSpinner();
@@ -169,10 +568,26 @@ const logoutButton = document.getElementById('logoutButton');
 if (logoutButton) {
     logoutButton.addEventListener('click', async () => {
         try {
-            await fetch(`${API_BASE}/api/admin/logout`);
+            console.log('[SESSION] Manual logout initiated');
+
+            // Clear session storage
+            const storage = getStorage();
+            storage.removeItem('accessToken');
+            storage.removeItem('refreshToken');
+            storage.removeItem('user');
+
+            // Clear timers
+            if (idleTimer) clearTimeout(idleTimer);
+            if (warningTimer) clearTimeout(warningTimer);
+
             window.location.href = '/admin/login';
         } catch (error) {
             console.error('Logout error:', error);
+            // Clear tokens anyway
+            const storage = getStorage();
+            storage.removeItem('accessToken');
+            storage.removeItem('refreshToken');
+            storage.removeItem('user');
             window.location.href = '/admin/login';
         }
     });
@@ -186,9 +601,19 @@ const cancelEditButton = document.getElementById('cancelEditButton');
 
 // Edit product function
 async function editProduct(id) {
+    // Check if we're on add-product.html (form page) or products.html (table page)
+    const isAddProductPage = window.location.pathname.includes('add-product.html');
+    
+    if (!isAddProductPage) {
+        // If on products page, redirect to add-product page with the product ID
+        window.location.href = `add-product.html?edit=${encodeURIComponent(String(id))}`;
+        return;
+    }
+    
+    // If on add-product page, populate the form
     try {
         // Get all products to find the one we're editing
-        const response = await fetch(`${API_BASE}/api/admin/products`);
+        const response = await authenticatedFetch(`${API_BASE}/api/admin/products`);
         const data = await response.json();
         
         if (response.ok && data.products) {
@@ -231,9 +656,12 @@ async function editProduct(id) {
                     partTypeSelect.value = product.part_type;
                 }
                 
-                // Set notes and eBay order number
+                // Set notes and eBay order numbers
                 document.getElementById('notes').value = product.notes || '';
                 document.getElementById('ebayOrderNumber').value = product.ebay_order_number || '';
+                if (document.getElementById('salesOrderNumber')) {
+                    document.getElementById('salesOrderNumber').value = product.sales_order_number || '';
+                }
                 
                 // Update button text and show cancel button
                 if (addProductButton) {
@@ -259,6 +687,14 @@ async function editProduct(id) {
 
 // Cancel edit function
 function cancelEdit() {
+    // If we came from products page (via edit parameter), go back to products page
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('edit')) {
+        window.location.href = 'products.html';
+        return;
+    }
+    
+    // Otherwise just reset the form
     editingProductId = null;
     productForm.reset();
     const partSelectionSelect = document.getElementById('partSelection');
@@ -287,6 +723,85 @@ function cancelEdit() {
     }
 }
 
+// Add event listener for part type changes to handle accessories
+const partTypeField = document.getElementById('partType');
+const generationField = document.getElementById('generation');
+const partSelectionField = document.getElementById('partSelection');
+
+if (partTypeField) {
+    partTypeField.addEventListener('change', function() {
+        const selectedType = this.value;
+        const isAccessory = ['ear_tips', 'box', 'cable', 'other'].includes(selectedType);
+        
+        if (isAccessory) {
+            // Hide generation and part selection fields for accessories
+            if (generationField) {
+                generationField.removeAttribute('required');
+                // Set a placeholder value to satisfy any validation
+                if (!generationField.querySelector('option[value="N/A"]')) {
+                    const naOption = document.createElement('option');
+                    naOption.value = 'N/A';
+                    naOption.textContent = 'N/A';
+                    generationField.appendChild(naOption);
+                }
+                generationField.value = 'N/A';
+                const generationFormGroup = generationField.closest('.form-group');
+                if (generationFormGroup) {
+                    generationFormGroup.style.display = 'none';
+                }
+            }
+            if (partSelectionField) {
+                partSelectionField.removeAttribute('required');
+                // Set a placeholder value to satisfy any validation
+                if (!partSelectionField.querySelector('option[value="N/A"]')) {
+                    const naOption = document.createElement('option');
+                    naOption.value = 'N/A';
+                    naOption.textContent = 'N/A';
+                    partSelectionField.appendChild(naOption);
+                }
+                partSelectionField.value = 'N/A';
+                const partSelectionFormGroup = partSelectionField.closest('.form-group');
+                if (partSelectionFormGroup) {
+                    partSelectionFormGroup.style.display = 'none';
+                }
+            }
+        } else {
+            // Show and restore required status for AirPod parts
+            if (generationField) {
+                generationField.setAttribute('required', 'required');
+                // Remove N/A option if it exists
+                const naOption = generationField.querySelector('option[value="N/A"]');
+                if (naOption) {
+                    naOption.remove();
+                }
+                generationField.value = ''; // Reset to empty
+                const generationFormGroup = generationField.closest('.form-group');
+                if (generationFormGroup) {
+                    generationFormGroup.style.display = 'block';
+                }
+            }
+            if (partSelectionField) {
+                partSelectionField.setAttribute('required', 'required');
+                // Remove N/A option if it exists
+                const naOption = partSelectionField.querySelector('option[value="N/A"]');
+                if (naOption) {
+                    naOption.remove();
+                }
+                partSelectionField.value = ''; // Reset to empty
+                const partSelectionFormGroup = partSelectionField.closest('.form-group');
+                if (partSelectionFormGroup) {
+                    partSelectionFormGroup.style.display = 'block';
+                }
+            }
+        }
+    });
+    
+    // Trigger the change event on page load to handle pre-selected values (e.g., when editing)
+    if (partTypeField.value) {
+        partTypeField.dispatchEvent(new Event('change'));
+    }
+}
+
 if (productForm) {
     productForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -299,30 +814,47 @@ if (productForm) {
         const partModelNumber = document.getElementById('partModelNumber').value.trim();
         const notes = document.getElementById('notes').value.trim();
         const ebayOrderNumber = document.getElementById('ebayOrderNumber').value.trim();
+        const salesOrderNumber = document.getElementById('salesOrderNumber') ? document.getElementById('salesOrderNumber').value.trim() : '';
         const productPhotos = document.getElementById('productPhotos');
         const addProductButton = document.getElementById('addProductButton');
-        
+        const sparesRepairs = document.getElementById('sparesRepairs') ? document.getElementById('sparesRepairs').checked : false;
+
+        // Check if this is an accessory type - accessories automatically skip photo/security requirements
+        const isAccessory = ['ear_tips', 'box', 'cable', 'other'].includes(partType);
+        const skipPhotoSecurity = isAccessory || sparesRepairs; // Accessories and spares/repairs both skip
+
         // Validation - check required fields
-        if (!serialNumber) {
-            showError('Serial number is required');
-            return;
+        // Serial number and security barcode are optional for accessories and spares/repairs
+        if (!isAccessory && !sparesRepairs) {
+            if (!serialNumber) {
+                showError('Serial number is required for AirPod parts');
+                return;
+            }
+            if (!securityBarcode) {
+                showError('Security barcode is required for AirPod parts');
+                return;
+            }
         }
-        if (!securityBarcode) {
-            showError('Security barcode is required');
-            return;
-        }
+        
         if (!partModelNumber) {
             showError('Part/Model number is required');
             return;
         }
-        if (!generation) {
-            showError('Generation is required');
-            return;
+        
+        // Generation and Part Selection are only required for AirPod parts (left, right, case)
+        if (!isAccessory) {
+            if (!generation || generation === '') {
+                showError('Generation is required for AirPod parts');
+                return;
+            }
+            if (!partSelection || partSelection === '') {
+                showError('Part selection is required for AirPod parts');
+                return;
+            }
         }
-        if (!partSelection) {
-            showError('Part selection is required');
-            return;
-        }
+        // For accessories, generation and partSelection should be 'N/A'
+        // This is handled by the change event listener above
+        
         if (!partType) {
             showError('Part type is required');
             return;
@@ -334,13 +866,19 @@ if (productForm) {
         try {
             // Use FormData to support file uploads
             const formData = new FormData();
-            formData.append('serial_number', serialNumber);
-            formData.append('security_barcode', securityBarcode);
+            // If skip checkbox is checked and fields are empty, use placeholder values
+            formData.append('serial_number', serialNumber || (skipPhotoSecurity ? 'N/A' : ''));
+            formData.append('security_barcode', securityBarcode || (skipPhotoSecurity ? 'N/A' : ''));
             formData.append('part_type', partType);
-            formData.append('generation', generation);
+            // For accessories, generation and part selection are optional
+            formData.append('generation', generation || (isAccessory ? 'N/A' : ''));
+            formData.append('part_selection', partSelection || (isAccessory ? 'N/A' : ''));
             formData.append('part_model_number', partModelNumber);
             if (notes) formData.append('notes', notes);
             if (ebayOrderNumber) formData.append('ebay_order_number', ebayOrderNumber);
+            if (salesOrderNumber) formData.append('sales_order_number', salesOrderNumber);
+            formData.append('skip_photos_security', skipPhotoSecurity);
+            formData.append('spares_repairs', sparesRepairs);
             
             // Append photos if selected (use selectedFiles array)
             if (selectedFiles && selectedFiles.length > 0) {
@@ -350,12 +888,12 @@ if (productForm) {
             }
             
             // Determine if we're updating or adding
-            const url = editingProductId 
+            const url = editingProductId
                 ? `${API_BASE}/api/admin/product/${encodeURIComponent(String(editingProductId))}`
                 : `${API_BASE}/api/admin/product`;
             const method = editingProductId ? 'PUT' : 'POST';
-            
-            const response = await fetch(url, {
+
+            const response = await authenticatedFetch(url, {
                 method: method,
                 body: formData // Don't set Content-Type header, browser will set it with boundary
             });
@@ -376,6 +914,14 @@ if (productForm) {
             if (response.ok && data.success) {
                 if (editingProductId) {
                     showSuccess('Product updated successfully!');
+                    // If we came from products page (via edit parameter), go back after a brief delay
+                    const urlParams = new URLSearchParams(window.location.search);
+                    if (urlParams.has('edit')) {
+                        setTimeout(() => {
+                            window.location.href = 'products.html';
+                        }, 1000);
+                        return;
+                    }
                 } else {
                     showSuccess('Product added successfully!');
                 }
@@ -395,26 +941,129 @@ if (productForm) {
 }
 
 // Load products table
+// Cache for status options
+let statusOptionsCache = null;
+
+// Clear status options cache (called when settings are updated)
+window.clearStatusOptionsCache = function() {
+    statusOptionsCache = null;
+    console.log('Status options cache cleared');
+    
+    // If products table exists, reload it to use new status options
+    if (typeof loadProducts === 'function') {
+        console.log('Reloading products table with updated status options...');
+        loadProducts();
+    }
+};
+
+// Load status options from settings
+async function loadStatusOptions() {
+    if (statusOptionsCache) {
+        return statusOptionsCache;
+    }
+    
+    try {
+        const response = await authenticatedFetch(`${API_BASE}/api/admin/settings`);
+        const data = await response.json();
+        
+        if (response.ok && data.settings && data.settings.product_status_options) {
+            statusOptionsCache = data.settings.product_status_options;
+        } else {
+            // Use defaults
+            statusOptionsCache = [
+                { value: 'active', label: 'Active' },
+                { value: 'item_in_dispute', label: 'Item in Dispute' },
+                { value: 'delivered_no_warranty', label: 'Delivered (No Warranty)' },
+                { value: 'returned', label: 'Returned' },
+                { value: 'pending', label: 'Pending' }
+            ];
+        }
+    } catch (error) {
+        console.error('Error loading status options:', error);
+        // Use defaults on error
+        statusOptionsCache = [
+            { value: 'active', label: 'Active' },
+            { value: 'item_in_dispute', label: 'Item in Dispute' },
+            { value: 'delivered_no_warranty', label: 'Delivered (No Warranty)' },
+            { value: 'returned', label: 'Returned' },
+            { value: 'pending', label: 'Pending' }
+        ];
+    }
+    
+    return statusOptionsCache;
+}
+
 async function loadProducts() {
     const tableBody = document.getElementById('productsTable');
     if (!tableBody) return;
     
+    // Load status options first
+    const statusOptions = await loadStatusOptions();
+    
     try {
-        const response = await fetch(`${API_BASE}/api/admin/products`);
+        const response = await authenticatedFetch(`${API_BASE}/api/admin/products`);
         const data = await response.json();
         
         if (response.ok && data.products) {
             if (data.products.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="11" style="text-align: center; padding: 20px;">No products found</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="14" style="text-align: center; padding: 20px;">No products found</td></tr>';
                 return;
             }
             
             tableBody.innerHTML = data.products.map(product => {
             const date = new Date(product.date_added);
             const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            const confirmationStatus = product.confirmation_checked 
-                ? '<span class="status-badge confirmed">Confirmed</span>' 
-                : '<span class="status-badge pending">Pending</span>';
+            
+            // Determine warranty status
+            let warrantyStatus = '<span class="status-badge pending">No Warranty</span>';
+            let daysRemaining = '<span style="color: #999;">-</span>';
+            
+            if (product.warranty) {
+                const warranty = product.warranty;
+                const now = new Date();
+                
+                // Determine which warranty end date to use (extended if available, otherwise standard)
+                const warrantyEndDate = warranty.extended_warranty_end && warranty.extended_warranty !== 'none' 
+                    ? new Date(warranty.extended_warranty_end)
+                    : warranty.standard_warranty_end 
+                        ? new Date(warranty.standard_warranty_end)
+                        : null;
+                
+                // Calculate days remaining
+                if (warrantyEndDate) {
+                    const diffTime = warrantyEndDate - now;
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    
+                    if (diffDays < 0) {
+                        daysRemaining = '<span style="color: #dc3545; font-weight: 600;">Expired</span>';
+                        warrantyStatus = '<span class="status-badge expired">Warranty Expired</span>';
+                    } else if (diffDays === 0) {
+                        daysRemaining = '<span style="color: #ff9800; font-weight: 600;">0 days</span>';
+                        warrantyStatus = warranty.payment_status === 'paid' 
+                            ? '<span class="status-badge paid">Paid Warranty</span>'
+                            : '<span class="status-badge confirmed">Free Warranty</span>';
+                    } else {
+                        daysRemaining = diffDays <= 7 
+                            ? `<span style="color: #ff9800; font-weight: 600;">${diffDays} day${diffDays !== 1 ? 's' : ''}</span>`
+                            : `<span style="color: var(--accent-teal);">${diffDays} day${diffDays !== 1 ? 's' : ''}</span>`;
+                        
+                        // Set warranty status based on payment status
+                        if (warranty.payment_status === 'paid') {
+                            warrantyStatus = '<span class="status-badge paid">Paid Warranty</span>';
+                        } else {
+                            warrantyStatus = '<span class="status-badge confirmed">Free Warranty</span>';
+                        }
+                    }
+                } else {
+                    // Warranty exists but no end date (shouldn't happen, but handle it)
+                    warrantyStatus = warranty.payment_status === 'paid' 
+                        ? '<span class="status-badge paid">Paid Warranty</span>'
+                        : '<span class="status-badge confirmed">Free Warranty</span>';
+                }
+            } else {
+                // No warranty registered
+                warrantyStatus = '<span class="status-badge pending">No Warranty</span>';
+            }
             
             const partTypeMap = {
                 'left': 'Left AirPod',
@@ -429,25 +1078,38 @@ async function loadProducts() {
                 trackingDisplay = `<span style="color: var(--accent-teal); font-weight: 500;">${escapeHtml(product.tracking_number)}</span>${trackingDate ? '<br><small style="color: #666;">' + trackingDate + '</small>' : ''}`;
             }
             
-            // Format photos
-            let photosDisplay = '<span style="color: #999;">No photos</span>';
+            // Format photos - simple tick or cross
+            let photosDisplay = '<span style="color: #dc3545; font-size: 1.2rem; font-weight: bold;">✗</span>';
             if (product.photos && product.photos.length > 0) {
-                const photoCount = product.photos.length;
-                const firstPhoto = product.photos[0];
-                const photoUrl = firstPhoto.startsWith('/') ? firstPhoto : '/' + firstPhoto;
-                photosDisplay = `
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <div style="position: relative; width: 40px; height: 40px; flex-shrink: 0;">
-                            <img src="${photoUrl}" 
-                                 alt="Product photo" 
-                                 style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd; background: #f5f5f5;"
-                                 onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\'width:40px;height:40px;background:#f5f5f5;border:1px solid #ddd;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:18px;color:#999\\'>📷</div>';">
-                        </div>
-                        <span style="color: var(--accent-teal); font-size: 0.85rem;">${photoCount} photo${photoCount > 1 ? 's' : ''}</span>
-                    </div>
-                `;
+                photosDisplay = '<span style="color: #28a745; font-size: 1.2rem; font-weight: bold;">✓</span>';
             }
             
+            // Format product status
+            let productStatus = product.status || 'active';
+            
+            // Auto-detect "delivered_no_warranty" if tracking exists but no warranty
+            if (productStatus === 'active' && product.tracking_number && !product.warranty) {
+                productStatus = 'delivered_no_warranty';
+            }
+            
+            // Build status dropdown options dynamically from settings
+            let statusOptionsHtml = '';
+            statusOptions.forEach(option => {
+                const selected = productStatus === option.value ? ' selected' : '';
+                statusOptionsHtml += '<option value="' + escapeHtml(option.value) + '"' + selected + '>' + escapeHtml(option.label) + '</option>';
+            });
+            
+            // Create status dropdown HTML - don't escape the HTML itself, only the values
+            const statusDisplay = '<select class="status-select" data-product-id="' + escapeHtml(String(product.id)) + '" data-original-status="' + escapeHtml(productStatus) + '" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #ddd; font-size: 0.9rem; cursor: pointer; min-width: 150px; background-color: white;">' +
+                statusOptionsHtml +
+                '</select>';
+
+            // Part Value display
+            let partValueDisplay = '<span style="color: #999;">—</span>';
+            if (product.part_value !== null && product.part_value !== undefined) {
+                partValueDisplay = `<span style="font-weight: 600; color: #6c757d;">£${parseFloat(product.part_value).toFixed(2)}</span>`;
+            }
+
             return `
                 <tr data-product-id="${escapeHtml(String(product.id))}">
                     <td>${escapeHtml(product.serial_number || '')}</td>
@@ -456,10 +1118,13 @@ async function loadProducts() {
                     <td>${escapeHtml(product.part_model_number || '')}</td>
                     <td>${partTypeMap[product.part_type] || product.part_type}</td>
                     <td>${escapeHtml(product.ebay_order_number || '')}</td>
+                    <td>${partValueDisplay}</td>
                     <td>${photosDisplay}</td>
                     <td>${formattedDate}</td>
                     <td>${trackingDisplay}</td>
-                    <td>${confirmationStatus}</td>
+                    <td>${statusDisplay}</td>
+                    <td>${warrantyStatus}</td>
+                    <td>${daysRemaining}</td>
                     <td>
                         <button class="track-button" data-action="track" data-product-id="${escapeHtml(String(product.id))}" style="margin-right: 5px;">
                             Track
@@ -504,13 +1169,294 @@ async function loadProducts() {
                     }
                 });
             });
+            
+            // Attach event listeners to status dropdowns
+            tableBody.querySelectorAll('.status-select').forEach(select => {
+                select.addEventListener('change', async function(e) {
+                    const productId = this.getAttribute('data-product-id');
+                    const newStatus = this.value;
+                    const oldStatus = this.getAttribute('data-original-status') || this.value;
+                    
+                    if (!productId) return;
+                    
+                    // Store original value for revert
+                    if (!this.getAttribute('data-original-status')) {
+                        this.setAttribute('data-original-status', oldStatus);
+                    }
+                    
+                    // If marking as returned, prompt for reason
+                    let returnReason = null;
+                    if (newStatus === 'returned') {
+                        returnReason = prompt('Enter return reason (optional):');
+                        if (returnReason === null) {
+                            // User cancelled, revert dropdown
+                            this.value = oldStatus;
+                            return;
+                        }
+                    }
+                    
+                    // Show loading state
+                    this.disabled = true;
+                    this.style.opacity = '0.6';
+                    
+                    try {
+                        const response = await authenticatedFetch(`${API_BASE}/api/admin/product/${encodeURIComponent(productId)}/status`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ 
+                                status: newStatus,
+                                return_reason: returnReason || undefined
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (response.ok && data.success) {
+                            // Reload products to show updated status
+                            loadProducts();
+                        } else {
+                            // Revert on error
+                            this.value = oldStatus;
+                            alert(data.error || 'Failed to update status');
+                        }
+                    } catch (error) {
+                        console.error('Status update error:', error);
+                        this.value = oldStatus;
+                        alert('Network error. Please try again.');
+                    } finally {
+                        this.disabled = false;
+                        this.style.opacity = '1';
+                    }
+                });
+            });
+
+            // Pass products to filter system if available
+            if (typeof setProductsForFiltering === 'function') {
+                setProductsForFiltering(data.products);
+            }
         } else {
-            tableBody.innerHTML = '<tr><td colspan="11" style="text-align: center; padding: 20px; color: red;">Error loading products</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="14" style="text-align: center; padding: 20px; color: red;">Error loading products</td></tr>';
         }
     } catch (error) {
         console.error('Load products error:', error);
-        tableBody.innerHTML = '<tr><td colspan="11" style="text-align: center; padding: 20px; color: red;">Network error. Please refresh the page.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="14" style="text-align: center; padding: 20px; color: red;">Network error. Please refresh the page.</td></tr>';
     }
+}
+
+// Render filtered products (called by filter system)
+window.renderFilteredProducts = function(products) {
+    renderProductsTable(products);
+};
+
+// Refactored function to render products table
+async function renderProductsTable(products) {
+    const tableBody = document.getElementById('productsTable');
+    if (!tableBody) return;
+
+    const statusOptions = await loadStatusOptions();
+
+    if (products.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="14" style="text-align: center; padding: 20px;">No products match your filters</td></tr>';
+        return;
+    }
+
+    tableBody.innerHTML = products.map(product => {
+        const date = new Date(product.date_added);
+        const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        // Determine warranty status
+        let warrantyStatus = '<span class="status-badge pending">No Warranty</span>';
+        let daysRemaining = '<span style="color: #999;">-</span>';
+
+        if (product.warranty) {
+            const warranty = product.warranty;
+            const now = new Date();
+
+            const warrantyEndDate = warranty.extended_warranty_end && warranty.extended_warranty !== 'none'
+                ? new Date(warranty.extended_warranty_end)
+                : warranty.standard_warranty_end
+                    ? new Date(warranty.standard_warranty_end)
+                    : null;
+
+            if (warrantyEndDate) {
+                const diffTime = warrantyEndDate - now;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                if (diffDays < 0) {
+                    daysRemaining = '<span style="color: #dc3545; font-weight: 600;">Expired</span>';
+                    warrantyStatus = '<span class="status-badge expired">Warranty Expired</span>';
+                } else if (diffDays === 0) {
+                    daysRemaining = '<span style="color: #ff9800; font-weight: 600;">0 days</span>';
+                    warrantyStatus = warranty.payment_status === 'paid'
+                        ? '<span class="status-badge paid">Paid Warranty</span>'
+                        : '<span class="status-badge confirmed">Free Warranty</span>';
+                } else {
+                    daysRemaining = diffDays <= 7
+                        ? `<span style="color: #ff9800; font-weight: 600;">${diffDays} day${diffDays !== 1 ? 's' : ''}</span>`
+                        : `<span style="color: var(--accent-teal);">${diffDays} day${diffDays !== 1 ? 's' : ''}</span>`;
+
+                    if (warranty.payment_status === 'paid') {
+                        warrantyStatus = '<span class="status-badge paid">Paid Warranty</span>';
+                    } else {
+                        warrantyStatus = '<span class="status-badge confirmed">Free Warranty</span>';
+                    }
+                }
+            } else {
+                warrantyStatus = warranty.payment_status === 'paid'
+                    ? '<span class="status-badge paid">Paid Warranty</span>'
+                    : '<span class="status-badge confirmed">Free Warranty</span>';
+            }
+        }
+
+        const partTypeMap = {
+            'left': 'Left AirPod',
+            'right': 'Right AirPod',
+            'case': 'Case'
+        };
+
+        let trackingDisplay = '<span style="color: #999;">Not tracked</span>';
+        if (product.tracking_number) {
+            const trackingDate = product.tracking_date ? new Date(product.tracking_date).toLocaleDateString() : '';
+            trackingDisplay = `<span style="color: var(--accent-teal); font-weight: 500;">${escapeHtml(product.tracking_number)}</span>${trackingDate ? '<br><small style="color: #666;">' + trackingDate + '</small>' : ''}`;
+        }
+
+        let photosDisplay = '<span style="color: #dc3545; font-size: 1.2rem; font-weight: bold;">✗</span>';
+        if (product.photos && product.photos.length > 0) {
+            photosDisplay = '<span style="color: #28a745; font-size: 1.2rem; font-weight: bold;">✓</span>';
+        }
+
+        let productStatus = product.status || 'active';
+        if (productStatus === 'active' && product.tracking_number && !product.warranty) {
+            productStatus = 'delivered_no_warranty';
+        }
+
+        let statusOptionsHtml = '';
+        statusOptions.forEach(option => {
+            const selected = productStatus === option.value ? ' selected' : '';
+            statusOptionsHtml += '<option value="' + escapeHtml(option.value) + '"' + selected + '>' + escapeHtml(option.label) + '</option>';
+        });
+
+        const statusDisplay = '<select class="status-select" data-product-id="' + escapeHtml(String(product.id)) + '" data-original-status="' + escapeHtml(productStatus) + '" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #ddd; font-size: 0.9rem; cursor: pointer; min-width: 150px; background-color: white;">' +
+            statusOptionsHtml +
+            '</select>';
+
+        // Part Value display
+        let partValueDisplay = '<span style="color: #999;">—</span>';
+        if (product.part_value !== null && product.part_value !== undefined) {
+            partValueDisplay = `<span style="font-weight: 600; color: #6c757d;">£${parseFloat(product.part_value).toFixed(2)}</span>`;
+        }
+
+        return `
+            <tr data-product-id="${escapeHtml(String(product.id))}">
+                <td>${escapeHtml(product.serial_number || '')}</td>
+                <td>${escapeHtml(product.security_barcode)}</td>
+                <td>${escapeHtml(product.generation || '')}</td>
+                <td>${escapeHtml(product.part_model_number || '')}</td>
+                <td>${partTypeMap[product.part_type] || product.part_type}</td>
+                <td>${escapeHtml(product.ebay_order_number || '')}</td>
+                <td>${partValueDisplay}</td>
+                <td>${photosDisplay}</td>
+                <td>${formattedDate}</td>
+                <td>${trackingDisplay}</td>
+                <td>${statusDisplay}</td>
+                <td>${warrantyStatus}</td>
+                <td>${daysRemaining}</td>
+                <td>
+                    <button class="track-button" data-action="track" data-product-id="${escapeHtml(String(product.id))}" style="margin-right: 5px;">
+                        Track
+                    </button>
+                    <button class="edit-button" data-action="edit" data-product-id="${escapeHtml(String(product.id))}" style="margin-right: 5px;">
+                        Edit
+                    </button>
+                    <button class="delete-button" data-action="delete" data-product-id="${escapeHtml(String(product.id))}">
+                        Delete
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    // Attach event listeners
+    attachProductEventListeners(tableBody);
+}
+
+// Attach event listeners to product buttons
+function attachProductEventListeners(tableBody) {
+    tableBody.querySelectorAll('[data-action="delete"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const productId = e.target.getAttribute('data-product-id');
+            if (productId) deleteProduct(productId);
+        });
+    });
+
+    tableBody.querySelectorAll('[data-action="edit"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const productId = e.target.getAttribute('data-product-id');
+            if (productId) editProduct(productId);
+        });
+    });
+
+    tableBody.querySelectorAll('[data-action="track"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const productId = e.target.getAttribute('data-product-id');
+            if (productId) openTrackingModal(productId);
+        });
+    });
+
+    tableBody.querySelectorAll('.status-select').forEach(select => {
+        select.addEventListener('change', async function(e) {
+            const productId = this.getAttribute('data-product-id');
+            const newStatus = this.value;
+            const oldStatus = this.getAttribute('data-original-status') || this.value;
+
+            if (!productId) return;
+
+            if (!this.getAttribute('data-original-status')) {
+                this.setAttribute('data-original-status', oldStatus);
+            }
+
+            let returnReason = null;
+            if (newStatus === 'returned') {
+                returnReason = prompt('Enter return reason (optional):');
+                if (returnReason === null) {
+                    this.value = oldStatus;
+                    return;
+                }
+            }
+
+            this.disabled = true;
+            this.style.opacity = '0.6';
+
+            try {
+                const response = await authenticatedFetch(`${API_BASE}/api/admin/product/${encodeURIComponent(productId)}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        status: newStatus,
+                        return_reason: returnReason || undefined
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    loadProducts();
+                } else {
+                    this.value = oldStatus;
+                    alert(data.error || 'Failed to update status');
+                }
+            } catch (error) {
+                console.error('Status update error:', error);
+                this.value = oldStatus;
+                alert('Network error. Please try again.');
+            } finally {
+                this.disabled = false;
+                this.style.opacity = '1';
+            }
+        });
+    });
 }
 
 // Delete product
@@ -522,7 +1468,7 @@ async function deleteProduct(id) {
     try {
         // Convert id to string and encode for URL
         const productId = String(id);
-        const response = await fetch(`${API_BASE}/api/admin/product/${encodeURIComponent(productId)}`, {
+        const response = await authenticatedFetch(`${API_BASE}/api/admin/product/${encodeURIComponent(productId)}`, {
             method: 'DELETE'
         });
         
@@ -563,9 +1509,17 @@ async function openTrackingModal(productId) {
     document.getElementById('trackingSuccess').style.display = 'none';
     currentInfo.style.display = 'none';
     
+    // Focus the input field for easy pasting after modal is shown
+    // Also ensure paste is enabled - remove any readonly or disabled attributes
+    setTimeout(() => {
+        trackingNumberInput.removeAttribute('readonly');
+        trackingNumberInput.removeAttribute('disabled');
+        trackingNumberInput.focus();
+    }, 150);
+    
     try {
         // Load product details
-        const response = await fetch(`${API_BASE}/api/admin/product/${encodeURIComponent(String(productId))}`);
+        const response = await authenticatedFetch(`${API_BASE}/api/admin/product/${encodeURIComponent(String(productId))}`);
         const data = await response.json();
         
         if (response.ok && data.product) {
@@ -575,7 +1529,9 @@ async function openTrackingModal(productId) {
             productInfo.innerHTML = `
                 <p style="margin: 0 0 8px 0;"><strong>Product:</strong> ${escapeHtml(product.generation || 'N/A')} - ${escapeHtml(product.part_model_number || 'N/A')}</p>
                 <p style="margin: 0 0 8px 0;"><strong>Serial:</strong> ${escapeHtml(product.serial_number || 'N/A')}</p>
-                <p style="margin: 0;"><strong>Security Barcode:</strong> ${escapeHtml(product.security_barcode || 'N/A')}</p>
+                <p style="margin: 0 0 8px 0;"><strong>Security Barcode:</strong> ${escapeHtml(product.security_barcode || 'N/A')}</p>
+                <p style="margin: 0 0 8px 0;"><strong>eBay Purchase Order:</strong> ${escapeHtml(product.ebay_order_number || 'N/A')}</p>
+                <p style="margin: 0;"><strong>eBay Sales Order:</strong> ${escapeHtml(product.sales_order_number || 'Not yet sold')}</p>
             `;
             
             // Show current tracking if exists
@@ -630,7 +1586,7 @@ async function saveTracking() {
     }
     
     try {
-        const response = await fetch(`${API_BASE}/api/admin/product/${encodeURIComponent(String(currentTrackingProductId))}/tracking`, {
+        const response = await authenticatedFetch(`${API_BASE}/api/admin/product/${encodeURIComponent(String(currentTrackingProductId))}/tracking`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
@@ -778,9 +1734,34 @@ function setupTrackingModalListeners() {
         });
     }
     
-    // Auto-uppercase tracking number input
+    // Auto-uppercase tracking number input - set up when modal opens
     const trackingNumberInput = document.getElementById('trackingNumber');
     if (trackingNumberInput) {
+        // Remove any existing paste listeners to avoid duplicates
+        const newPasteHandler = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const paste = (e.clipboardData || window.clipboardData).getData('text');
+            if (paste) {
+                // Clean up pasted text (remove extra whitespace, newlines)
+                const cleaned = paste.trim().replace(/\s+/g, ' ').toUpperCase();
+                const start = this.selectionStart;
+                const end = this.selectionEnd;
+                const currentValue = this.value;
+                this.value = currentValue.substring(0, start) + cleaned + currentValue.substring(end);
+                // Set cursor position after pasted text
+                const newPosition = start + cleaned.length;
+                this.setSelectionRange(newPosition, newPosition);
+                // Trigger input event for uppercase conversion
+                this.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        };
+        
+        // Remove old listener if exists and add new one
+        trackingNumberInput.removeEventListener('paste', trackingNumberInput._pasteHandler);
+        trackingNumberInput._pasteHandler = newPasteHandler;
+        trackingNumberInput.addEventListener('paste', newPasteHandler, { capture: true });
+        
         trackingNumberInput.addEventListener('input', function(e) {
             const start = e.target.selectionStart;
             const end = e.target.selectionEnd;
@@ -790,10 +1771,167 @@ function setupTrackingModalListeners() {
     }
 }
 
+// ==========================================
+// VIEW PRODUCT MODAL FUNCTIONALITY
+// ==========================================
+
+let currentViewProductId = null;
+
+async function openViewProductModal(productId) {
+    currentViewProductId = productId;
+
+    const modal = document.getElementById('viewProductModal');
+    const productInfoDiv = document.getElementById('viewProductInfo');
+    const photosGrid = document.getElementById('photosGrid');
+
+    if (!modal) return;
+
+    // Show modal
+    modal.style.display = 'flex';
+
+    // Reset content
+    productInfoDiv.innerHTML = '<p><strong>Loading product details...</strong></p>';
+    photosGrid.innerHTML = '<p style="color: #666;">Loading photos...</p>';
+
+    try {
+        const response = await authenticatedFetch(`${API_BASE}/api/admin/product/${encodeURIComponent(String(productId))}`);
+
+        if (response.ok) {
+            const product = await response.json();
+
+            // Display product info
+            const partTypeMap = {
+                'left': 'Left AirPod',
+                'right': 'Right AirPod',
+                'case': 'Case'
+            };
+            const partType = partTypeMap[product.part_type] || product.part_type || 'Unknown';
+            const generation = product.generation || 'Unknown';
+            const serialNumber = product.serial_number || '—';
+            const securityBarcode = product.security_barcode || '—';
+            const dateAdded = product.date_added ? new Date(product.date_added).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+
+            productInfoDiv.innerHTML = `
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                    <p style="margin: 0;"><strong>Product:</strong> ${escapeHtml(generation)}</p>
+                    <p style="margin: 0;"><strong>Part Type:</strong> ${escapeHtml(partType)}</p>
+                    <p style="margin: 0;"><strong>Serial Number:</strong> ${escapeHtml(serialNumber)}</p>
+                    <p style="margin: 0;"><strong>Security Barcode:</strong> ${escapeHtml(securityBarcode)}</p>
+                    <p style="margin: 0;"><strong>Date Added:</strong> ${escapeHtml(dateAdded)}</p>
+                    ${product.ebay_order_number ? `<p style="margin: 0;"><strong>Purchase Order:</strong> ${escapeHtml(product.ebay_order_number)}</p>` : ''}
+                </div>
+            `;
+
+            // Display photos
+            if (product.photos && product.photos.length > 0) {
+                photosGrid.innerHTML = product.photos.map((photo, index) => {
+                    const photoUrl = photo.startsWith('/') ? photo : '/' + photo;
+                    return `
+                        <div style="position: relative; cursor: pointer;" onclick="openPhotoLightbox('${escapeHtml(photoUrl)}')">
+                            <img
+                                src="${escapeHtml(photoUrl)}"
+                                alt="Product photo ${index + 1}"
+                                style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px; border: 1px solid #e5e7eb;"
+                                onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTUwIiBoZWlnaHQ9IjE1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTUwIiBoZWlnaHQ9IjE1MCIgZmlsbD0iI2Y0ZjRmNSIvPjx0ZXh0IHg9Ijc1IiB5PSI3NSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE0IiBmaWxsPSIjOTk5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iMC4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg=='; this.style.objectFit='contain';"
+                            >
+                            <div style="position: absolute; bottom: 5px; right: 5px; background: rgba(0,0,0,0.6); color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">
+                                ${index + 1}/${product.photos.length}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                photosGrid.innerHTML = '<p style="color: #666; grid-column: 1/-1;">No photos uploaded for this product.</p>';
+            }
+        } else {
+            productInfoDiv.innerHTML = '<p style="color: red;">Failed to load product details</p>';
+            photosGrid.innerHTML = '';
+        }
+    } catch (error) {
+        console.error('Load product error:', error);
+        productInfoDiv.innerHTML = '<p style="color: red;">Network error loading product</p>';
+        photosGrid.innerHTML = '';
+    }
+}
+
+function closeViewProductModal() {
+    const modal = document.getElementById('viewProductModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+    currentViewProductId = null;
+}
+
+function openPhotoLightbox(photoUrl) {
+    const lightbox = document.getElementById('photoLightbox');
+    const lightboxImg = document.getElementById('lightboxImage');
+
+    if (lightbox && lightboxImg) {
+        lightboxImg.src = photoUrl;
+        lightbox.style.display = 'flex';
+    }
+}
+
+function closePhotoLightbox() {
+    const lightbox = document.getElementById('photoLightbox');
+    if (lightbox) {
+        lightbox.style.display = 'none';
+    }
+}
+
+// Set up view product modal listeners
+function setupViewProductModalListeners() {
+    const modal = document.getElementById('viewProductModal');
+    const closeBtn = document.getElementById('closeViewProductModal');
+    const closeFooterBtn = document.getElementById('closeViewProductBtn');
+    const lightbox = document.getElementById('photoLightbox');
+    const closeLightboxBtn = document.getElementById('closeLightbox');
+
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeViewProductModal);
+    }
+
+    if (closeFooterBtn) {
+        closeFooterBtn.addEventListener('click', closeViewProductModal);
+    }
+
+    // Close modal when clicking outside
+    if (modal) {
+        modal.addEventListener('click', function(event) {
+            if (event.target === modal) {
+                closeViewProductModal();
+            }
+        });
+    }
+
+    // Lightbox close
+    if (closeLightboxBtn) {
+        closeLightboxBtn.addEventListener('click', closePhotoLightbox);
+    }
+
+    if (lightbox) {
+        lightbox.addEventListener('click', function(event) {
+            if (event.target === lightbox) {
+                closePhotoLightbox();
+            }
+        });
+    }
+}
+
+// Set up view modal listeners when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupViewProductModalListeners);
+} else {
+    setupViewProductModalListeners();
+}
+
 // Make functions available globally
 window.deleteProduct = deleteProduct;
 window.editProduct = editProduct;
 window.openTrackingModal = openTrackingModal;
+window.openViewProductModal = openViewProductModal;
+window.openPhotoLightbox = openPhotoLightbox;
+window.authenticatedFetch = authenticatedFetch;
 
 // Cancel edit button
 if (cancelEditButton) {
@@ -986,12 +2124,44 @@ function renderPhotoPreviews() {
 // Function to update the file input with all selected files
 function updateFileInput() {
     if (!productPhotos) return;
-    
+
     const dt = new DataTransfer();
     selectedFiles.forEach(file => {
         dt.items.add(file);
     });
     productPhotos.files = dt.files;
+}
+
+// Handle "Choose Photos from Library" button
+const chooseProductPhotosButton = document.getElementById('chooseProductPhotosButton');
+const takeProductPhotoButton = document.getElementById('takeProductPhotoButton');
+const productPhotosCamera = document.getElementById('productPhotosCamera');
+
+if (chooseProductPhotosButton && productPhotos) {
+    chooseProductPhotosButton.addEventListener('click', () => {
+        productPhotos.click();
+    });
+}
+
+if (takeProductPhotoButton && productPhotosCamera) {
+    takeProductPhotoButton.addEventListener('click', () => {
+        productPhotosCamera.click();
+    });
+}
+
+// Handle camera input for product photos
+if (productPhotosCamera && productPhotos) {
+    productPhotosCamera.addEventListener('change', (e) => {
+        // Transfer files from camera input to main input to trigger watermarking
+        const files = Array.from(e.target.files);
+        if (files.length > 0) {
+            // Create a new change event on productPhotos to trigger watermarking
+            const dt = new DataTransfer();
+            files.forEach(file => dt.items.add(file));
+            productPhotos.files = dt.files;
+            productPhotos.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    });
 }
 
 if (productPhotos && photoPreviewGrid) {
@@ -1048,12 +2218,187 @@ if (productPhotos && photoPreviewGrid) {
     });
 }
 
-// Initialize dashboard
-if (document.getElementById('productsTable')) {
+// Phone photo upload via QR code (Add Product page)
+const phoneUploadQr = document.getElementById('phoneUploadQr');
+const loadPhoneUploadsButton = document.getElementById('loadPhoneUploads');
+const phoneUploadSessionDisplay = document.getElementById('phoneUploadSession');
+const phoneUploadStatus = document.getElementById('phoneUploadStatus');
+
+let phoneUploadSessionId = null;
+let phoneUploadSessionUrl = null;
+const phoneUploadLoadedUrls = new Set();
+
+function setPhoneUploadStatus(message, tone = 'neutral') {
+    if (!phoneUploadStatus) return;
+    phoneUploadStatus.textContent = message;
+    phoneUploadStatus.style.color = tone === 'error' ? '#c62828' : tone === 'success' ? '#1f7a1f' : '#666';
+}
+
+function updatePhoneUploadSessionDisplay(sessionId) {
+    if (!phoneUploadSessionDisplay) return;
+    phoneUploadSessionDisplay.textContent = sessionId
+        ? `Session ID: ${sessionId}`
+        : 'Session not created yet.';
+}
+
+function renderPhoneUploadQr(sessionId) {
+    if (!phoneUploadQr) return;
+    const uploadUrl = `${window.location.origin}/mobile-photo-upload.html?session=${sessionId}`;
+    phoneUploadSessionUrl = uploadUrl;
+    const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(uploadUrl)}`;
+    phoneUploadQr.src = qrSrc;
+    phoneUploadQr.alt = `QR code for ${uploadUrl}`;
+}
+
+async function createPhoneUploadSession() {
+    try {
+        setPhoneUploadStatus('Generating QR code...', 'neutral');
+
+        const response = await authenticatedFetch(`${API_BASE}/api/admin/photo-upload-session`, {
+            method: 'POST'
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to create upload session.');
+        }
+
+        phoneUploadSessionId = data.sessionId;
+        phoneUploadLoadedUrls.clear();
+        updatePhoneUploadSessionDisplay(phoneUploadSessionId);
+
+        renderPhoneUploadQr(phoneUploadSessionId);
+        setPhoneUploadStatus('Scan the QR code with your phone to upload photos.', 'success');
+
+        if (loadPhoneUploadsButton) {
+            loadPhoneUploadsButton.disabled = false;
+        }
+    } catch (error) {
+        console.error('Phone upload session error:', error);
+        setPhoneUploadStatus(error.message || 'Failed to generate QR code.', 'error');
+    }
+}
+
+async function loadPhoneUploadedPhotos() {
+    if (!phoneUploadSessionId) {
+        setPhoneUploadStatus('Generate a QR code first.', 'error');
+        return;
+    }
+
+    try {
+        if (loadPhoneUploadsButton) {
+            loadPhoneUploadsButton.disabled = true;
+        }
+        setPhoneUploadStatus('Checking for uploaded photos...', 'neutral');
+
+        const response = await authenticatedFetch(`${API_BASE}/api/admin/photo-upload-session/${encodeURIComponent(phoneUploadSessionId)}`);
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to fetch uploaded photos.');
+        }
+
+        const photos = data.photos || [];
+        const newPhotos = photos.filter(photo => !phoneUploadLoadedUrls.has(photo));
+
+        if (newPhotos.length === 0) {
+            setPhoneUploadStatus('No new photos found yet.', 'neutral');
+            return;
+        }
+
+        for (const photoUrl of newPhotos) {
+            const photoResponse = await fetch(photoUrl, { cache: 'no-store' });
+            if (!photoResponse.ok) {
+                console.warn('Failed to fetch phone photo:', photoUrl);
+                continue;
+            }
+            const blob = await photoResponse.blob();
+            const fileName = photoUrl.split('/').pop() || `phone-upload-${Date.now()}.jpg`;
+            const file = new File([blob], fileName, {
+                type: blob.type || 'image/jpeg',
+                lastModified: Date.now()
+            });
+
+            let finalFile = file;
+            try {
+                finalFile = await addWatermarkToImage(file);
+            } catch (error) {
+                console.warn('Failed to watermark phone photo:', error);
+            }
+
+            const isDuplicate = selectedFiles.some(existingFile =>
+                existingFile.name === finalFile.name &&
+                existingFile.size === finalFile.size
+            );
+
+            if (!isDuplicate) {
+                selectedFiles.push(finalFile);
+            }
+
+            phoneUploadLoadedUrls.add(photoUrl);
+        }
+
+        updateFileInput();
+        renderPhotoPreviews();
+
+        setPhoneUploadStatus(`Loaded ${newPhotos.length} new photo(s).`, 'success');
+    } catch (error) {
+        console.error('Failed to load phone uploads:', error);
+        setPhoneUploadStatus(error.message || 'Failed to load phone photos.', 'error');
+    } finally {
+        if (loadPhoneUploadsButton) {
+            loadPhoneUploadsButton.disabled = false;
+        }
+    }
+}
+
+if (loadPhoneUploadsButton && phoneUploadQr) {
+    loadPhoneUploadsButton.addEventListener('click', loadPhoneUploadedPhotos);
+}
+
+if (phoneUploadQr) {
+    phoneUploadQr.addEventListener('error', () => {
+        if (phoneUploadSessionUrl) {
+            setPhoneUploadStatus('Failed to load QR code. Use the link below on your phone.', 'error');
+            if (phoneUploadSessionDisplay) {
+                phoneUploadSessionDisplay.innerHTML = `Upload link: <a href="${phoneUploadSessionUrl}" target="_blank" rel="noopener">${phoneUploadSessionUrl}</a>`;
+            }
+        } else {
+            setPhoneUploadStatus('Failed to load QR code.', 'error');
+        }
+    });
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            createPhoneUploadSession();
+        });
+    } else {
+        createPhoneUploadSession();
+    }
+}
+
+// Initialize auth check on ALL admin pages (not just products page)
+// Run checkAuth on page load for any admin page
+if (!window.location.pathname.includes('login')) {
     checkAuth();
+}
+
+// Initialize dashboard/products page
+if (document.getElementById('productsTable')) {
+    // Initialize filters if available
+    if (typeof initProductsFilter === 'function') {
+        initProductsFilter();
+    }
+
     loadProducts();
-    
+
     // Refresh products every 30 seconds
     setInterval(loadProducts, 30000);
 }
 
+// Initialize session management on page load
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initActivityTracking);
+} else {
+    initActivityTracking();
+}

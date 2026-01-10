@@ -1,16 +1,16 @@
 // Parts Manager JavaScript
 console.log('[Parts Manager] Script loading...');
 
-// Define API_BASE globally if not already defined
+// Use existing API_BASE if available, otherwise set it
 if (typeof window.API_BASE === 'undefined') {
     window.API_BASE = '';
 }
-// Reference the global API_BASE
-var API_BASE = window.API_BASE;
+// Reference the global API_BASE - use a different name to avoid const redeclaration conflict with admin.js
+const API_BASE_REF = window.API_BASE;
 
 // Store all parts for autocomplete
 let allPartsData = [];
-console.log('[Parts Manager] Script loaded, API_BASE:', API_BASE);
+console.log('[Parts Manager] Script loaded, API_BASE_REF:', API_BASE_REF);
 
 // Utility functions
 function showError(message, elementId = 'errorMessage') {
@@ -55,11 +55,15 @@ async function loadParts() {
     if (!partsList) {
         // Still try to load parts data for associated parts even if partsList doesn't exist
         try {
-            const response = await fetch(`${API_BASE}/api/admin/parts`);
+            const response = await authenticatedFetch(`${API_BASE_REF}/api/admin/parts`, {
+                credentials: 'include'
+            });
             const data = await response.json();
             if (response.ok && data.parts) {
                 allPartsData = data.parts;
-                populateAssociatedPartsCheckboxes();
+                const partModelNumber = document.getElementById('part_model_number')?.value || null;
+                const partGeneration = document.getElementById('generation')?.value || null;
+                populateAssociatedPartsCheckboxes(partModelNumber, partGeneration);
             }
         } catch (err) {
             console.error('[Parts Manager] Error loading parts:', err);
@@ -68,8 +72,10 @@ async function loadParts() {
     }
     
     try {
-        console.log('[Parts Manager] Fetching parts from:', `${API_BASE}/api/admin/parts`);
-        const response = await fetch(`${API_BASE}/api/admin/parts`);
+        console.log('[Parts Manager] Fetching parts from:', `${API_BASE_REF}/api/admin/parts`);
+        const response = await authenticatedFetch(`${API_BASE_REF}/api/admin/parts`, {
+            credentials: 'include'
+        });
         console.log('[Parts Manager] Response status:', response.status, response.statusText);
         const data = await response.json();
         console.log('[Parts Manager] Response data:', data);
@@ -191,7 +197,9 @@ async function loadParts() {
 // Load generations for autocomplete
 async function loadGenerations() {
     try {
-        const response = await fetch(`${API_BASE}/api/admin/generations`);
+        const response = await authenticatedFetch(`${API_BASE_REF}/api/admin/generations`, {
+            credentials: 'include'
+        });
         const data = await response.json();
         
         if (response.ok && data.generations) {
@@ -303,8 +311,8 @@ if (partForm) {
         
         try {
             const url = partId 
-                ? `${API_BASE}/api/admin/part/${partId}`
-                : `${API_BASE}/api/admin/part`;
+                ? `${API_BASE_REF}/api/admin/part/${partId}`
+                : `${API_BASE_REF}/api/admin/part`;
             const method = partId ? 'PUT' : 'POST';
             
             // Use FormData to handle file uploads
@@ -338,9 +346,10 @@ if (partForm) {
                 formData.append('authenticity_airpod_image', airpodImageFile);
             }
             
-            const response = await fetch(url, {
+            const response = await authenticatedFetch(url, {
                 method: method,
-                body: formData
+                body: formData,
+                credentials: 'include'
                 // Don't set Content-Type header - browser will set it with boundary for FormData
             });
             
@@ -353,7 +362,8 @@ if (partForm) {
                 document.getElementById('caseImagePreview').innerHTML = '';
                 document.getElementById('airpodImagePreview').innerHTML = '';
                 document.getElementById('associated_parts').value = JSON.stringify([]);
-                populateAssociatedPartsCheckboxes(); // Clear checkboxes
+                const partGeneration = document.getElementById('generation')?.value || null;
+                populateAssociatedPartsCheckboxes(null, partGeneration); // Clear checkboxes
                 cancelEdit();
                 loadParts();
                 loadGenerations();
@@ -371,12 +381,12 @@ if (partForm) {
 }
 
 // Populate associated parts checkboxes
-function populateAssociatedPartsCheckboxes(currentPartModelNumber = null) {
-    console.log('[Associated Parts] populateAssociatedPartsCheckboxes called, currentPart:', currentPartModelNumber, 'allPartsData length:', allPartsData ? allPartsData.length : 0);
+function populateAssociatedPartsCheckboxes(currentPartModelNumber = null, currentGeneration = null) {
+    console.log('[Associated Parts] populateAssociatedPartsCheckboxes called, currentPart:', currentPartModelNumber, 'currentGeneration:', currentGeneration, 'allPartsData length:', allPartsData ? allPartsData.length : 0);
     const container = document.getElementById('associatedPartsCheckboxes');
     if (!container) {
         console.warn('[Associated Parts] Container not found, retrying in 500ms...');
-        setTimeout(() => populateAssociatedPartsCheckboxes(currentPartModelNumber), 500);
+        setTimeout(() => populateAssociatedPartsCheckboxes(currentPartModelNumber, currentGeneration), 500);
         return;
     }
     
@@ -396,16 +406,36 @@ function populateAssociatedPartsCheckboxes(currentPartModelNumber = null) {
         ? JSON.parse(hiddenInput.value || '[]')
         : [];
     
-    // Group parts by generation
+    // Filter parts: only show parts from the same generation (if generation is specified)
+    // and exclude the current part
+    const filteredParts = allPartsData.filter(part => {
+        // Exclude the current part
+        if (part.part_model_number === currentPartModelNumber) {
+            return false;
+        }
+        // If generation is specified, only show parts from the same generation
+        if (currentGeneration && part.generation !== currentGeneration) {
+            return false;
+        }
+        return true;
+    });
+    
+    if (filteredParts.length === 0) {
+        if (currentGeneration) {
+            container.innerHTML = '<p style="color: #666; font-size: 0.9rem; margin: 0;">No other parts available for this generation.</p>';
+        } else {
+            container.innerHTML = '<p style="color: #666; font-size: 0.9rem; margin: 0;">No other parts available.</p>';
+        }
+        return;
+    }
+    
+    // Group filtered parts by generation (in case generation filter wasn't applied)
     const partsByGeneration = {};
-    allPartsData.forEach(part => {
+    filteredParts.forEach(part => {
         if (!partsByGeneration[part.generation]) {
             partsByGeneration[part.generation] = [];
         }
-        // Don't show the current part in the list
-        if (part.part_model_number !== currentPartModelNumber) {
-            partsByGeneration[part.generation].push(part);
-        }
+        partsByGeneration[part.generation].push(part);
     });
     
     let html = '';
@@ -434,13 +464,86 @@ function populateAssociatedPartsCheckboxes(currentPartModelNumber = null) {
         
         html += `</div>`;
     });
-    
-    container.innerHTML = html || '<p style="color: #666; font-size: 0.9rem; margin: 0;">No other parts available.</p>';
-    
+
+    container.innerHTML = html;
+
     // Add event listeners to update hidden input
     container.querySelectorAll('.associated-part-checkbox').forEach(checkbox => {
         checkbox.addEventListener('change', updateAssociatedPartsFromCheckboxes);
     });
+
+    // Render the selected parts list
+    renderSelectedParts();
+}
+
+// Render selected parts with remove buttons
+function renderSelectedParts() {
+    const hiddenInput = document.getElementById('associated_parts');
+    const selectedPartsContainer = document.getElementById('selectedPartsContainer');
+    const selectedPartsList = document.getElementById('selectedPartsList');
+
+    if (!hiddenInput || !selectedPartsContainer || !selectedPartsList) return;
+
+    let selectedParts = [];
+    try {
+        selectedParts = JSON.parse(hiddenInput.value || '[]');
+    } catch (e) {
+        selectedParts = [];
+    }
+
+    if (selectedParts.length === 0) {
+        selectedPartsList.style.display = 'none';
+        return;
+    }
+
+    selectedPartsList.style.display = 'block';
+
+    // Find the full part data for each selected part
+    let html = '';
+    selectedParts.forEach(partModelNumber => {
+        const part = allPartsData.find(p => p.part_model_number === partModelNumber);
+        if (part) {
+            const partTypeLabel = part.part_type === 'left' ? 'Left AirPod' : part.part_type === 'right' ? 'Right AirPod' : 'Case';
+            html += `
+                <div style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; background: white; border: 1px solid #007bff; border-radius: 20px; font-size: 0.85rem;">
+                    <span><strong>${escapeHtml(part.part_model_number)}</strong> - ${escapeHtml(part.part_name)} (${partTypeLabel})</span>
+                    <button type="button"
+                            onclick="removeAssociatedPart('${escapeHtml(partModelNumber)}')"
+                            style="background: none; border: none; color: #dc3545; cursor: pointer; font-size: 1.1rem; line-height: 1; padding: 0; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;"
+                            title="Remove this part">×</button>
+                </div>
+            `;
+        }
+    });
+
+    selectedPartsContainer.innerHTML = html;
+}
+
+// Remove a part from the selected list
+function removeAssociatedPart(partModelNumber) {
+    const hiddenInput = document.getElementById('associated_parts');
+    if (!hiddenInput) return;
+
+    let selectedParts = [];
+    try {
+        selectedParts = JSON.parse(hiddenInput.value || '[]');
+    } catch (e) {
+        selectedParts = [];
+    }
+
+    // Remove from array
+    selectedParts = selectedParts.filter(p => p !== partModelNumber);
+    hiddenInput.value = JSON.stringify(selectedParts);
+
+    // Uncheck the checkbox
+    const checkbox = document.querySelector(`.associated-part-checkbox[value="${partModelNumber}"]`);
+    if (checkbox) {
+        checkbox.checked = false;
+    }
+
+    // Re-render
+    renderSelectedParts();
+    console.log('[Associated Parts] Removed:', partModelNumber, 'Remaining:', selectedParts);
 }
 
 // Update hidden input from checkboxes
@@ -451,6 +554,7 @@ function updateAssociatedPartsFromCheckboxes() {
     if (hiddenInput) {
         hiddenInput.value = JSON.stringify(selectedParts);
     }
+    renderSelectedParts();
     console.log('[Associated Parts] Updated:', selectedParts);
 }
 
@@ -470,8 +574,9 @@ function getAssociatedPartsFromInput() {
 // Initialize associated parts checkboxes when parts are loaded
 function initializeAssociatedPartsCheckboxes() {
     if (allPartsData && allPartsData.length > 0) {
-        const partModelNumber = document.getElementById('part_model_number').value;
-        populateAssociatedPartsCheckboxes(partModelNumber || null);
+        const partModelNumber = document.getElementById('part_model_number')?.value || null;
+        const partGeneration = document.getElementById('generation')?.value || null;
+        populateAssociatedPartsCheckboxes(partModelNumber, partGeneration);
     } else {
         // Wait for parts to load
         setTimeout(initializeAssociatedPartsCheckboxes, 500);
@@ -493,7 +598,9 @@ async function editPart(id) {
         // Convert id to string/number if needed
         const partId = String(id);
         
-        const response = await fetch(`${API_BASE}/api/admin/parts`);
+        const response = await authenticatedFetch(`${API_BASE_REF}/api/admin/parts`, {
+            credentials: 'include'
+        });
         const data = await response.json();
         
         if (response.ok && data.parts) {
@@ -511,10 +618,10 @@ async function editPart(id) {
                 const associatedPartsHidden = document.getElementById('associated_parts');
                 if (associatedPartsHidden && part.associated_parts && Array.isArray(part.associated_parts)) {
                     associatedPartsHidden.value = JSON.stringify(part.associated_parts);
-                    populateAssociatedPartsCheckboxes(part.part_model_number);
+                    populateAssociatedPartsCheckboxes(part.part_model_number, part.generation);
                 } else if (associatedPartsHidden) {
                     associatedPartsHidden.value = JSON.stringify([]);
-                    populateAssociatedPartsCheckboxes(part.part_model_number);
+                    populateAssociatedPartsCheckboxes(part.part_model_number, part.generation);
                 }
                 
                 // Show existing images if they exist
@@ -593,8 +700,9 @@ async function deletePart(id) {
     try {
         // Convert id to string for URL encoding
         const partId = String(id);
-        const response = await fetch(`${API_BASE}/api/admin/part/${encodeURIComponent(partId)}`, {
-            method: 'DELETE'
+        const response = await authenticatedFetch(`${API_BASE_REF}/api/admin/part/${encodeURIComponent(partId)}`, {
+            method: 'DELETE',
+            credentials: 'include'
         });
         
         const data = await response.json();
@@ -617,6 +725,7 @@ async function deletePart(id) {
 // Make functions available globally (for backwards compatibility)
 window.editPart = editPart;
 window.deletePart = deletePart;
+window.removeAssociatedPart = removeAssociatedPart;
 
 // Escape HTML
 function escapeHtml(text) {
@@ -648,7 +757,9 @@ function tryPopulateAutocomplete() {
     } else {
         // Try loading parts if not loaded
         console.log('[Autocomplete Init] No parts data, attempting to load...');
-        fetch(`${API_BASE}/api/admin/parts`)
+        fetch(`${API_BASE_REF}/api/admin/parts`, {
+            credentials: 'include'
+        })
             .then(res => res.json())
             .then(data => {
                 if (data.parts) {

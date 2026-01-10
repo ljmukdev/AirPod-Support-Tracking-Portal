@@ -1,11 +1,13 @@
 {
   "name": "ljm-airpod-support",
-  "version": "1.2.3",
+  "version": "1.2.5",
   "description": "LJM AirPod Support & Tracking Portal",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "deploy:staging": "powershell -ExecutionPolicy Bypass -File ./scripts/deploy-staging.ps1",
+    "deploy:production": "powershell -ExecutionPolicy Bypass -File ./scripts/deploy-production.ps1"
   },
   "keywords": [
     "airpod",
@@ -15,12 +17,17 @@
   "author": "LJM",
   "license": "ISC",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.2",
     "body-parser": "^1.20.2",
-    "connect-mongo": "^6.0.0",
+    "connect-mongo": "^5.1.0",
+    "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "express-session": "^1.17.3",
+    "gocardless-nodejs": "^6.0.0",
+    "jsonwebtoken": "^9.0.2",
     "mongodb": "^6.3.0",
     "multer": "^1.4.5-lts.1",
+    "nodemailer": "^6.9.8",
     "stripe": "^14.21.0"
   }
 }

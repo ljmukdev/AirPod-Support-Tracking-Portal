@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Sale | LJM AirPod Support</title>
+    <link rel="stylesheet" href="../css/styles.css?v=1.2.5.032">
+
+    <script>
+        // Inline version display - fetches from API to always show current version
+        (function() {
+            var API_BASE = window.API_BASE || '';
+            function showVersion(versionData) {
+                var el = document.getElementById('version-display');
+                if (!el) {
+                    el = document.createElement('div');
+                    el.id = 'version-display';
+                    el.style.cssText = 'position:fixed;top:10px;right:10px;font-size:0.7rem;color:rgba(0,0,0,0.7);font-family:"Courier New",monospace;z-index:99999;padding:4px 8px;background:rgba(255,255,255,0.9);border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.2);pointer-events:none;';
+                    if (document.body) {
+                        document.body.appendChild(el);
+                    } else {
+                        setTimeout(function() {
+                            if (document.body) document.body.appendChild(el);
+                        }, 100);
+                    }
+                }
+                if (versionData) {
+                    var versionText = 'v' + versionData.version + '.' + versionData.revision;
+                    el.textContent = versionText;
+                    el.title = 'Version ' + versionData.version + ' (Revision ' + versionData.revision + ')';
+                } else {
+                    el.textContent = 'v1.2.5.032';
+                    el.title = 'Version 1.2.5 (Revision 032)';
+                }
+            }
+
+            // Fetch version from API
+            fetch(API_BASE + '/api/version')
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                    showVersion(data);
+                })
+                .catch(function(err) {
+                    console.log('Version fetch failed, using default');
+                    showVersion(null);
+                });
+
+            // Also show immediately with default
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function() { showVersion(null); });
+            } else {
+                showVersion(null);
+            }
+        })();
+    </script>
+    <style>
+        .sale-form-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 30px;
+        }
+        .sale-form {
+            background-color: var(--background-white);
+            padding: 30px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+        }
+        .product-info-box {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .product-info-box.show {
+            display: block;
+        }
+        .product-info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .product-info-item {
+            display: flex;
+            flex-direction: column;
+        }
+        .product-info-label {
+            font-weight: 500;
+            color: #666;
+            font-size: 0.85rem;
+            margin-bottom: 5px;
+        }
+        .product-info-value {
+            color: var(--text-dark);
+            font-size: 1rem;
+        }
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .button-cancel {
+            background-color: #6c757d;
+        }
+        .button-cancel:hover {
+            background-color: #5a6268;
+        }
+    </style>
+</head>
+<body class="admin-panel">
+    <!-- Sidebar Navigation -->
+    <aside class="admin-sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <div class="logo-circle">
+                    <span class="logo-text">LJM</span>
+                </div>
+                <div>
+                    <div class="sidebar-logo-text">LJM Admin</div>
+                    <div class="sidebar-subtitle">Dashboard</div>
+                </div>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-section">
+                <div class="nav-section-header">ADMIN</div>
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="dashboard.html" class="nav-link" data-page="dashboard">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 10L9 4L9 10L17 10M3 10L3 16M3 10L17 10M17 10L17 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="parts.html" class="nav-link" data-page="parts">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <rect x="3" y="3" width="6" height="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <rect x="11" y="3" width="6" height="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <rect x="3" y="11" width="6" height="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <rect x="11" y="11" width="6" height="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Manage Parts</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="setup-instructions.html" class="nav-link" data-page="setup-instructions">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M10 2L3 6L3 10C3 14.5 6.5 18.5 10 19C13.5 18.5 17 14.5 17 10L17 6L10 2Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M10 10L10 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <circle cx="10" cy="7" r="1" fill="currentColor"/>
+                            </svg>
+                            <span>Setup Instructions</span>
+                        </a>
+                    </li>
+                    <li class="nav-item has-submenu">
+                        <a href="products.html" class="nav-link" data-page="products">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M4 4H16V16H4V4Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M4 8H16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                <path d="M8 4V16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                            <span>Products</span>
+                        </a>
+                        <ul class="nav-submenu">
+                            <li><a href="stock.html" class="nav-link" data-page="stock">Stock</a></li>
+                            <li><a href="sales-orders.html" class="nav-link" data-page="sales-orders">Sales Orders</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item">
+                        <a href="purchases.html" class="nav-link" data-page="purchases">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 5L10 2L17 5M3 5L3 15L10 18M3 5L10 8M17 5L17 15L10 18M17 5L10 8M10 8L10 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Purchases</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="consumables.html" class="nav-link" data-page="consumables">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 3H17V8H3V3Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M3 10H17V15H3V10Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M7 3V8M13 3V8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                <path d="M7 10V15M13 10V15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                            <span>Consumables</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="check-in.html" class="nav-link" data-page="check-in">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M7 10L9 12L13 8M18 10C18 14.4183 14.4183 18 10 18C5.58172 18 2 14.4183 2 10C2 5.58172 5.58172 2 10 2C14.4183 2 18 5.58172 18 10Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Check-In</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="tasks.html" class="nav-link" data-page="tasks">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M9 5H7C5.89543 5 5 5.89543 5 7V15C5 16.1046 5.89543 17 7 17H13C14.1046 17 15 16.1046 15 15V7C15 5.89543 14.1046 5 13 5H11M9 5C9 3.89543 9.89543 3 11 3H9C7.89543 3 7 3.89543 7 5M9 5C9 6.10457 9.89543 7 11 7H9C7.89543 7 7 6.10457 7 5M8 10H12M8 13H12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Tasks</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="support-tickets.html" class="nav-link" data-page="support-tickets">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M18 13V14C18 14.7956 17.6839 15.5587 17.1213 16.1213C16.5587 16.6839 15.7956 17 15 17H5L2 20V5C2 4.20435 2.31607 3.44129 2.87868 2.87868C3.44129 2.31607 4.20435 2 5 2H15C15.7956 2 16.5587 2.31607 17.1213 2.87868C17.6839 3.44129 18 4.20435 18 5V13Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M6 7H14M6 11H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Support Tickets</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-header">WARRANTIES</div>
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="warranties.html" class="nav-link" data-page="warranties">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M10 2L3 6L3 10C3 14.5 6.5 18.5 10 19C13.5 18.5 17 14.5 17 10L17 6L10 2Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Warranties</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="warranty-pricing.html" class="nav-link" data-page="warranty-pricing">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M10 2L12 8L18 8L13 12L15 18L10 14L5 18L7 12L2 8L8 8L10 2Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Pricing</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="warranty-terms.html" class="nav-link" data-page="warranty-terms">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M4 4H16V16H4V4Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M7 7H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                <path d="M7 10H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                <path d="M7 13H11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                            <span>T&Cs</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-header">SALES</div>
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="addon-sales.html" class="nav-link" data-page="addon-sales">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M6 6L14 14M14 6L6 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"/>
+                            </svg>
+                            <span>Add-On Sales</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-header">ANALYTICS</div>
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="analytics.html" class="nav-link" data-page="analytics">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 16L3 12M7 16L7 8M11 16L11 10M15 16L15 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Analytics</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-header">SETTINGS</div>
+                <ul class="nav-menu">
+                    <li class="nav-item has-submenu">
+                        <a href="settings.html" class="nav-link" data-page="settings" onclick="event.preventDefault(); toggleSubmenu(this.parentElement);">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M10 12C11.1046 12 12 11.1046 12 10C12 8.89543 11.1046 8 10 8C8.89543 8 8 8.89543 8 10C8 11.1046 8.89543 12 10 12Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M16.5 10C16.5 10.5 16.6 11 16.7 11.5L18.5 12.5C18.8 12.7 18.9 13.1 18.7 13.4L17.1 15.9C16.9 16.2 16.5 16.3 16.2 16.1L14.2 15.1C13.7 15.4 13.2 15.6 12.7 15.7L12.5 17.8C12.5 18.1 12.2 18.4 11.9 18.4H8.1C7.8 18.4 7.5 18.1 7.5 17.8L7.3 15.7C6.8 15.6 6.3 15.4 5.8 15.1L3.8 16.1C3.5 16.3 3.1 16.2 2.9 15.9L1.3 13.4C1.1 13.1 1.2 12.7 1.5 12.5L3.3 11.5C3.4 11 3.5 10.5 3.5 10C3.5 9.5 3.4 9 3.3 8.5L1.5 7.5C1.2 7.3 1.1 6.9 1.3 6.6L2.9 4.1C3.1 3.8 3.5 3.7 3.8 3.9L5.8 4.9C6.3 4.6 6.8 4.4 7.3 4.3L7.5 2.2C7.5 1.9 7.8 1.6 8.1 1.6H11.9C12.2 1.6 12.5 1.9 12.5 2.2L12.7 4.3C13.2 4.4 13.7 4.6 14.2 4.9L16.2 3.9C16.5 3.7 16.9 3.8 17.1 4.1L18.7 6.6C18.9 6.9 18.8 7.3 18.5 7.5L16.7 8.5C16.6 9 16.5 9.5 16.5 10Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Settings</span>
+                        </a>
+                        <ul class="nav-submenu">
+                            <li class="nav-item">
+                                <a href="settings.html#email-settings" class="nav-link" data-page="settings" data-section="email">
+                                    <span>Email Configuration</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="settings.html#page-field-options" class="nav-link" data-page="settings" data-section="status">
+                                    <span>Page Field Options</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <div class="sidebar-footer">
+            <a href="downloads.html" class="sidebar-footer-link" data-page="downloads">
+                <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M10 13L10 3M10 13L6 9M10 13L14 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M3 16L17 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+                <span>Downloads</span>
+            </a>
+            <button class="sidebar-footer-link sidebar-logout" id="logoutButton">
+                <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M13 15L17 10L13 5M17 10H7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M7 3H4C3.44772 3 3 3.44772 3 4V16C3 16.5523 3.44772 17 4 17H7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>Logout</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <div class="admin-main">
+        <!-- Top Utility Bar -->
+        <header class="admin-topbar">
+            <div class="topbar-left">
+                <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 5H17M3 10H17M3 15H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                </button>
+                <form class="topbar-search-form" action="search-product.html" method="get">
+                    <input
+                        type="text"
+                        name="security_barcode"
+                        class="topbar-search-input"
+                        placeholder="Search products..."
+                        autocomplete="off"
+                    >
+                    <button type="submit" class="topbar-search-button" aria-label="Search">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M8.33333 13.6667C11.2789 13.6667 13.6667 11.2789 13.6667 8.33333C13.6667 5.38781 11.2789 3 8.33333 3C5.38781 3 3 5.38781 3 8.33333C3 11.2789 5.38781 13.6667 8.33333 13.6667Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M15 15L12.1 12.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </form>
+                <a href="parts.html" class="topbar-add-button" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; background-color: var(--accent-teal); color: white; text-decoration: none; border-radius: 6px; font-size: 0.85rem; font-weight: 500; transition: background-color 0.2s ease; white-space: nowrap;">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M8 3V13M3 8H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                    Add Part
+                </a>
+                <a href="add-product.html" class="topbar-add-button" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; background-color: var(--accent-teal); color: white; text-decoration: none; border-radius: 6px; font-size: 0.85rem; font-weight: 500; transition: background-color 0.2s ease; white-space: nowrap;">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M8 3V13M3 8H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                    Add Product
+                </a>
+                <a href="add-purchase.html" class="topbar-add-button" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; background-color: var(--accent-teal); color: white; text-decoration: none; border-radius: 6px; font-size: 0.85rem; font-weight: 500; transition: background-color 0.2s ease; white-space: nowrap;">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M8 3V13M3 8H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                    Add Purchase
+                </a>
+                <a href="add-sale.html" class="topbar-add-button" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; background-color: var(--accent-teal); color: white; text-decoration: none; border-radius: 6px; font-size: 0.85rem; font-weight: 500; transition: background-color 0.2s ease; white-space: nowrap;">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M8 3V13M3 8H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                    Add Sale
+                </a>
+            </div>
+            <div class="topbar-right">
+                <div class="topbar-user">
+                    <span class="topbar-user-name">Admin</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Page Content -->
+        <div class="admin-content">
+            <div class="sale-form-container">
+                <h1 style="margin-top: 0; margin-bottom: 24px;">Record a Sale</h1>
+
+                <div class="sale-form">
+                    <p style="color: #666; margin-bottom: 20px;">
+                        Enter the serial number or security barcode of the product that was sold, then provide the sale details.
+                    </p>
+
+                    <form id="saleForm">
+                        <div class="form-group">
+                            <label for="searchProduct">Search Product *</label>
+                            <p style="font-size: 0.85rem; color: #666; margin-bottom: 10px;">
+                                Enter serial number or security barcode to find the product
+                            </p>
+                            <input
+                                type="text"
+                                id="searchProduct"
+                                name="searchProduct"
+                                required
+                                placeholder="Enter serial number or security barcode"
+                                autocomplete="off"
+                            >
+                            <button type="button" class="button" id="searchButton" style="margin-top: 10px;">
+                                Search Product
+                            </button>
+                        </div>
+
+                        <div id="productInfo" class="product-info-box">
+                            <h3 style="margin-top: 0; margin-bottom: 15px;">Product Information</h3>
+                            <div class="product-info-grid">
+                                <div class="product-info-item">
+                                    <span class="product-info-label">Serial Number</span>
+                                    <span class="product-info-value" id="productSerial">-</span>
+                                </div>
+                                <div class="product-info-item">
+                                    <span class="product-info-label">Security Barcode</span>
+                                    <span class="product-info-value" id="productSecurity">-</span>
+                                </div>
+                                <div class="product-info-item">
+                                    <span class="product-info-label">Product Name</span>
+                                    <span class="product-info-value" id="productName">-</span>
+                                </div>
+                                <div class="product-info-item">
+                                    <span class="product-info-label">Part Type</span>
+                                    <span class="product-info-value" id="productPartType">-</span>
+                                </div>
+                            </div>
+                            <input type="hidden" id="productId" name="productId">
+                        </div>
+
+                        <div id="saleFields" style="display: none;">
+                            <hr style="margin: 30px 0; border: none; border-top: 2px solid #e8ecf1;">
+
+                            <h3 style="margin-bottom: 15px;">Sale Details</h3>
+
+                            <div class="form-group">
+                                <label for="salesOrderNumber">Sales Order Number *</label>
+                                <p style="font-size: 0.85rem; color: #666; margin-bottom: 10px;">
+                                    Enter the order number (e.g., eBay order number, invoice number)
+                                </p>
+                                <input
+                                    type="text"
+                                    id="salesOrderNumber"
+                                    name="salesOrderNumber"
+                                    placeholder="e.g., 123-4567890-1234567"
+                                    autocomplete="off"
+                                >
+                            </div>
+
+                            <div class="form-group">
+                                <label for="saleDate">Sale Date</label>
+                                <input
+                                    type="date"
+                                    id="saleDate"
+                                    name="saleDate"
+                                >
+                            </div>
+
+                            <div class="form-group">
+                                <label for="salePrice">Sale Price (£)</label>
+                                <input
+                                    type="number"
+                                    id="salePrice"
+                                    name="salePrice"
+                                    step="0.01"
+                                    min="0"
+                                    placeholder="0.00"
+                                >
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
+                                <div class="form-group">
+                                    <label for="saleSubtotal">Subtotal (£)</label>
+                                    <input
+                                        type="number"
+                                        id="saleSubtotal"
+                                        name="saleSubtotal"
+                                        step="0.01"
+                                        min="0"
+                                        placeholder="0.00"
+                                    >
+                                </div>
+                                <div class="form-group">
+                                    <label for="salePostageCharged">Postage Charged (£)</label>
+                                    <input
+                                        type="number"
+                                        id="salePostageCharged"
+                                        name="salePostageCharged"
+                                        step="0.01"
+                                        min="0"
+                                        placeholder="0.00"
+                                    >
+                                </div>
+                                <div class="form-group">
+                                    <label for="saleTransactionFees">Transaction Fees (£)</label>
+                                    <input
+                                        type="number"
+                                        id="saleTransactionFees"
+                                        name="saleTransactionFees"
+                                        step="0.01"
+                                        min="0"
+                                        placeholder="0.00"
+                                    >
+                                </div>
+                                <div class="form-group">
+                                    <label for="salePostageLabelCost">Postage Label Cost (£)</label>
+                                    <input
+                                        type="number"
+                                        id="salePostageLabelCost"
+                                        name="salePostageLabelCost"
+                                        step="0.01"
+                                        min="0"
+                                        placeholder="0.00"
+                                    >
+                                </div>
+                                <div class="form-group">
+                                    <label for="saleAdFeeGeneral">Ad Fee (General) (£)</label>
+                                    <input
+                                        type="number"
+                                        id="saleAdFeeGeneral"
+                                        name="saleAdFeeGeneral"
+                                        step="0.01"
+                                        min="0"
+                                        placeholder="0.00"
+                                    >
+                                </div>
+                                <div class="form-group">
+                                    <label for="saleOrderTotal">Order Total (£)</label>
+                                    <input
+                                        type="number"
+                                        id="saleOrderTotal"
+                                        name="saleOrderTotal"
+                                        step="0.01"
+                                        min="0"
+                                        placeholder="0.00"
+                                        readonly
+                                    >
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="outwardTrackingNumber">Outward Postage Tracking Number</label>
+                                <input
+                                    type="text"
+                                    id="outwardTrackingNumber"
+                                    name="outwardTrackingNumber"
+                                    placeholder="Enter tracking number"
+                                    autocomplete="off"
+                                >
+                            </div>
+
+                            <div class="form-group">
+                                <label for="saleNotes">Notes (Optional)</label>
+                                <textarea
+                                    id="saleNotes"
+                                    name="saleNotes"
+                                    rows="4"
+                                    placeholder="Add any additional notes about this sale..."
+                                ></textarea>
+                            </div>
+
+                            <hr style="margin: 30px 0; border: none; border-top: 2px solid #e8ecf1;">
+
+                            <h3 style="margin-bottom: 15px;">Consumables Used (Optional)</h3>
+                            <p style="font-size: 0.85rem; color: #666; margin-bottom: 15px;">
+                                Select any consumables used for this sale. Stock levels will be automatically deducted.
+                            </p>
+                            <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 16px;">
+                                <div style="min-width: 240px; flex: 1;">
+                                    <label for="consumableTemplateSelect" style="display: block; font-size: 0.85rem; color: #666; margin-bottom: 6px;">
+                                        Apply Consumable Template
+                                    </label>
+                                    <select id="consumableTemplateSelect" style="width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px;">
+                                        <option value="">Select a template</option>
+                                    </select>
+                                </div>
+                                <button type="button" class="button button-secondary" id="applyTemplateButton" style="height: 38px; align-self: flex-end;">
+                                    Apply Template
+                                </button>
+                            </div>
+
+                            <div id="consumablesContainer" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                                <div style="color: #999; font-style: italic;">Loading consumables...</div>
+                            </div>
+                        </div>
+
+                        <div id="errorMessage" class="error-message" style="display: none;"></div>
+                        <div id="successMessage" class="success-message" style="display: none;"></div>
+
+                        <div class="form-actions" id="formActions" style="display: none;">
+                            <button type="submit" class="button" id="submitButton">
+                                Record Sale
+                            </button>
+                            <button type="button" class="button button-cancel" id="cancelButton" onclick="window.location.href='sales.html'">
+                                Cancel
+                            </button>
+                        </div>
+
+                        <div class="spinner" id="spinner" style="display: none;"></div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar Overlay for Mobile -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <script src="../js/admin.js?v=1.2.5.032"></script>
+    <script src="../js/main.js?v=1.0.0"></script>
+    <script src="../js/version.js?v=1.2.5.032"></script>
+    <script>
+        // Sidebar toggle functionality
+        (function() {
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const sidebar = document.querySelector('.admin-sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+
+            if (sidebarToggle && sidebar) {
+                sidebarToggle.addEventListener('click', function() {
+                    sidebar.classList.toggle('sidebar-open');
+                    if (overlay) {
+                        overlay.classList.toggle('active');
+                    }
+                });
+
+                if (overlay) {
+                    overlay.addEventListener('click', function() {
+                        sidebar.classList.remove('sidebar-open');
+                        overlay.classList.remove('active');
+                    });
+                }
+            }
+
+            // Set active nav item based on current page
+            const currentPage = window.location.pathname.split('/').pop() || 'add-sale.html';
+            const navLinks = document.querySelectorAll('.nav-link, .sidebar-footer-link');
+            navLinks.forEach(link => {
+                const href = link.getAttribute('href');
+                if (href && (href === currentPage || currentPage.includes(href.replace('.html', '')))) {
+                    link.classList.add('active');
+                }
+            });
+        })();
+
+        // Add Sale Form Logic
+        let selectedProduct = null;
+        let availableConsumables = [];
+        let availableTemplates = [];
+        const consumableIdMap = new Map();
+
+        document.getElementById('searchButton').addEventListener('click', searchProduct);
+        document.getElementById('searchProduct').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                searchProduct();
+            }
+        });
+        document.getElementById('saleSubtotal').addEventListener('input', updateOrderTotal);
+        document.getElementById('salePostageCharged').addEventListener('input', updateOrderTotal);
+        document.getElementById('saleTransactionFees').addEventListener('input', updateOrderTotal);
+        document.getElementById('salePostageLabelCost').addEventListener('input', updateOrderTotal);
+        document.getElementById('saleAdFeeGeneral').addEventListener('input', updateOrderTotal);
+
+        // Fetch available consumables on page load
+        function fetchConsumables() {
+            authenticatedFetch('/api/admin/consumables')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.consumables) {
+                        availableConsumables = data.consumables;
+                        consumableIdMap.clear();
+                        availableConsumables.forEach(consumable => {
+                            const id = String(consumable._id || consumable.id || '');
+                            if (id) {
+                                consumableIdMap.set(id, consumable);
+                            }
+                        });
+                        displayConsumables();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching consumables:', error);
+                    document.getElementById('consumablesContainer').innerHTML = '<div style="color: #999; font-style: italic;">Failed to load consumables</div>';
+                });
+        }
+
+        function fetchConsumableTemplates() {
+            authenticatedFetch('/api/admin/consumable-templates')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.templates) {
+                        availableTemplates = data.templates;
+                        renderTemplateOptions();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching consumable templates:', error);
+                });
+        }
+
+        function renderTemplateOptions() {
+            const select = document.getElementById('consumableTemplateSelect');
+            if (!select) return;
+            const options = availableTemplates.map(template => {
+                const targetType = template.target_type || 'any';
+                return `<option value="${template._id}" data-target="${targetType}">${template.name}</option>`;
+            });
+            select.innerHTML = ['<option value="">Select a template</option>', ...options].join('');
+            select.disabled = availableTemplates.length === 0;
+            maybeAutoSelectTemplate();
+        }
+
+        function displayConsumables() {
+            const container = document.getElementById('consumablesContainer');
+
+            if (availableConsumables.length === 0) {
+                container.innerHTML = '<div style="color: #999; font-style: italic;">No consumables available</div>';
+                return;
+            }
+
+            container.innerHTML = availableConsumables.map(consumable => {
+                const id = String(consumable._id || consumable.id || '');
+                const name = consumable.item_name || consumable.name || 'Unnamed consumable';
+                const stockLevel = Number.isFinite(consumable.quantity_in_stock)
+                    ? consumable.quantity_in_stock
+                    : (Number.isFinite(consumable.stock_level) ? consumable.stock_level : 0);
+                const unit = consumable.unit_type || consumable.unit || 'units';
+                return `
+                <div style="border: 1px solid #e8ecf1; border-radius: 8px; padding: 15px; background-color: #fafbfc;">
+                    <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
+                        <input
+                            type="checkbox"
+                            class="consumable-checkbox"
+                            data-id="${id}"
+                            data-name="${name}"
+                            data-stock="${stockLevel}"
+                            style="margin-top: 3px;"
+                            onchange="toggleConsumableQuantity(this)"
+                        >
+                        <div style="flex: 1;">
+                            <div style="font-weight: 500; color: var(--text-dark); margin-bottom: 5px;">
+                                ${name}
+                            </div>
+                            <div style="font-size: 0.85rem; color: #666;">
+                                Stock: ${stockLevel} ${unit}
+                            </div>
+                            <div id="quantity-${id}" style="margin-top: 10px; display: none;">
+                                <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 5px;">
+                                    Quantity Used:
+                                </label>
+                                <input
+                                    type="number"
+                                    class="consumable-quantity"
+                                    data-id="${id}"
+                                    min="1"
+                                    max="${stockLevel}"
+                                    value="1"
+                                    style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"
+                                    placeholder="Enter quantity"
+                                >
+                            </div>
+                        </div>
+                    </label>
+                </div>
+            `;
+            }).join('');
+        }
+
+        function updateOrderTotal() {
+            const subtotal = parseFloat(document.getElementById('saleSubtotal').value) || 0;
+            const postageCharged = parseFloat(document.getElementById('salePostageCharged').value) || 0;
+            const transactionFees = parseFloat(document.getElementById('saleTransactionFees').value) || 0;
+            const postageLabelCost = parseFloat(document.getElementById('salePostageLabelCost').value) || 0;
+            const adFeeGeneral = parseFloat(document.getElementById('saleAdFeeGeneral').value) || 0;
+
+            const orderTotal = subtotal + postageCharged - transactionFees - postageLabelCost - adFeeGeneral;
+            document.getElementById('saleOrderTotal').value = orderTotal.toFixed(2);
+        }
+
+        function toggleConsumableQuantity(checkbox) {
+            const quantityDiv = document.getElementById('quantity-' + checkbox.dataset.id);
+            if (!quantityDiv) return;
+            quantityDiv.style.display = checkbox.checked ? 'block' : 'none';
+        }
+
+        // Fetch consumables when page loads
+        fetchConsumables();
+        fetchConsumableTemplates();
+
+        document.getElementById('applyTemplateButton').addEventListener('click', function() {
+            const select = document.getElementById('consumableTemplateSelect');
+            const templateId = select.value;
+            if (!templateId) {
+                showError('Please select a consumable template to apply');
+                return;
+            }
+
+            const template = availableTemplates.find(item => String(item._id) === String(templateId));
+            if (!template) {
+                showError('Selected template could not be found');
+                return;
+            }
+
+            let missingItems = 0;
+            template.consumables.forEach(templateItem => {
+                const consumableId = String(templateItem.consumable_id);
+                const consumable = consumableIdMap.get(consumableId);
+                if (!consumable) {
+                    missingItems += 1;
+                    return;
+                }
+                const checkbox = document.querySelector(`.consumable-checkbox[data-id="${consumableId}"]`);
+                const quantityInput = document.querySelector(`.consumable-quantity[data-id="${consumableId}"]`);
+                if (!checkbox || !quantityInput) return;
+
+                const stockLevel = parseInt(checkbox.dataset.stock, 10) || 0;
+                const desiredQuantity = templateItem.quantity || 1;
+                const finalQuantity = desiredQuantity > stockLevel ? stockLevel : desiredQuantity;
+
+                checkbox.checked = true;
+                toggleConsumableQuantity(checkbox);
+                quantityInput.value = finalQuantity || 1;
+            });
+
+            if (missingItems > 0) {
+                showError('Some consumables in this template no longer exist. Please update the template.');
+            } else {
+                showSuccess('Template applied. Review consumable quantities below.');
+            }
+        });
+
+        function getTemplateTargetForProduct(partType) {
+            if (!partType) return null;
+            const normalizedPartType = String(partType).toLowerCase();
+            if (normalizedPartType === 'left' || normalizedPartType === 'right') {
+                return 'airpod';
+            }
+            if (normalizedPartType === 'case') {
+                return 'case';
+            }
+            return null;
+        }
+
+        function maybeAutoSelectTemplate() {
+            const select = document.getElementById('consumableTemplateSelect');
+            if (!select || !selectedProduct || availableTemplates.length === 0) {
+                return;
+            }
+
+            const targetType = getTemplateTargetForProduct(selectedProduct.part_type);
+            if (!targetType) return;
+
+            const option = Array.from(select.options).find(item => item.dataset.target === targetType);
+            if (option) {
+                select.value = option.value;
+            }
+        }
+
+        function searchProduct() {
+            const searchValue = document.getElementById('searchProduct').value.trim();
+
+            if (!searchValue) {
+                showError('Please enter a serial number or security barcode');
+                return;
+            }
+
+            showSpinner();
+            hideMessages();
+
+            // Search for product
+            authenticatedFetch('/api/admin/products/search?q=' + encodeURIComponent(searchValue))
+                .then(response => response.json())
+                .then(data => {
+                    hideSpinner();
+
+                    if (data.product) {
+                        selectedProduct = data.product;
+                        displayProduct(data.product);
+                        document.getElementById('productInfo').classList.add('show');
+                        document.getElementById('saleFields').style.display = 'block';
+                        document.getElementById('formActions').style.display = 'flex';
+                    } else {
+                        showError('Product not found. Please check the serial number or security barcode.');
+                        document.getElementById('productInfo').classList.remove('show');
+                        document.getElementById('saleFields').style.display = 'none';
+                        document.getElementById('formActions').style.display = 'none';
+                    }
+                })
+                .catch(error => {
+                    hideSpinner();
+                    console.error('Search error:', error);
+                    showError('Failed to search for product. Please try again.');
+                });
+        }
+
+        function displayProduct(product) {
+            document.getElementById('productSerial').textContent = product.serial_number || '-';
+            document.getElementById('productSecurity').textContent = product.security_barcode || '-';
+            document.getElementById('productName').textContent = product.product_name || '-';
+            document.getElementById('productPartType').textContent = product.part_type || '-';
+            document.getElementById('productId').value = product._id;
+            maybeAutoSelectTemplate();
+        }
+
+        document.getElementById('saleForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            if (!selectedProduct) {
+                showError('Please search for and select a product first');
+                return;
+            }
+
+            const salesOrderNumber = document.getElementById('salesOrderNumber').value.trim();
+
+            if (!salesOrderNumber) {
+                showError('Please enter a sales order number');
+                return;
+            }
+
+            // Collect selected consumables
+            const selectedConsumables = [];
+            const checkboxes = document.querySelectorAll('.consumable-checkbox:checked');
+
+            for (const checkbox of checkboxes) {
+                const consumableId = checkbox.dataset.id;
+                const quantityInput = document.querySelector(`.consumable-quantity[data-id="${consumableId}"]`);
+                const quantity = parseInt(quantityInput.value) || 1;
+                const stockLevel = parseInt(checkbox.dataset.stock, 10) || 0;
+
+                if (quantity > stockLevel) {
+                    showError(`Quantity for ${checkbox.dataset.name} exceeds available stock (${stockLevel})`);
+                    return;
+                }
+
+                selectedConsumables.push({
+                    consumable_id: consumableId,
+                    name: checkbox.dataset.name,
+                    quantity: quantity
+                });
+            }
+
+            showSpinner();
+            hideMessages();
+
+            const productCost = parseFloat(selectedProduct.purchase_price) || 0;
+            const transactionFees = parseFloat(document.getElementById('saleTransactionFees').value) || 0;
+            const postageLabelCost = parseFloat(document.getElementById('salePostageLabelCost').value) || 0;
+            const adFeeGeneral = parseFloat(document.getElementById('saleAdFeeGeneral').value) || 0;
+            const consumablesCost = selectedConsumables.reduce((sum, item) => {
+                const consumable = consumableIdMap.get(String(item.consumable_id));
+                const unitCost = consumable
+                    ? (parseFloat(consumable.unit_cost) || parseFloat(consumable.price_per_unit) || 0)
+                    : 0;
+                return sum + (unitCost * item.quantity);
+            }, 0);
+            const totalCost = productCost + consumablesCost + transactionFees + postageLabelCost + adFeeGeneral;
+            const orderTotalValue = document.getElementById('saleOrderTotal').value;
+            const salePriceValue = orderTotalValue || document.getElementById('salePrice').value || 0;
+
+            const saleDateValue = document.getElementById('saleDate').value || new Date().toISOString().split('T')[0];
+
+            const saleData = {
+                product_id: selectedProduct._id,
+                product_name: selectedProduct.product_name || selectedProduct.generation || 'Unknown Product',
+                product_serial: selectedProduct.serial_number || 'N/A',
+                product_cost: productCost,
+                platform: 'Manual Entry',
+                order_number: salesOrderNumber,
+                sales_order_number: salesOrderNumber,
+                sale_date: saleDateValue,
+                sale_price: salePriceValue,
+                subtotal: document.getElementById('saleSubtotal').value || null,
+                postage_charged: document.getElementById('salePostageCharged').value || null,
+                transaction_fees: transactionFees,
+                postage_label_cost: postageLabelCost,
+                ad_fee_general: adFeeGeneral,
+                order_total: orderTotalValue || null,
+                sale_notes: document.getElementById('saleNotes').value.trim() || null,
+                outward_tracking_number: document.getElementById('outwardTrackingNumber').value.trim() || null,
+                consumables: selectedConsumables,
+                consumables_cost: consumablesCost,
+                total_cost: totalCost,
+                notes: document.getElementById('saleNotes').value.trim() || null
+            };
+
+            // Update product with sale information
+            authenticatedFetch('/api/admin/sales', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(saleData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                hideSpinner();
+
+                if (data.success) {
+                    showSuccess('Sale recorded successfully!');
+                    setTimeout(function() {
+                        window.location.href = 'sales.html';
+                    }, 1500);
+                } else {
+                    showError(data.message || data.error || 'Failed to record sale');
+                }
+            })
+            .catch(error => {
+                hideSpinner();
+                console.error('Error recording sale:', error);
+                showError('Failed to record sale. Please try again.');
+            });
+        });
+
+        function showSpinner() {
+            document.getElementById('spinner').style.display = 'block';
+        }
+
+        function hideSpinner() {
+            document.getElementById('spinner').style.display = 'none';
+        }
+
+        function showError(message) {
+            const errorEl = document.getElementById('errorMessage');
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+        }
+
+        function showSuccess(message) {
+            const successEl = document.getElementById('successMessage');
+            successEl.textContent = message;
+            successEl.style.display = 'block';
+        }
+
+        function hideMessages() {
+            document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('successMessage').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
