@@ -598,8 +598,22 @@
                         <div id="accessoryStatus" style="margin-top: 8px; padding: 8px; border-radius: 4px; display: none;"></div>
                     </div>
 
-                    <!-- Hidden field to store selected product ID -->
-                    <input type="hidden" id="selectedProductId" required>
+                    <!-- Hidden field to store selected product ID (legacy, used for single product add) -->
+                    <input type="hidden" id="selectedProductId">
+
+                    <!-- Selected Products List -->
+                    <div class="form-group" id="selectedProductsSection" style="display: none;">
+                        <label>Selected Products <span id="selectedProductsCount">(0)</span></label>
+                        <div id="selectedProductsList" style="border: 1px solid #dee2e6; border-radius: 6px; padding: 12px; min-height: 60px; background: #ffffff; margin-bottom: 10px;">
+                            <p style="text-align: center; color: #9ca3af;">No products selected yet</p>
+                        </div>
+                        <button type="button" class="button button-secondary" id="addAnotherProductBtn" style="margin-top: 8px;">
+                            + Add Another Product
+                        </button>
+                        <div style="margin-top: 10px; padding: 12px; background: #ffffff; border-radius: 6px; border: 1px solid #dee2e6; text-align: right;">
+                            <strong style="color: #111; font-size: 14px;">Total Product Cost: £<span id="totalProductsCost">0.00</span></strong>
+                        </div>
+                    </div>
 
                     <!-- Sale Details -->
                     <div class="form-row">
