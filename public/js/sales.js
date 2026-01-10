@@ -78,8 +78,11 @@ function setupEventListeners() {
 
     // Fee Inputs - update preview when changed
     document.getElementById('transactionFees')?.addEventListener('input', updatePreview);
+    document.getElementById('transactionFees')?.addEventListener('change', updatePreview);
     document.getElementById('adFeeGeneral')?.addEventListener('input', updatePreview);
+    document.getElementById('adFeeGeneral')?.addEventListener('change', updatePreview);
     document.getElementById('postageLabelCost')?.addEventListener('input', updatePreview);
+    document.getElementById('postageLabelCost')?.addEventListener('change', updatePreview);
     
     // Add Consumable Button
     document.getElementById('addConsumableBtn')?.addEventListener('click', addConsumableRow);
@@ -132,8 +135,9 @@ function goToStep(step) {
             return;
         }
 
-        // Update step 2 product summary
+        // Update step 2 product summary and P&L preview
         updateStep2Summary();
+        updatePreview();
 
         // Show step 2
         step1.style.display = 'none';
