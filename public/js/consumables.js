@@ -10,6 +10,8 @@ console.log('[CONSUMABLES] API_BASE:', window.API_BASE);
 let allConsumables = [];
 let activeRestockId = null;
 let activeStockCheckId = null;
+let activeDeliveryCheckInId = null;
+let activeRestockHistoryId = null;
 let hasInitialized = false;
 
 // Initialize function
@@ -33,6 +35,7 @@ function initializeConsumables() {
     loadLowStockAlert();
     attachEventListeners();
     attachModalHandlers();
+    attachDeliveryCheckInModalHandlers();
 }
 
 // Load consumables on page load
@@ -428,8 +431,19 @@ function handleDirectActions() {
     const params = new URLSearchParams(window.location.search);
     const restockId = params.get('restockId');
     const checkInId = params.get('checkInId');
+    const deliveryCheckInId = params.get('deliveryCheckIn');
+    const restockHistoryId = params.get('restockId');
 
-    if (restockId) {
+    // Handle delivery check-in from tasks page (priority over other actions)
+    if (deliveryCheckInId) {
+        const item = allConsumables.find(consumable => String(consumable._id || consumable.id) === deliveryCheckInId);
+        if (item) {
+            openDeliveryCheckInModal(deliveryCheckInId, item.item_name, item.unit_type, item.quantity_in_stock, restockHistoryId);
+        }
+        return; // Don't process other actions if this is a delivery check-in
+    }
+
+    if (restockId && !deliveryCheckInId) {
         const item = allConsumables.find(consumable => String(consumable._id || consumable.id) === restockId);
         if (item) {
             openRestockModal(restockId, item.item_name, item.unit_type);
@@ -442,4 +456,88 @@ function handleDirectActions() {
             openStockCheckModal(checkInId, item.item_name, item.unit_type);
         }
     }
+}
+
+// Delivery Check-In Modal Functions
+function openDeliveryCheckInModal(consumableId, itemName, unitType, currentStock, restockHistoryId) {
+    activeDeliveryCheckInId = consumableId;
+    activeRestockHistoryId = restockHistoryId;
+    document.getElementById('deliveryCheckInItemName').textContent = `${itemName} (${unitType})`;
+    document.getElementById('deliveryCheckInCurrentStock').textContent = `Current stock: ${currentStock || 0} ${unitType}`;
+    document.getElementById('deliveryQuantityReceived').value = '';
+    document.getElementById('deliveryFaultyQuantity').value = 0;
+    document.getElementById('deliveryCheckInNotes').value = '';
+    document.getElementById('deliveryCheckInModal').style.display = 'flex';
+}
+
+function closeDeliveryCheckInModal() {
+    document.getElementById('deliveryCheckInModal').style.display = 'none';
+    activeDeliveryCheckInId = null;
+    activeRestockHistoryId = null;
+}
+
+function attachDeliveryCheckInModalHandlers() {
+    const deliveryCheckInForm = document.getElementById('deliveryCheckInForm');
+    const cancelDeliveryCheckIn = document.getElementById('cancelDeliveryCheckIn');
+
+    if (cancelDeliveryCheckIn) {
+        cancelDeliveryCheckIn.addEventListener('click', closeDeliveryCheckInModal);
+    }
+
+    if (deliveryCheckInForm) {
+        deliveryCheckInForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const quantityReceived = parseInt(document.getElementById('deliveryQuantityReceived').value);
+            const faultyQuantity = parseInt(document.getElementById('deliveryFaultyQuantity').value) || 0;
+            const notes = document.getElementById('deliveryCheckInNotes').value.trim();
+
+            if (!activeDeliveryCheckInId || !quantityReceived || quantityReceived <= 0) {
+                alert('Please enter a valid quantity received.');
+                return;
+            }
+
+            if (faultyQuantity < 0 || faultyQuantity > quantityReceived) {
+                alert('Faulty quantity must be zero or more and cannot exceed the quantity received.');
+                return;
+            }
+
+            try {
+                const response = await authenticatedFetch(`${window.API_BASE}/api/admin/consumables/${activeDeliveryCheckInId}/check-in-delivery`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        quantity_received: quantityReceived,
+                        faulty_quantity: faultyQuantity,
+                        notes: notes,
+                        restock_history_id: activeRestockHistoryId
+                    }),
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to check in delivery');
+                }
+
+                const result = await response.json();
+                alert(`✅ Delivery checked in successfully!\n\nAdded ${result.good_quantity} ${result.unit_type || 'items'} to stock.\nNew total: ${result.new_quantity}`);
+                closeDeliveryCheckInModal();
+                loadConsumables();
+                loadLowStockAlert();
+
+                // Clear URL params after successful check-in
+                window.history.replaceState({}, document.title, window.location.pathname);
+            } catch (error) {
+                console.error('[CONSUMABLES] Delivery check-in error:', error);
+                alert('Error: ' + error.message);
+            }
+        });
+    }
+
+    // Close modal when clicking outside
+    window.addEventListener('click', (event) => {
+        if (event.target === document.getElementById('deliveryCheckInModal')) {
+            closeDeliveryCheckInModal();
+        }
+    });
 }
