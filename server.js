@@ -4888,6 +4888,72 @@ app.post('/api/admin/purchases/:id/confirm-refund', requireAuth, requireDB, asyn
     }
 });
 
+// Update expected delivery date with note (Admin only)
+app.post('/api/admin/purchases/:id/update-delivery-date', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    const { new_expected_delivery, update_note } = req.body;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid purchase ID' });
+    }
+
+    if (!new_expected_delivery) {
+        return res.status(400).json({ error: 'New expected delivery date is required' });
+    }
+
+    if (!update_note || !update_note.trim()) {
+        return res.status(400).json({ error: 'Update note is required' });
+    }
+
+    try {
+        const purchase = await db.collection('purchases').findOne({ _id: new ObjectId(id) });
+
+        if (!purchase) {
+            return res.status(404).json({ error: 'Purchase not found' });
+        }
+
+        const now = new Date();
+        const newDeliveryDate = new Date(new_expected_delivery);
+
+        // Create update history entry
+        const deliveryUpdate = {
+            date: now,
+            previous_expected_delivery: purchase.expected_delivery,
+            new_expected_delivery: newDeliveryDate,
+            note: update_note.trim(),
+            updated_by: req.user.email
+        };
+
+        // Update purchase record
+        await db.collection('purchases').updateOne(
+            { _id: new ObjectId(id) },
+            {
+                $set: {
+                    expected_delivery: newDeliveryDate,
+                    last_updated_at: now,
+                    last_updated_by: req.user.email
+                },
+                $push: {
+                    delivery_updates: deliveryUpdate
+                }
+            }
+        );
+
+        console.log(`[DELIVERY-UPDATE] Updated expected delivery for purchase ${id} to ${newDeliveryDate.toISOString()}`);
+        console.log(`[DELIVERY-UPDATE] Note: ${update_note}`);
+
+        res.json({
+            success: true,
+            message: 'Delivery date updated successfully',
+            new_expected_delivery: newDeliveryDate,
+            update_note: update_note.trim()
+        });
+    } catch (err) {
+        console.error('[DELIVERY-UPDATE] Error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // Delete purchase (Admin only)
 app.delete('/api/admin/purchases/:id', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;
