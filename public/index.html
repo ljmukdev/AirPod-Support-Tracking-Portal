@@ -2,10 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="description" content="LJM AirPod Support - Get your replacement AirPod parts working, register your free 30-day warranty, and explore extended protection plans">
     <title>LJM AirPod Support</title>
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/ios-mobile-optimizations.css">
     <style>
         * {
             margin: 0;
@@ -799,14 +800,18 @@
                         <h3>Activate Your Support Access</h3>
                         <div class="input-wrapper">
                             <span class="input-hint">Security Code</span>
-                            <input 
-                                type="text" 
-                                id="securityBarcode" 
+                            <input
+                                type="text"
+                                id="securityBarcode"
                                 name="securityBarcode"
-                                class="security-input" 
-                                placeholder="XXXX-XXXX-XXXX" 
+                                class="security-input"
+                                placeholder="XXXX-XXXX-XXXX"
                                 maxlength="20"
                                 autocomplete="off"
+                                inputmode="text"
+                                autocapitalize="characters"
+                                spellcheck="false"
+                                enterkeyhint="go"
                                 required
                             >
                         </div>

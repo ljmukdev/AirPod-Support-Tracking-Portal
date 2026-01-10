@@ -2,10 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="description" content="LJM AirPod Support - Register your warranty and get setup assistance">
     <title>Warranty Registration | LJM AirPod Support</title>
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/ios-mobile-optimizations.css">
     <link rel="stylesheet" href="css/global-header.css">
     <script>
         // Inline version display - always runs immediately
@@ -1315,13 +1316,17 @@
                             <p class="subtitle">Enter the security code from your product packaging to begin warranty registration</p>
                             
                             <div class="security-input-wrapper">
-                                <input 
-                                    type="text" 
-                                    id="securityCodeInput" 
-                                    class="security-input" 
-                                    placeholder="XXXX-XXXX-XXXX" 
+                                <input
+                                    type="text"
+                                    id="securityCodeInput"
+                                    class="security-input"
+                                    placeholder="XXXX-XXXX-XXXX"
                                     maxlength="20"
                                     autocomplete="off"
+                                    inputmode="text"
+                                    autocapitalize="characters"
+                                    spellcheck="false"
+                                    enterkeyhint="go"
                                 >
                                 <span class="validation-icon" id="validationIcon">✓</span>
                             </div>
@@ -2057,48 +2062,62 @@
                     <form id="reconditioningForm" style="max-width: 600px; margin: 0 auto;">
                         <div style="margin-bottom: 20px;">
                             <label for="reconditionName" style="display: block; margin-bottom: 8px; color: #1a1a1a; font-weight: 500;">Full Name *</label>
-                            <input 
-                                type="text" 
-                                id="reconditionName" 
-                                class="security-input" 
-                                placeholder="John Doe" 
+                            <input
+                                type="text"
+                                id="reconditionName"
+                                class="security-input"
+                                placeholder="John Doe"
                                 required
+                                autocomplete="name"
+                                autocapitalize="words"
+                                inputmode="text"
+                                enterkeyhint="next"
                                 style="text-align: left; padding-left: 16px; letter-spacing: normal; text-transform: none;"
                             >
                         </div>
                         
                         <div style="margin-bottom: 20px;">
                             <label for="reconditionEmail" style="display: block; margin-bottom: 8px; color: #1a1a1a; font-weight: 500;">Email Address *</label>
-                            <input 
-                                type="email" 
-                                id="reconditionEmail" 
-                                class="security-input" 
-                                placeholder="john@example.com" 
+                            <input
+                                type="email"
+                                id="reconditionEmail"
+                                class="security-input"
+                                placeholder="john@example.com"
                                 required
+                                autocomplete="email"
+                                inputmode="email"
+                                autocapitalize="none"
+                                enterkeyhint="next"
                                 style="text-align: left; padding-left: 16px; letter-spacing: normal; text-transform: none;"
                             >
                         </div>
                         
                         <div style="margin-bottom: 20px;">
                             <label for="reconditionPhone" style="display: block; margin-bottom: 8px; color: #1a1a1a; font-weight: 500;">Phone Number *</label>
-                            <input 
-                                type="tel" 
-                                id="reconditionPhone" 
-                                class="security-input" 
-                                placeholder="+44 7700 900123" 
+                            <input
+                                type="tel"
+                                id="reconditionPhone"
+                                class="security-input"
+                                placeholder="+44 7700 900123"
                                 required
+                                autocomplete="tel"
+                                inputmode="tel"
+                                enterkeyhint="next"
                                 style="text-align: left; padding-left: 16px; letter-spacing: normal; text-transform: none;"
                             >
                         </div>
                         
                         <div style="margin-bottom: 20px;">
                             <label for="reconditionAddress" style="display: block; margin-bottom: 8px; color: #1a1a1a; font-weight: 500;">Full Address *</label>
-                            <textarea 
-                                id="reconditionAddress" 
-                                class="security-input" 
-                                placeholder="Your full address including postcode" 
+                            <textarea
+                                id="reconditionAddress"
+                                class="security-input"
+                                placeholder="Your full address including postcode"
                                 required
                                 rows="4"
+                                autocomplete="street-address"
+                                autocapitalize="words"
+                                enterkeyhint="done"
                                 style="text-align: left; padding-left: 16px; padding-top: 12px; letter-spacing: normal; text-transform: none; resize: vertical; min-height: 100px;"
                             ></textarea>
                         </div>
