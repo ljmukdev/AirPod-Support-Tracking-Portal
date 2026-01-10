@@ -77,7 +77,7 @@ function displayCheckInForm() {
 function displayItems() {
     const container = document.getElementById('itemsContainer');
     const items = checkInData.items || [];
-    
+
     container.innerHTML = items.map((item, index) => {
         const itemName = getItemDisplayName(item.item_type);
         const needsAudible = ['left', 'right'].includes(item.item_type);
@@ -85,13 +85,19 @@ function displayItems() {
         const needsSerial = ['case', 'left', 'right'].includes(item.item_type);
         const evidencePhotos = item.issue_photos || [];
         const evidenceNotes = item.issue_notes || '';
-        
+        // Get current generation/connector values (from item or purchase)
+        const currentGeneration = item.generation || purchaseData.generation || '';
+        const currentConnectorType = item.connector_type || purchaseData.connector_type || '';
+        const currentAncType = item.anc_type || purchaseData.anc_type || '';
+        const showConnectorType = currentGeneration === 'AirPods Pro (2nd Gen)';
+        const showAncType = currentGeneration === 'AirPods (4th Gen)';
+
         return `
             <div class="item-form" data-item-index="${index}">
                 <div class="item-form-header">
                     <span class="item-title">${itemName}</span>
                 </div>
-                
+
                 <div class="form-row">
                     <div class="form-group">
                         <label>
@@ -102,7 +108,38 @@ function displayItems() {
                         </label>
                     </div>
                 </div>
-                
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Generation</label>
+                        <select data-field="generation" data-index="${index}" class="generation-select" required>
+                            <option value="AirPods (1st Gen)" ${currentGeneration === 'AirPods (1st Gen)' ? 'selected' : ''}>AirPods (1st Gen)</option>
+                            <option value="AirPods (2nd Gen)" ${currentGeneration === 'AirPods (2nd Gen)' ? 'selected' : ''}>AirPods (2nd Gen)</option>
+                            <option value="AirPods (3rd Gen)" ${currentGeneration === 'AirPods (3rd Gen)' ? 'selected' : ''}>AirPods (3rd Gen)</option>
+                            <option value="AirPods (4th Gen)" ${currentGeneration === 'AirPods (4th Gen)' ? 'selected' : ''}>AirPods (4th Gen)</option>
+                            <option value="AirPods Pro (1st Gen)" ${currentGeneration === 'AirPods Pro (1st Gen)' ? 'selected' : ''}>AirPods Pro (1st Gen)</option>
+                            <option value="AirPods Pro (2nd Gen)" ${currentGeneration === 'AirPods Pro (2nd Gen)' ? 'selected' : ''}>AirPods Pro (2nd Gen)</option>
+                            <option value="AirPods Max" ${currentGeneration === 'AirPods Max' ? 'selected' : ''}>AirPods Max</option>
+                        </select>
+                    </div>
+                    <div class="form-group connector-type-group" id="connector_type_group_${index}" style="${showConnectorType ? '' : 'display: none;'}">
+                        <label>Connector Type</label>
+                        <select data-field="connector_type" data-index="${index}">
+                            <option value="">Select...</option>
+                            <option value="usb-c" ${currentConnectorType === 'usb-c' ? 'selected' : ''}>USB-C</option>
+                            <option value="lightning" ${currentConnectorType === 'lightning' ? 'selected' : ''}>Lightning</option>
+                        </select>
+                    </div>
+                    <div class="form-group anc-type-group" id="anc_type_group_${index}" style="${showAncType ? '' : 'display: none;'}">
+                        <label>ANC Version</label>
+                        <select data-field="anc_type" data-index="${index}">
+                            <option value="">Select...</option>
+                            <option value="anc" ${currentAncType === 'anc' ? 'selected' : ''}>ANC</option>
+                            <option value="non-anc" ${currentAncType === 'non-anc' ? 'selected' : ''}>Non-ANC</option>
+                        </select>
+                    </div>
+                </div>
+
                 <div class="form-row">
                     <div class="form-group">
                         <label>Visual Condition</label>
@@ -114,7 +151,7 @@ function displayItems() {
                             <option value="poor" ${item.condition === 'poor' ? 'selected' : ''}>Poor</option>
                         </select>
                     </div>
-                    
+
                     ${needsSerial ? `
                     <div class="form-group">
                         <label>Serial Number</label>
@@ -170,9 +207,32 @@ function displayItems() {
     }).join('');
 
     setupIssueEvidenceListeners(items);
+    setupGenerationChangeListeners(items);
     if (typeof setupUppercaseFields === 'function') {
         setupUppercaseFields();
     }
+}
+
+function setupGenerationChangeListeners(items) {
+    items.forEach((item, index) => {
+        const generationSelect = document.querySelector(`select[data-field="generation"][data-index="${index}"]`);
+        const connectorTypeGroup = document.getElementById(`connector_type_group_${index}`);
+        const ancTypeGroup = document.getElementById(`anc_type_group_${index}`);
+
+        if (generationSelect) {
+            generationSelect.addEventListener('change', function() {
+                const value = this.value;
+                // Show connector type for AirPods Pro (2nd Gen)
+                if (connectorTypeGroup) {
+                    connectorTypeGroup.style.display = value === 'AirPods Pro (2nd Gen)' ? '' : 'none';
+                }
+                // Show ANC type for AirPods (4th Gen)
+                if (ancTypeGroup) {
+                    ancTypeGroup.style.display = value === 'AirPods (4th Gen)' ? '' : 'none';
+                }
+            });
+        }
+    });
 }
 
 function setupIssueEvidenceListeners(items) {
