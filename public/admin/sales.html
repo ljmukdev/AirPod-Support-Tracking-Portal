@@ -657,6 +657,32 @@
                         </div>
                     </div>
 
+                    <!-- Fees Section -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="transactionFees">Transaction Fees (£)</label>
+                            <input type="number" id="transactionFees" step="0.01" placeholder="0.00" value="0">
+                            <small>Platform transaction/payment fees</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="adFeeGeneral">Ad Fees (£)</label>
+                            <input type="number" id="adFeeGeneral" step="0.01" placeholder="0.00" value="0">
+                            <small>Promoted listing/advertising fees</small>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="postageLabelCost">Postage Cost (£)</label>
+                            <input type="number" id="postageLabelCost" step="0.01" placeholder="0.00" value="0">
+                            <small>Shipping label cost</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="outwardTrackingNumber">Tracking Number</label>
+                            <input type="text" id="outwardTrackingNumber" placeholder="Optional tracking number">
+                        </div>
+                    </div>
+
                     <!-- Consumables Section -->
                     <div class="form-group">
                         <label>Consumables Used</label>
@@ -679,18 +705,26 @@
                     <!-- P&L Preview -->
                     <div style="margin-top: 20px; padding: 16px; background: #ffffff; border-radius: 6px; border: 1px solid #dee2e6; border-left: 4px solid #3b82f6;">
                         <h3 style="margin: 0 0 15px 0; font-size: 15px; color: #111; font-weight: 600;">Profit/Loss Preview</h3>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
                             <div>
                                 <div style="color: #6b7280; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Sale Price</div>
-                                <div style="font-size: 18px; font-weight: 600; color: #111;">£<span id="previewSalePrice">0.00</span></div>
+                                <div style="font-size: 18px; font-weight: 600; color: #10b981;">£<span id="previewSalePrice">0.00</span></div>
                             </div>
                             <div>
                                 <div style="color: #6b7280; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Product Cost</div>
-                                <div style="font-size: 18px; color: #111;">£<span id="previewProductCost">0.00</span></div>
+                                <div style="font-size: 16px; color: #111;">£<span id="previewProductCost">0.00</span></div>
                             </div>
                             <div>
-                                <div style="color: #6b7280; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Consumables Cost</div>
-                                <div style="font-size: 18px; color: #111;">£<span id="previewConsumablesCost">0.00</span></div>
+                                <div style="color: #6b7280; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Fees</div>
+                                <div style="font-size: 16px; color: #111;">£<span id="previewFees">0.00</span></div>
+                            </div>
+                            <div>
+                                <div style="color: #6b7280; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Postage</div>
+                                <div style="font-size: 16px; color: #111;">£<span id="previewPostage">0.00</span></div>
+                            </div>
+                            <div>
+                                <div style="color: #6b7280; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Consumables</div>
+                                <div style="font-size: 16px; color: #111;">£<span id="previewConsumablesCost">0.00</span></div>
                             </div>
                             <div>
                                 <div style="color: #6b7280; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Profit</div>
