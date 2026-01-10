@@ -1015,17 +1015,28 @@ tryConnect()
 async function initializeDatabase() {
     try {
         // Create indexes for products collection
-        // Drop and recreate security_barcode index with sparse option
+        // Drop and recreate security_barcode index with partial filter to allow multiple null values
         try {
-            await db.collection('products').dropIndex('security_barcode_1');
+            // Drop by key pattern to ensure we remove any existing index on security_barcode
+            await db.collection('products').dropIndex({ security_barcode: 1 });
             console.log('✅ Dropped old security_barcode index');
         } catch (err) {
             // Index might not exist, that's okay
-            if (!err.message.includes('index not found')) {
+            if (!err.message.includes('index not found') && !err.message.includes('can\'t find index')) {
                 console.log('Note: Could not drop security_barcode index (may not exist):', err.message);
             }
         }
-        await db.collection('products').createIndex({ security_barcode: 1 }, { unique: true, sparse: true });
+        // Use partial index to only index non-null string values - this allows multiple null values
+        await db.collection('products').createIndex(
+            { security_barcode: 1 },
+            {
+                unique: true,
+                partialFilterExpression: {
+                    security_barcode: { $type: 'string', $ne: '' }
+                }
+            }
+        );
+        console.log('✅ Created security_barcode partial unique index');
         await db.collection('products').createIndex({ date_added: -1 });
         
         // Create indexes for airpod_parts collection
