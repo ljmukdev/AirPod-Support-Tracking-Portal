@@ -3937,6 +3937,12 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
 
             if (splittableItems.length === 0) continue;
 
+            // Skip if resolution was a return (items being sent back, no need to split)
+            const resolutionType = checkIn.resolution_workflow?.resolution_type || '';
+            if (resolutionType.toLowerCase().includes('return')) {
+                continue; // Items are being returned, don't show split task
+            }
+
             const checkInDate = checkIn.checked_in_date || checkIn.created_at;
             const daysSinceCheckIn = checkInDate ? (now - new Date(checkInDate)) / (1000 * 60 * 60 * 24) : 0;
             const isOverdue = daysSinceCheckIn > 3; // Overdue after 3 days
