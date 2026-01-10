@@ -258,14 +258,23 @@ function initSupportBubble() {
                 </select>
                 <label for="supportMessage">Message</label>
                 <textarea id="supportMessage" name="supportMessage" rows="4" placeholder="Describe the issue, suggestion, or feature request..." required></textarea>
-                <label for="supportScreenshots">Screenshots (optional)</label>
+                <label>Screenshots (optional)</label>
                 <div class="screenshot-upload-area" id="screenshotUploadArea">
+                    <div class="screenshot-actions">
+                        <button type="button" class="screenshot-capture-btn" id="captureScreenBtn">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+                                <circle cx="12" cy="13" r="4"/>
+                            </svg>
+                            Capture Screen & Annotate
+                        </button>
+                    </div>
                     <input type="file" id="supportScreenshots" name="screenshots" accept="image/*" multiple style="display: none;">
                     <div class="screenshot-drop-zone" id="screenshotDropZone">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
                         </svg>
-                        <span>Click or drag to add screenshots (max 5)</span>
+                        <span>Or drag & drop images here (max 5)</span>
                     </div>
                     <div class="screenshot-preview-list" id="screenshotPreviewList"></div>
                 </div>
@@ -277,8 +286,77 @@ function initSupportBubble() {
         </div>
     `;
 
+    // Create annotation overlay
+    const annotationOverlay = document.createElement('div');
+    annotationOverlay.id = 'annotationOverlay';
+    annotationOverlay.className = 'annotation-overlay';
+    annotationOverlay.innerHTML = `
+        <div class="annotation-container">
+            <div class="annotation-toolbar">
+                <div class="annotation-tools">
+                    <button type="button" class="annotation-tool active" data-tool="pen" title="Draw">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 19l7-7 3 3-7 7-3-3z"/>
+                            <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/>
+                            <path d="M2 2l7.586 7.586"/>
+                        </svg>
+                    </button>
+                    <button type="button" class="annotation-tool" data-tool="highlight" title="Highlight">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 11l-6 6v3h9l3-3"/>
+                            <path d="M22 12l-4.6 4.6a2 2 0 01-2.8 0l-5.2-5.2a2 2 0 010-2.8L14 4"/>
+                        </svg>
+                    </button>
+                    <button type="button" class="annotation-tool" data-tool="arrow" title="Arrow">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M5 12h14M12 5l7 7-7 7"/>
+                        </svg>
+                    </button>
+                    <button type="button" class="annotation-tool" data-tool="rectangle" title="Rectangle">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        </svg>
+                    </button>
+                    <button type="button" class="annotation-tool" data-tool="circle" title="Circle">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="annotation-colors">
+                    <button type="button" class="annotation-color active" data-color="#ef4444" style="background: #ef4444;" title="Red"></button>
+                    <button type="button" class="annotation-color" data-color="#f59e0b" style="background: #f59e0b;" title="Orange"></button>
+                    <button type="button" class="annotation-color" data-color="#22c55e" style="background: #22c55e;" title="Green"></button>
+                    <button type="button" class="annotation-color" data-color="#3b82f6" style="background: #3b82f6;" title="Blue"></button>
+                    <button type="button" class="annotation-color" data-color="#000000" style="background: #000000;" title="Black"></button>
+                </div>
+                <div class="annotation-actions">
+                    <button type="button" class="annotation-action" id="undoAnnotation" title="Undo">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 7v6h6"/>
+                            <path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"/>
+                        </svg>
+                    </button>
+                    <button type="button" class="annotation-action" id="clearAnnotation" title="Clear All">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="annotation-canvas-wrapper">
+                <canvas id="annotationCanvas"></canvas>
+            </div>
+            <div class="annotation-footer">
+                <button type="button" class="annotation-btn annotation-btn-cancel" id="cancelAnnotation">Cancel</button>
+                <button type="button" class="annotation-btn annotation-btn-save" id="saveAnnotation">Add Screenshot</button>
+            </div>
+        </div>
+    `;
+
     document.body.appendChild(bubbleButton);
     document.body.appendChild(modal);
+    document.body.appendChild(annotationOverlay);
 
     const closeButton = modal.querySelector('.support-modal-close');
     const form = modal.querySelector('#supportForm');
@@ -286,9 +364,20 @@ function initSupportBubble() {
     const fileInput = modal.querySelector('#supportScreenshots');
     const dropZone = modal.querySelector('#screenshotDropZone');
     const previewList = modal.querySelector('#screenshotPreviewList');
+    const captureBtn = modal.querySelector('#captureScreenBtn');
 
     // Track selected files
     let selectedFiles = [];
+
+    // Annotation state
+    let annotationCanvas = null;
+    let annotationCtx = null;
+    let isDrawing = false;
+    let currentTool = 'pen';
+    let currentColor = '#ef4444';
+    let drawHistory = [];
+    let backgroundImage = null;
+    let startX, startY;
 
     const openModal = () => {
         modal.classList.add('open');
@@ -296,6 +385,305 @@ function initSupportBubble() {
     const closeModal = () => {
         modal.classList.remove('open');
     };
+
+    // Load html2canvas dynamically
+    const loadHtml2Canvas = () => {
+        return new Promise((resolve, reject) => {
+            if (typeof html2canvas !== 'undefined') {
+                resolve(html2canvas);
+                return;
+            }
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+            script.onload = () => resolve(window.html2canvas);
+            script.onerror = () => reject(new Error('Failed to load html2canvas'));
+            document.head.appendChild(script);
+        });
+    };
+
+    // Screen capture and annotation functions
+    const captureScreen = async () => {
+        try {
+            // Hide the support modal temporarily
+            modal.style.display = 'none';
+            bubbleButton.style.display = 'none';
+
+            // Show loading indicator
+            const loadingDiv = document.createElement('div');
+            loadingDiv.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.8);color:white;padding:20px 40px;border-radius:10px;z-index:10002;font-size:16px;';
+            loadingDiv.textContent = 'Capturing screen...';
+            document.body.appendChild(loadingDiv);
+
+            try {
+                // Try to load and use html2canvas
+                const html2canvasLib = await loadHtml2Canvas();
+                const canvas = await html2canvasLib(document.body, {
+                    useCORS: true,
+                    allowTaint: true,
+                    scrollX: 0,
+                    scrollY: -window.scrollY,
+                    windowWidth: document.documentElement.scrollWidth,
+                    windowHeight: window.innerHeight
+                });
+                loadingDiv.remove();
+                openAnnotationEditor(canvas.toDataURL('image/png'));
+            } catch (html2canvasErr) {
+                console.warn('html2canvas failed, trying getDisplayMedia:', html2canvasErr);
+                loadingDiv.remove();
+
+                // Fallback: use screen capture API
+                try {
+                    const stream = await navigator.mediaDevices.getDisplayMedia({
+                        video: { mediaSource: 'screen' }
+                    });
+                    const video = document.createElement('video');
+                    video.srcObject = stream;
+                    await video.play();
+
+                    // Wait a bit for the video to be ready
+                    await new Promise(resolve => setTimeout(resolve, 100));
+
+                    const captureCanvas = document.createElement('canvas');
+                    captureCanvas.width = video.videoWidth;
+                    captureCanvas.height = video.videoHeight;
+                    const ctx = captureCanvas.getContext('2d');
+                    ctx.drawImage(video, 0, 0);
+
+                    stream.getTracks().forEach(track => track.stop());
+                    openAnnotationEditor(captureCanvas.toDataURL('image/png'));
+                } catch (mediaErr) {
+                    console.error('Screen capture not supported:', mediaErr);
+                    modal.style.display = '';
+                    bubbleButton.style.display = '';
+                    alert('Screen capture is not supported in this browser. Please use the drag & drop area to upload a screenshot instead.');
+                    return;
+                }
+            }
+        } catch (err) {
+            console.error('Screen capture error:', err);
+            modal.style.display = '';
+            bubbleButton.style.display = '';
+            document.querySelector('[style*="Capturing screen"]')?.remove();
+            alert('Failed to capture screen. Please try uploading a screenshot instead.');
+        }
+    };
+
+    const openAnnotationEditor = (imageDataUrl) => {
+        annotationOverlay.classList.add('open');
+
+        annotationCanvas = document.getElementById('annotationCanvas');
+        annotationCtx = annotationCanvas.getContext('2d');
+
+        // Load the captured image
+        const img = new Image();
+        img.onload = () => {
+            backgroundImage = img;
+
+            // Set canvas size to fit the container while maintaining aspect ratio
+            const container = annotationOverlay.querySelector('.annotation-canvas-wrapper');
+            const maxWidth = container.clientWidth - 20;
+            const maxHeight = container.clientHeight - 20;
+
+            let width = img.width;
+            let height = img.height;
+
+            if (width > maxWidth) {
+                height = (maxWidth / width) * height;
+                width = maxWidth;
+            }
+            if (height > maxHeight) {
+                width = (maxHeight / height) * width;
+                height = maxHeight;
+            }
+
+            annotationCanvas.width = width;
+            annotationCanvas.height = height;
+
+            // Draw the background
+            annotationCtx.drawImage(img, 0, 0, width, height);
+
+            // Store initial state
+            drawHistory = [annotationCanvas.toDataURL()];
+        };
+        img.src = imageDataUrl;
+
+        // Set up event listeners for drawing
+        setupAnnotationListeners();
+    };
+
+    const closeAnnotationEditor = () => {
+        annotationOverlay.classList.remove('open');
+        modal.style.display = '';
+        bubbleButton.style.display = '';
+        drawHistory = [];
+        backgroundImage = null;
+    };
+
+    const setupAnnotationListeners = () => {
+        // Tool selection
+        annotationOverlay.querySelectorAll('.annotation-tool').forEach(btn => {
+            btn.onclick = () => {
+                annotationOverlay.querySelectorAll('.annotation-tool').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentTool = btn.dataset.tool;
+            };
+        });
+
+        // Color selection
+        annotationOverlay.querySelectorAll('.annotation-color').forEach(btn => {
+            btn.onclick = () => {
+                annotationOverlay.querySelectorAll('.annotation-color').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentColor = btn.dataset.color;
+            };
+        });
+
+        // Undo
+        document.getElementById('undoAnnotation').onclick = () => {
+            if (drawHistory.length > 1) {
+                drawHistory.pop();
+                const img = new Image();
+                img.onload = () => {
+                    annotationCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
+                    annotationCtx.drawImage(img, 0, 0);
+                };
+                img.src = drawHistory[drawHistory.length - 1];
+            }
+        };
+
+        // Clear all
+        document.getElementById('clearAnnotation').onclick = () => {
+            if (backgroundImage && drawHistory.length > 1) {
+                annotationCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
+                annotationCtx.drawImage(backgroundImage, 0, 0, annotationCanvas.width, annotationCanvas.height);
+                drawHistory = [annotationCanvas.toDataURL()];
+            }
+        };
+
+        // Cancel
+        document.getElementById('cancelAnnotation').onclick = closeAnnotationEditor;
+
+        // Save
+        document.getElementById('saveAnnotation').onclick = () => {
+            // Convert canvas to blob and add to files
+            annotationCanvas.toBlob((blob) => {
+                const file = new File([blob], `screenshot-${Date.now()}.png`, { type: 'image/png' });
+                if (selectedFiles.length < 5) {
+                    selectedFiles.push(file);
+                    updatePreviewList();
+                }
+                closeAnnotationEditor();
+            }, 'image/png');
+        };
+
+        // Drawing events
+        annotationCanvas.onmousedown = startDrawing;
+        annotationCanvas.onmousemove = draw;
+        annotationCanvas.onmouseup = stopDrawing;
+        annotationCanvas.onmouseleave = stopDrawing;
+
+        // Touch support
+        annotationCanvas.ontouchstart = (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const rect = annotationCanvas.getBoundingClientRect();
+            startDrawing({ offsetX: touch.clientX - rect.left, offsetY: touch.clientY - rect.top });
+        };
+        annotationCanvas.ontouchmove = (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const rect = annotationCanvas.getBoundingClientRect();
+            draw({ offsetX: touch.clientX - rect.left, offsetY: touch.clientY - rect.top });
+        };
+        annotationCanvas.ontouchend = stopDrawing;
+    };
+
+    function startDrawing(e) {
+        isDrawing = true;
+        startX = e.offsetX;
+        startY = e.offsetY;
+
+        if (currentTool === 'pen' || currentTool === 'highlight') {
+            annotationCtx.beginPath();
+            annotationCtx.moveTo(startX, startY);
+        }
+    }
+
+    function draw(e) {
+        if (!isDrawing) return;
+
+        const x = e.offsetX;
+        const y = e.offsetY;
+
+        if (currentTool === 'pen') {
+            annotationCtx.lineCap = 'round';
+            annotationCtx.lineJoin = 'round';
+            annotationCtx.strokeStyle = currentColor;
+            annotationCtx.lineWidth = 3;
+            annotationCtx.lineTo(x, y);
+            annotationCtx.stroke();
+        } else if (currentTool === 'highlight') {
+            annotationCtx.lineCap = 'round';
+            annotationCtx.lineJoin = 'round';
+            annotationCtx.strokeStyle = currentColor + '60'; // 60 = 37.5% opacity
+            annotationCtx.lineWidth = 20;
+            annotationCtx.lineTo(x, y);
+            annotationCtx.stroke();
+        } else if (currentTool === 'rectangle' || currentTool === 'circle' || currentTool === 'arrow') {
+            // Redraw background and history for shape preview
+            const lastState = new Image();
+            lastState.onload = () => {
+                annotationCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
+                annotationCtx.drawImage(lastState, 0, 0);
+                drawShape(startX, startY, x, y);
+            };
+            lastState.src = drawHistory[drawHistory.length - 1];
+        }
+    }
+
+    function drawShape(x1, y1, x2, y2) {
+        annotationCtx.strokeStyle = currentColor;
+        annotationCtx.lineWidth = 3;
+        annotationCtx.lineCap = 'round';
+        annotationCtx.lineJoin = 'round';
+
+        if (currentTool === 'rectangle') {
+            annotationCtx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+        } else if (currentTool === 'circle') {
+            const radiusX = Math.abs(x2 - x1) / 2;
+            const radiusY = Math.abs(y2 - y1) / 2;
+            const centerX = x1 + (x2 - x1) / 2;
+            const centerY = y1 + (y2 - y1) / 2;
+            annotationCtx.beginPath();
+            annotationCtx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, 2 * Math.PI);
+            annotationCtx.stroke();
+        } else if (currentTool === 'arrow') {
+            const headLen = 15;
+            const angle = Math.atan2(y2 - y1, x2 - x1);
+            annotationCtx.beginPath();
+            annotationCtx.moveTo(x1, y1);
+            annotationCtx.lineTo(x2, y2);
+            annotationCtx.lineTo(x2 - headLen * Math.cos(angle - Math.PI / 6), y2 - headLen * Math.sin(angle - Math.PI / 6));
+            annotationCtx.moveTo(x2, y2);
+            annotationCtx.lineTo(x2 - headLen * Math.cos(angle + Math.PI / 6), y2 - headLen * Math.sin(angle + Math.PI / 6));
+            annotationCtx.stroke();
+        }
+    }
+
+    function stopDrawing(e) {
+        if (!isDrawing) return;
+        isDrawing = false;
+
+        if (currentTool === 'pen' || currentTool === 'highlight') {
+            annotationCtx.closePath();
+        }
+
+        // Save state for undo
+        drawHistory.push(annotationCanvas.toDataURL());
+    }
+
+    // Capture screen button
+    captureBtn.addEventListener('click', captureScreen);
 
     // Screenshot handling functions
     const updatePreviewList = () => {
