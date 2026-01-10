@@ -76,13 +76,20 @@ function setupEventListeners() {
     // Sale Price Input
     document.getElementById('salePrice')?.addEventListener('input', updatePreview);
 
-    // Fee Inputs - update preview when changed
-    document.getElementById('transactionFees')?.addEventListener('input', updatePreview);
-    document.getElementById('transactionFees')?.addEventListener('change', updatePreview);
-    document.getElementById('adFeeGeneral')?.addEventListener('input', updatePreview);
-    document.getElementById('adFeeGeneral')?.addEventListener('change', updatePreview);
-    document.getElementById('postageLabelCost')?.addEventListener('input', updatePreview);
-    document.getElementById('postageLabelCost')?.addEventListener('change', updatePreview);
+    // Fee Inputs - update preview when changed (using event delegation on form as backup)
+    const saleForm = document.getElementById('saleForm');
+    if (saleForm) {
+        saleForm.addEventListener('input', (e) => {
+            if (['transactionFees', 'adFeeGeneral', 'postageLabelCost', 'salePrice'].includes(e.target.id)) {
+                updatePreview();
+            }
+        });
+        saleForm.addEventListener('change', (e) => {
+            if (['transactionFees', 'adFeeGeneral', 'postageLabelCost', 'salePrice'].includes(e.target.id)) {
+                updatePreview();
+            }
+        });
+    }
     
     // Add Consumable Button
     document.getElementById('addConsumableBtn')?.addEventListener('click', addConsumableRow);
@@ -1198,24 +1205,36 @@ async function openEditSaleModal(id) {
 
 function updatePreview() {
     const salePrice = parseFloat(document.getElementById('salePrice')?.value) || 0;
-    const transactionFees = parseFloat(document.getElementById('transactionFees')?.value) || 0;
-    const adFeeGeneral = parseFloat(document.getElementById('adFeeGeneral')?.value) || 0;
-    const postageCost = parseFloat(document.getElementById('postageLabelCost')?.value) || 0;
+    const transactionFeesEl = document.getElementById('transactionFees');
+    const adFeeGeneralEl = document.getElementById('adFeeGeneral');
+    const postageCostEl = document.getElementById('postageLabelCost');
+
+    const transactionFees = transactionFeesEl ? (parseFloat(transactionFeesEl.value) || 0) : 0;
+    const adFeeGeneral = adFeeGeneralEl ? (parseFloat(adFeeGeneralEl.value) || 0) : 0;
+    const postageCost = postageCostEl ? (parseFloat(postageCostEl.value) || 0) : 0;
     const consumablesCost = selectedConsumables.reduce((sum, c) => sum + (c.cost * c.quantity), 0);
 
     const totalFees = transactionFees + adFeeGeneral;
     const totalCost = productCost + totalFees + postageCost + consumablesCost;
     const profit = salePrice - totalCost;
 
-    document.getElementById('previewSalePrice').textContent = salePrice.toFixed(2);
-    document.getElementById('previewProductCost').textContent = productCost.toFixed(2);
-    document.getElementById('previewFees').textContent = totalFees.toFixed(2);
-    document.getElementById('previewPostage').textContent = postageCost.toFixed(2);
-    document.getElementById('previewConsumablesCost').textContent = consumablesCost.toFixed(2);
-
+    const previewSalePrice = document.getElementById('previewSalePrice');
+    const previewProductCost = document.getElementById('previewProductCost');
+    const previewFees = document.getElementById('previewFees');
+    const previewPostage = document.getElementById('previewPostage');
+    const previewConsumablesCost = document.getElementById('previewConsumablesCost');
     const profitEl = document.getElementById('previewProfit');
-    profitEl.textContent = `£${profit.toFixed(2)}`;
-    profitEl.style.color = profit >= 0 ? '#10b981' : '#ef4444';
+
+    if (previewSalePrice) previewSalePrice.textContent = salePrice.toFixed(2);
+    if (previewProductCost) previewProductCost.textContent = productCost.toFixed(2);
+    if (previewFees) previewFees.textContent = totalFees.toFixed(2);
+    if (previewPostage) previewPostage.textContent = postageCost.toFixed(2);
+    if (previewConsumablesCost) previewConsumablesCost.textContent = consumablesCost.toFixed(2);
+
+    if (profitEl) {
+        profitEl.textContent = `£${profit.toFixed(2)}`;
+        profitEl.style.color = profit >= 0 ? '#10b981' : '#ef4444';
+    }
 }
 
 function closeSaleModal() {

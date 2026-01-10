@@ -3752,6 +3752,7 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                     due_soon: false,
                     tracking_number: purchase.tracking_number,
                     seller: purchase.seller_name,
+                    order_number: purchase.order_number,
                     days_overdue: daysOverdue,
                     expected_delivery_formatted: expectedDelivery.toLocaleDateString('en-GB', {
                         day: 'numeric',
