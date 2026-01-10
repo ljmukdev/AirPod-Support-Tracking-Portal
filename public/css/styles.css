@@ -1212,6 +1212,13 @@ aside.admin-sidebar {
 @media (min-width: 769px) {
     .nav-item.has-submenu:hover .nav-submenu {
         max-height: 500px;
+        opacity: 1;
+    }
+
+    /* Keep submenu open when hovering over it */
+    .nav-submenu:hover {
+        max-height: 500px;
+        opacity: 1;
     }
 }
 
@@ -1239,13 +1246,15 @@ aside.admin-sidebar {
 .nav-submenu {
     max-height: 0;
     overflow: hidden;
-    transition: max-height 0.3s ease;
-    background-color: rgba(0, 0, 0, 0.2);
+    transition: max-height 0.25s ease, opacity 0.2s ease;
+    background-color: rgba(0, 0, 0, 0.15);
     border-radius: 0 0 10px 10px;
+    opacity: 0;
 }
 
 .nav-item.has-submenu.expanded .nav-submenu {
     max-height: 500px;
+    opacity: 1;
 }
 
 .nav-submenu .nav-link {
