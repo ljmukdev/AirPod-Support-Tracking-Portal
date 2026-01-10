@@ -5311,22 +5311,49 @@ app.post('/api/admin/purchases/:id/update-delivery-date', requireAuth, requireDB
     }
 });
 
-// Delete purchase (Admin only)
+// Delete purchase (Admin only) - cascades to delete associated check-ins and products
 app.delete('/api/admin/purchases/:id', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;
-    
+
     if (!ObjectId.isValid(id)) {
         return res.status(400).json({ error: 'Invalid purchase ID' });
     }
-    
+
     try {
-        const result = await db.collection('purchases').deleteOne({ _id: new ObjectId(id) });
-        
+        const purchaseId = new ObjectId(id);
+
+        // First, find all check-ins associated with this purchase
+        const checkIns = await db.collection('check_ins').find({ purchase_id: id }).toArray();
+        const checkInIds = checkIns.map(c => c._id);
+
+        // Delete all products associated with this purchase or its check-ins
+        const productDeleteResult = await db.collection('products').deleteMany({
+            $or: [
+                { purchase_id: purchaseId },
+                { check_in_id: { $in: checkInIds } }
+            ]
+        });
+        console.log(`[DELETE PURCHASE] Deleted ${productDeleteResult.deletedCount} associated products`);
+
+        // Delete all check-ins associated with this purchase
+        const checkInDeleteResult = await db.collection('check_ins').deleteMany({ purchase_id: id });
+        console.log(`[DELETE PURCHASE] Deleted ${checkInDeleteResult.deletedCount} associated check-ins`);
+
+        // Finally, delete the purchase itself
+        const result = await db.collection('purchases').deleteOne({ _id: purchaseId });
+
         if (result.deletedCount === 0) {
             res.status(404).json({ error: 'Purchase not found' });
         } else {
             console.log('Purchase deleted successfully, ID:', id);
-            res.json({ success: true, message: 'Purchase deleted successfully' });
+            res.json({
+                success: true,
+                message: 'Purchase deleted successfully',
+                deleted: {
+                    products: productDeleteResult.deletedCount,
+                    checkIns: checkInDeleteResult.deletedCount
+                }
+            });
         }
     } catch (err) {
         console.error('Database error:', err);
@@ -6829,19 +6856,95 @@ app.get('/api/admin/product/:id', requireAuth, requireDB, async (req, res) => {
 // Delete product (Admin only)
 app.delete('/api/admin/product/:id', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;
-    
+
     try {
         if (!ObjectId.isValid(id)) {
             return res.status(400).json({ error: 'Invalid product ID' });
         }
-        
+
         const result = await db.collection('products').deleteOne({ _id: new ObjectId(id) });
-        
+
         if (result.deletedCount === 0) {
             res.status(404).json({ error: 'Product not found' });
         } else {
             res.json({ success: true, message: 'Product deleted successfully' });
         }
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Cleanup orphaned products (Admin only)
+// Removes products whose associated purchase or check-in no longer exists
+app.post('/api/admin/products/cleanup-orphaned', requireAuth, requireDB, async (req, res) => {
+    try {
+        // Get all unique purchase_ids and check_in_ids from products
+        const products = await db.collection('products').find({
+            $or: [
+                { purchase_id: { $exists: true, $ne: null } },
+                { check_in_id: { $exists: true, $ne: null } }
+            ]
+        }).toArray();
+
+        const orphanedProductIds = [];
+
+        for (const product of products) {
+            let isOrphaned = false;
+
+            // Check if purchase exists (if product has purchase_id)
+            if (product.purchase_id) {
+                const purchaseId = product.purchase_id instanceof ObjectId
+                    ? product.purchase_id
+                    : (ObjectId.isValid(product.purchase_id) ? new ObjectId(product.purchase_id) : null);
+
+                if (purchaseId) {
+                    const purchase = await db.collection('purchases').findOne({ _id: purchaseId });
+                    if (!purchase) {
+                        isOrphaned = true;
+                    }
+                }
+            }
+
+            // Check if check-in exists (if product has check_in_id)
+            if (product.check_in_id && !isOrphaned) {
+                const checkInId = product.check_in_id instanceof ObjectId
+                    ? product.check_in_id
+                    : (ObjectId.isValid(product.check_in_id) ? new ObjectId(product.check_in_id) : null);
+
+                if (checkInId) {
+                    const checkIn = await db.collection('check_ins').findOne({ _id: checkInId });
+                    if (!checkIn) {
+                        isOrphaned = true;
+                    }
+                }
+            }
+
+            if (isOrphaned) {
+                orphanedProductIds.push(product._id);
+            }
+        }
+
+        if (orphanedProductIds.length === 0) {
+            return res.json({
+                success: true,
+                message: 'No orphaned products found',
+                deleted: 0
+            });
+        }
+
+        // Delete orphaned products
+        const result = await db.collection('products').deleteMany({
+            _id: { $in: orphanedProductIds }
+        });
+
+        console.log(`[CLEANUP] Deleted ${result.deletedCount} orphaned products`);
+
+        res.json({
+            success: true,
+            message: `Deleted ${result.deletedCount} orphaned products`,
+            deleted: result.deletedCount
+        });
     } catch (err) {
         console.error('Database error:', err);
         res.status(500).json({ error: 'Database error: ' + err.message });
