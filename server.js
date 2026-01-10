@@ -3774,11 +3774,23 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
         }).toArray();
         
         for (const purchase of purchasesNeedingFeedback) {
+            // Check if there's a check-in with unresolved issues for this purchase
+            const checkInWithUnresolvedIssues = await db.collection('check_ins').findOne({
+                purchase_id: purchase._id.toString(),
+                has_issues: true,
+                'resolution_workflow.resolved_at': { $exists: false }
+            });
+
+            // Skip feedback task if there are unresolved issues
+            if (checkInWithUnresolvedIssues) {
+                continue;
+            }
+
             // Calculate days since checked in
             const daysSinceCheckIn = purchase.checked_in_date ? (now - new Date(purchase.checked_in_date)) / (1000 * 60 * 60 * 24) : 0;
             const isOverdue = daysSinceCheckIn > 3; // Overdue after 3 days
             const dueSoon = daysSinceCheckIn > 1 && daysSinceCheckIn <= 3; // Due soon if 1-3 days
-            
+
             tasks.push({
                 id: `feedback-${purchase._id.toString()}`,
                 purchase_id: purchase._id.toString(),
@@ -3888,7 +3900,14 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                     ]
                 },
                 // Must have items checked in
-                { items: { $exists: true, $ne: [] } }
+                { items: { $exists: true, $ne: [] } },
+                // Must not have unresolved issues (either no issues, or issues are resolved)
+                {
+                    $or: [
+                        { has_issues: { $ne: true } },
+                        { 'resolution_workflow.resolved_at': { $exists: true } }
+                    ]
+                }
             ]
         }).toArray();
 
