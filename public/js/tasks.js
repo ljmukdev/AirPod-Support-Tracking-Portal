@@ -224,6 +224,9 @@ function renderTaskCard(task) {
             <button onclick="checkInDelivery('${task.consumable_id}', '${task.restock_history_id}')" class="button" style="padding: 10px 16px; font-size: 0.9rem; background: #10b981;">
                 📦 Check In Delivery
             </button>
+            <button onclick="markDeliveryReceived('${task.consumable_id}', '${task.restock_history_id}')" class="button" style="padding: 10px 16px; font-size: 0.9rem; background: #6b7280; color: white;">
+                ✓ Already Received
+            </button>
             <button onclick="viewConsumable('${task.consumable_id}')" class="button button-secondary" style="padding: 10px 16px; font-size: 0.9rem;">
                 View Item
             </button>
@@ -549,6 +552,36 @@ function checkInConsumable(consumableId) {
 function checkInDelivery(consumableId, restockHistoryId) {
     // Redirect to consumables page with both IDs to trigger delivery check-in
     window.location.href = `consumables.html?deliveryCheckIn=${consumableId}&restockId=${restockHistoryId}`;
+}
+
+async function markDeliveryReceived(consumableId, restockHistoryId) {
+    if (!confirm('Mark this delivery as already received?\n\nUse this if you\'ve already manually adjusted the stock.')) {
+        return;
+    }
+
+    try {
+        const response = await authenticatedFetch(`${window.API_BASE}/api/admin/consumables/${consumableId}/mark-delivery-received`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                restock_history_id: restockHistoryId,
+                notes: 'Marked as received from tasks page'
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to mark delivery as received');
+        }
+
+        alert('✓ Delivery marked as received!');
+        loadTasks(); // Reload tasks to remove this one
+    } catch (error) {
+        console.error('[TASKS] Error marking delivery received:', error);
+        alert('Error: ' + error.message);
+    }
 }
 
 async function confirmRefundReceived(purchaseId, expectedAmount) {

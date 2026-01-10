@@ -3942,6 +3942,7 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                 due_soon: dueSoon,
                 tracking_number: checkIn.tracking_number || purchase?.tracking_number,
                 seller: purchase?.seller_name,
+                order_number: checkIn.purchase_order_number || purchase?.order_number,
                 items_count: splittableItems.length,
                 completed: false,
                 priority: isOverdue ? 'high' : (dueSoon ? 'medium' : 'normal')
@@ -4026,6 +4027,11 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
             });
 
             if (!consumable) continue;
+
+            // Auto-complete: If stock is now above reorder level, assume delivery was received
+            if (consumable.reorder_level && consumable.quantity_in_stock > consumable.reorder_level) {
+                continue; // Stock is healthy, no need to show delivery task
+            }
 
             const taskId = `restock-delivery-${restock._id.toString()}`;
             
@@ -5980,6 +5986,50 @@ app.post('/api/admin/consumables/:id/check-in-delivery', requireAuth, requireDB,
     }
 });
 
+// Mark a restock delivery as received without changing stock (Admin only)
+// Used when stock was already manually adjusted
+app.post('/api/admin/consumables/:id/mark-delivery-received', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    const { restock_history_id, notes } = req.body;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid consumable ID' });
+    }
+
+    try {
+        const consumable = await db.collection('consumables').findOne({ _id: new ObjectId(id) });
+
+        if (!consumable) {
+            return res.status(404).json({ error: 'Consumable not found' });
+        }
+
+        // Record in stock history as delivery checked in (no stock change)
+        await db.collection('consumable_stock_history').insertOne({
+            consumable_id: new ObjectId(id),
+            sku: consumable.sku,
+            item_name: consumable.item_name,
+            adjustment: 0,
+            quantity_before: consumable.quantity_in_stock,
+            quantity_after: consumable.quantity_in_stock,
+            reason: notes || 'Delivery marked as received (stock already adjusted)',
+            type: 'restock_checked_in',
+            restock_history_id: restock_history_id ? new ObjectId(restock_history_id) : null,
+            timestamp: new Date(),
+            user: req.user?.username || 'admin'
+        });
+
+        console.log(`[CONSUMABLES] Delivery marked as received for ${consumable.item_name} (no stock change)`);
+
+        res.json({
+            success: true,
+            message: 'Delivery marked as received'
+        });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // Get low stock consumables (Admin only)
 app.get('/api/admin/consumables/alerts/low-stock', requireAuth, requireDB, async (req, res) => {
     try {
@@ -5994,6 +6044,49 @@ app.get('/api/admin/consumables/alerts/low-stock', requireAuth, requireDB, async
         }).sort({ quantity_in_stock: 1 }).toArray();
 
         res.json({ success: true, items: lowStockItems, count: lowStockItems.length });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Get stock history for a consumable (Admin only)
+app.get('/api/admin/consumables/:id/history', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid consumable ID' });
+    }
+
+    try {
+        const consumable = await db.collection('consumables').findOne({ _id: new ObjectId(id) });
+
+        if (!consumable) {
+            return res.status(404).json({ error: 'Consumable not found' });
+        }
+
+        // Get all stock history for this consumable
+        const history = await db.collection('consumable_stock_history').find({
+            consumable_id: new ObjectId(id)
+        }).sort({ timestamp: -1 }).limit(50).toArray();
+
+        // Also get check-ins
+        const checkIns = await db.collection('consumable_check_ins').find({
+            consumable_id: new ObjectId(id)
+        }).sort({ checked_at: -1 }).limit(20).toArray();
+
+        res.json({
+            success: true,
+            consumable: {
+                _id: consumable._id,
+                item_name: consumable.item_name,
+                sku: consumable.sku,
+                current_stock: consumable.quantity_in_stock,
+                unit_type: consumable.unit_type
+            },
+            history: history,
+            check_ins: checkIns
+        });
     } catch (err) {
         console.error('Database error:', err);
         res.status(500).json({ error: 'Database error: ' + err.message });
