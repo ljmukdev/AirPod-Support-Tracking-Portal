@@ -173,6 +173,9 @@ function renderTaskCard(task) {
             <button onclick="viewTaskEmail('${task.id}', '${task.type}')" class="button button-secondary" style="padding: 10px 16px; font-size: 0.9rem;">
                 View Email
             </button>
+            <button onclick="openUpdateDeliveryModal('${task.purchase_id}', '${task.expected_delivery_formatted || ''}')" class="button" style="background: #f59e0b; color: white; padding: 10px 16px; font-size: 0.9rem;">
+                Update Date
+            </button>
             <button onclick="viewPurchase('${task.purchase_id}')" class="button" style="background: #6b7280; color: white; padding: 10px 16px; font-size: 0.9rem;">
                 View Purchase
             </button>
@@ -618,6 +621,10 @@ document.addEventListener('click', function(e) {
     if (e.target === modal) {
         closeEmailModal();
     }
+    const deliveryModal = document.getElementById('updateDeliveryModal');
+    if (e.target === deliveryModal) {
+        closeUpdateDeliveryModal();
+    }
 });
 
 // Close modal with Escape key
@@ -625,8 +632,89 @@ document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closeEmailModal();
         closeResolutionModal();
+        closeUpdateDeliveryModal();
     }
 });
+
+// Update Delivery Date Modal Functions
+let currentDeliveryPurchaseId = null;
+
+function openUpdateDeliveryModal(purchaseId, currentDate) {
+    currentDeliveryPurchaseId = purchaseId;
+
+    // Display current date
+    document.getElementById('currentDeliveryDate').textContent = currentDate || 'Not set';
+
+    // Set default new date to 3 days from now
+    const defaultDate = new Date();
+    defaultDate.setDate(defaultDate.getDate() + 3);
+    document.getElementById('newDeliveryDate').value = defaultDate.toISOString().split('T')[0];
+
+    // Clear the note field
+    document.getElementById('deliveryUpdateNote').value = '';
+
+    // Show modal
+    document.getElementById('updateDeliveryModal').style.display = 'flex';
+}
+
+function closeUpdateDeliveryModal() {
+    document.getElementById('updateDeliveryModal').style.display = 'none';
+    currentDeliveryPurchaseId = null;
+}
+
+async function submitDeliveryUpdate() {
+    const newDate = document.getElementById('newDeliveryDate').value;
+    const note = document.getElementById('deliveryUpdateNote').value.trim();
+
+    if (!newDate) {
+        alert('Please select a new delivery date');
+        return;
+    }
+
+    if (!note) {
+        alert('Please add an update note');
+        return;
+    }
+
+    const button = document.getElementById('confirmDeliveryUpdateButton');
+    const originalText = button.textContent;
+    button.disabled = true;
+    button.textContent = 'Updating...';
+
+    try {
+        const response = await authenticatedFetch(`${window.API_BASE}/api/admin/purchases/${currentDeliveryPurchaseId}/update-delivery-date`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                new_expected_delivery: newDate,
+                update_note: note
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to update delivery date');
+        }
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('Delivery date updated successfully!');
+            closeUpdateDeliveryModal();
+            loadTasks(); // Reload tasks
+        } else {
+            throw new Error(data.error || 'Failed to update delivery date');
+        }
+    } catch (error) {
+        console.error('[TASKS] Error updating delivery date:', error);
+        alert('Error: ' + error.message);
+    } finally {
+        button.disabled = false;
+        button.textContent = originalText;
+    }
+}
 
 // Resolution Modal Functions
 let currentCheckInId = null;
