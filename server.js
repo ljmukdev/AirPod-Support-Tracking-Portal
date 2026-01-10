@@ -3874,6 +3874,79 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
             }
         }
 
+        // 4b. Find check-ins that are ready to be split into products
+        const checkInsReadyToSplit = await db.collection('check_ins').find({
+            $and: [
+                // Must not already be split
+                {
+                    $or: [
+                        { split_into_products: { $exists: false } },
+                        { split_into_products: false },
+                        { split_into_products: null },
+                        { split_into_products: '' }
+                    ]
+                },
+                // Must have items checked in
+                { items: { $exists: true, $ne: [] } }
+            ]
+        }).toArray();
+
+        for (const checkIn of checkInsReadyToSplit) {
+            // Get purchase info for better description
+            let purchase = null;
+            if (checkIn.purchase_id) {
+                try {
+                    purchase = await db.collection('purchases').findOne({
+                        _id: new ObjectId(checkIn.purchase_id)
+                    });
+                } catch (e) {
+                    // Ignore invalid purchase_id
+                }
+            }
+
+            // Count splittable items (case, left, right with serial numbers)
+            const splittableItems = (checkIn.items || []).filter(item => {
+                if (['case', 'left', 'right'].includes(item.item_type)) {
+                    return item.serial_number;
+                }
+                if (['box', 'ear_tips'].includes(item.item_type)) {
+                    return true;
+                }
+                return false;
+            });
+
+            if (splittableItems.length === 0) continue;
+
+            const checkInDate = checkIn.checked_in_date || checkIn.created_at;
+            const daysSinceCheckIn = checkInDate ? (now - new Date(checkInDate)) / (1000 * 60 * 60 * 24) : 0;
+            const isOverdue = daysSinceCheckIn > 3; // Overdue after 3 days
+            const dueSoon = daysSinceCheckIn > 2 && daysSinceCheckIn <= 3; // Due soon if 2-3 days
+
+            const itemSummary = splittableItems.map(i => {
+                const typeMap = { left: 'Left', right: 'Right', case: 'Case', box: 'Box', ear_tips: 'Tips' };
+                return typeMap[i.item_type] || i.item_type;
+            }).join(', ');
+
+            const generation = purchase?.generation || checkIn.items?.[0]?.generation || 'AirPods';
+
+            tasks.push({
+                id: `split-${checkIn._id.toString()}`,
+                check_in_id: checkIn._id.toString(),
+                purchase_id: checkIn.purchase_id?.toString() || null,
+                type: 'check_in_ready_to_split',
+                title: 'Split check-in into products',
+                description: `${generation} - ${itemSummary} (${splittableItems.length} item${splittableItems.length !== 1 ? 's' : ''})`,
+                due_date: checkInDate ? new Date(new Date(checkInDate).getTime() + (3 * 24 * 60 * 60 * 1000)) : new Date(),
+                is_overdue: isOverdue,
+                due_soon: dueSoon,
+                tracking_number: checkIn.tracking_number || purchase?.tracking_number,
+                seller: purchase?.seller_name,
+                items_count: splittableItems.length,
+                completed: false,
+                priority: isOverdue ? 'high' : (dueSoon ? 'medium' : 'normal')
+            });
+        }
+
         // 5. Find consumables that need reordering
         const lowStockConsumables = await db.collection('consumables').find({
             reorder_level: { $ne: null },

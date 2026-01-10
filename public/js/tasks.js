@@ -189,6 +189,12 @@ function renderTaskCard(task) {
                 Mark Done
             </button>
         `;
+    } else if (task.type === 'check_in_ready_to_split') {
+        actionButtons = `
+            <button onclick="goToCheckIn('${task.check_in_id}')" class="button" style="padding: 10px 16px; font-size: 0.9rem; background: #3b82f6;">
+                Split into Products
+            </button>
+        `;
     } else if (task.type === 'leave_feedback') {
         actionButtons = `
             <button onclick="leaveFeedback('${task.purchase_id}')" class="button" style="padding: 10px 16px; font-size: 0.9rem;">
@@ -371,6 +377,10 @@ function viewPurchase(purchaseId) {
 
 function editProduct(productId) {
     window.location.href = `add-product.html?edit=${productId}`;
+}
+
+function goToCheckIn(checkInId) {
+    window.location.href = `check-in-detail.html?id=${checkInId}`;
 }
 
 async function markTaskDone(taskId) {
