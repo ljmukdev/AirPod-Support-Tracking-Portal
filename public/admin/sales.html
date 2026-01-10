@@ -537,7 +537,7 @@
         </div>
     </div>
 
-    <!-- Add/Edit Sale Modal -->
+    <!-- Add/Edit Sale Modal - Two-Step Wizard -->
     <div id="saleModal" class="modal">
         <div class="modal-content" style="max-width: 800px;">
             <div class="modal-header">
@@ -545,54 +545,87 @@
                 <button class="modal-close" onclick="closeSaleModal()">&times;</button>
             </div>
             <form id="saleForm">
-                <div class="modal-body">
-                    <!-- Product Selection -->
+                <!-- Step Indicator -->
+                <div style="display: flex; justify-content: center; padding: 16px 24px; background: #f8f9fa; border-bottom: 1px solid #dee2e6;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div id="step1Indicator" style="display: flex; align-items: center; gap: 6px;">
+                            <div style="width: 28px; height: 28px; border-radius: 50%; background: #3b82f6; color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px;">1</div>
+                            <span style="font-weight: 600; color: #111;">Select Products</span>
+                        </div>
+                        <div style="width: 40px; height: 2px; background: #dee2e6; margin: 0 8px;"></div>
+                        <div id="step2Indicator" style="display: flex; align-items: center; gap: 6px; opacity: 0.5;">
+                            <div style="width: 28px; height: 28px; border-radius: 50%; background: #dee2e6; color: #6b7280; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px;">2</div>
+                            <span style="font-weight: 500; color: #6b7280;">Order Details</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- STEP 1: Product Selection -->
+                <div id="saleStep1" class="modal-body">
+                    <!-- Search Input -->
                     <div class="form-group">
-                        <label>What are you selling? *</label>
-                        <div style="display: flex; gap: 15px; margin-bottom: 10px;">
-                            <label style="display: flex; align-items: center; gap: 5px;">
-                                <input type="radio" name="selectionMethod" value="barcode" checked>
-                                <span>AirPod Part (Left, Right, or Case)</span>
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 5px;">
-                                <input type="radio" name="selectionMethod" value="accessory">
-                                <span>Accessory (Box, Cable, Tips, etc.)</span>
-                            </label>
+                        <label for="securityBarcode" style="font-size: 16px; font-weight: 600; margin-bottom: 12px; display: block;">
+                            Search by Security Barcode or Serial Number
+                        </label>
+                        <div style="position: relative;">
+                            <input type="text" id="securityBarcode" placeholder="Scan or type security barcode / serial number..." style="text-transform: uppercase; padding-right: 50px; font-size: 16px; padding: 14px 16px;">
+                            <svg style="position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: #9ca3af;" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                <path d="M9 17C13.4183 17 17 13.4183 17 9C17 4.58172 13.4183 1 9 1C4.58172 1 1 4.58172 1 9C1 13.4183 4.58172 17 9 17Z" stroke="currentColor" stroke-width="2"/>
+                                <path d="M19 19L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        <small style="color: #6b7280; margin-top: 6px; display: block;">Press Enter or wait to search. Products found will appear below.</small>
+                    </div>
+
+                    <!-- Product Search Result Card (appears when product found) -->
+                    <div id="productSearchResult" style="display: none; margin-bottom: 20px;">
+                        <div id="productResultCard" style="border: 2px solid #10b981; border-radius: 8px; padding: 16px; background: #f0fdf4;">
+                            <!-- Populated by JS -->
                         </div>
                     </div>
 
-                    <!-- Security Barcode Input (for AirPod Parts) -->
-                    <div class="form-group" id="barcodeInputGroup">
-                        <label for="securityBarcode">Security Barcode or Serial Number *</label>
-                        <input type="text" id="securityBarcode" placeholder="Scan or enter security barcode / serial number..." style="text-transform: uppercase;">
-                        <small style="color: #666;">The security barcode connects this part through the entire system flow</small>
-                        <div id="barcodeStatus" style="margin-top: 8px; padding: 8px; border-radius: 4px; display: none;"></div>
-                    </div>
-
-                    <!-- Accessory Search -->
-                    <div class="form-group" id="accessorySelectGroup" style="display: none;">
-                        <label for="accessorySearch">Search for Accessory *</label>
-                        <input type="text" id="accessorySearch" placeholder="Type to search accessories (e.g., 'cable', 'box', 'AirPods Pro')...">
-                        <small style="color: #666;">Search by product name, generation, or type - the system will show the nearest match</small>
-                        <div id="accessorySearchResults" style="margin-top: 8px; max-height: 300px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 6px; display: none; background: #ffffff;"></div>
-                        <div id="accessoryStatus" style="margin-top: 8px; padding: 8px; border-radius: 4px; display: none;"></div>
-                    </div>
-
-                    <!-- Hidden field to store selected product ID (legacy, used for single product add) -->
-                    <input type="hidden" id="selectedProductId">
+                    <!-- Search Status Messages -->
+                    <div id="barcodeStatus" style="margin-bottom: 16px; padding: 12px; border-radius: 6px; display: none;"></div>
 
                     <!-- Selected Products List -->
-                    <div class="form-group" id="selectedProductsSection" style="display: none;">
-                        <label>Selected Products <span id="selectedProductsCount">(0)</span></label>
-                        <div id="selectedProductsList" style="border: 1px solid #dee2e6; border-radius: 6px; padding: 12px; min-height: 60px; background: #ffffff; margin-bottom: 10px;">
-                            <p style="text-align: center; color: #9ca3af;">No products selected yet</p>
+                    <div class="form-group">
+                        <label style="font-size: 15px; font-weight: 600; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;">
+                            <span>Products in this Sale <span id="selectedProductsCount" style="color: #6b7280; font-weight: 500;">(0)</span></span>
+                            <span id="totalProductsCostLabel" style="color: #059669; font-size: 14px;">Total: £<span id="totalProductsCost">0.00</span></span>
+                        </label>
+                        <div id="selectedProductsList" style="border: 1px solid #dee2e6; border-radius: 8px; min-height: 120px; background: #ffffff; overflow: hidden;">
+                            <div style="padding: 40px 20px; text-align: center; color: #9ca3af;">
+                                <svg style="margin-bottom: 8px; color: #d1d5db;" width="40" height="40" viewBox="0 0 24 24" fill="none">
+                                    <path d="M20 7L12 3L4 7M20 7L12 11M20 7V17L12 21M12 11L4 7M12 11V21M4 7V17L12 21" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <p style="margin: 0;">No products added yet. Search above to add products.</p>
+                            </div>
                         </div>
-                        <button type="button" class="button button-secondary" id="addAnotherProductBtn" style="margin-top: 8px;">
-                            + Add Another Product
-                        </button>
-                        <div style="margin-top: 10px; padding: 12px; background: #ffffff; border-radius: 6px; border: 1px solid #dee2e6; text-align: right;">
-                            <strong style="color: #111; font-size: 14px;">Total Product Cost: £<span id="totalProductsCost">0.00</span></strong>
+                    </div>
+
+                    <!-- Hidden fields -->
+                    <input type="hidden" id="selectedProductId">
+                    <div id="accessorySelectGroup" style="display: none;">
+                        <input type="text" id="accessorySearch">
+                        <div id="accessorySearchResults"></div>
+                        <div id="accessoryStatus"></div>
+                    </div>
+                </div>
+
+                <!-- STEP 2: Order Details -->
+                <div id="saleStep2" class="modal-body" style="display: none;">
+                    <!-- Products Summary (collapsed view) -->
+                    <div style="margin-bottom: 20px; padding: 12px 16px; background: #f0fdf4; border: 1px solid #10b981; border-radius: 8px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <span style="font-weight: 600; color: #059669;" id="step2ProductCount">0 products</span>
+                                <span style="color: #6b7280; margin-left: 8px;">selected</span>
+                            </div>
+                            <div style="font-weight: 600; color: #059669;">
+                                Cost: £<span id="step2ProductCost">0.00</span>
+                            </div>
                         </div>
+                        <div id="step2ProductList" style="margin-top: 8px; font-size: 13px; color: #6b7280;"></div>
                     </div>
 
                     <!-- Sale Details -->
@@ -635,7 +668,7 @@
                                 + Add Consumable
                             </button>
                         </div>
-                        <div id="consumablesList" style="border: 1px solid #dee2e6; border-radius: 6px; padding: 12px; min-height: 100px; background: #ffffff;">
+                        <div id="consumablesList" style="border: 1px solid #dee2e6; border-radius: 6px; padding: 12px; min-height: 80px; background: #ffffff;">
                             <p style="text-align: center; color: #9ca3af;">No consumables added yet</p>
                         </div>
                         <div style="margin-top: 10px; padding: 12px; background: #ffffff; border-radius: 6px; border: 1px solid #dee2e6; text-align: right;">
@@ -666,14 +699,28 @@
                         </div>
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group" style="margin-top: 16px;">
                         <label for="saleNotes">Notes (optional)</label>
-                        <textarea id="saleNotes" rows="3" placeholder="Any additional notes about this sale..."></textarea>
+                        <textarea id="saleNotes" rows="2" placeholder="Any additional notes about this sale..."></textarea>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="button button-secondary" onclick="closeSaleModal()">Cancel</button>
-                    <button type="submit" class="button button-primary">Save Sale</button>
+
+                <!-- Footer with navigation -->
+                <div class="modal-footer" style="display: flex; justify-content: space-between;">
+                    <div>
+                        <button type="button" class="button button-secondary" onclick="closeSaleModal()">Cancel</button>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button type="button" class="button button-secondary" id="prevStepBtn" style="display: none;" onclick="goToStep(1)">
+                            ← Back
+                        </button>
+                        <button type="button" class="button button-primary" id="nextStepBtn" onclick="goToStep(2)">
+                            Next →
+                        </button>
+                        <button type="submit" class="button button-primary" id="submitSaleBtn" style="display: none;">
+                            Save Sale
+                        </button>
+                    </div>
                 </div>
             </form>
         </div>

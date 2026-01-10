@@ -14,6 +14,8 @@ let templateConsumables = [];
 let allConsumables = [];
 let consumablePickerConfirmHandler = null;
 let selectedProducts = []; // Array to hold multiple products for a sale
+let currentStep = 1; // Wizard step tracker
+let pendingProduct = null; // Product found but not yet added
 
 // Helper function to generate display names for products
 function getDisplayName(partType, generation) {
@@ -106,6 +108,88 @@ function setupEventListeners() {
     // Add Another Product Button (for multi-product sales)
     document.getElementById('addAnotherProductBtn')?.addEventListener('click', handleAddAnotherProduct);
 }
+
+// ===== WIZARD NAVIGATION =====
+
+function goToStep(step) {
+    const step1 = document.getElementById('saleStep1');
+    const step2 = document.getElementById('saleStep2');
+    const step1Indicator = document.getElementById('step1Indicator');
+    const step2Indicator = document.getElementById('step2Indicator');
+    const nextBtn = document.getElementById('nextStepBtn');
+    const prevBtn = document.getElementById('prevStepBtn');
+    const submitBtn = document.getElementById('submitSaleBtn');
+
+    if (step === 2) {
+        // Validate step 1 - must have at least one product
+        if (selectedProducts.length === 0) {
+            alert('Please add at least one product before continuing.');
+            return;
+        }
+
+        // Update step 2 product summary
+        updateStep2Summary();
+
+        // Show step 2
+        step1.style.display = 'none';
+        step2.style.display = 'block';
+
+        // Update indicators
+        step1Indicator.style.opacity = '0.5';
+        step1Indicator.querySelector('div').style.background = '#10b981';
+        step2Indicator.style.opacity = '1';
+        step2Indicator.querySelector('div').style.background = '#3b82f6';
+        step2Indicator.querySelector('div').style.color = 'white';
+        step2Indicator.querySelector('span').style.fontWeight = '600';
+        step2Indicator.querySelector('span').style.color = '#111';
+
+        // Update buttons
+        nextBtn.style.display = 'none';
+        prevBtn.style.display = 'inline-flex';
+        submitBtn.style.display = 'inline-flex';
+
+        currentStep = 2;
+    } else {
+        // Show step 1
+        step1.style.display = 'block';
+        step2.style.display = 'none';
+
+        // Update indicators
+        step1Indicator.style.opacity = '1';
+        step1Indicator.querySelector('div').style.background = '#3b82f6';
+        step2Indicator.style.opacity = '0.5';
+        step2Indicator.querySelector('div').style.background = '#dee2e6';
+        step2Indicator.querySelector('div').style.color = '#6b7280';
+        step2Indicator.querySelector('span').style.fontWeight = '500';
+        step2Indicator.querySelector('span').style.color = '#6b7280';
+
+        // Update buttons
+        nextBtn.style.display = 'inline-flex';
+        prevBtn.style.display = 'none';
+        submitBtn.style.display = 'none';
+
+        currentStep = 1;
+    }
+}
+
+function updateStep2Summary() {
+    const countEl = document.getElementById('step2ProductCount');
+    const costEl = document.getElementById('step2ProductCost');
+    const listEl = document.getElementById('step2ProductList');
+
+    const count = selectedProducts.length;
+    const totalCost = selectedProducts.reduce((sum, p) => sum + (p.product_cost || 0), 0);
+
+    countEl.textContent = `${count} product${count !== 1 ? 's' : ''}`;
+    costEl.textContent = totalCost.toFixed(2);
+
+    // Show abbreviated product list
+    const productNames = selectedProducts.map(p => p.product_name).join(', ');
+    listEl.textContent = productNames.length > 100 ? productNames.substring(0, 100) + '...' : productNames;
+}
+
+// Make goToStep available globally
+window.goToStep = goToStep;
 
 function normalizeConsumableId(value) {
     return value ? String(value) : '';
@@ -527,116 +611,167 @@ function handleBarcodeBlur(e) {
 
 async function lookupProductByBarcode(barcode) {
     const statusDiv = document.getElementById('barcodeStatus');
+    const resultDiv = document.getElementById('productSearchResult');
+    const cardDiv = document.getElementById('productResultCard');
     const selectedProductId = document.getElementById('selectedProductId');
     const barcodeInput = document.getElementById('securityBarcode');
 
+    // Hide previous result card
+    if (resultDiv) resultDiv.style.display = 'none';
+    pendingProduct = null;
+
     try {
         statusDiv.style.display = 'block';
-        statusDiv.style.backgroundColor = 'transparent';
+        statusDiv.style.backgroundColor = '#f3f4f6';
         statusDiv.style.color = '#666';
         statusDiv.style.border = '1px solid #d1d5db';
         statusDiv.style.borderLeft = '4px solid #9ca3af';
-        statusDiv.textContent = 'Looking up product...';
+        statusDiv.textContent = 'Searching...';
 
         const response = await authenticatedFetch(`${API_BASE}/api/admin/products/lookup-barcode?barcode=${encodeURIComponent(barcode)}`);
         const data = await response.json();
 
         if (response.ok && data.product) {
             const product = data.product;
+            statusDiv.style.display = 'none';
 
             // Check if product is available for sale
             if (product.sales_order_number || product.status === 'sold' || product.status === 'faulty') {
-                statusDiv.style.backgroundColor = 'transparent';
+                statusDiv.style.display = 'block';
+                statusDiv.style.backgroundColor = '#fef2f2';
                 statusDiv.style.color = '#dc2626';
-                statusDiv.style.border = '1px solid #ef4444';
+                statusDiv.style.border = '1px solid #fecaca';
                 statusDiv.style.borderLeft = '4px solid #ef4444';
-                statusDiv.innerHTML = `<strong>❌ Product Not Available</strong><br><span style="color: #666; font-size: 0.9rem;">This product has already been sold or is marked as faulty.</span>`;
+                statusDiv.innerHTML = `<strong>❌ Not Available</strong> - This product has already been sold or is marked as faulty.`;
                 selectedProductId.value = '';
-                productCost = 0;
-            } else {
-                // Check if product is already in selectedProducts
-                const alreadySelected = selectedProducts.find(p => p.product_id === product._id);
-                if (alreadySelected) {
-                    statusDiv.style.backgroundColor = 'transparent';
-                    statusDiv.style.color = '#f59e0b';
-                    statusDiv.style.border = '1px solid #f59e0b';
-                    statusDiv.style.borderLeft = '4px solid #f59e0b';
-                    statusDiv.innerHTML = `<strong>⚠️ Already Selected</strong><br><span style="color: #666; font-size: 0.9rem;">This product is already in your sale.</span>`;
-                    return;
-                }
-
-                const displayName = product.product_name || product.product_type || getDisplayName(product.part_type, product.generation);
-
-                // Add product to selectedProducts array
-                selectedProducts.push({
-                    product_id: product._id,
-                    product_name: displayName,
-                    product_serial: product.serial_number || 'N/A',
-                    product_cost: product.purchase_price || 0
-                });
-
-                // Show success message briefly
-                statusDiv.style.backgroundColor = 'transparent';
-                statusDiv.style.color = '#059669';
-                statusDiv.style.border = '1px solid #10b981';
-                statusDiv.style.borderLeft = '4px solid #10b981';
-                statusDiv.innerHTML = `<strong>✅ Product Added:</strong> ${displayName}`;
-
-                // Clear input for next product
-                if (barcodeInput) {
-                    barcodeInput.value = '';
-                }
-
-                // Update the selected products display
-                displaySelectedProducts();
-                updatePreview();
-
-                // Hide status after a short delay
-                setTimeout(() => {
-                    statusDiv.style.display = 'none';
-                }, 2000);
+                return;
             }
+
+            // Check if product is already in selectedProducts
+            const alreadySelected = selectedProducts.find(p => p.product_id === product._id);
+            if (alreadySelected) {
+                statusDiv.style.display = 'block';
+                statusDiv.style.backgroundColor = '#fffbeb';
+                statusDiv.style.color = '#d97706';
+                statusDiv.style.border = '1px solid #fde68a';
+                statusDiv.style.borderLeft = '4px solid #f59e0b';
+                statusDiv.innerHTML = `<strong>⚠️ Already Added</strong> - This product is already in your sale.`;
+                barcodeInput.value = '';
+                return;
+            }
+
+            const displayName = product.product_name || product.product_type || getDisplayName(product.part_type, product.generation);
+            const cost = product.purchase_price || 0;
+            const serial = product.serial_number || 'N/A';
+            const condition = product.visual_condition || 'Unknown';
+            const partType = product.part_type || 'Unknown';
+
+            // Store pending product for add button
+            pendingProduct = {
+                product_id: product._id,
+                product_name: displayName,
+                product_serial: serial,
+                product_cost: cost
+            };
+
+            // Show product card with Add button
+            cardDiv.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div style="flex: 1;">
+                        <div style="font-size: 16px; font-weight: 700; color: #065f46; margin-bottom: 6px;">${displayName}</div>
+                        <div style="display: grid; grid-template-columns: auto auto; gap: 4px 16px; font-size: 13px; color: #374151;">
+                            <span style="color: #6b7280;">Serial:</span>
+                            <span style="font-weight: 500;">${serial}</span>
+                            <span style="color: #6b7280;">Type:</span>
+                            <span style="font-weight: 500; text-transform: capitalize;">${partType}</span>
+                            <span style="color: #6b7280;">Condition:</span>
+                            <span style="font-weight: 500; text-transform: capitalize;">${condition}</span>
+                            <span style="color: #6b7280;">Cost:</span>
+                            <span style="font-weight: 600; color: #059669;">£${cost.toFixed(2)}</span>
+                        </div>
+                    </div>
+                    <button type="button" onclick="addPendingProduct()" style="background: #059669; color: white; border: none; border-radius: 8px; padding: 12px 20px; font-size: 15px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.2s;" onmouseover="this.style.background='#047857'" onmouseout="this.style.background='#059669'">
+                        <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+                            <path d="M10 4V16M4 10H16" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                        </svg>
+                        Add
+                    </button>
+                </div>
+            `;
+            resultDiv.style.display = 'block';
+
+            // Clear the search input for the next search
+            barcodeInput.value = '';
+            barcodeInput.focus();
+
         } else {
-            statusDiv.style.backgroundColor = 'transparent';
+            statusDiv.style.display = 'block';
+            statusDiv.style.backgroundColor = '#fef2f2';
             statusDiv.style.color = '#dc2626';
-            statusDiv.style.border = '1px solid #ef4444';
+            statusDiv.style.border = '1px solid #fecaca';
             statusDiv.style.borderLeft = '4px solid #ef4444';
-            statusDiv.innerHTML = '<strong>❌ Product Not Found</strong><br><span style="color: #666; font-size: 0.9rem;">No product with this serial number or security barcode exists.</span>';
+            statusDiv.innerHTML = '<strong>❌ Not Found</strong> - No product with this serial number or security barcode.';
             selectedProductId.value = '';
-            productCost = 0;
-            updatePreview();
         }
     } catch (error) {
         console.error('Error looking up barcode:', error);
-        statusDiv.style.backgroundColor = 'transparent';
+        statusDiv.style.display = 'block';
+        statusDiv.style.backgroundColor = '#fef2f2';
         statusDiv.style.color = '#dc2626';
-        statusDiv.style.border = '1px solid #ef4444';
+        statusDiv.style.border = '1px solid #fecaca';
         statusDiv.style.borderLeft = '4px solid #ef4444';
         statusDiv.textContent = '❌ Error looking up product. Please try again.';
         selectedProductId.value = '';
-        productCost = 0;
-        updatePreview();
     }
 }
+
+// Add the pending product to selected products
+function addPendingProduct() {
+    if (!pendingProduct) return;
+
+    // Add to selected products array
+    selectedProducts.push({...pendingProduct});
+
+    // Hide the result card
+    const resultDiv = document.getElementById('productSearchResult');
+    if (resultDiv) resultDiv.style.display = 'none';
+
+    // Clear pending product
+    pendingProduct = null;
+
+    // Update display
+    displaySelectedProducts();
+    updatePreview();
+
+    // Focus back on search input
+    const barcodeInput = document.getElementById('securityBarcode');
+    if (barcodeInput) barcodeInput.focus();
+}
+
+// Make addPendingProduct available globally
+window.addPendingProduct = addPendingProduct;
 
 // Display the list of selected products
 function displaySelectedProducts() {
     const container = document.getElementById('selectedProductsList');
-    const section = document.getElementById('selectedProductsSection');
     const countEl = document.getElementById('selectedProductsCount');
     const costEl = document.getElementById('totalProductsCost');
 
     if (selectedProducts.length === 0) {
-        if (section) section.style.display = 'none';
-        if (container) container.innerHTML = '<p style="text-align: center; color: #9ca3af;">No products selected yet</p>';
+        if (container) container.innerHTML = `
+            <div style="padding: 40px 20px; text-align: center; color: #9ca3af;">
+                <svg style="margin-bottom: 8px; color: #d1d5db;" width="40" height="40" viewBox="0 0 24 24" fill="none">
+                    <path d="M20 7L12 3L4 7M20 7L12 11M20 7V17L12 21M12 11L4 7M12 11V21M4 7V17L12 21" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <p style="margin: 0;">No products added yet. Search above to add products.</p>
+            </div>
+        `;
         if (countEl) countEl.textContent = '(0)';
         if (costEl) costEl.textContent = '0.00';
         productCost = 0;
         return;
     }
 
-    // Show the section
-    if (section) section.style.display = 'block';
     if (countEl) countEl.textContent = `(${selectedProducts.length})`;
 
     // Calculate total cost
@@ -644,14 +779,22 @@ function displaySelectedProducts() {
     productCost = totalCost;
     if (costEl) costEl.textContent = totalCost.toFixed(2);
 
-    // Render the list
+    // Render the list as product cards
     container.innerHTML = selectedProducts.map((p, index) => `
-        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid #f3f4f6; ${index === selectedProducts.length - 1 ? 'border-bottom: none;' : ''}">
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid #f3f4f6; ${index === selectedProducts.length - 1 ? 'border-bottom: none;' : ''} background: ${index % 2 === 0 ? '#ffffff' : '#fafafa'};">
             <div style="flex: 1;">
-                <div style="font-weight: 600; color: #111;">${p.product_name}</div>
-                <div style="font-size: 12px; color: #6b7280;">Serial: ${p.product_serial} | Cost: £${(p.product_cost || 0).toFixed(2)}</div>
+                <div style="font-weight: 600; color: #111; font-size: 14px;">${p.product_name}</div>
+                <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">
+                    <span>Serial: ${p.product_serial}</span>
+                    <span style="margin-left: 12px; color: #059669; font-weight: 500;">£${(p.product_cost || 0).toFixed(2)}</span>
+                </div>
             </div>
-            <button type="button" onclick="removeSelectedProduct(${index})" style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 4px 8px; font-size: 18px;" title="Remove product">×</button>
+            <button type="button" onclick="removeSelectedProduct(${index})" style="background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; cursor: pointer; padding: 6px 10px; border-radius: 6px; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 4px;" title="Remove product">
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
+                    <path d="M6 6L14 14M14 6L6 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                Remove
+            </button>
         </div>
     `).join('');
 }
@@ -850,16 +993,44 @@ async function openAddSaleModal() {
     selectedConsumables = [];
     selectedProducts = []; // Reset selected products array
     productCost = 0;
+    pendingProduct = null;
+    currentStep = 1;
     setSaleEditingState(false);
 
     document.getElementById('saleModalTitle').textContent = 'Add Sale';
     document.getElementById('saleForm').reset();
     setupDateDefault();
 
-    // Reset selection method to barcode
-    document.querySelector('input[name="selectionMethod"][value="barcode"]').checked = true;
-    document.getElementById('barcodeInputGroup').style.display = 'block';
-    document.getElementById('accessorySelectGroup').style.display = 'none';
+    // Reset to step 1
+    document.getElementById('saleStep1').style.display = 'block';
+    document.getElementById('saleStep2').style.display = 'none';
+
+    // Reset step indicators
+    const step1Indicator = document.getElementById('step1Indicator');
+    const step2Indicator = document.getElementById('step2Indicator');
+    if (step1Indicator) {
+        step1Indicator.style.opacity = '1';
+        step1Indicator.querySelector('div').style.background = '#3b82f6';
+    }
+    if (step2Indicator) {
+        step2Indicator.style.opacity = '0.5';
+        step2Indicator.querySelector('div').style.background = '#dee2e6';
+        step2Indicator.querySelector('div').style.color = '#6b7280';
+        step2Indicator.querySelector('span').style.fontWeight = '500';
+        step2Indicator.querySelector('span').style.color = '#6b7280';
+    }
+
+    // Reset navigation buttons
+    document.getElementById('nextStepBtn').style.display = 'inline-flex';
+    document.getElementById('prevStepBtn').style.display = 'none';
+    document.getElementById('submitSaleBtn').style.display = 'none';
+
+    // Hide product search result card
+    const resultDiv = document.getElementById('productSearchResult');
+    if (resultDiv) resultDiv.style.display = 'none';
+
+    // Clear barcode input and status
+    document.getElementById('securityBarcode').value = '';
     document.getElementById('barcodeStatus').style.display = 'none';
     document.getElementById('selectedProductId').value = '';
 
@@ -867,12 +1038,17 @@ async function openAddSaleModal() {
     displaySelectedProducts();
 
     // Clear consumables
-    document.getElementById('consumablesList').innerHTML = '<p style="text-align: center; color: #999;">No consumables added yet</p>';
+    document.getElementById('consumablesList').innerHTML = '<p style="text-align: center; color: #9ca3af;">No consumables added yet</p>';
     document.getElementById('consumablesCost').textContent = '0.00';
 
     updatePreview();
 
     document.getElementById('saleModal').style.display = 'flex';
+
+    // Focus on search input
+    setTimeout(() => {
+        document.getElementById('securityBarcode')?.focus();
+    }, 100);
 }
 
 function setSaleEditingState(isEditing) {
@@ -897,20 +1073,13 @@ async function openEditSaleModal(id) {
     selectedConsumables = [];
     selectedProducts = []; // Reset selected products array
     productCost = 0;
+    pendingProduct = null;
+    currentStep = 2; // Edit mode starts at step 2
 
     document.getElementById('saleModalTitle').textContent = 'Edit Sale';
     document.getElementById('saleForm').reset();
     setupDateDefault();
     setSaleEditingState(true);
-    const barcodeRadio = document.querySelector('input[name="selectionMethod"][value="barcode"]');
-    if (barcodeRadio) {
-        barcodeRadio.checked = true;
-    }
-
-    const barcodeInputGroup = document.getElementById('barcodeInputGroup');
-    const accessorySelectGroup = document.getElementById('accessorySelectGroup');
-    if (barcodeInputGroup) barcodeInputGroup.style.display = 'block';
-    if (accessorySelectGroup) accessorySelectGroup.style.display = 'none';
 
     try {
         const response = await authenticatedFetch(`${API_BASE}/api/admin/sales/${id}`);
@@ -950,14 +1119,33 @@ async function openEditSaleModal(id) {
         document.getElementById('saleDate').value = sale.sale_date ? new Date(sale.sale_date).toISOString().split('T')[0] : '';
         document.getElementById('saleNotes').value = sale.notes || '';
 
-        // Display selected products
+        // Display selected products and update step 2 summary
         displaySelectedProducts();
+        updateStep2Summary();
 
-        // Hide the barcode status since we're showing products in the list
-        const barcodeStatus = document.getElementById('barcodeStatus');
-        if (barcodeStatus) {
-            barcodeStatus.style.display = 'none';
+        // Go directly to step 2 for editing
+        document.getElementById('saleStep1').style.display = 'none';
+        document.getElementById('saleStep2').style.display = 'block';
+
+        // Update step indicators for edit mode (step 2 active)
+        const step1Indicator = document.getElementById('step1Indicator');
+        const step2Indicator = document.getElementById('step2Indicator');
+        if (step1Indicator) {
+            step1Indicator.style.opacity = '0.5';
+            step1Indicator.querySelector('div').style.background = '#10b981';
         }
+        if (step2Indicator) {
+            step2Indicator.style.opacity = '1';
+            step2Indicator.querySelector('div').style.background = '#3b82f6';
+            step2Indicator.querySelector('div').style.color = 'white';
+            step2Indicator.querySelector('span').style.fontWeight = '600';
+            step2Indicator.querySelector('span').style.color = '#111';
+        }
+
+        // Update navigation buttons for edit mode
+        document.getElementById('nextStepBtn').style.display = 'none';
+        document.getElementById('prevStepBtn').style.display = 'inline-flex';
+        document.getElementById('submitSaleBtn').style.display = 'inline-flex';
 
         const consumablesResponse = await authenticatedFetch(`${API_BASE}/api/admin/consumables`);
         const consumablesData = await consumablesResponse.json();
