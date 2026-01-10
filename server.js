@@ -5980,6 +5980,50 @@ app.post('/api/admin/consumables/:id/check-in-delivery', requireAuth, requireDB,
     }
 });
 
+// Mark a restock delivery as received without changing stock (Admin only)
+// Used when stock was already manually adjusted
+app.post('/api/admin/consumables/:id/mark-delivery-received', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    const { restock_history_id, notes } = req.body;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid consumable ID' });
+    }
+
+    try {
+        const consumable = await db.collection('consumables').findOne({ _id: new ObjectId(id) });
+
+        if (!consumable) {
+            return res.status(404).json({ error: 'Consumable not found' });
+        }
+
+        // Record in stock history as delivery checked in (no stock change)
+        await db.collection('consumable_stock_history').insertOne({
+            consumable_id: new ObjectId(id),
+            sku: consumable.sku,
+            item_name: consumable.item_name,
+            adjustment: 0,
+            quantity_before: consumable.quantity_in_stock,
+            quantity_after: consumable.quantity_in_stock,
+            reason: notes || 'Delivery marked as received (stock already adjusted)',
+            type: 'restock_checked_in',
+            restock_history_id: restock_history_id ? new ObjectId(restock_history_id) : null,
+            timestamp: new Date(),
+            user: req.user?.username || 'admin'
+        });
+
+        console.log(`[CONSUMABLES] Delivery marked as received for ${consumable.item_name} (no stock change)`);
+
+        res.json({
+            success: true,
+            message: 'Delivery marked as received'
+        });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // Get low stock consumables (Admin only)
 app.get('/api/admin/consumables/alerts/low-stock', requireAuth, requireDB, async (req, res) => {
     try {
