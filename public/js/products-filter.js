@@ -33,8 +33,8 @@ window.handleUniversalSearch = function(event) {
             return true;
         }
         
-        // Search in security number
-        if (product.security_number && product.security_number.toUpperCase().includes(searchTerm)) {
+        // Search in security barcode
+        if (product.security_barcode && product.security_barcode.toUpperCase().includes(searchTerm)) {
             return true;
         }
         
