@@ -3788,6 +3788,11 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                 continue;
             }
 
+            // Skip feedback task if there's a pending refund (item was returned)
+            if (purchase.return_tracking && !purchase.return_tracking.refund_verified) {
+                continue;
+            }
+
             // Calculate days since checked in
             const daysSinceCheckIn = purchase.checked_in_date ? (now - new Date(purchase.checked_in_date)) / (1000 * 60 * 60 * 24) : 0;
             const isOverdue = daysSinceCheckIn > 3; // Overdue after 3 days
