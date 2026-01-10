@@ -223,9 +223,14 @@ if (window.location.pathname.includes('airpod.html') || window.location.pathname
     // But we can add a visual indicator if needed
 }
 
-// Support/Suggestions Bubble (public pages)
+// Support/Suggestions Bubble (all pages except login)
 function initSupportBubble() {
     if (document.getElementById('supportBubble')) {
+        return;
+    }
+
+    // Don't show on login page
+    if (window.location.pathname.includes('login')) {
         return;
     }
 
