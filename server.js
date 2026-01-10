@@ -3942,6 +3942,7 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                 due_soon: dueSoon,
                 tracking_number: checkIn.tracking_number || purchase?.tracking_number,
                 seller: purchase?.seller_name,
+                order_number: checkIn.purchase_order_number || purchase?.order_number,
                 items_count: splittableItems.length,
                 completed: false,
                 priority: isOverdue ? 'high' : (dueSoon ? 'medium' : 'normal')
