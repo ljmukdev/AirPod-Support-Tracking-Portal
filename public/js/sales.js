@@ -75,6 +75,11 @@ function setupEventListeners() {
 
     // Sale Price Input
     document.getElementById('salePrice')?.addEventListener('input', updatePreview);
+
+    // Fee Inputs - update preview when changed
+    document.getElementById('transactionFees')?.addEventListener('input', updatePreview);
+    document.getElementById('adFeeGeneral')?.addEventListener('input', updatePreview);
+    document.getElementById('postageLabelCost')?.addEventListener('input', updatePreview);
     
     // Add Consumable Button
     document.getElementById('addConsumableBtn')?.addEventListener('click', addConsumableRow);
@@ -1034,6 +1039,12 @@ async function openAddSaleModal() {
     document.getElementById('barcodeStatus').style.display = 'none';
     document.getElementById('selectedProductId').value = '';
 
+    // Reset fee fields
+    document.getElementById('transactionFees').value = '0';
+    document.getElementById('adFeeGeneral').value = '0';
+    document.getElementById('postageLabelCost').value = '0';
+    document.getElementById('outwardTrackingNumber').value = '';
+
     // Reset selected products display
     displaySelectedProducts();
 
@@ -1117,6 +1128,10 @@ async function openEditSaleModal(id) {
         document.getElementById('salePlatform').value = sale.platform || 'Other';
         document.getElementById('salePrice').value = sale.sale_price ?? '';
         document.getElementById('saleDate').value = sale.sale_date ? new Date(sale.sale_date).toISOString().split('T')[0] : '';
+        document.getElementById('transactionFees').value = sale.transaction_fees ?? 0;
+        document.getElementById('adFeeGeneral').value = sale.ad_fee_general ?? 0;
+        document.getElementById('postageLabelCost').value = sale.postage_label_cost ?? 0;
+        document.getElementById('outwardTrackingNumber').value = sale.outward_tracking_number || '';
         document.getElementById('saleNotes').value = sale.notes || '';
 
         // Display selected products and update step 2 summary
@@ -1179,14 +1194,21 @@ async function openEditSaleModal(id) {
 
 function updatePreview() {
     const salePrice = parseFloat(document.getElementById('salePrice')?.value) || 0;
+    const transactionFees = parseFloat(document.getElementById('transactionFees')?.value) || 0;
+    const adFeeGeneral = parseFloat(document.getElementById('adFeeGeneral')?.value) || 0;
+    const postageCost = parseFloat(document.getElementById('postageLabelCost')?.value) || 0;
     const consumablesCost = selectedConsumables.reduce((sum, c) => sum + (c.cost * c.quantity), 0);
-    const totalCost = productCost + consumablesCost;
+
+    const totalFees = transactionFees + adFeeGeneral;
+    const totalCost = productCost + totalFees + postageCost + consumablesCost;
     const profit = salePrice - totalCost;
-    
+
     document.getElementById('previewSalePrice').textContent = salePrice.toFixed(2);
     document.getElementById('previewProductCost').textContent = productCost.toFixed(2);
+    document.getElementById('previewFees').textContent = totalFees.toFixed(2);
+    document.getElementById('previewPostage').textContent = postageCost.toFixed(2);
     document.getElementById('previewConsumablesCost').textContent = consumablesCost.toFixed(2);
-    
+
     const profitEl = document.getElementById('previewProfit');
     profitEl.textContent = `£${profit.toFixed(2)}`;
     profitEl.style.color = profit >= 0 ? '#10b981' : '#ef4444';
@@ -1209,6 +1231,10 @@ async function handleSaleSubmit(e) {
     // Calculate total product cost from selectedProducts
     const totalProductCost = selectedProducts.reduce((sum, p) => sum + (p.product_cost || 0), 0);
     const consumablesCost = selectedConsumables.reduce((sum, c) => sum + (c.cost * c.quantity), 0);
+    const transactionFees = parseFloat(document.getElementById('transactionFees').value) || 0;
+    const adFeeGeneral = parseFloat(document.getElementById('adFeeGeneral').value) || 0;
+    const postageLabelCost = parseFloat(document.getElementById('postageLabelCost').value) || 0;
+    const outwardTrackingNumber = document.getElementById('outwardTrackingNumber').value.trim();
 
     const saleData = {
         products: selectedProducts, // Send array of products
@@ -1216,9 +1242,13 @@ async function handleSaleSubmit(e) {
         order_number: document.getElementById('saleOrderNumber').value.trim(),
         sale_price: parseFloat(document.getElementById('salePrice').value),
         sale_date: document.getElementById('saleDate').value,
+        transaction_fees: transactionFees,
+        ad_fee_general: adFeeGeneral,
+        postage_label_cost: postageLabelCost,
+        outward_tracking_number: outwardTrackingNumber,
         consumables: selectedConsumables,
         consumables_cost: consumablesCost,
-        total_cost: totalProductCost + consumablesCost,
+        total_cost: totalProductCost + transactionFees + adFeeGeneral + postageLabelCost + consumablesCost,
         notes: document.getElementById('saleNotes').value.trim()
     };
 
