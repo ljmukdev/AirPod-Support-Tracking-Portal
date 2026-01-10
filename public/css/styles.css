@@ -360,7 +360,7 @@ h3 {
     border-radius: 999px;
     box-shadow: 0 8px 18px rgba(0, 0, 0, 0.15);
     cursor: pointer;
-    z-index: 999;
+    z-index: 99999;
     font-weight: 600;
 }
 
@@ -380,7 +380,7 @@ h3 {
     align-items: center;
     justify-content: center;
     padding: 24px;
-    z-index: 1000;
+    z-index: 100000;
 }
 
 .support-modal.open {
