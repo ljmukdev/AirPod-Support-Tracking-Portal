@@ -1,0 +1,683 @@
+/* ===========================================
+   iOS & MOBILE OPTIMIZATIONS
+   LJM AirPod Support Portal
+
+   This file contains iOS-specific fixes and
+   mobile usability enhancements.
+   =========================================== */
+
+/* ============================================
+   1. SAFE AREA INSETS (Notch/Dynamic Island)
+   ============================================ */
+
+/* Support for notched iOS devices (iPhone X and later) */
+@supports (padding: env(safe-area-inset-top)) {
+    /* Root padding for safe areas */
+    :root {
+        --safe-area-inset-top: env(safe-area-inset-top);
+        --safe-area-inset-right: env(safe-area-inset-right);
+        --safe-area-inset-bottom: env(safe-area-inset-bottom);
+        --safe-area-inset-left: env(safe-area-inset-left);
+    }
+
+    /* Header safe area - accounts for notch/Dynamic Island */
+    .header,
+    .global-header,
+    header {
+        padding-top: max(16px, env(safe-area-inset-top));
+        padding-left: max(12px, env(safe-area-inset-left));
+        padding-right: max(12px, env(safe-area-inset-right));
+    }
+
+    /* Fixed/Sticky headers need extra consideration */
+    .header[style*="position: sticky"],
+    .header[style*="position: fixed"],
+    header[style*="position: sticky"],
+    header[style*="position: fixed"] {
+        top: 0;
+        padding-top: max(16px, env(safe-area-inset-top));
+    }
+
+    /* Admin sidebar safe area */
+    .admin-sidebar {
+        padding-left: max(0px, env(safe-area-inset-left));
+        padding-bottom: max(20px, env(safe-area-inset-bottom));
+    }
+
+    /* Footer safe area - accounts for home indicator */
+    footer,
+    .footer {
+        padding-bottom: max(20px, env(safe-area-inset-bottom));
+        padding-left: max(16px, env(safe-area-inset-left));
+        padding-right: max(16px, env(safe-area-inset-right));
+    }
+
+    /* Cookie consent banner - fixed to bottom */
+    #cookieConsentBanner,
+    .cookie-banner {
+        padding-bottom: max(20px, env(safe-area-inset-bottom));
+        padding-left: max(16px, env(safe-area-inset-left));
+        padding-right: max(16px, env(safe-area-inset-right));
+    }
+
+    /* Main content area safe zones */
+    main,
+    .main-content,
+    .container {
+        padding-left: max(4px, env(safe-area-inset-left));
+        padding-right: max(4px, env(safe-area-inset-right));
+    }
+
+    /* Full-width elements should respect safe areas */
+    .card,
+    .feature-item,
+    .security-section,
+    .admin-content {
+        margin-left: max(0px, env(safe-area-inset-left));
+        margin-right: max(0px, env(safe-area-inset-right));
+    }
+
+    /* Modal/Overlay safe areas */
+    .modal,
+    .modal-content,
+    .overlay,
+    .support-bubble-container {
+        padding-top: max(20px, env(safe-area-inset-top));
+        padding-bottom: max(20px, env(safe-area-inset-bottom));
+    }
+
+    /* Floating action buttons - keep above home indicator */
+    .fab,
+    .floating-button,
+    .support-bubble {
+        bottom: max(20px, calc(env(safe-area-inset-bottom) + 20px));
+        right: max(20px, calc(env(safe-area-inset-right) + 20px));
+    }
+}
+
+/* Landscape mode specific safe areas */
+@media screen and (orientation: landscape) {
+    @supports (padding: env(safe-area-inset-left)) {
+        .header,
+        .global-header,
+        header {
+            padding-left: max(24px, env(safe-area-inset-left));
+            padding-right: max(24px, env(safe-area-inset-right));
+        }
+
+        main,
+        .main-content,
+        .container {
+            padding-left: max(16px, env(safe-area-inset-left));
+            padding-right: max(16px, env(safe-area-inset-right));
+        }
+
+        .admin-sidebar {
+            padding-left: max(12px, env(safe-area-inset-left));
+        }
+    }
+}
+
+/* ============================================
+   2. WEBKIT TAP HIGHLIGHT & TOUCH OPTIMIZATIONS
+   ============================================ */
+
+/* Remove tap highlight color for cleaner interactions */
+* {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+}
+
+/* Prevent callout menu on long press for images/links */
+a,
+button,
+img,
+.touchable,
+.clickable {
+    -webkit-touch-callout: none;
+}
+
+/* Allow text selection callout where appropriate */
+p,
+span,
+.selectable-text {
+    -webkit-touch-callout: default;
+}
+
+/* Prevent text selection on interactive elements */
+button,
+.btn,
+.btn-primary,
+.btn-secondary,
+.button,
+.continue-btn,
+.nav-link,
+.nav-item,
+.sidebar-nav,
+label,
+.feature-item,
+.card-header,
+.troubleshooting-question {
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* ============================================
+   3. TOUCH-ACTION OPTIMIZATIONS
+   ============================================ */
+
+/* Enable smooth scrolling without pull-to-refresh interference */
+html,
+body {
+    touch-action: pan-x pan-y;
+    overscroll-behavior: none;
+    overscroll-behavior-y: none;
+}
+
+/* Buttons should respond immediately to taps */
+button,
+.btn,
+.btn-primary,
+.btn-secondary,
+.button,
+.continue-btn,
+a.button,
+input[type="submit"],
+input[type="button"] {
+    touch-action: manipulation;
+}
+
+/* Links and nav items - prevent accidental zooming */
+a,
+.nav-link,
+.nav-item a,
+.feature-item,
+.card {
+    touch-action: manipulation;
+}
+
+/* Form inputs - allow normal touch behavior */
+input,
+textarea,
+select {
+    touch-action: auto;
+}
+
+/* Canvas elements for drawing - prevent all default behaviors */
+canvas.drawing-canvas,
+canvas.annotation-canvas,
+.crop-canvas {
+    touch-action: none;
+}
+
+/* Horizontal scrolling containers */
+.horizontal-scroll,
+.products-table-container,
+.data-table-wrapper {
+    touch-action: pan-x;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* ============================================
+   4. MOMENTUM SCROLLING (iOS)
+   ============================================ */
+
+/* Enable momentum scrolling for scrollable containers */
+.scrollable,
+.admin-content,
+.modal-body,
+.sidebar-nav,
+.table-container,
+.products-main,
+.dropdown-menu,
+.select-options {
+    -webkit-overflow-scrolling: touch;
+    overflow-y: auto;
+}
+
+/* Horizontal scroll containers */
+.horizontal-scroll,
+.products-table-container,
+table {
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Main scrollable areas */
+main,
+.main-content {
+    -webkit-overflow-scrolling: touch;
+}
+
+/* ============================================
+   5. MINIMUM TOUCH TARGET SIZES (44x44px Apple HIG)
+   ============================================ */
+
+/* Buttons - ensure minimum 44px touch target */
+button,
+.btn,
+.btn-primary,
+.btn-secondary,
+.button,
+.continue-btn,
+input[type="submit"],
+input[type="button"] {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 12px 16px;
+}
+
+/* Links in navigation - ensure adequate touch area */
+.nav-link,
+.nav-item a,
+.sidebar-nav a {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+}
+
+/* Form inputs - adequate height for touch */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="tel"],
+input[type="url"],
+input[type="search"],
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+textarea,
+select {
+    min-height: 44px;
+    font-size: 16px; /* Prevents iOS zoom on focus */
+    padding: 12px 14px;
+}
+
+/* Checkbox and radio button touch targets */
+input[type="checkbox"],
+input[type="radio"] {
+    min-width: 24px;
+    min-height: 24px;
+    margin: 10px;
+}
+
+/* Checkbox/radio labels should be larger touch targets */
+input[type="checkbox"] + label,
+input[type="radio"] + label,
+.checkbox-label,
+.radio-label,
+label[for] {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 0;
+    cursor: pointer;
+}
+
+/* Icon buttons */
+.icon-btn,
+.close-btn,
+.action-btn {
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Table action buttons */
+.action-buttons button,
+.action-buttons a,
+.table-actions button,
+.table-actions a {
+    min-width: 36px;
+    min-height: 36px;
+    padding: 8px;
+}
+
+/* Small/compact buttons for specific use cases */
+.btn-sm,
+.btn-small,
+.compact-btn {
+    min-height: 36px;
+    min-width: 36px;
+    padding: 8px 12px;
+}
+
+/* Trust indicators and small interactive elements */
+.trust-item,
+.badge,
+.tag {
+    min-height: 32px;
+    padding: 6px 10px;
+}
+
+/* ============================================
+   6. FORM INPUT OPTIMIZATIONS
+   ============================================ */
+
+/* Prevent iOS zoom on input focus (font-size >= 16px) */
+input,
+textarea,
+select {
+    font-size: 16px !important;
+}
+
+/* Better focus states for touch devices */
+@media (hover: none) and (pointer: coarse) {
+    input:focus,
+    textarea:focus,
+    select:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(0, 168, 232, 0.3);
+        border-color: var(--accent-teal, #00a8e8);
+    }
+
+    /* Larger focus ring for visibility */
+    button:focus,
+    .btn:focus,
+    a:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(0, 168, 232, 0.4);
+    }
+}
+
+/* Improved placeholder visibility */
+::placeholder {
+    color: #9ca3af;
+    opacity: 1;
+}
+
+::-webkit-input-placeholder {
+    color: #9ca3af;
+    opacity: 1;
+}
+
+/* Autocomplete styling for iOS */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+    -webkit-box-shadow: 0 0 0 1000px white inset !important;
+    -webkit-text-fill-color: #333 !important;
+    transition: background-color 5000s ease-in-out 0s;
+}
+
+/* Search input type styling */
+input[type="search"] {
+    -webkit-appearance: none;
+    appearance: none;
+    border-radius: 8px;
+}
+
+input[type="search"]::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 20px;
+    width: 20px;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236b7280'%3E%3Cpath d='M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z'/%3E%3C/svg%3E") center no-repeat;
+    cursor: pointer;
+}
+
+/* ============================================
+   7. iOS-SPECIFIC RENDERING FIXES
+   ============================================ */
+
+/* Fix iOS button styling */
+button,
+input[type="button"],
+input[type="submit"],
+input[type="reset"] {
+    -webkit-appearance: none;
+    appearance: none;
+    border-radius: 8px;
+}
+
+/* Fix iOS select styling */
+select {
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236b7280'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 20px;
+    padding-right: 40px;
+}
+
+/* Fix date/time input styling on iOS */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"] {
+    -webkit-appearance: none;
+    appearance: none;
+    min-height: 44px;
+}
+
+/* Fix iOS flexbox bugs */
+.flex-container,
+.flex,
+[class*="flex"] {
+    /* Prevent iOS flex shrink issues */
+    min-width: 0;
+}
+
+/* Fix iOS sticky positioning */
+.sticky,
+[style*="position: sticky"] {
+    position: -webkit-sticky;
+    position: sticky;
+}
+
+/* Fix text rendering on iOS */
+body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+/* Prevent iOS double-tap zoom on specific elements */
+.no-zoom {
+    touch-action: manipulation;
+}
+
+/* Fix iOS rubber-band scrolling at boundaries */
+.no-bounce {
+    overscroll-behavior: none;
+}
+
+/* ============================================
+   8. SCROLLABLE CONTAINER OPTIMIZATIONS
+   ============================================ */
+
+/* Smooth scrolling behavior */
+html {
+    scroll-behavior: smooth;
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Scroll snap for carousel-like containers */
+.scroll-snap-container {
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+}
+
+.scroll-snap-item {
+    scroll-snap-align: start;
+}
+
+/* Hide scrollbars on iOS while maintaining functionality */
+.hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+/* ============================================
+   9. ACTIVE/PRESSED STATES FOR TOUCH
+   ============================================ */
+
+/* Touch feedback for buttons */
+@media (hover: none) and (pointer: coarse) {
+    button:active,
+    .btn:active,
+    .btn-primary:active,
+    .btn-secondary:active,
+    .button:active,
+    .continue-btn:active {
+        transform: scale(0.98);
+        opacity: 0.9;
+    }
+
+    /* Touch feedback for cards and interactive items */
+    .feature-item:active,
+    .card:active,
+    .nav-link:active {
+        transform: scale(0.99);
+        opacity: 0.95;
+    }
+
+    /* Prevent hover effects on touch devices */
+    .feature-item:hover,
+    .card:hover,
+    button:hover,
+    .btn:hover {
+        transform: none;
+    }
+}
+
+/* ============================================
+   10. MOBILE-SPECIFIC MEDIA QUERIES
+   ============================================ */
+
+/* Small phones (iPhone SE, etc.) */
+@media screen and (max-width: 375px) {
+    .container {
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+
+    .card-body {
+        padding: 12px 8px;
+    }
+
+    .security-section {
+        padding: 12px 8px;
+    }
+
+    h1 {
+        font-size: 1.25rem;
+    }
+
+    h2 {
+        font-size: 1.1rem;
+    }
+
+    .feature-title {
+        font-size: 14px;
+    }
+
+    .feature-description {
+        font-size: 12px;
+    }
+}
+
+/* Standard phones (iPhone 12/13/14, etc.) */
+@media screen and (max-width: 428px) {
+    .trust-indicators {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .nav-links {
+        gap: 12px;
+    }
+
+    .nav-links a {
+        font-size: 12px;
+    }
+}
+
+/* Notched iPhones in landscape */
+@media screen and (orientation: landscape) and (max-height: 500px) {
+    .header,
+    header {
+        padding: 8px 16px;
+        min-height: 48px;
+    }
+
+    .card-header {
+        padding: 16px;
+    }
+
+    .features {
+        margin-bottom: 12px;
+    }
+}
+
+/* iOS 15+ Dynamic Text support */
+@supports (font: -apple-system-body) {
+    body {
+        font: -apple-system-body;
+        font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'San Francisco', 'Segoe UI', sans-serif;
+    }
+}
+
+/* ============================================
+   11. PERFORMANCE OPTIMIZATIONS
+   ============================================ */
+
+/* Hardware acceleration for animations */
+.animated,
+.transition,
+[class*="animate-"] {
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    will-change: transform;
+}
+
+/* Optimize images for mobile */
+img {
+    max-width: 100%;
+    height: auto;
+    -webkit-user-drag: none;
+}
+
+/* Lazy loading hint for below-fold images */
+img[loading="lazy"] {
+    content-visibility: auto;
+}
+
+/* ============================================
+   12. DARK MODE SUPPORT (iOS 13+)
+   ============================================ */
+
+@media (prefers-color-scheme: dark) {
+    /* Input autofill for dark mode */
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover,
+    input:-webkit-autofill:focus {
+        -webkit-box-shadow: 0 0 0 1000px #1a1a1a inset !important;
+        -webkit-text-fill-color: #f5f5f5 !important;
+    }
+}
