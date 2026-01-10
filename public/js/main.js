@@ -1,7 +1,10 @@
 // Main JavaScript for LJM AirPod Support
 
-// API base URL
-const API_BASE = '';
+// API base URL - use existing window.API_BASE if available (e.g., from admin.js)
+if (typeof window.API_BASE === 'undefined') {
+    window.API_BASE = '';
+}
+var API_BASE = window.API_BASE;
 
 // Utility functions
 function showError(message) {
