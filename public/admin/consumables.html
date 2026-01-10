@@ -401,6 +401,35 @@
         </div>
     </div>
 
+    <!-- Delivery Check-In Modal (for checking in received deliveries) -->
+    <div id="deliveryCheckInModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); align-items: center; justify-content: center; z-index: 1000;">
+        <div style="background: white; padding: 24px; border-radius: 10px; max-width: 460px; width: 90%; box-shadow: 0 12px 30px rgba(0,0,0,0.2);">
+            <h3 style="margin-top: 0; color: #10b981;">📦 Check In Delivery</h3>
+            <p id="deliveryCheckInItemName" style="margin: 0 0 8px 0; font-weight: 600;"></p>
+            <p id="deliveryCheckInCurrentStock" style="margin: 0 0 16px 0; color: #666; font-size: 0.9rem;"></p>
+            <form id="deliveryCheckInForm">
+                <div class="form-group">
+                    <label for="deliveryQuantityReceived">Quantity Received</label>
+                    <input type="number" id="deliveryQuantityReceived" min="1" step="1" required placeholder="How many items arrived?">
+                    <small style="color: #666; display: block; margin-top: 4px;">This will be ADDED to your current stock</small>
+                </div>
+                <div class="form-group">
+                    <label for="deliveryFaultyQuantity">Faulty/Damaged Quantity</label>
+                    <input type="number" id="deliveryFaultyQuantity" min="0" step="1" value="0" placeholder="Items that arrived damaged">
+                    <small style="color: #666; display: block; margin-top: 4px;">These won't be added to stock</small>
+                </div>
+                <div class="form-group">
+                    <label for="deliveryCheckInNotes">Notes</label>
+                    <textarea id="deliveryCheckInNotes" rows="2" placeholder="Optional delivery notes"></textarea>
+                </div>
+                <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 16px;">
+                    <button type="button" class="button button-secondary" id="cancelDeliveryCheckIn">Cancel</button>
+                    <button type="submit" class="button" style="background: #10b981; color: white;">Check In Delivery</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Sidebar Overlay for Mobile -->
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 

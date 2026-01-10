@@ -5896,6 +5896,90 @@ app.post('/api/admin/consumables/:id/check-in', requireAuth, requireDB, async (r
     }
 });
 
+// Check in a delivery - ADDS to existing stock (Admin only)
+// This is different from stock check which REPLACES stock
+app.post('/api/admin/consumables/:id/check-in-delivery', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    const { quantity_received, faulty_quantity, notes, restock_history_id } = req.body;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid consumable ID' });
+    }
+
+    const receivedQuantity = parseInt(quantity_received);
+    const faultyQuantity = faulty_quantity ? parseInt(faulty_quantity) : 0;
+
+    if (Number.isNaN(receivedQuantity) || receivedQuantity <= 0) {
+        return res.status(400).json({ error: 'Quantity received is required and must be greater than zero' });
+    }
+
+    if (Number.isNaN(faultyQuantity) || faultyQuantity < 0) {
+        return res.status(400).json({ error: 'Faulty quantity must be zero or more' });
+    }
+
+    if (faultyQuantity > receivedQuantity) {
+        return res.status(400).json({ error: 'Faulty quantity cannot exceed the quantity received' });
+    }
+
+    try {
+        const consumable = await db.collection('consumables').findOne({ _id: new ObjectId(id) });
+
+        if (!consumable) {
+            return res.status(404).json({ error: 'Consumable not found' });
+        }
+
+        // Calculate good quantity (received minus faulty)
+        const goodQuantity = receivedQuantity - faultyQuantity;
+
+        // ADD to existing stock, don't replace it
+        const newQuantity = consumable.quantity_in_stock + goodQuantity;
+
+        const updateData = {
+            quantity_in_stock: newQuantity,
+            last_received_date: new Date(),
+            last_received_quantity: goodQuantity,
+            updated_at: new Date(),
+            updated_by: req.user?.username || 'admin'
+        };
+
+        await db.collection('consumables').updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updateData }
+        );
+
+        // Record in stock history as delivery check-in
+        await db.collection('consumable_stock_history').insertOne({
+            consumable_id: new ObjectId(id),
+            sku: consumable.sku,
+            item_name: consumable.item_name,
+            adjustment: goodQuantity,
+            quantity_before: consumable.quantity_in_stock,
+            quantity_after: newQuantity,
+            quantity_received: receivedQuantity,
+            faulty_quantity: faultyQuantity,
+            reason: notes || 'Delivery checked in',
+            type: 'restock_checked_in',
+            restock_history_id: restock_history_id ? new ObjectId(restock_history_id) : null,
+            timestamp: new Date(),
+            user: req.user?.username || 'admin'
+        });
+
+        console.log(`[CONSUMABLES] Delivery checked in for ${consumable.item_name}: +${goodQuantity} (${faultyQuantity} faulty), new total: ${newQuantity}`);
+
+        res.json({
+            success: true,
+            message: 'Delivery checked in successfully',
+            new_quantity: newQuantity,
+            good_quantity: goodQuantity,
+            faulty_quantity: faultyQuantity,
+            unit_type: consumable.unit_type
+        });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // Get low stock consumables (Admin only)
 app.get('/api/admin/consumables/alerts/low-stock', requireAuth, requireDB, async (req, res) => {
     try {
