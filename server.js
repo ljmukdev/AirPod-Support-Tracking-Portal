@@ -3697,6 +3697,7 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                 due_soon: followUpCompleted ? false : followUpDueSoon,
                 tracking_number: checkIn.tracking_number || purchase.tracking_number,
                 seller: purchase.seller_name,
+                order_number: purchase.order_number,
                 issue_summary: checkIn.issues_detected ? checkIn.issues_detected.map(i => i.item_name).join(', ') : 'Issues detected',
                 completed: followUpCompleted,
                 completed_at: workflow.follow_up_sent_at || workflow.resolved_at
@@ -3720,6 +3721,7 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                 due_soon: caseCompleted ? false : caseDueSoon,
                 tracking_number: checkIn.tracking_number || purchase.tracking_number,
                 seller: purchase.seller_name,
+                order_number: purchase.order_number,
                 follow_up_sent: !!workflow.follow_up_sent_at,
                 issue_summary: checkIn.issues_detected ? checkIn.issues_detected.map(i => i.item_name).join(', ') : 'Issues detected',
                 completed: caseCompleted,
