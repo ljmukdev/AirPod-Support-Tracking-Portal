@@ -4027,6 +4027,11 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
 
             if (!consumable) continue;
 
+            // Auto-complete: If stock is now above reorder level, assume delivery was received
+            if (consumable.reorder_level && consumable.quantity_in_stock > consumable.reorder_level) {
+                continue; // Stock is healthy, no need to show delivery task
+            }
+
             const taskId = `restock-delivery-${restock._id.toString()}`;
             
             let description = `Ordered on ${restock.timestamp.toLocaleDateString('en-GB')}. `;
