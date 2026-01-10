@@ -86,13 +86,12 @@ async function loadParts() {
             // Store all parts for associated parts selection
             allPartsData = data.parts;
             console.log('[Parts Manager] Stored', allPartsData.length, 'parts in allPartsData');
-            
+
             // Always populate checkboxes after loading parts
             const partModelNumber = document.getElementById('part_model_number')?.value || null;
-            const partGeneration = document.getElementById('generation')?.value || null;
-            console.log('[Parts Manager] Populating checkboxes, current part:', partModelNumber, 'generation:', partGeneration);
-            populateAssociatedPartsCheckboxes(partModelNumber, partGeneration);
-            
+            console.log('[Parts Manager] Populating checkboxes, current part:', partModelNumber);
+            populateAssociatedPartsCheckboxes(partModelNumber);
+
             if (data.parts.length === 0) {
                 partsList.innerHTML = '<p style="text-align: center; padding: 40px; color: #666;">No parts found. Add your first part above.</p>';
                 return;
