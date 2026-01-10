@@ -3826,9 +3826,19 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                     part_type: { $nin: ['ear_tips', 'box', 'cable', 'other'] }
                 }
             ]
-        }).toArray();
-        
+        }).sort({ date_added: 1 }).toArray(); // Sort by date_added to keep oldest product task
+
+        // Track serial numbers to avoid duplicate tasks for products with same serial
+        const seenSerialNumbers = new Set();
+
         for (const product of productsNeedingAttention) {
+            // Skip duplicate products with same serial number (keep first/oldest)
+            if (product.serial_number && product.serial_number !== 'N/A') {
+                if (seenSerialNumbers.has(product.serial_number)) {
+                    continue;
+                }
+                seenSerialNumbers.add(product.serial_number);
+            }
             const missingItems = [];
             
             // Check for missing photos
