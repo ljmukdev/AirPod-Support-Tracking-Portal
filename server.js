@@ -1116,7 +1116,22 @@ async function initializeDatabase() {
                 console.error('Warning: Could not create consumable_stock_history indexes:', err.message);
             }
         }
-        
+
+        // Create indexes for support tickets collection
+        try {
+            await db.collection('support_tickets').createIndex({ ticket_id: 1 }, { unique: true });
+            await db.collection('support_tickets').createIndex({ status: 1 });
+            await db.collection('support_tickets').createIndex({ priority: 1 });
+            await db.collection('support_tickets').createIndex({ assigned_to: 1 });
+            await db.collection('support_tickets').createIndex({ type: 1 });
+            await db.collection('support_tickets').createIndex({ created_at: -1 });
+            await db.collection('support_tickets').createIndex({ updated_at: -1 });
+        } catch (err) {
+            if (!err.message.includes('already exists') && !err.message.includes('E11000')) {
+                console.error('Warning: Could not create support_tickets indexes:', err.message);
+            }
+        }
+
         console.log('Database indexes created');
         
         // Check if parts collection is empty and populate
@@ -3040,7 +3055,15 @@ Requirements:
     }
 }
 
-// Support/Suggestion submission endpoint
+// Generate unique ticket ID (ST-YYYYMMDD-XXXX format)
+function generateTicketId() {
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+    const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+    return `ST-${dateStr}-${random}`;
+}
+
+// Support/Suggestion submission endpoint - saves to database
 app.post('/api/support', async (req, res) => {
     try {
         const { type, message, userEmail, page } = req.body || {};
@@ -3049,28 +3072,327 @@ app.post('/api/support', async (req, res) => {
             return res.status(400).json({ success: false, error: 'Message is required' });
         }
 
-        const requestType = type === 'suggestion' ? 'Suggestion' : 'Fault / Issue';
-        const fromEmail = userEmail || 'Not provided';
-        const pageInfo = page || 'Unknown page';
+        // Generate unique ticket ID
+        let ticketId = generateTicketId();
 
-        const emailBody = `New ${requestType} submission\n\nMessage:\n${message.trim()}\n\nPage: ${pageInfo}\nSubmitted by: ${fromEmail}\n`;
-
-        if (emailTransporter) {
-            await emailTransporter.sendMail({
-                from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-                to: 'support@ljmuk.co.uk',
-                subject: `Support Request (${requestType})`,
-                text: emailBody
-            });
-        } else {
-            console.warn('[SUPPORT] Email transporter not configured, request logged instead.');
-            console.log(emailBody);
+        // Ensure ticket ID is unique
+        let attempts = 0;
+        while (attempts < 5) {
+            const existing = await db.collection('support_tickets').findOne({ ticket_id: ticketId });
+            if (!existing) break;
+            ticketId = generateTicketId();
+            attempts++;
         }
 
-        res.json({ success: true });
+        // Map type to category
+        const typeMap = {
+            'fault': 'fault',
+            'suggestion': 'suggestion',
+            'feature': 'feature_request',
+            'feature_request': 'feature_request'
+        };
+        const ticketType = typeMap[type] || 'fault';
+
+        // Create the support ticket
+        const ticket = {
+            ticket_id: ticketId,
+            type: ticketType,
+            message: message.trim(),
+            user_email: userEmail?.trim() || null,
+            page: page || null,
+            status: 'open',
+            priority: ticketType === 'fault' ? 'medium' : 'low',
+            assigned_to: null,
+            created_at: new Date(),
+            updated_at: new Date(),
+            notes: []
+        };
+
+        await db.collection('support_tickets').insertOne(ticket);
+        console.log(`[SUPPORT] New ticket created: ${ticketId} (${ticketType})`);
+
+        // Optionally still send email notification
+        const requestType = type === 'suggestion' ? 'Suggestion' : (type === 'feature' || type === 'feature_request' ? 'Feature Request' : 'Fault / Issue');
+        const fromEmail = userEmail || 'Not provided';
+        const pageInfo = page || 'Unknown page';
+        const emailBody = `New ${requestType} submission\n\nTicket ID: ${ticketId}\n\nMessage:\n${message.trim()}\n\nPage: ${pageInfo}\nSubmitted by: ${fromEmail}\n\nView in admin: /admin/support-tickets.html`;
+
+        if (emailTransporter) {
+            try {
+                await emailTransporter.sendMail({
+                    from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+                    to: 'support@ljmuk.co.uk',
+                    subject: `[${ticketId}] Support Request (${requestType})`,
+                    text: emailBody
+                });
+            } catch (emailErr) {
+                console.warn('[SUPPORT] Failed to send email notification:', emailErr.message);
+            }
+        }
+
+        res.json({ success: true, ticket_id: ticketId });
     } catch (err) {
-        console.error('[SUPPORT] Error sending support request:', err);
-        res.status(500).json({ success: false, error: 'Failed to send support request' });
+        console.error('[SUPPORT] Error creating support ticket:', err);
+        res.status(500).json({ success: false, error: 'Failed to create support ticket' });
+    }
+});
+
+// Get all support tickets (Admin only)
+app.get('/api/admin/support-tickets', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { status, priority, type, assigned_to, search, sort_by, sort_order } = req.query;
+
+        // Build filter
+        const filter = {};
+        if (status && status !== 'all') {
+            filter.status = status;
+        }
+        if (priority && priority !== 'all') {
+            filter.priority = priority;
+        }
+        if (type && type !== 'all') {
+            filter.type = type;
+        }
+        if (assigned_to && assigned_to !== 'all') {
+            if (assigned_to === 'unassigned') {
+                filter.assigned_to = null;
+            } else {
+                filter.assigned_to = assigned_to;
+            }
+        }
+        if (search) {
+            filter.$or = [
+                { ticket_id: { $regex: search, $options: 'i' } },
+                { message: { $regex: search, $options: 'i' } },
+                { user_email: { $regex: search, $options: 'i' } }
+            ];
+        }
+
+        // Build sort
+        const sortField = sort_by || 'created_at';
+        const sortDirection = sort_order === 'asc' ? 1 : -1;
+        const sort = { [sortField]: sortDirection };
+
+        const tickets = await db.collection('support_tickets')
+            .find(filter)
+            .sort(sort)
+            .toArray();
+
+        // Get counts by status for summary
+        const statusCounts = await db.collection('support_tickets').aggregate([
+            { $group: { _id: '$status', count: { $sum: 1 } } }
+        ]).toArray();
+
+        const counts = {
+            open: 0,
+            in_progress: 0,
+            resolved: 0,
+            closed: 0,
+            total: tickets.length
+        };
+        statusCounts.forEach(s => {
+            if (counts.hasOwnProperty(s._id)) {
+                counts[s._id] = s.count;
+            }
+        });
+        counts.total = statusCounts.reduce((sum, s) => sum + s.count, 0);
+
+        res.json({ success: true, tickets, counts });
+    } catch (err) {
+        console.error('[SUPPORT] Error fetching tickets:', err);
+        res.status(500).json({ success: false, error: 'Failed to fetch tickets' });
+    }
+});
+
+// Get single support ticket (Admin only)
+app.get('/api/admin/support-tickets/:id', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        let ticket;
+        if (ObjectId.isValid(id)) {
+            ticket = await db.collection('support_tickets').findOne({ _id: new ObjectId(id) });
+        }
+        if (!ticket) {
+            ticket = await db.collection('support_tickets').findOne({ ticket_id: id });
+        }
+
+        if (!ticket) {
+            return res.status(404).json({ success: false, error: 'Ticket not found' });
+        }
+
+        res.json({ success: true, ticket });
+    } catch (err) {
+        console.error('[SUPPORT] Error fetching ticket:', err);
+        res.status(500).json({ success: false, error: 'Failed to fetch ticket' });
+    }
+});
+
+// Update support ticket (Admin only)
+app.put('/api/admin/support-tickets/:id', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status, priority, assigned_to } = req.body;
+
+        // Find ticket
+        let ticket;
+        let ticketFilter;
+        if (ObjectId.isValid(id)) {
+            ticketFilter = { _id: new ObjectId(id) };
+            ticket = await db.collection('support_tickets').findOne(ticketFilter);
+        }
+        if (!ticket) {
+            ticketFilter = { ticket_id: id };
+            ticket = await db.collection('support_tickets').findOne(ticketFilter);
+        }
+
+        if (!ticket) {
+            return res.status(404).json({ success: false, error: 'Ticket not found' });
+        }
+
+        // Build update
+        const update = {
+            updated_at: new Date()
+        };
+
+        const validStatuses = ['open', 'in_progress', 'resolved', 'closed'];
+        const validPriorities = ['low', 'medium', 'high', 'critical'];
+
+        if (status && validStatuses.includes(status)) {
+            update.status = status;
+        }
+        if (priority && validPriorities.includes(priority)) {
+            update.priority = priority;
+        }
+        if (assigned_to !== undefined) {
+            update.assigned_to = assigned_to || null;
+        }
+
+        await db.collection('support_tickets').updateOne(ticketFilter, { $set: update });
+
+        const updatedTicket = await db.collection('support_tickets').findOne(ticketFilter);
+        res.json({ success: true, ticket: updatedTicket });
+    } catch (err) {
+        console.error('[SUPPORT] Error updating ticket:', err);
+        res.status(500).json({ success: false, error: 'Failed to update ticket' });
+    }
+});
+
+// Add note to support ticket (Admin only)
+app.post('/api/admin/support-tickets/:id/notes', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { content, author } = req.body;
+
+        if (!content || !content.trim()) {
+            return res.status(400).json({ success: false, error: 'Note content is required' });
+        }
+
+        // Find ticket
+        let ticketFilter;
+        if (ObjectId.isValid(id)) {
+            const ticket = await db.collection('support_tickets').findOne({ _id: new ObjectId(id) });
+            if (ticket) {
+                ticketFilter = { _id: new ObjectId(id) };
+            }
+        }
+        if (!ticketFilter) {
+            const ticket = await db.collection('support_tickets').findOne({ ticket_id: id });
+            if (ticket) {
+                ticketFilter = { ticket_id: id };
+            }
+        }
+
+        if (!ticketFilter) {
+            return res.status(404).json({ success: false, error: 'Ticket not found' });
+        }
+
+        const note = {
+            id: new ObjectId().toString(),
+            content: content.trim(),
+            author: author || 'Admin',
+            created_at: new Date()
+        };
+
+        await db.collection('support_tickets').updateOne(
+            ticketFilter,
+            {
+                $push: { notes: note },
+                $set: { updated_at: new Date() }
+            }
+        );
+
+        const updatedTicket = await db.collection('support_tickets').findOne(ticketFilter);
+        res.json({ success: true, ticket: updatedTicket, note });
+    } catch (err) {
+        console.error('[SUPPORT] Error adding note:', err);
+        res.status(500).json({ success: false, error: 'Failed to add note' });
+    }
+});
+
+// Delete support ticket (Admin only)
+app.delete('/api/admin/support-tickets/:id', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        let result;
+        if (ObjectId.isValid(id)) {
+            result = await db.collection('support_tickets').deleteOne({ _id: new ObjectId(id) });
+        }
+        if (!result || result.deletedCount === 0) {
+            result = await db.collection('support_tickets').deleteOne({ ticket_id: id });
+        }
+
+        if (!result || result.deletedCount === 0) {
+            return res.status(404).json({ success: false, error: 'Ticket not found' });
+        }
+
+        res.json({ success: true, message: 'Ticket deleted' });
+    } catch (err) {
+        console.error('[SUPPORT] Error deleting ticket:', err);
+        res.status(500).json({ success: false, error: 'Failed to delete ticket' });
+    }
+});
+
+// Get support ticket statistics (Admin only)
+app.get('/api/admin/support-tickets/stats/summary', requireAuth, requireDB, async (req, res) => {
+    try {
+        const pipeline = [
+            {
+                $facet: {
+                    byStatus: [
+                        { $group: { _id: '$status', count: { $sum: 1 } } }
+                    ],
+                    byPriority: [
+                        { $group: { _id: '$priority', count: { $sum: 1 } } }
+                    ],
+                    byType: [
+                        { $group: { _id: '$type', count: { $sum: 1 } } }
+                    ],
+                    total: [
+                        { $count: 'count' }
+                    ]
+                }
+            }
+        ];
+
+        const [stats] = await db.collection('support_tickets').aggregate(pipeline).toArray();
+
+        const result = {
+            byStatus: {},
+            byPriority: {},
+            byType: {},
+            total: stats.total[0]?.count || 0
+        };
+
+        stats.byStatus.forEach(s => { result.byStatus[s._id] = s.count; });
+        stats.byPriority.forEach(p => { result.byPriority[p._id] = p.count; });
+        stats.byType.forEach(t => { result.byType[t._id] = t.count; });
+
+        res.json({ success: true, stats: result });
+    } catch (err) {
+        console.error('[SUPPORT] Error fetching stats:', err);
+        res.status(500).json({ success: false, error: 'Failed to fetch stats' });
     }
 });
 

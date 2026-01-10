@@ -248,18 +248,19 @@ function initSupportBubble() {
         <div class="support-modal-content" role="dialog" aria-modal="true" aria-labelledby="supportModalTitle">
             <button type="button" class="support-modal-close" aria-label="Close support form">×</button>
             <h3 id="supportModalTitle">Support / Suggestions</h3>
-            <p>Send a fault report or improvement idea to our support team.</p>
+            <p>Send a fault report, suggestion, or feature request to our team.</p>
             <form id="supportForm" class="support-form">
                 <label for="supportType">Type</label>
                 <select id="supportType" name="supportType" required>
                     <option value="fault">Fault / Issue</option>
                     <option value="suggestion">Suggestion</option>
+                    <option value="feature">Feature Request</option>
                 </select>
                 <label for="supportMessage">Message</label>
-                <textarea id="supportMessage" name="supportMessage" rows="4" placeholder="Describe the issue or suggestion..." required></textarea>
+                <textarea id="supportMessage" name="supportMessage" rows="4" placeholder="Describe the issue, suggestion, or feature request..." required></textarea>
                 <label for="supportEmail">Your Email (optional)</label>
                 <input type="email" id="supportEmail" name="supportEmail" placeholder="name@example.com">
-                <button type="submit" class="button button-primary">Send to Support</button>
+                <button type="submit" class="button button-primary">Submit Request</button>
                 <div class="support-form-status" id="supportFormStatus" role="status" aria-live="polite"></div>
             </form>
         </div>
