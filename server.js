@@ -3585,7 +3585,11 @@ app.post('/api/admin/check-in', requireAuth, requireDB, (req, res) => {
                     connects_correctly: item.connects_correctly !== undefined ? item.connects_correctly : null,
                     set_number: item.set_number || null,
                     issue_notes: item.issue_notes || null,
-                    issue_photos: item.issue_photos || []
+                    issue_photos: item.issue_photos || [],
+                    // Store generation/connector_type per item to allow overrides during edit
+                    generation: purchase.generation || null,
+                    connector_type: purchase.connector_type || null,
+                    anc_type: purchase.anc_type || null
                 })),
                 issues_detected: issues,
                 has_issues: issues.length > 0,
@@ -4135,29 +4139,35 @@ app.post('/api/admin/check-in/:id/split', requireAuth, requireDB, async (req, re
         console.log(`[SPLIT] Price calculation: Total=${purchase.purchase_price}, Valuable items=${valuableItemCount}, Price per item=${pricePerValuableItem}`);
         
         for (const item of itemsToSplit) {
-            const productName = `AirPods ${purchase.generation || 'Unknown'} - ${getItemDisplayName(item.item_type)}`;
-            
-            console.log(`[SPLIT] Creating product for: ${item.item_type}, generation: "${purchase.generation}"`);
-            
-            // Get part number from database
+            // Use item-level generation/connector_type if set (allows per-item overrides), otherwise fall back to purchase values
+            const itemGeneration = item.generation || purchase.generation || 'Unknown';
+            const itemConnectorType = item.connector_type || purchase.connector_type || null;
+            const itemAncType = item.anc_type || purchase.anc_type || null;
+
+            const productName = `AirPods ${itemGeneration} - ${getItemDisplayName(item.item_type)}`;
+
+            console.log(`[SPLIT] Creating product for: ${item.item_type}, generation: "${itemGeneration}" (item: "${item.generation}", purchase: "${purchase.generation}")`);
+            console.log(`[SPLIT] Connector type: "${itemConnectorType}" (item: "${item.connector_type}", purchase: "${purchase.connector_type}")`);
+
+            // Get part number from database using item-level values
             let partNumber = null;
             if (['case', 'left', 'right'].includes(item.item_type)) {
                 partNumber = await getPartNumber(
-                    purchase.generation, 
-                    item.item_type, 
-                    purchase.connector_type, 
-                    purchase.anc_type
+                    itemGeneration,
+                    item.item_type,
+                    itemConnectorType,
+                    itemAncType
                 );
                 console.log(`[SPLIT] Part number for ${item.item_type}: ${partNumber || 'NOT FOUND'}`);
             }
-            
+
             // Determine product type (more descriptive than item_type)
             const productType = getItemDisplayName(item.item_type);
-            
+
             // Determine status based on issues
             let status = 'in_stock';
             let notes = [];
-            
+
             // Check if this item has issues
             if (checkIn.issues_detected) {
                 const itemIssues = checkIn.issues_detected.find(i => i.item_type === item.item_type);
@@ -4169,15 +4179,15 @@ app.post('/api/admin/check-in/:id/split', requireAuth, requireDB, async (req, re
                     });
                 }
             }
-            
+
             // Determine purchase price - only valuable items (case, left, right) get a price
             // Accessories get 0
             const isValuableItem = ['case', 'left', 'right'].includes(item.item_type);
             const isAccessory = ['ear_tips', 'box', 'cable', 'other'].includes(item.item_type);
             const itemPrice = isValuableItem ? pricePerValuableItem : 0;
-            
+
             console.log(`[SPLIT] ${item.item_type} - Valuable: ${isValuableItem}, Accessory: ${isAccessory}, Price: ${itemPrice}`);
-            
+
             const product = {
                 serial_number: item.serial_number || null,
                 security_barcode: null,
@@ -4186,9 +4196,9 @@ app.post('/api/admin/check-in/:id/split', requireAuth, requireDB, async (req, re
                 part_model_number: partNumber,
                 product_type: productType,
                 part_type: item.item_type,
-                generation: purchase.generation || 'Unknown',
-                connector_type: purchase.connector_type || null,
-                anc_type: purchase.anc_type || null,
+                generation: itemGeneration,
+                connector_type: itemConnectorType,
+                anc_type: itemAncType,
                 ebay_order_number: purchase.order_number || null,
                 tracking_number: purchase.tracking_number || null,
                 visual_condition: item.condition,
@@ -4636,7 +4646,11 @@ app.put('/api/admin/check-in/:id', requireAuth, requireDB, (req, res) => {
                 connects_correctly: item.connects_correctly !== undefined ? item.connects_correctly : null,
                 issue_notes: item.issue_notes || null,
                 issue_photos: item.issue_photos || [],
-                set_number: item.set_number || null
+                set_number: item.set_number || null,
+                // Preserve generation/connector_type/anc_type per item (can be edited)
+                generation: item.generation || null,
+                connector_type: item.connector_type || null,
+                anc_type: item.anc_type || null
             })),
             issues_detected: issues,
             has_issues: issues.length > 0,
