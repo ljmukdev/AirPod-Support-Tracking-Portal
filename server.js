@@ -12476,9 +12476,21 @@ app.post('/api/admin/ebay-import/sessions/:id/sales', requireAuth, requireDB, as
                     });
                 }
 
-                // Skip if no order number or item title
+                // Skip if no order number AND no item title (need at least one identifier)
                 if (!orderNumber && !itemTitle) {
+                    if (errors.length < 5) {
+                        console.log(`[eBay Import] Row ${i+1} skipped - no order number and no item title`);
+                    }
                     errors.push({ row: i + 1, error: 'Missing order number and item title' });
+                    continue;
+                }
+
+                // Skip rows without an item title (probably not actual sales - refunds, fees, etc.)
+                if (!itemTitle) {
+                    if (errors.length < 5) {
+                        console.log(`[eBay Import] Row ${i+1} skipped - no item title (likely a refund/fee). Order: ${orderNumber}`);
+                    }
+                    errors.push({ row: i + 1, error: `Missing item title (order: ${orderNumber})` });
                     continue;
                 }
 
