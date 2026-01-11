@@ -242,7 +242,13 @@ function displaySales(sales) {
     allSalesData = sales || [];
 
     // Apply filters
-    const filtered = applyFilters(allSalesData);
+    let filtered;
+    try {
+        filtered = applyFilters(allSalesData);
+    } catch (err) {
+        console.error('Error applying filters:', err);
+        filtered = allSalesData;
+    }
 
     // Update count
     const countEl = document.getElementById('salesCount');
@@ -268,7 +274,8 @@ function displaySales(sales) {
     let tableRows = '';
     let mobileCardsHtml = '';
 
-    filtered.forEach(sale => {
+    filtered.forEach((sale, index) => {
+      try {
         const saleDate = new Date(sale.sale_date).toLocaleDateString();
         const saleDateShort = new Date(sale.sale_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
         const amountPaid = typeof sale.order_total === 'number'
@@ -333,7 +340,7 @@ function displaySales(sales) {
                 <td class="col-platform">${sale.platform || 'N/A'}</td>
                 <td class="col-order">
                     <div>${salesOrderLink}</div>
-                    ${sale.outward_tracking_number ? `<div style="font-size: 0.75rem; color: #666;">Track: ${sale.outward_tracking_number.substring(0, 10)}...</div>` : ''}
+                    ${sale.outward_tracking_number ? `<div style="font-size: 0.75rem; color: #666;">Track: ${String(sale.outward_tracking_number).substring(0, 10)}...</div>` : ''}
                 </td>
                 <td class="col-purchase-order">${purchaseOrderLink}</td>
                 <td class="col-money" style="font-weight: 600;">£${amountPaid.toFixed(2)}</td>
@@ -428,6 +435,9 @@ function displaySales(sales) {
                 </div>
             </div>
         `;
+      } catch (err) {
+        console.error(`Error rendering sale at index ${index}:`, err, sale);
+      }
     });
 
     tbody.innerHTML = tableRows;
