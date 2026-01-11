@@ -564,7 +564,11 @@ function displayCheckedInItems(checkIns) {
                     </div>
                     <div style="display: flex; gap: 10px; align-items: center;">
                         <button onclick="viewCheckInDetails('${checkInId}')" class="button button-secondary" style="padding: 6px 12px; font-size: 0.85rem;">View Details</button>
-                        <button onclick="deleteCheckIn('${checkInId}')" class="button" style="padding: 6px 12px; font-size: 0.85rem; background: #dc3545; border-color: #dc3545;">Delete</button>
+                        <button onclick="deleteCheckIn('${checkInId}')" title="Delete check-in" style="background: none; border: none; cursor: pointer; padding: 4px; color: #999; transition: color 0.2s;" onmouseover="this.style.color='#dc3545'" onmouseout="this.style.color='#999'">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                                <path d="M4 4L12 12M12 4L4 12"/>
+                            </svg>
+                        </button>
                         <div class="check-in-date">${checkedInDate}</div>
                     </div>
                 </div>
