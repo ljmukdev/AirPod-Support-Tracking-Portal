@@ -10383,7 +10383,7 @@ async function buildSalesLedger(db) {
                 product_id: product._id,
                 product_name: product.product_name || product.generation || 'Unknown Product',
                 product_serial: product.serial_number || 'N/A',
-                platform: 'Product Record',
+                platform: product.sale_platform || 'Product Record',
                 order_number: product.sales_order_number || null,
                 purchase_order_number: product.ebay_order_number || null,  // Add purchase order number
                 sale_price: salePrice,
@@ -10620,7 +10620,7 @@ app.get('/api/admin/sales/:id', requireAuth, requireDB, async (req, res) => {
                 product_id: product._id,
                 product_name: product.product_name || product.generation || 'Unknown Product',
                 product_serial: product.serial_number || 'N/A',
-                platform: 'Product Record',
+                platform: product.sale_platform || 'Product Record',
                 order_number: product.sales_order_number || null,
                 purchase_order_number: product.ebay_order_number || null,
                 sale_price: salePrice,
@@ -10684,6 +10684,7 @@ app.put('/api/admin/sales/:id', requireAuth, requireDB, async (req, res) => {
             }
 
             const {
+                platform,
                 order_number,
                 sale_price,
                 sale_date,
@@ -10702,6 +10703,7 @@ app.put('/api/admin/sales/:id', requireAuth, requireDB, async (req, res) => {
                 { _id: new ObjectId(productId) },
                 {
                     $set: {
+                        sale_platform: platform || product.sale_platform || 'Product Record',
                         sales_order_number: order_number || product.sales_order_number,
                         sale_date: sale_date ? new Date(sale_date) : product.sale_date,
                         sale_price: parseFloat(sale_price ?? product.sale_price) || 0,
