@@ -3827,18 +3827,29 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                 { feedback_left: null }
             ]
         }).toArray();
-        
+
         for (const purchase of purchasesNeedingFeedback) {
-            // Check if there's a check-in with unresolved issues for this purchase
-            const checkInWithUnresolvedIssues = await db.collection('check_ins').findOne({
+            // Check if there's a check-in with issues for this purchase
+            const checkInWithIssues = await db.collection('check_ins').findOne({
                 purchase_id: purchase._id.toString(),
-                has_issues: true,
-                'resolution_workflow.resolved_at': { $exists: false }
+                has_issues: true
             });
 
-            // Skip feedback task if there are unresolved issues
-            if (checkInWithUnresolvedIssues) {
-                continue;
+            // If there are issues, check if they're fully resolved
+            if (checkInWithIssues) {
+                const hasResolvedAt = checkInWithIssues.resolution_workflow?.resolved_at;
+                const isReturnResolution = checkInWithIssues.resolution_workflow?.resolution_type === 'return' ||
+                                           checkInWithIssues.resolution_workflow?.return_tracking;
+
+                // Skip if not resolved yet
+                if (!hasResolvedAt) {
+                    continue;
+                }
+
+                // Skip if it's a return resolution and refund not verified
+                if (isReturnResolution && (!purchase.return_tracking || !purchase.return_tracking.refund_verified)) {
+                    continue;
+                }
             }
 
             // Skip feedback task if there's a pending refund (item was returned)
@@ -3846,10 +3857,58 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                 continue;
             }
 
-            // Calculate days since checked in
-            const daysSinceCheckIn = purchase.checked_in_date ? (now - new Date(purchase.checked_in_date)) / (1000 * 60 * 60 * 24) : 0;
-            const isOverdue = daysSinceCheckIn > 3; // Overdue after 3 days
-            const dueSoon = daysSinceCheckIn > 1 && daysSinceCheckIn <= 3; // Due soon if 1-3 days
+            // For purchases split into products, only show feedback when ALL products are complete
+            const checkIn = checkInWithIssues || await db.collection('check_ins').findOne({
+                purchase_id: purchase._id.toString()
+            });
+
+            if (checkIn?.split_into_products) {
+                // Find all products created from this check-in
+                const products = await db.collection('products').find({
+                    check_in_id: checkIn._id
+                }).toArray();
+
+                if (products.length > 0) {
+                    // Check if ALL products have photos and security barcode
+                    const allProductsComplete = products.every(product => {
+                        const hasPhotos = product.photos && product.photos.length > 0;
+                        const hasSecurityBarcode = product.security_barcode && product.security_barcode.trim() !== '';
+                        return hasPhotos && hasSecurityBarcode;
+                    });
+
+                    // Skip feedback task if not all products are complete
+                    if (!allProductsComplete) {
+                        continue;
+                    }
+                }
+            }
+
+            // Calculate due date based on when products were completed (if split) or check-in date
+            let feedbackDueDate = purchase.checked_in_date ? new Date(purchase.checked_in_date) : new Date();
+
+            // For split purchases, use the latest product update time as the base
+            if (checkIn?.split_into_products) {
+                const products = await db.collection('products').find({
+                    check_in_id: checkIn._id
+                }).toArray();
+
+                if (products.length > 0) {
+                    const latestUpdate = products.reduce((latest, product) => {
+                        const updateTime = product.updated_at ? new Date(product.updated_at) : new Date(0);
+                        return updateTime > latest ? updateTime : latest;
+                    }, new Date(0));
+
+                    if (latestUpdate > new Date(0)) {
+                        feedbackDueDate = latestUpdate;
+                    }
+                }
+            }
+
+            // Due 3 days after check-in or last product update
+            const dueDateWithBuffer = new Date(feedbackDueDate.getTime() + (3 * 24 * 60 * 60 * 1000));
+            const daysSinceReady = (now - feedbackDueDate) / (1000 * 60 * 60 * 24);
+            const isOverdue = daysSinceReady > 3;
+            const dueSoon = daysSinceReady > 1 && daysSinceReady <= 3;
 
             tasks.push({
                 id: `feedback-${purchase._id.toString()}`,
@@ -3857,7 +3916,7 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                 type: 'leave_feedback',
                 title: 'Leave feedback for seller',
                 description: `${purchase.generation || 'AirPods'}`,
-                due_date: purchase.checked_in_date ? new Date(new Date(purchase.checked_in_date).getTime() + (3 * 24 * 60 * 60 * 1000)) : new Date(),
+                due_date: dueDateWithBuffer,
                 is_overdue: isOverdue,
                 due_soon: dueSoon,
                 seller: purchase.seller_name,
