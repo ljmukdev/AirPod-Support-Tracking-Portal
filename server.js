@@ -3829,19 +3829,22 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
         }).toArray();
 
         for (const purchase of purchasesNeedingFeedback) {
-            // Check if there's a check-in with issues for this purchase
+            // Check if there's a check-in with issues or ongoing seller communication for this purchase
             const checkInWithIssues = await db.collection('check_ins').findOne({
                 purchase_id: purchase._id.toString(),
-                has_issues: true
+                $or: [
+                    { has_issues: true },
+                    { email_sent_at: { $exists: true } }  // Email sent means there's an issue being worked on
+                ]
             });
 
-            // If there are issues, check if they're fully resolved
+            // If there are issues or seller was contacted, check if fully resolved
             if (checkInWithIssues) {
                 const hasResolvedAt = checkInWithIssues.resolution_workflow?.resolved_at;
                 const isReturnResolution = checkInWithIssues.resolution_workflow?.resolution_type === 'return' ||
                                            checkInWithIssues.resolution_workflow?.return_tracking;
 
-                // Skip if not resolved yet
+                // Skip if not resolved yet (email was sent but no resolution)
                 if (!hasResolvedAt) {
                     continue;
                 }
