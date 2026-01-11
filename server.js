@@ -12189,16 +12189,18 @@ app.post('/api/admin/ebay-import/sessions/:id/purchases', requireAuth, requireDB
             console.log('[eBay Import] Purchases columns detected:', Object.keys(csv_data[0]));
         }
 
-        // Default column mapping - extensive list for eBay UK/US exports
+        // Default column mapping - matches eBay UK purchase export format exactly
         const mapping = column_mapping || {
-            order_number: ['Order number', 'Order ID', 'OrderNumber', 'order_number', 'Item number', 'Transaction ID', 'eBay item number', 'Purchase order number'],
-            item_title: ['Item title', 'Title', 'Item', 'item_title', 'Item name', 'Product', 'Description', 'Product name'],
-            purchase_date: ['Purchase date', 'Date', 'Order date', 'purchase_date', 'Transaction date', 'Date purchased', 'Payment date', 'Paid on date'],
-            purchase_price: ['Item total', 'Total', 'Price', 'purchase_price', 'Item price', 'Item subtotal', 'Total price', 'Amount', 'Order total', 'Unit price'],
+            order_number: ['OrderNumber', 'Order number', 'Order ID', 'order_number', 'ItemID', 'Item number', 'Transaction ID', 'eBay item number'],
+            item_title: ['ItemName', 'Item title', 'Title', 'Item', 'item_title', 'Item name', 'Product', 'Description'],
+            purchase_date: ['OrderDate', 'Purchase date', 'Date', 'Order date', 'purchase_date', 'Transaction date', 'Date purchased', 'Payment date'],
+            purchase_price: ['OrderTotal', 'ItemPrice', 'Item total', 'Total', 'Price', 'purchase_price', 'Item price', 'Item subtotal', 'Total price', 'Amount'],
             postage_cost: ['Postage', 'Shipping', 'P&P', 'Delivery', 'postage_cost', 'Shipping and handling', 'Postage and packaging', 'Shipping cost'],
             seller_name: ['Seller', 'Seller name', 'seller_name', 'Seller ID', 'Seller user ID', 'Sold by', 'Merchant'],
             quantity: ['Quantity', 'Qty', 'quantity', 'Items', 'Units', 'Quantity purchased'],
-            payment_status: ['Payment status', 'Status', 'payment_status', 'Order status', 'State']
+            payment_status: ['Payment status', 'Status', 'payment_status', 'Order status', 'State'],
+            tracking_number: ['TrackingNumber', 'Tracking number', 'Tracking', 'tracking_number'],
+            notes: ['OrderNotes', 'Notes', 'Order notes', 'Comments']
         };
 
         // Helper to find value with case-insensitive matching
