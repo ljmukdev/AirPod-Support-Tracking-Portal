@@ -1,0 +1,1826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>eBay Data Import | LJM AirPod Support</title>
+    <link rel="stylesheet" href="../css/styles.css?v=1.2.7">
+    <link rel="stylesheet" href="../css/ios-mobile-optimizations.css">
+    <style>
+        .import-workflow {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .workflow-step {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .workflow-step h3 {
+            margin: 0 0 16px 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .step-number {
+            width: 32px;
+            height: 32px;
+            background: var(--accent-teal);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .step-number.completed {
+            background: #22c55e;
+        }
+
+        .file-upload-area {
+            border: 2px dashed #ddd;
+            border-radius: 8px;
+            padding: 32px;
+            text-align: center;
+            background: #f9fafb;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .file-upload-area:hover {
+            border-color: var(--accent-teal);
+            background: #f0fdfa;
+        }
+
+        .file-upload-area.dragover {
+            border-color: var(--accent-teal);
+            background: #ccfbf1;
+        }
+
+        .file-upload-area input[type="file"] {
+            display: none;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .stat-card {
+            background: #f3f4f6;
+            padding: 16px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-card .value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-dark);
+        }
+
+        .stat-card .label {
+            font-size: 0.85rem;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        .stat-card.highlight {
+            background: #dcfce7;
+        }
+
+        .stat-card.warning {
+            background: #fef3c7;
+        }
+
+        .data-table-container {
+            overflow-x: auto;
+            margin-top: 16px;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .data-table th {
+            background: #f9fafb;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .data-table tr:hover {
+            background: #f3f4f6;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .status-pending { background: #fef3c7; color: #92400e; }
+        .status-matched { background: #dbeafe; color: #1e40af; }
+        .status-validated { background: #d1fae5; color: #065f46; }
+        .status-imported { background: #dcfce7; color: #166534; }
+        .status-skipped { background: #f3f4f6; color: #6b7280; }
+
+        .needs-review {
+            background: #fef2f2;
+            border-left: 3px solid #ef4444;
+        }
+
+        .match-confidence {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .match-high { background: #dcfce7; color: #166534; }
+        .match-medium { background: #fef3c7; color: #92400e; }
+        .match-low { background: #fef2f2; color: #991b1b; }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 16px;
+        }
+
+        .btn-sm {
+            padding: 8px 16px;
+            font-size: 0.85rem;
+        }
+
+        .session-card {
+            background: white;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: box-shadow 0.2s;
+        }
+
+        .session-card:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .session-card.active {
+            border: 2px solid var(--accent-teal);
+        }
+
+        .session-info h4 {
+            margin: 0 0 4px 0;
+        }
+
+        .session-info .meta {
+            font-size: 0.85rem;
+            color: #6b7280;
+        }
+
+        .session-counts {
+            display: flex;
+            gap: 12px;
+            font-size: 0.85rem;
+        }
+
+        .session-counts span {
+            padding: 4px 8px;
+            background: #f3f4f6;
+            border-radius: 4px;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #e5e7eb;
+            margin-bottom: 16px;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 0.95rem;
+            color: #6b7280;
+            position: relative;
+        }
+
+        .tab.active {
+            color: var(--accent-teal);
+            font-weight: 600;
+        }
+
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--accent-teal);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .inline-edit {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+
+        .inline-edit:focus {
+            border-color: var(--accent-teal);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(20, 184, 166, 0.2);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #6b7280;
+        }
+
+        .validation-issues {
+            margin-top: 8px;
+        }
+
+        .validation-issue {
+            font-size: 0.8rem;
+            color: #dc2626;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 16px 0;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: var(--accent-teal);
+            transition: width 0.3s;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 48px 24px;
+            color: #6b7280;
+        }
+
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .help-text {
+            font-size: 0.85rem;
+            color: #6b7280;
+            margin-top: 8px;
+        }
+
+        .checkbox-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .checkbox-option input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+        }
+
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .session-card {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+
+            .data-table {
+                font-size: 0.8rem;
+            }
+
+            .data-table th,
+            .data-table td {
+                padding: 8px;
+            }
+        }
+    </style>
+</head>
+<body class="admin-panel">
+    <!-- Sidebar Navigation (same as other admin pages) -->
+    <aside class="admin-sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <div class="logo-circle">
+                    <span class="logo-text">LJM</span>
+                </div>
+                <div>
+                    <div class="sidebar-logo-text">LJM Admin</div>
+                    <div class="sidebar-subtitle">eBay Import</div>
+                </div>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-section">
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="dashboard.html" class="nav-link" data-page="dashboard">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 10L9 4L9 10L17 10M3 10L3 16M3 10L17 10M17 10L17 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+
+                    <li class="nav-item has-submenu">
+                        <a href="#" class="nav-link" data-page="inventory" onclick="event.preventDefault(); toggleSubmenu(this.parentElement);">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 5L10 2L17 5M3 5L3 15L10 18M3 5L10 8M17 5L17 15L10 18M17 5L10 8M10 8L10 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Inventory</span>
+                        </a>
+                        <ul class="nav-submenu">
+                            <li class="nav-item">
+                                <a href="products.html" class="nav-link" data-page="products">
+                                    <span>Products</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="purchases.html" class="nav-link" data-page="purchases">
+                                    <span>Purchases</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="check-in.html" class="nav-link" data-page="check-in">
+                                    <span>Check-In</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+
+                    <li class="nav-item has-submenu">
+                        <a href="#" class="nav-link" data-page="sales-category" onclick="event.preventDefault(); toggleSubmenu(this.parentElement);">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 2L5 9L2 12L5 15L8 12L15 5M14 7L17 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <circle cx="14.5" cy="5.5" r="1.5" fill="currentColor"/>
+                            </svg>
+                            <span>Sales</span>
+                        </a>
+                        <ul class="nav-submenu">
+                            <li class="nav-item">
+                                <a href="sales.html" class="nav-link" data-page="sales">
+                                    <span>Sales Orders</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+
+                    <li class="nav-item">
+                        <a href="ebay-import.html" class="nav-link active" data-page="ebay-import">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M4 16L4 4M4 4L8 8M4 4L0 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" transform="rotate(90 10 10)"/>
+                                <path d="M8 12H16M8 8H14M8 16H12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                            <span>eBay Import</span>
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a href="analytics.html" class="nav-link" data-page="analytics">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 16L3 12M7 16L7 8M11 16L11 10M15 16L15 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Analytics</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <div class="sidebar-footer">
+            <button class="sidebar-footer-link sidebar-logout" id="logoutButton">
+                <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M13 15L17 10L13 5M17 10H7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M7 3H4C3.44772 3 3 3.44772 3 4V16C3 16.5523 3.44772 17 4 17H7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>Logout</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <div class="admin-main">
+        <header class="admin-topbar">
+            <div class="topbar-left">
+                <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 5H17M3 10H17M3 15H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                </button>
+                <h1 style="margin: 0; font-size: 1.2rem;">eBay Data Import</h1>
+            </div>
+            <div class="topbar-right">
+                <button class="btn btn-primary" onclick="showCreateSessionModal()">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M8 3V13M3 8H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                    New Import Session
+                </button>
+            </div>
+        </header>
+
+        <main class="admin-content" style="padding: 24px;">
+            <!-- Sessions List -->
+            <div id="sessionsView">
+                <div class="workflow-step">
+                    <h3>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M19 3H5C3.89543 3 3 3.89543 3 5V19C3 20.1046 3.89543 21 5 21H19C20.1046 21 21 20.1046 21 19V5C21 3.89543 20.1046 3 19 3Z" stroke="currentColor" stroke-width="2"/>
+                            <path d="M9 7H7V9H9V7Z" fill="currentColor"/>
+                            <path d="M9 11H7V13H9V11Z" fill="currentColor"/>
+                            <path d="M9 15H7V17H9V15Z" fill="currentColor"/>
+                            <path d="M17 7H11V9H17V7Z" fill="currentColor"/>
+                            <path d="M17 11H11V13H17V11Z" fill="currentColor"/>
+                            <path d="M17 15H11V17H17V15Z" fill="currentColor"/>
+                        </svg>
+                        Import Sessions
+                    </h3>
+                    <p class="help-text">Create an import session to organize your eBay data imports. Each session can contain purchases and sales data for matching and importing.</p>
+
+                    <div id="sessionsList">
+                        <div class="empty-state">
+                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 6V12L16 14M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <p>No import sessions yet</p>
+                            <button class="btn btn-primary" onclick="showCreateSessionModal()">Create Your First Session</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Session Detail View (hidden by default) -->
+            <div id="sessionDetailView" style="display: none;">
+                <div style="margin-bottom: 16px;">
+                    <button class="btn btn-secondary" onclick="showSessionsList()">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                            <path d="M10 12L6 8L10 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Back to Sessions
+                    </button>
+                </div>
+
+                <div class="workflow-step" id="sessionHeader">
+                    <h3 id="sessionTitle">Session Name</h3>
+                    <p id="sessionDescription" class="help-text"></p>
+
+                    <div class="stats-grid" id="sessionStats">
+                        <!-- Stats populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Upload Section -->
+                <div class="workflow-step">
+                    <h3>
+                        <span class="step-number">1</span>
+                        Upload eBay Data
+                    </h3>
+                    <p class="help-text">Upload your eBay data as CSV or Excel files. Excel files can contain multiple sheets (e.g., 2024 & 2025 data).</p>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-top: 16px;">
+                        <div>
+                            <h4 style="margin: 0 0 8px 0;">Purchases (What you bought)</h4>
+                            <div class="file-upload-area" id="purchasesUploadArea" onclick="document.getElementById('purchasesFileInput').click()">
+                                <input type="file" id="purchasesFileInput" accept=".csv,.txt,.xlsx,.xls" onchange="handleFileUpload(event, 'purchases')">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" style="margin-bottom: 8px; color: #6b7280;">
+                                    <path d="M21 15V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V15M17 8L12 3M12 3L7 8M12 3V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <p style="margin: 0; color: #6b7280;">Click or drag file here</p>
+                                <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #9ca3af;">CSV or Excel (.xlsx) - Purchases / Order History</p>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 style="margin: 0 0 8px 0;">Sales (What you sold)</h4>
+                            <div class="file-upload-area" id="salesUploadArea" onclick="document.getElementById('salesFileInput').click()">
+                                <input type="file" id="salesFileInput" accept=".csv,.txt,.xlsx,.xls" onchange="handleFileUpload(event, 'sales')">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" style="margin-bottom: 8px; color: #6b7280;">
+                                    <path d="M21 15V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V15M17 8L12 3M12 3L7 8M12 3V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <p style="margin: 0; color: #6b7280;">Click or drag file here</p>
+                                <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #9ca3af;">CSV or Excel (.xlsx) - Sold Items / Sales History</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Combined Excel Upload -->
+                    <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #e5e7eb;">
+                        <h4 style="margin: 0 0 8px 0;">Or upload a combined Excel file with both Purchases & Sales</h4>
+                        <div class="file-upload-area" id="combinedUploadArea" onclick="document.getElementById('combinedFileInput').click()">
+                            <input type="file" id="combinedFileInput" accept=".xlsx,.xls" onchange="handleCombinedExcelUpload(event)">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" style="margin-bottom: 8px; color: #16a34a;">
+                                <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M8 13H16M8 17H16M8 9H10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <p style="margin: 0; color: #6b7280;">Upload Excel with multiple sheets (e.g., "2024" & "2025")</p>
+                            <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #9ca3af;">You'll be able to select which sheets contain purchases vs sales</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Review & Edit Section -->
+                <div class="workflow-step">
+                    <h3>
+                        <span class="step-number">2</span>
+                        Review & Cleanse Data
+                    </h3>
+
+                    <div class="tabs">
+                        <button class="tab active" onclick="switchTab('purchases')">Purchases <span id="purchasesCount">(0)</span></button>
+                        <button class="tab" onclick="switchTab('sales')">Sales <span id="salesCount">(0)</span></button>
+                        <button class="tab" onclick="switchTab('matches')">Matches <span id="matchesCount">(0)</span></button>
+                    </div>
+
+                    <div id="purchasesTab" class="tab-content active">
+                        <div class="data-table-container">
+                            <table class="data-table" id="purchasesTable">
+                                <thead>
+                                    <tr>
+                                        <th>Order #</th>
+                                        <th>Date</th>
+                                        <th>Item</th>
+                                        <th>Generation</th>
+                                        <th>Parts</th>
+                                        <th>Price</th>
+                                        <th>Seller</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="purchasesTableBody">
+                                    <tr><td colspan="9" style="text-align: center; padding: 24px; color: #6b7280;">No purchases uploaded yet</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div id="salesTab" class="tab-content">
+                        <div class="data-table-container">
+                            <table class="data-table" id="salesTable">
+                                <thead>
+                                    <tr>
+                                        <th>Order #</th>
+                                        <th>Date</th>
+                                        <th>Item</th>
+                                        <th>Generation</th>
+                                        <th>Price</th>
+                                        <th>Buyer</th>
+                                        <th>Matched To</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="salesTableBody">
+                                    <tr><td colspan="9" style="text-align: center; padding: 24px; color: #6b7280;">No sales uploaded yet</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div id="matchesTab" class="tab-content">
+                        <div class="action-buttons" style="margin-bottom: 16px;">
+                            <button class="btn btn-primary" onclick="runAutoMatch()">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                    <path d="M14 8C14 11.3137 11.3137 14 8 14M2 8C2 4.68629 4.68629 2 8 2M8 2L6 4M8 2L10 4M8 14L6 12M8 14L10 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                Auto-Match Purchases to Sales
+                            </button>
+                        </div>
+                        <div class="data-table-container">
+                            <table class="data-table" id="matchesTable">
+                                <thead>
+                                    <tr>
+                                        <th>Purchase</th>
+                                        <th>Sale</th>
+                                        <th>Confidence</th>
+                                        <th>Est. Profit</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="matchesTableBody">
+                                    <tr><td colspan="5" style="text-align: center; padding: 24px; color: #6b7280;">No matches yet. Upload data and click "Auto-Match" to find matches.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Import Section -->
+                <div class="workflow-step">
+                    <h3>
+                        <span class="step-number">3</span>
+                        Import to Main System
+                    </h3>
+                    <p class="help-text">Once you've reviewed and matched your data, import it into the main tracking system. Matched purchases and sales will create linked records.</p>
+
+                    <div class="checkbox-option">
+                        <input type="checkbox" id="importUnmatchedPurchases">
+                        <label for="importUnmatchedPurchases">Also import unmatched purchases (creates purchase records without sales)</label>
+                    </div>
+                    <div class="checkbox-option">
+                        <input type="checkbox" id="importUnmatchedSales">
+                        <label for="importUnmatchedSales">Also import unmatched sales (creates placeholder products for sales without purchase records)</label>
+                    </div>
+
+                    <div class="action-buttons" style="margin-top: 16px;">
+                        <button class="btn btn-primary btn-lg" onclick="importToMainSystem()">
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                <path d="M10 3V13M10 13L6 9M10 13L14 9M3 17H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            Import to Main System
+                        </button>
+                        <button class="btn btn-secondary" onclick="deleteSession()">Delete Session</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Create Session Modal -->
+    <div class="modal" id="createSessionModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Create Import Session</h3>
+                <button class="modal-close" onclick="closeModal('createSessionModal')">&times;</button>
+            </div>
+            <form onsubmit="createSession(event)">
+                <div class="form-group">
+                    <label for="sessionName">Session Name</label>
+                    <input type="text" id="sessionName" class="form-control" placeholder="e.g., Tax Year 2024-25" required>
+                </div>
+                <div class="form-group">
+                    <label for="sessionTaxYear">Tax Year</label>
+                    <select id="sessionTaxYear" class="form-control">
+                        <option value="2025">2025</option>
+                        <option value="2024">2024</option>
+                        <option value="2023">2023</option>
+                        <option value="2022">2022</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="sessionDesc">Description (optional)</label>
+                    <textarea id="sessionDesc" class="form-control" rows="3" placeholder="Notes about this import session..."></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('createSessionModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Session</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Record Modal -->
+    <div class="modal" id="editRecordModal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h3 id="editModalTitle">Edit Record</h3>
+                <button class="modal-close" onclick="closeModal('editRecordModal')">&times;</button>
+            </div>
+            <form id="editRecordForm" onsubmit="saveRecordEdit(event)">
+                <input type="hidden" id="editRecordId">
+                <input type="hidden" id="editRecordType">
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="form-group">
+                        <label>Order Number</label>
+                        <input type="text" id="editOrderNumber" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Date</label>
+                        <input type="date" id="editDate" class="form-control">
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label>Item Title</label>
+                        <input type="text" id="editItemTitle" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Generation</label>
+                        <select id="editGeneration" class="form-control">
+                            <option value="">-- Select --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Price</label>
+                        <input type="number" step="0.01" id="editPrice" class="form-control">
+                    </div>
+                    <div class="form-group" id="editSellerGroup">
+                        <label>Seller</label>
+                        <input type="text" id="editSeller" class="form-control">
+                    </div>
+                    <div class="form-group" id="editBuyerGroup" style="display: none;">
+                        <label>Buyer</label>
+                        <input type="text" id="editBuyer" class="form-control">
+                    </div>
+                </div>
+
+                <div id="editValidationIssues" class="validation-issues"></div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('editRecordModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Manual Match Modal -->
+    <div class="modal" id="manualMatchModal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3>Create Manual Match</h3>
+                <button class="modal-close" onclick="closeModal('manualMatchModal')">&times;</button>
+            </div>
+            <p class="help-text">Select a purchase and a sale to create a manual match.</p>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                <div>
+                    <h4>Select Purchase</h4>
+                    <div id="unmatchedPurchasesList" style="max-height: 300px; overflow-y: auto;">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+                <div>
+                    <h4>Select Sale</h4>
+                    <div id="unmatchedSalesList" style="max-height: 300px; overflow-y: auto;">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('manualMatchModal')">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="createManualMatch()">Create Match</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Excel Sheet Selector Modal -->
+    <div class="modal" id="sheetSelectorModal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h3>Select Sheets to Import</h3>
+                <button class="modal-close" onclick="closeModal('sheetSelectorModal')">&times;</button>
+            </div>
+            <p class="help-text">Your Excel file contains multiple sheets. Select which sheets to import and specify whether each contains purchases or sales data.</p>
+
+            <div id="sheetsList" style="margin: 16px 0;">
+                <!-- Populated by JS -->
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('sheetSelectorModal')">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="importSelectedSheets()">Import Selected Sheets</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SheetJS library for Excel parsing -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+
+    <script src="../js/sidebar.js"></script>
+    <script src="../js/auth.js"></script>
+    <script>
+        // Global state
+        let currentSessionId = null;
+        let sessionData = {
+            purchases: [],
+            sales: [],
+            matches: []
+        };
+        let availableGenerations = [];
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadSessions();
+            await loadGenerations();
+            setupDragDrop();
+        });
+
+        // Load sessions list
+        async function loadSessions() {
+            try {
+                const token = localStorage.getItem('accessToken');
+                const response = await fetch('/api/admin/ebay-import/sessions', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+
+                if (data.success && data.sessions.length > 0) {
+                    renderSessionsList(data.sessions);
+                } else {
+                    document.getElementById('sessionsList').innerHTML = `
+                        <div class="empty-state">
+                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 6V12L16 14M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <p>No import sessions yet</p>
+                            <button class="btn btn-primary" onclick="showCreateSessionModal()">Create Your First Session</button>
+                        </div>
+                    `;
+                }
+            } catch (err) {
+                console.error('Error loading sessions:', err);
+            }
+        }
+
+        function renderSessionsList(sessions) {
+            const container = document.getElementById('sessionsList');
+            container.innerHTML = sessions.map(session => `
+                <div class="session-card" onclick="openSession('${session._id}')">
+                    <div class="session-info">
+                        <h4>${escapeHtml(session.name)}</h4>
+                        <div class="meta">
+                            Tax Year: ${session.tax_year} |
+                            Created: ${new Date(session.created_at).toLocaleDateString()} |
+                            Status: <span class="status-badge status-${session.status}">${session.status}</span>
+                        </div>
+                    </div>
+                    <div class="session-counts">
+                        <span>${session.purchase_count || 0} Purchases</span>
+                        <span>${session.sale_count || 0} Sales</span>
+                        <span>${session.match_count || 0} Matches</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Load available generations
+        async function loadGenerations() {
+            try {
+                const token = localStorage.getItem('accessToken');
+                const response = await fetch('/api/admin/ebay-import/generations', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    availableGenerations = data.generations;
+                    const select = document.getElementById('editGeneration');
+                    select.innerHTML = '<option value="">-- Select --</option>' +
+                        data.generations.map(g => `<option value="${g}">${g}</option>`).join('');
+                }
+            } catch (err) {
+                console.error('Error loading generations:', err);
+            }
+        }
+
+        // Show create session modal
+        function showCreateSessionModal() {
+            document.getElementById('createSessionModal').classList.add('active');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        // Create session
+        async function createSession(event) {
+            event.preventDefault();
+
+            const name = document.getElementById('sessionName').value;
+            const taxYear = document.getElementById('sessionTaxYear').value;
+            const description = document.getElementById('sessionDesc').value;
+
+            try {
+                const token = localStorage.getItem('accessToken');
+                const response = await fetch('/api/admin/ebay-import/sessions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ name, tax_year: parseInt(taxYear), description })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    closeModal('createSessionModal');
+                    openSession(data.session_id);
+                    await loadSessions();
+                } else {
+                    alert('Error creating session: ' + data.error);
+                }
+            } catch (err) {
+                console.error('Error:', err);
+                alert('Error creating session');
+            }
+        }
+
+        // Open session
+        async function openSession(sessionId) {
+            currentSessionId = sessionId;
+
+            try {
+                const token = localStorage.getItem('accessToken');
+                const response = await fetch(`/api/admin/ebay-import/sessions/${sessionId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    sessionData.purchases = data.purchases;
+                    sessionData.sales = data.sales;
+                    sessionData.matches = data.matches;
+
+                    document.getElementById('sessionTitle').textContent = data.session.name;
+                    document.getElementById('sessionDescription').textContent = data.session.description || `Tax Year: ${data.session.tax_year}`;
+
+                    updateStats();
+                    renderPurchasesTable();
+                    renderSalesTable();
+                    renderMatchesTable();
+
+                    document.getElementById('sessionsView').style.display = 'none';
+                    document.getElementById('sessionDetailView').style.display = 'block';
+                }
+            } catch (err) {
+                console.error('Error opening session:', err);
+            }
+        }
+
+        function showSessionsList() {
+            currentSessionId = null;
+            document.getElementById('sessionsView').style.display = 'block';
+            document.getElementById('sessionDetailView').style.display = 'none';
+            loadSessions();
+        }
+
+        // Update stats
+        async function updateStats() {
+            try {
+                const token = localStorage.getItem('accessToken');
+                const response = await fetch(`/api/admin/ebay-import/sessions/${currentSessionId}/stats`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    const stats = data.stats;
+                    document.getElementById('sessionStats').innerHTML = `
+                        <div class="stat-card">
+                            <div class="value">${sessionData.purchases.length}</div>
+                            <div class="label">Purchases</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="value">${sessionData.sales.length}</div>
+                            <div class="label">Sales</div>
+                        </div>
+                        <div class="stat-card ${stats.matches > 0 ? 'highlight' : ''}">
+                            <div class="value">${stats.matches}</div>
+                            <div class="label">Matched</div>
+                        </div>
+                        <div class="stat-card ${stats.purchases.needs_review > 0 ? 'warning' : ''}">
+                            <div class="value">${stats.purchases.needs_review + stats.sales.needs_review}</div>
+                            <div class="label">Need Review</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="value">£${stats.purchases.total_value.toFixed(2)}</div>
+                            <div class="label">Total Purchased</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="value">£${stats.sales.total_value.toFixed(2)}</div>
+                            <div class="label">Total Sold</div>
+                        </div>
+                        <div class="stat-card highlight">
+                            <div class="value">£${stats.estimated_profit.toFixed(2)}</div>
+                            <div class="label">Est. Profit</div>
+                        </div>
+                    `;
+
+                    document.getElementById('purchasesCount').textContent = `(${sessionData.purchases.length})`;
+                    document.getElementById('salesCount').textContent = `(${sessionData.sales.length})`;
+                    document.getElementById('matchesCount').textContent = `(${stats.matches})`;
+                }
+            } catch (err) {
+                console.error('Error updating stats:', err);
+            }
+        }
+
+        // Setup drag and drop
+        function setupDragDrop() {
+            // Purchases and Sales areas
+            ['purchasesUploadArea', 'salesUploadArea'].forEach(id => {
+                const area = document.getElementById(id);
+                if (!area) return;
+
+                area.addEventListener('dragover', e => {
+                    e.preventDefault();
+                    area.classList.add('dragover');
+                });
+
+                area.addEventListener('dragleave', () => {
+                    area.classList.remove('dragover');
+                });
+
+                area.addEventListener('drop', e => {
+                    e.preventDefault();
+                    area.classList.remove('dragover');
+                    const file = e.dataTransfer.files[0];
+                    if (file) {
+                        const type = id === 'purchasesUploadArea' ? 'purchases' : 'sales';
+                        const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
+                        if (isExcel) {
+                            parseExcelFile(file, type);
+                        } else {
+                            parseAndUploadCSV(file, type);
+                        }
+                    }
+                });
+            });
+
+            // Combined upload area
+            const combinedArea = document.getElementById('combinedUploadArea');
+            if (combinedArea) {
+                combinedArea.addEventListener('dragover', e => {
+                    e.preventDefault();
+                    combinedArea.classList.add('dragover');
+                });
+
+                combinedArea.addEventListener('dragleave', () => {
+                    combinedArea.classList.remove('dragover');
+                });
+
+                combinedArea.addEventListener('drop', e => {
+                    e.preventDefault();
+                    combinedArea.classList.remove('dragover');
+                    const file = e.dataTransfer.files[0];
+                    if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
+                        // Trigger the combined upload handler
+                        const reader = new FileReader();
+                        reader.onload = (ev) => {
+                            try {
+                                const data = new Uint8Array(ev.target.result);
+                                const workbook = XLSX.read(data, { type: 'array' });
+                                pendingWorkbook = workbook;
+                                pendingSheets = workbook.SheetNames;
+                                renderSheetSelector(workbook.SheetNames);
+                                document.getElementById('sheetSelectorModal').classList.add('active');
+                            } catch (err) {
+                                console.error('Error reading Excel file:', err);
+                                alert('Error reading Excel file: ' + err.message);
+                            }
+                        };
+                        reader.readAsArrayBuffer(file);
+                    } else {
+                        alert('Please upload an Excel file (.xlsx or .xls) for combined import');
+                    }
+                });
+            }
+        }
+
+        // Global for Excel workbook data
+        let pendingWorkbook = null;
+        let pendingSheets = [];
+
+        // Handle file uploads (CSV or Excel)
+        function handleFileUpload(event, type) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
+
+            if (isExcel) {
+                parseExcelFile(file, type);
+            } else {
+                parseAndUploadCSV(file, type);
+            }
+        }
+
+        // Handle combined Excel file with multiple sheets
+        function handleCombinedExcelUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+
+                    pendingWorkbook = workbook;
+                    pendingSheets = workbook.SheetNames;
+
+                    // Show sheet selector modal
+                    renderSheetSelector(workbook.SheetNames);
+                    document.getElementById('sheetSelectorModal').classList.add('active');
+                } catch (err) {
+                    console.error('Error reading Excel file:', err);
+                    alert('Error reading Excel file: ' + err.message);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // Render sheet selector
+        function renderSheetSelector(sheetNames) {
+            const container = document.getElementById('sheetsList');
+            container.innerHTML = sheetNames.map((name, idx) => `
+                <div style="display: flex; align-items: center; gap: 16px; padding: 12px; background: #f9fafb; border-radius: 8px; margin-bottom: 8px;">
+                    <input type="checkbox" id="sheet_${idx}" checked style="width: 20px; height: 20px;">
+                    <div style="flex: 1;">
+                        <strong>${escapeHtml(name)}</strong>
+                        <div style="font-size: 0.85rem; color: #6b7280;" id="sheetPreview_${idx}">
+                            Loading preview...
+                        </div>
+                    </div>
+                    <select id="sheetType_${idx}" class="form-control" style="width: 150px;">
+                        <option value="purchases" ${name.toLowerCase().includes('purchase') || name.toLowerCase().includes('bought') ? 'selected' : ''}>Purchases</option>
+                        <option value="sales" ${name.toLowerCase().includes('sale') || name.toLowerCase().includes('sold') ? 'selected' : ''}>Sales</option>
+                    </select>
+                </div>
+            `).join('');
+
+            // Load previews
+            sheetNames.forEach((name, idx) => {
+                const sheet = pendingWorkbook.Sheets[name];
+                const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                const previewEl = document.getElementById(`sheetPreview_${idx}`);
+                if (rows.length > 0) {
+                    previewEl.textContent = `${rows.length - 1} rows | Columns: ${rows[0].slice(0, 4).join(', ')}${rows[0].length > 4 ? '...' : ''}`;
+                } else {
+                    previewEl.textContent = 'Empty sheet';
+                }
+            });
+        }
+
+        // Import selected sheets
+        async function importSelectedSheets() {
+            if (!pendingWorkbook) {
+                alert('No workbook loaded');
+                return;
+            }
+
+            let totalImported = { purchases: 0, sales: 0, needsReview: 0 };
+
+            for (let i = 0; i < pendingSheets.length; i++) {
+                const checkbox = document.getElementById(`sheet_${i}`);
+                const typeSelect = document.getElementById(`sheetType_${i}`);
+
+                if (!checkbox.checked) continue;
+
+                const sheetName = pendingSheets[i];
+                const type = typeSelect.value;
+
+                const sheet = pendingWorkbook.Sheets[sheetName];
+                const rows = XLSX.utils.sheet_to_json(sheet);
+
+                if (rows.length === 0) continue;
+
+                try {
+                    const result = await uploadData(rows, type);
+                    if (result.success) {
+                        totalImported[type] += result.imported_count;
+                        totalImported.needsReview += result.needs_review;
+                    }
+                } catch (err) {
+                    console.error(`Error importing sheet ${sheetName}:`, err);
+                }
+            }
+
+            closeModal('sheetSelectorModal');
+            pendingWorkbook = null;
+            pendingSheets = [];
+
+            alert(`Import complete!\n\nPurchases imported: ${totalImported.purchases}\nSales imported: ${totalImported.sales}\nItems needing review: ${totalImported.needsReview}`);
+            openSession(currentSessionId);
+        }
+
+        // Parse Excel file for single type (purchases or sales)
+        function parseExcelFile(file, type) {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+
+                    // If multiple sheets, show selector
+                    if (workbook.SheetNames.length > 1) {
+                        pendingWorkbook = workbook;
+                        pendingSheets = workbook.SheetNames;
+
+                        // Pre-select all sheets as the specified type
+                        renderSheetSelectorSingleType(workbook.SheetNames, type);
+                        document.getElementById('sheetSelectorModal').classList.add('active');
+                    } else {
+                        // Single sheet - import directly
+                        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const rows = XLSX.utils.sheet_to_json(sheet);
+
+                        if (rows.length === 0) {
+                            alert('No data found in Excel file');
+                            return;
+                        }
+
+                        const result = await uploadData(rows, type);
+                        if (result.success) {
+                            alert(`Successfully imported ${result.imported_count} ${type}. ${result.needs_review} items need review.`);
+                            openSession(currentSessionId);
+                        } else {
+                            alert('Error importing: ' + result.error);
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error reading Excel file:', err);
+                    alert('Error reading Excel file: ' + err.message);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // Render sheet selector for single type
+        function renderSheetSelectorSingleType(sheetNames, defaultType) {
+            const container = document.getElementById('sheetsList');
+            container.innerHTML = sheetNames.map((name, idx) => `
+                <div style="display: flex; align-items: center; gap: 16px; padding: 12px; background: #f9fafb; border-radius: 8px; margin-bottom: 8px;">
+                    <input type="checkbox" id="sheet_${idx}" checked style="width: 20px; height: 20px;">
+                    <div style="flex: 1;">
+                        <strong>${escapeHtml(name)}</strong>
+                        <div style="font-size: 0.85rem; color: #6b7280;" id="sheetPreview_${idx}">
+                            Loading preview...
+                        </div>
+                    </div>
+                    <select id="sheetType_${idx}" class="form-control" style="width: 150px;">
+                        <option value="purchases" ${defaultType === 'purchases' ? 'selected' : ''}>Purchases</option>
+                        <option value="sales" ${defaultType === 'sales' ? 'selected' : ''}>Sales</option>
+                    </select>
+                </div>
+            `).join('');
+
+            // Load previews
+            sheetNames.forEach((name, idx) => {
+                const sheet = pendingWorkbook.Sheets[name];
+                const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                const previewEl = document.getElementById(`sheetPreview_${idx}`);
+                if (rows.length > 0) {
+                    previewEl.textContent = `${rows.length - 1} rows | Columns: ${rows[0].slice(0, 4).join(', ')}${rows[0].length > 4 ? '...' : ''}`;
+                } else {
+                    previewEl.textContent = 'Empty sheet';
+                }
+            });
+        }
+
+        // Upload data to server
+        async function uploadData(rows, type) {
+            const token = localStorage.getItem('accessToken');
+            const endpoint = type === 'purchases'
+                ? `/api/admin/ebay-import/sessions/${currentSessionId}/purchases`
+                : `/api/admin/ebay-import/sessions/${currentSessionId}/sales`;
+
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ csv_data: rows })
+            });
+
+            return await response.json();
+        }
+
+        // Parse CSV and upload
+        async function parseAndUploadCSV(file, type) {
+            const reader = new FileReader();
+
+            reader.onload = async (e) => {
+                const text = e.target.result;
+                const rows = parseCSV(text);
+
+                if (rows.length === 0) {
+                    alert('No data found in CSV file');
+                    return;
+                }
+
+                try {
+                    const result = await uploadData(rows, type);
+
+                    if (result.success) {
+                        alert(`Successfully imported ${result.imported_count} ${type}. ${result.needs_review} items need review.`);
+                        openSession(currentSessionId);
+                    } else {
+                        alert('Error importing: ' + result.error);
+                    }
+                } catch (err) {
+                    console.error('Error uploading:', err);
+                    alert('Error uploading file');
+                }
+            };
+
+            reader.readAsText(file);
+        }
+
+        // Simple CSV parser
+        function parseCSV(text) {
+            const lines = text.split(/\r?\n/);
+            if (lines.length < 2) return [];
+
+            // Parse header
+            const headers = parseCSVLine(lines[0]);
+
+            // Parse rows
+            const rows = [];
+            for (let i = 1; i < lines.length; i++) {
+                if (lines[i].trim() === '') continue;
+
+                const values = parseCSVLine(lines[i]);
+                const row = {};
+                headers.forEach((header, idx) => {
+                    row[header] = values[idx] || '';
+                });
+                rows.push(row);
+            }
+
+            return rows;
+        }
+
+        function parseCSVLine(line) {
+            const values = [];
+            let current = '';
+            let inQuotes = false;
+
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+
+                if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (char === ',' && !inQuotes) {
+                    values.push(current.trim());
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            values.push(current.trim());
+
+            return values;
+        }
+
+        // Render tables
+        function renderPurchasesTable() {
+            const tbody = document.getElementById('purchasesTableBody');
+
+            if (sessionData.purchases.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 24px; color: #6b7280;">No purchases uploaded yet</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = sessionData.purchases.map(p => `
+                <tr class="${p.needs_review ? 'needs-review' : ''}">
+                    <td>${escapeHtml(p.order_number || 'N/A')}</td>
+                    <td>${p.purchase_date ? new Date(p.purchase_date).toLocaleDateString() : 'Unknown'}</td>
+                    <td title="${escapeHtml(p.item_title || '')}">${truncate(p.item_title, 40)}</td>
+                    <td>${escapeHtml(p.generation || 'Unknown')}</td>
+                    <td>${(p.detected_parts || []).join(', ')}</td>
+                    <td>£${(p.purchase_price || 0).toFixed(2)}</td>
+                    <td>${escapeHtml(p.seller_name || 'Unknown')}</td>
+                    <td><span class="status-badge status-${p.status}">${p.status}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-secondary" onclick="editPurchase('${p._id}')">Edit</button>
+                        <button class="btn btn-sm btn-secondary" onclick="deletePurchase('${p._id}')">Delete</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function renderSalesTable() {
+            const tbody = document.getElementById('salesTableBody');
+
+            if (sessionData.sales.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 24px; color: #6b7280;">No sales uploaded yet</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = sessionData.sales.map(s => {
+                const matchedPurchase = s.matched_purchase_id
+                    ? sessionData.purchases.find(p => p._id === s.matched_purchase_id)
+                    : null;
+
+                return `
+                    <tr class="${s.needs_review ? 'needs-review' : ''}">
+                        <td>${escapeHtml(s.order_number || 'N/A')}</td>
+                        <td>${s.sale_date ? new Date(s.sale_date).toLocaleDateString() : 'Unknown'}</td>
+                        <td title="${escapeHtml(s.item_title || '')}">${truncate(s.item_title, 40)}</td>
+                        <td>${escapeHtml(s.generation || 'Unknown')}</td>
+                        <td>£${(s.sale_price || 0).toFixed(2)}</td>
+                        <td>${escapeHtml(s.buyer_username || s.buyer_name || 'Unknown')}</td>
+                        <td>
+                            ${matchedPurchase
+                                ? `<span class="match-confidence ${getConfidenceClass(s.match_confidence)}">${s.match_confidence}%</span> ${truncate(matchedPurchase.order_number, 15)}`
+                                : '<em style="color: #9ca3af;">Not matched</em>'
+                            }
+                        </td>
+                        <td><span class="status-badge status-${s.status}">${s.status}</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-secondary" onclick="editSale('${s._id}')">Edit</button>
+                            <button class="btn btn-sm btn-secondary" onclick="deleteSale('${s._id}')">Delete</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function renderMatchesTable() {
+            const tbody = document.getElementById('matchesTableBody');
+
+            if (sessionData.matches.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 24px; color: #6b7280;">No matches yet. Upload data and click "Auto-Match" to find matches.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = sessionData.matches.map(m => {
+                const purchase = sessionData.purchases.find(p => p._id === m.purchase_id);
+                const sale = sessionData.sales.find(s => s._id === m.sale_id);
+
+                if (!purchase || !sale) return '';
+
+                const profit = (sale.sale_price || 0) - (purchase.total_cost || purchase.purchase_price || 0);
+
+                return `
+                    <tr>
+                        <td>
+                            <strong>${escapeHtml(purchase.order_number || 'N/A')}</strong><br>
+                            <small>${truncate(purchase.item_title, 30)}</small><br>
+                            <small>£${(purchase.purchase_price || 0).toFixed(2)}</small>
+                        </td>
+                        <td>
+                            <strong>${escapeHtml(sale.order_number || 'N/A')}</strong><br>
+                            <small>${truncate(sale.item_title, 30)}</small><br>
+                            <small>£${(sale.sale_price || 0).toFixed(2)}</small>
+                        </td>
+                        <td>
+                            <span class="match-confidence ${getConfidenceClass(m.confidence)}">${m.confidence}%</span>
+                        </td>
+                        <td style="color: ${profit >= 0 ? '#16a34a' : '#dc2626'}; font-weight: 600;">
+                            £${profit.toFixed(2)}
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-secondary" onclick="removeMatch('${m._id}')">Remove</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Tab switching
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+            document.querySelector(`.tab[onclick="switchTab('${tabName}')"]`).classList.add('active');
+            document.getElementById(`${tabName}Tab`).classList.add('active');
+        }
+
+        // Auto-match
+        async function runAutoMatch() {
+            try {
+                const token = localStorage.getItem('accessToken');
+                const response = await fetch(`/api/admin/ebay-import/sessions/${currentSessionId}/auto-match`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert(`Auto-match complete!\n${data.matched_count} matches found.\n${data.unmatched_sales} sales unmatched.\n${data.unmatched_purchases} purchases unmatched.`);
+                    openSession(currentSessionId);
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (err) {
+                console.error('Error:', err);
+                alert('Error running auto-match');
+            }
+        }
+
+        // Edit functions
+        function editPurchase(id) {
+            const purchase = sessionData.purchases.find(p => p._id === id);
+            if (!purchase) return;
+
+            document.getElementById('editRecordId').value = id;
+            document.getElementById('editRecordType').value = 'purchase';
+            document.getElementById('editModalTitle').textContent = 'Edit Purchase';
+            document.getElementById('editOrderNumber').value = purchase.order_number || '';
+            document.getElementById('editDate').value = purchase.purchase_date ? purchase.purchase_date.split('T')[0] : '';
+            document.getElementById('editItemTitle').value = purchase.item_title || '';
+            document.getElementById('editGeneration').value = purchase.generation || '';
+            document.getElementById('editPrice').value = purchase.purchase_price || 0;
+            document.getElementById('editSeller').value = purchase.seller_name || '';
+
+            document.getElementById('editSellerGroup').style.display = 'block';
+            document.getElementById('editBuyerGroup').style.display = 'none';
+
+            document.getElementById('editRecordModal').classList.add('active');
+        }
+
+        function editSale(id) {
+            const sale = sessionData.sales.find(s => s._id === id);
+            if (!sale) return;
+
+            document.getElementById('editRecordId').value = id;
+            document.getElementById('editRecordType').value = 'sale';
+            document.getElementById('editModalTitle').textContent = 'Edit Sale';
+            document.getElementById('editOrderNumber').value = sale.order_number || '';
+            document.getElementById('editDate').value = sale.sale_date ? sale.sale_date.split('T')[0] : '';
+            document.getElementById('editItemTitle').value = sale.item_title || '';
+            document.getElementById('editGeneration').value = sale.generation || '';
+            document.getElementById('editPrice').value = sale.sale_price || 0;
+            document.getElementById('editBuyer').value = sale.buyer_username || sale.buyer_name || '';
+
+            document.getElementById('editSellerGroup').style.display = 'none';
+            document.getElementById('editBuyerGroup').style.display = 'block';
+
+            document.getElementById('editRecordModal').classList.add('active');
+        }
+
+        async function saveRecordEdit(event) {
+            event.preventDefault();
+
+            const id = document.getElementById('editRecordId').value;
+            const type = document.getElementById('editRecordType').value;
+
+            const updates = {
+                order_number: document.getElementById('editOrderNumber').value,
+                item_title: document.getElementById('editItemTitle').value,
+                generation: document.getElementById('editGeneration').value,
+                needs_review: false
+            };
+
+            if (type === 'purchase') {
+                updates.purchase_date = document.getElementById('editDate').value ? new Date(document.getElementById('editDate').value) : null;
+                updates.purchase_price = parseFloat(document.getElementById('editPrice').value) || 0;
+                updates.seller_name = document.getElementById('editSeller').value;
+            } else {
+                updates.sale_date = document.getElementById('editDate').value ? new Date(document.getElementById('editDate').value) : null;
+                updates.sale_price = parseFloat(document.getElementById('editPrice').value) || 0;
+                updates.buyer_username = document.getElementById('editBuyer').value;
+            }
+
+            try {
+                const token = localStorage.getItem('accessToken');
+                const endpoint = type === 'purchase'
+                    ? `/api/admin/ebay-import/purchases/${id}`
+                    : `/api/admin/ebay-import/sales/${id}`;
+
+                const response = await fetch(endpoint, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(updates)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    closeModal('editRecordModal');
+                    openSession(currentSessionId);
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (err) {
+                console.error('Error:', err);
+                alert('Error saving changes');
+            }
+        }
+
+        // Delete functions
+        async function deletePurchase(id) {
+            if (!confirm('Are you sure you want to delete this purchase?')) return;
+
+            try {
+                const token = localStorage.getItem('accessToken');
+                const response = await fetch(`/api/admin/ebay-import/purchases/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    openSession(currentSessionId);
+                } else {
+                    alert('Error deleting purchase');
+                }
+            } catch (err) {
+                console.error('Error:', err);
+            }
+        }
+
+        async function deleteSale(id) {
+            if (!confirm('Are you sure you want to delete this sale?')) return;
+
+            try {
+                const token = localStorage.getItem('accessToken');
+                const response = await fetch(`/api/admin/ebay-import/sales/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    openSession(currentSessionId);
+                } else {
+                    alert('Error deleting sale');
+                }
+            } catch (err) {
+                console.error('Error:', err);
+            }
+        }
+
+        async function removeMatch(id) {
+            if (!confirm('Are you sure you want to remove this match?')) return;
+
+            try {
+                const token = localStorage.getItem('accessToken');
+                const response = await fetch(`/api/admin/ebay-import/matches/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    openSession(currentSessionId);
+                } else {
+                    alert('Error removing match');
+                }
+            } catch (err) {
+                console.error('Error:', err);
+            }
+        }
+
+        // Import to main system
+        async function importToMainSystem() {
+            if (!confirm('This will import all matched data into the main system. Continue?')) return;
+
+            const importUnmatchedPurchases = document.getElementById('importUnmatchedPurchases').checked;
+            const importUnmatchedSales = document.getElementById('importUnmatchedSales').checked;
+
+            try {
+                const token = localStorage.getItem('accessToken');
+                const response = await fetch(`/api/admin/ebay-import/sessions/${currentSessionId}/import`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        import_unmatched_purchases: importUnmatchedPurchases,
+                        import_unmatched_sales: importUnmatchedSales
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert(`Import complete!\n\nPurchases imported: ${data.summary.purchases_imported}\nProducts created: ${data.summary.products_created}\nSales imported: ${data.summary.sales_imported}\nErrors: ${data.summary.error_count}`);
+                    openSession(currentSessionId);
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (err) {
+                console.error('Error:', err);
+                alert('Error importing data');
+            }
+        }
+
+        // Delete session
+        async function deleteSession() {
+            if (!confirm('Are you sure you want to delete this entire import session? This will delete all purchases, sales, and matches in this session.')) return;
+            if (!confirm('This action cannot be undone. Are you absolutely sure?')) return;
+
+            try {
+                const token = localStorage.getItem('accessToken');
+                const response = await fetch(`/api/admin/ebay-import/sessions/${currentSessionId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    showSessionsList();
+                } else {
+                    alert('Error deleting session');
+                }
+            } catch (err) {
+                console.error('Error:', err);
+            }
+        }
+
+        // Utility functions
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function truncate(text, maxLength) {
+            if (!text) return '';
+            return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+        }
+
+        function getConfidenceClass(confidence) {
+            if (confidence >= 70) return 'match-high';
+            if (confidence >= 40) return 'match-medium';
+            return 'match-low';
+        }
+    </script>
+</body>
+</html>
