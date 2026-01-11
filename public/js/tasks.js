@@ -107,7 +107,7 @@ function displaySummary() {
 
 function filterAndDisplayTasks() {
     let filteredTasks = allTasks.filter(t => !t.completed);
-    
+
     // Apply filter tabs
     if (currentFilter === 'overdue') {
         filteredTasks = filteredTasks.filter(t => t.is_overdue);
@@ -116,7 +116,7 @@ function filterAndDisplayTasks() {
     } else if (currentFilter === 'delivery') {
         filteredTasks = filteredTasks.filter(t => t.type === 'delivery_overdue' || t.type === 'delivery_chase_followup');
     }
-    
+
     // Apply search filter
     const searchInput = document.getElementById('taskSearchInput');
     if (searchInput && searchInput.value.trim()) {
@@ -131,8 +131,79 @@ function filterAndDisplayTasks() {
             );
         });
     }
-    
+
+    // Filter to show only one task per seller (most urgent first)
+    // This ensures workflow progression - complete one task to reveal the next
+    filteredTasks = filterOneTaskPerSeller(filteredTasks);
+
     displayTasks(filteredTasks);
+}
+
+// Filter tasks to show only one per seller, prioritizing the most urgent
+function filterOneTaskPerSeller(tasks) {
+    // Define task type priority (lower number = higher priority/should be done first)
+    const taskTypePriority = {
+        'delivery_overdue': 1,
+        'delivery_chase_followup': 2,
+        'workflow_follow_up': 3,
+        'workflow_case_open': 4,
+        'leave_feedback': 5,
+        'check_in_ready_to_split': 6,
+        'refund_verification': 7,
+        'product_missing_info': 10,
+        'consumable_reorder': 11,
+        'consumable_delivery': 12,
+        'consumable_stock_check': 13
+    };
+
+    // Group tasks by seller
+    const tasksBySeller = {};
+    const tasksWithoutSeller = [];
+
+    for (const task of tasks) {
+        const seller = task.seller ? task.seller.toLowerCase().trim() : null;
+
+        if (!seller) {
+            // Tasks without a seller (consumables, products) are shown independently
+            tasksWithoutSeller.push(task);
+            continue;
+        }
+
+        if (!tasksBySeller[seller]) {
+            tasksBySeller[seller] = [];
+        }
+        tasksBySeller[seller].push(task);
+    }
+
+    // For each seller, pick only the most urgent task
+    const result = [];
+
+    for (const seller in tasksBySeller) {
+        const sellerTasks = tasksBySeller[seller];
+
+        // Sort by: 1) overdue first, 2) task type priority, 3) due date
+        sellerTasks.sort((a, b) => {
+            // Overdue tasks come first
+            if (a.is_overdue && !b.is_overdue) return -1;
+            if (!a.is_overdue && b.is_overdue) return 1;
+
+            // Then by task type priority (workflow tasks before feedback, etc.)
+            const priorityA = taskTypePriority[a.type] || 100;
+            const priorityB = taskTypePriority[b.type] || 100;
+            if (priorityA !== priorityB) return priorityA - priorityB;
+
+            // Then by due date
+            return new Date(a.due_date) - new Date(b.due_date);
+        });
+
+        // Take only the first (most urgent) task for this seller
+        result.push(sellerTasks[0]);
+    }
+
+    // Add tasks without sellers (shown independently)
+    result.push(...tasksWithoutSeller);
+
+    return result;
 }
 
 function displayTasks(tasks) {
