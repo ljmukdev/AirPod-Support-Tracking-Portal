@@ -12203,6 +12203,17 @@ app.post('/api/admin/ebay-import/sessions/:id/purchases', requireAuth, requireDB
             notes: ['OrderNotes', 'Notes', 'Order notes', 'Comments']
         };
 
+        // Helper to normalize column names (remove invisible chars, normalize whitespace)
+        const normalizeKey = (key) => {
+            if (typeof key !== 'string') return String(key);
+            // Remove non-breaking spaces, zero-width chars, trim whitespace
+            return key
+                .replace(/[\u00A0\u200B\u200C\u200D\uFEFF]/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .toLowerCase();
+        };
+
         // Helper to find value with case-insensitive matching
         const findValue = (keys, row) => {
             // First try exact match
@@ -12211,13 +12222,13 @@ app.post('/api/admin/ebay-import/sessions/:id/purchases', requireAuth, requireDB
                     return row[key];
                 }
             }
-            // Then try case-insensitive match
-            const rowKeysLower = {};
+            // Then try normalized case-insensitive match
+            const normalizedRowKeys = {};
             for (const k of Object.keys(row)) {
-                rowKeysLower[k.toLowerCase().trim()] = row[k];
+                normalizedRowKeys[normalizeKey(k)] = row[k];
             }
             for (const key of keys) {
-                const val = rowKeysLower[key.toLowerCase().trim()];
+                const val = normalizedRowKeys[normalizeKey(key)];
                 if (val !== undefined && val !== null && val !== '') {
                     return val;
                 }
@@ -12356,9 +12367,23 @@ app.post('/api/admin/ebay-import/sessions/:id/sales', requireAuth, requireDB, as
             return res.status(404).json({ error: 'Session not found' });
         }
 
+        // Helper to normalize column names for logging
+        const normalizeKeyForLog = (key) => {
+            if (typeof key !== 'string') return String(key);
+            return key
+                .replace(/[\u00A0\u200B\u200C\u200D\uFEFF]/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .toLowerCase();
+        };
+
         // Log the first row to help debug column names
         if (csv_data.length > 0) {
-            console.log('[eBay Import] Sales columns detected:', Object.keys(csv_data[0]));
+            const rawKeys = Object.keys(csv_data[0]);
+            const normalizedKeys = rawKeys.map(k => normalizeKeyForLog(k));
+            console.log('[eBay Import] Sales raw columns:', rawKeys);
+            console.log('[eBay Import] Sales normalized columns:', normalizedKeys);
+            console.log('[eBay Import] First row raw data:', JSON.stringify(csv_data[0], null, 2));
         }
 
         // Default column mapping for sales - matches eBay UK export format exactly
@@ -12377,6 +12402,17 @@ app.post('/api/admin/ebay-import/sessions/:id/sales', requireAuth, requireDB, as
             tracking_number: ['Tracking number', 'tracking_number', 'Tracking info', 'Tracking', 'Shipment tracking number']
         };
 
+        // Helper to normalize column names (remove invisible chars, normalize whitespace)
+        const normalizeKey = (key) => {
+            if (typeof key !== 'string') return String(key);
+            // Remove non-breaking spaces, zero-width chars, trim whitespace
+            return key
+                .replace(/[\u00A0\u200B\u200C\u200D\uFEFF]/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .toLowerCase();
+        };
+
         // Helper to find value with case-insensitive matching
         const findValue = (keys, row) => {
             // First try exact match
@@ -12385,13 +12421,13 @@ app.post('/api/admin/ebay-import/sessions/:id/sales', requireAuth, requireDB, as
                     return row[key];
                 }
             }
-            // Then try case-insensitive match
-            const rowKeysLower = {};
+            // Then try normalized case-insensitive match
+            const normalizedRowKeys = {};
             for (const k of Object.keys(row)) {
-                rowKeysLower[k.toLowerCase().trim()] = row[k];
+                normalizedRowKeys[normalizeKey(k)] = row[k];
             }
             for (const key of keys) {
-                const val = rowKeysLower[key.toLowerCase().trim()];
+                const val = normalizedRowKeys[normalizeKey(key)];
                 if (val !== undefined && val !== null && val !== '') {
                     return val;
                 }
@@ -12409,8 +12445,10 @@ app.post('/api/admin/ebay-import/sessions/:id/sales', requireAuth, requireDB, as
             try {
                 const orderNumber = findValue(mapping.order_number, row);
                 const itemTitle = findValue(mapping.item_title, row);
-                const saleDate = parseEbayDate(findValue(mapping.sale_date, row));
-                const salePrice = parseEbayPrice(findValue(mapping.sale_price, row));
+                const rawSaleDate = findValue(mapping.sale_date, row);
+                const rawSalePrice = findValue(mapping.sale_price, row);
+                const saleDate = parseEbayDate(rawSaleDate);
+                const salePrice = parseEbayPrice(rawSalePrice);
                 const itemSubtotal = parseEbayPrice(findValue(mapping.item_subtotal, row));
                 const postageCharged = parseEbayPrice(findValue(mapping.postage_charged, row));
                 const buyerUsername = findValue(mapping.buyer_username, row);
@@ -12418,6 +12456,25 @@ app.post('/api/admin/ebay-import/sessions/:id/sales', requireAuth, requireDB, as
                 const quantity = parseInt(findValue(mapping.quantity, row)) || 1;
                 const ebayFees = parseEbayPrice(findValue(mapping.ebay_fees, row));
                 const trackingNumber = findValue(mapping.tracking_number, row);
+
+                // Log first row values for debugging
+                if (i === 0) {
+                    console.log('[eBay Import] First row values extracted:', {
+                        orderNumber,
+                        itemTitle,
+                        rawSaleDate,
+                        rawSalePrice,
+                        saleDate,
+                        salePrice,
+                        itemSubtotal,
+                        postageCharged,
+                        buyerUsername,
+                        buyerName,
+                        quantity,
+                        ebayFees,
+                        trackingNumber
+                    });
+                }
 
                 // Skip if no order number or item title
                 if (!orderNumber && !itemTitle) {
