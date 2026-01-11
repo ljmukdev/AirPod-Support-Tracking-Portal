@@ -1309,7 +1309,7 @@ const auth = require('./auth');
 function requireAuth(req, res, next) {
     console.log(`[AUTH] ${req.method} ${req.path} - Checking authentication`);
 
-    // Try JWT token first (from User Service)
+    // Check for JWT token (from User Service)
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
         const token = authHeader.substring(7);
@@ -1317,23 +1317,16 @@ function requireAuth(req, res, next) {
         return auth.requireAuth()(req, res, next);
     }
 
-    // Fallback to session-based auth for backward compatibility
-    if (req.session && req.session.authenticated) {
-        console.log('[AUTH] Session-based auth successful');
-        return next();
-    }
-
-    console.log('[AUTH] ❌ No valid authentication found - returning 401');
+    console.log('[AUTH] No valid authentication found - returning 401');
     console.log('[AUTH] Authorization header:', authHeader ? 'present but invalid' : 'missing');
-    console.log('[AUTH] Session authenticated:', req.session?.authenticated ? 'yes' : 'no');
-    res.status(401).json({ error: 'Unauthorized' });
+    res.status(401).json({ error: 'Unauthorized. Please login with User Service.' });
 }
 
 // Authentication middleware for HTML pages (redirects to login)
 function requireAuthHTML(req, res, next) {
     // Check for JWT token in cookies or query params (from User Service)
     const token = req.cookies?.accessToken || req.query?.token;
-    
+
     if (token) {
         // If token is in query params, it means we're coming from callback
         // Let the page load and the frontend will handle it
@@ -1341,13 +1334,13 @@ function requireAuthHTML(req, res, next) {
             console.log('Token found in query params, allowing page load');
             return next();
         }
-        
+
         // If token is in cookies, verify it
         if (req.cookies?.accessToken) {
             // Try to verify with User Service auth middleware
             const authHeader = `Bearer ${req.cookies.accessToken}`;
             req.headers.authorization = authHeader;
-            
+
             // Use the JWT auth middleware
             return auth.requireAuth()(req, res, (err) => {
                 if (err) {
@@ -1359,12 +1352,7 @@ function requireAuthHTML(req, res, next) {
             });
         }
     }
-    
-    // Check for session-based auth (backward compatibility)
-    if (req.session && req.session.authenticated) {
-        return next();
-    }
-    
+
     // Redirect to login if not authenticated
     console.log('No authentication found, redirecting to login');
     res.redirect('/admin/login');
@@ -1372,73 +1360,33 @@ function requireAuthHTML(req, res, next) {
 
 // API Routes
 
-// Admin Login (TEMPORARILY RE-ENABLED for access recovery)
-// This endpoint is temporarily enabled to allow access to existing accounts
-// TODO: Migrate to User Service and disable this endpoint
-app.post('/api/admin/login', (req, res) => {
-    try {
-        const { username, password } = req.body;
-        
-        if (!username || !password) {
-            return res.status(400).json({ 
-                success: false,
-                error: 'BAD_REQUEST', 
-                message: 'Username and password are required' 
-            });
-        }
-        
-        const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
-        const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'LJM2024secure';
-        
-        console.log('Legacy login attempt:', { username, providedPassword: password ? '***' : 'missing', expectedUsername: ADMIN_USERNAME });
-        
-        if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-            // Ensure session is available
-            if (!req.session) {
-                console.error('Session not available - session middleware may not be configured');
-                return res.status(500).json({ 
-                    success: false,
-                    error: 'SESSION_ERROR', 
-                    message: 'Session not available. Please check server configuration.' 
-                });
+// Admin Logout - clears any session data and cookies
+app.get('/api/admin/logout', (req, res) => {
+    // Clear access token cookie if present
+    res.clearCookie('accessToken');
+    res.clearCookie('refreshToken');
+
+    // Destroy session if it exists
+    if (req.session) {
+        req.session.destroy((err) => {
+            if (err) {
+                console.error('Session destroy error:', err);
             }
-            
-            req.session.authenticated = true;
-            req.session.username = username;
-            console.log('Legacy login successful for user:', username);
-            return res.json({ success: true, message: 'Login successful' });
-        } else {
-            console.log('Legacy login failed - invalid credentials');
-            return res.status(401).json({ 
-                success: false,
-                error: 'INVALID_CREDENTIALS', 
-                message: 'Invalid username or password' 
-            });
-        }
-    } catch (error) {
-        console.error('Error in legacy login endpoint:', error);
-        return res.status(500).json({ 
-            success: false,
-            error: 'SERVER_ERROR', 
-            message: 'An error occurred during login. Please try again.' 
+            res.json({ success: true, message: 'Logged out successfully' });
         });
+    } else {
+        res.json({ success: true, message: 'Logged out successfully' });
     }
 });
 
-// Admin Logout
-app.get('/api/admin/logout', (req, res) => {
-    req.session.destroy((err) => {
-        if (err) {
-            res.status(500).json({ error: 'Logout failed' });
-        } else {
-            res.json({ success: true, message: 'Logged out successfully' });
-        }
-    });
-});
-
-// Check authentication status
+// Check authentication status - uses JWT only
 app.get('/api/admin/check-auth', (req, res) => {
-    if (req.session && req.session.authenticated) {
+    const authHeader = req.headers.authorization;
+    const cookieToken = req.cookies?.accessToken;
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        res.json({ authenticated: true });
+    } else if (cookieToken) {
         res.json({ authenticated: true });
     } else {
         res.json({ authenticated: false });

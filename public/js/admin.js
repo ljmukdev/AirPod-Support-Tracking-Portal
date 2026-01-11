@@ -431,127 +431,77 @@ function authenticatedFetch(url, options = {}) {
     });
 }
 
-// Login form
+// Login form - User Service authentication only
 const loginForm = document.getElementById('loginForm');
 if (loginForm) {
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        
-        const username = document.getElementById('username').value.trim();
+
+        const email = document.getElementById('email').value.trim();
         const password = document.getElementById('password').value;
         const loginButton = document.getElementById('loginButton');
-        
-        if (!username || !password) {
-            showError('Please enter both username and password');
+
+        if (!email || !password) {
+            showError('Please enter both email and password');
             return;
         }
-        
+
         loginButton.disabled = true;
         showSpinner();
-        
+
         try {
-            // Try legacy login first (for existing accounts)
-            let legacyData;
+            const USER_SERVICE_URL = 'https://autorestock-user-service-production.up.railway.app';
+
+            const response = await fetch(`${USER_SERVICE_URL}/api/v1/users/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    email: email,
+                    password: password,
+                    serviceName: 'AirPod-Support-Tracking-Portal'
+                })
+            });
+
+            console.log('User Service login response status:', response.status);
+
+            let data;
             try {
-                const legacyResponse = await fetch('/api/admin/login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    credentials: 'include',
-                    body: JSON.stringify({
-                        username: username,
-                        password: password
-                    })
-                });
-                
-                // Check if response is JSON
-                const contentType = legacyResponse.headers.get('content-type');
-                if (contentType && contentType.includes('application/json')) {
-                    legacyData = await legacyResponse.json();
-                } else {
-                    // Server returned HTML (error page) instead of JSON
-                    const text = await legacyResponse.text();
-                    console.error('Legacy login returned non-JSON response:', text.substring(0, 200));
-                    throw new Error(`Server error (${legacyResponse.status}): Server returned HTML instead of JSON. The server may be down or misconfigured.`);
-                }
-                
-                if (legacyResponse.ok && legacyData.success) {
-                    // Legacy login successful - redirect to dashboard
-                    console.log('✅ Legacy login successful');
-                    window.location.href = '/admin/dashboard';
-                    return;
-                }
-                
-                // If credentials are wrong, show error
-                if (legacyResponse.status === 401) {
-                    showError(legacyData.message || 'Invalid username or password');
-                    loginButton.disabled = false;
-                    hideSpinner();
-                    return;
-                }
-            } catch (legacyError) {
-                console.error('Legacy login error:', legacyError);
-                // If legacy login fails due to server error, try User Service
-                console.log('Legacy login failed, trying User Service...');
+                data = await response.json();
+            } catch (parseError) {
+                const text = await response.text();
+                console.error('Failed to parse response:', text);
+                showError(`Server error (${response.status}): ${text || response.statusText}`);
+                loginButton.disabled = false;
+                hideSpinner();
+                return;
             }
-            
-            // If legacy login fails, try User Service
-            if (!legacyData || !legacyData.success) {
-                console.log('Trying User Service login...');
-                const USER_SERVICE_URL = 'https://autorestock-user-service-production.up.railway.app';
 
-                const response = await fetch(`${USER_SERVICE_URL}/api/v1/users/login`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    credentials: 'include',
-                    body: JSON.stringify({
-                        email: username, // Use email field (username is email)
-                        password: password,
-                        serviceName: 'AirPod-Support-Tracking-Portal'
-                    })
-                });
+            if (response.ok && data.success) {
+                // Store tokens in storage
+                const storage = getStorage();
+                storage.setItem('accessToken', data.data.accessToken);
+                storage.setItem('refreshToken', data.data.refreshToken);
+                storage.setItem('user', JSON.stringify(data.data.user));
 
-                console.log('User Service login response status:', response.status);
+                console.log(`[SESSION] Tokens stored in ${SESSION_CONFIG.STORAGE_TYPE}`);
 
-                let data;
-                try {
-                    data = await response.json();
-                } catch (parseError) {
-                    const text = await response.text();
-                    console.error('Failed to parse response:', text);
-                    showError(`Server error (${response.status}): ${text || response.statusText}`);
-                    loginButton.disabled = false;
-                    hideSpinner();
-                    return;
+                // Redirect to dashboard
+                window.location.href = '/admin/dashboard';
+            } else {
+                // Show detailed error message
+                const errorMsg = data.message || data.error || 'Invalid credentials';
+                console.error('Login failed:', errorMsg, data);
+
+                let userFriendlyMsg = errorMsg;
+                if (response.status === 401) {
+                    userFriendlyMsg = `Authentication failed: ${errorMsg}. Please check your credentials.`;
                 }
 
-                if (response.ok && data.success) {
-                    // Store tokens in session storage
-                    const storage = getStorage();
-                    storage.setItem('accessToken', data.data.accessToken);
-                    storage.setItem('refreshToken', data.data.refreshToken);
-                    storage.setItem('user', JSON.stringify(data.data.user));
-
-                    console.log(`[SESSION] Tokens stored in ${SESSION_CONFIG.STORAGE_TYPE}`);
-
-                    // Redirect to dashboard
-                    window.location.href = '/admin/dashboard';
-                } else {
-                    // Show detailed error message
-                    const errorMsg = data.message || data.error || 'Invalid credentials';
-                    console.error('Login failed:', errorMsg, data);
-
-                    let userFriendlyMsg = errorMsg;
-                    if (response.status === 401) {
-                        userFriendlyMsg = `Authentication failed: ${errorMsg}. Please check your credentials or use the "Login with User Service" button above.`;
-                    }
-
-                    showError(userFriendlyMsg);
-                    loginButton.disabled = false;
-                }
+                showError(userFriendlyMsg);
+                loginButton.disabled = false;
             }
         } catch (error) {
             console.error('Login error:', error);

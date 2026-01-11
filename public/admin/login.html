@@ -67,27 +67,30 @@
                 </div>
                 <h1>LJM Admin Panel</h1>
             </div>
-            <!-- Legacy Login Form (Temporarily Re-enabled for Access Recovery) -->
+
+            <!-- User Service Login Form -->
             <form id="loginForm">
                 <div class="form-group">
-                    <label for="username">Username</label>
-                    <input 
-                        type="text" 
-                        id="username" 
-                        name="username" 
+                    <label for="email">Email</label>
+                    <input
+                        type="email"
+                        id="email"
+                        name="email"
                         required
-                        autocomplete="username"
+                        autocomplete="email"
                         autofocus
+                        placeholder="Enter your email"
                     >
                 </div>
                 <div class="form-group">
                     <label for="password">Password</label>
-                    <input 
-                        type="password" 
-                        id="password" 
-                        name="password" 
+                    <input
+                        type="password"
+                        id="password"
+                        name="password"
                         required
                         autocomplete="current-password"
+                        placeholder="Enter your password"
                     >
                 </div>
                 <div id="errorMessage" class="error-message"></div>
@@ -96,14 +99,13 @@
                 </button>
                 <div class="spinner" id="spinner"></div>
             </form>
-            
+
             <div style="text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
-                <p style="margin: 0 0 15px 0; color: #666; font-size: 0.9em;">Or use AutoRestock User Service:</p>
-                <a href="https://autorestock-user-service-production.up.railway.app/api/v1/users/login?redirect_uri=https://airpod-support-tracking-portal-production.up.railway.app/auth/callback&service_name=AirPod-Support-Tracking-Portal" 
+                <p style="margin: 0 0 15px 0; color: #666; font-size: 0.9em;">Or login via redirect:</p>
+                <a href="https://autorestock-user-service-production.up.railway.app/api/v1/users/login?redirect_uri=https://airpod-support-tracking-portal-production.up.railway.app/auth/callback&service_name=AirPod-Support-Tracking-Portal"
                    style="display: inline-block; padding: 12px 24px; background: #667eea; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; margin-bottom: 15px;">
-                    🔐 Login with User Service
+                    Login with User Service
                 </a>
-            </div>
                 <div style="margin-top: 15px;">
                     <a href="../index.html" style="color: var(--accent-teal); text-decoration: none; font-size: 0.9em;">
                         Back to Customer Site
