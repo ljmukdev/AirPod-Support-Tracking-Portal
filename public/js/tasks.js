@@ -116,7 +116,7 @@ function filterAndDisplayTasks() {
     } else if (currentFilter === 'workflow') {
         filteredTasks = filteredTasks.filter(t => t.type.includes('workflow'));
     } else if (currentFilter === 'delivery') {
-        filteredTasks = filteredTasks.filter(t => t.type === 'delivery_overdue' || t.type === 'delivery_chase_followup');
+        filteredTasks = filteredTasks.filter(t => t.type === 'delivery_overdue' || t.type === 'delivery_chase_followup' || t.type === 'missing_tracking');
     }
 
     // Apply search filter
@@ -145,6 +145,7 @@ function filterAndDisplayTasks() {
 function filterOneTaskPerSeller(tasks) {
     // Define task type priority (lower number = higher priority/should be done first)
     const taskTypePriority = {
+        'missing_tracking': 0.5,
         'delivery_overdue': 1,
         'delivery_chase_followup': 2,
         'workflow_follow_up': 3,
@@ -368,6 +369,15 @@ function renderTaskCard(task) {
         actionButtons = `
             <button onclick="confirmRefundReceived('${task.purchase_id}', ${task.expected_refund || 0})" class="button" style="padding: 10px 16px; font-size: 0.9rem; background: #10b981;">
                 ✓ Refund Received
+            </button>
+            <button onclick="viewPurchase('${task.purchase_id}')" class="button button-secondary" style="padding: 10px 16px; font-size: 0.9rem;">
+                View Purchase
+            </button>
+        `;
+    } else if (task.type === 'missing_tracking') {
+        actionButtons = `
+            <button onclick="openAddTrackingModal('${task.purchase_id}')" class="button" style="padding: 10px 16px; font-size: 0.9rem; background: #3b82f6;">
+                Add Tracking
             </button>
             <button onclick="viewPurchase('${task.purchase_id}')" class="button button-secondary" style="padding: 10px 16px; font-size: 0.9rem;">
                 View Purchase
@@ -1074,6 +1084,86 @@ async function submitDeliveryUpdate() {
         }
     } catch (error) {
         console.error('[TASKS] Error updating delivery date:', error);
+        alert('Error: ' + error.message);
+    } finally {
+        button.disabled = false;
+        button.textContent = originalText;
+    }
+}
+
+// Add Tracking Modal Functions
+let currentTrackingPurchaseId = null;
+
+function openAddTrackingModal(purchaseId) {
+    currentTrackingPurchaseId = purchaseId;
+
+    // Reset form fields
+    document.getElementById('trackingProvider').value = '';
+    document.getElementById('trackingNumber').value = '';
+
+    // Set default expected delivery to 5 days from now
+    const defaultDate = new Date();
+    defaultDate.setDate(defaultDate.getDate() + 5);
+    document.getElementById('expectedDeliveryDate').value = defaultDate.toISOString().split('T')[0];
+
+    // Show modal
+    document.getElementById('addTrackingModal').style.display = 'flex';
+}
+
+function closeAddTrackingModal() {
+    document.getElementById('addTrackingModal').style.display = 'none';
+    currentTrackingPurchaseId = null;
+}
+
+async function submitAddTracking() {
+    const trackingProvider = document.getElementById('trackingProvider').value;
+    const trackingNumber = document.getElementById('trackingNumber').value.trim();
+    const expectedDelivery = document.getElementById('expectedDeliveryDate').value;
+
+    if (!trackingProvider) {
+        alert('Please select a tracking provider');
+        return;
+    }
+
+    if (!trackingNumber) {
+        alert('Please enter a tracking number');
+        return;
+    }
+
+    const button = document.getElementById('confirmAddTrackingButton');
+    const originalText = button.textContent;
+    button.disabled = true;
+    button.textContent = 'Adding...';
+
+    try {
+        const response = await authenticatedFetch(`${window.API_BASE}/api/admin/purchases/${currentTrackingPurchaseId}/add-tracking`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                tracking_provider: trackingProvider,
+                tracking_number: trackingNumber,
+                expected_delivery: expectedDelivery || null
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to add tracking');
+        }
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('Tracking added successfully!');
+            closeAddTrackingModal();
+            loadTasks(); // Reload tasks
+        } else {
+            throw new Error(data.error || 'Failed to add tracking');
+        }
+    } catch (error) {
+        console.error('[TASKS] Error adding tracking:', error);
         alert('Error: ' + error.message);
     } finally {
         button.disabled = false;
