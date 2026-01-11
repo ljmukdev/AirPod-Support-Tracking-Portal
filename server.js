@@ -4254,6 +4254,44 @@ app.get('/api/admin/check-ins', requireAuth, requireDB, async (req, res) => {
     }
 });
 
+// Delete check-in (Admin only)
+app.delete('/api/admin/check-in/:id', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid check-in ID' });
+    }
+
+    try {
+        // Find the check-in first
+        const checkIn = await db.collection('check_ins').findOne({ _id: new ObjectId(id) });
+
+        if (!checkIn) {
+            return res.status(404).json({ error: 'Check-in not found' });
+        }
+
+        // Don't allow deletion if it's been split into products
+        if (checkIn.split_into_products) {
+            return res.status(400).json({
+                error: 'Cannot delete check-in that has been split into products. Use undo-split first.'
+            });
+        }
+
+        // Delete the check-in
+        const result = await db.collection('check_ins').deleteOne({ _id: new ObjectId(id) });
+
+        if (result.deletedCount === 1) {
+            console.log(`[CHECK-IN] Deleted check-in ${id} by ${req.user.email}`);
+            res.json({ success: true, message: 'Check-in deleted successfully' });
+        } else {
+            res.status(500).json({ error: 'Failed to delete check-in' });
+        }
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // Split check-in into products (Admin only)
 app.post('/api/admin/check-in/:id/split', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;

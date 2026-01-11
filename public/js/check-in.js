@@ -564,6 +564,7 @@ function displayCheckedInItems(checkIns) {
                     </div>
                     <div style="display: flex; gap: 10px; align-items: center;">
                         <button onclick="viewCheckInDetails('${checkInId}')" class="button button-secondary" style="padding: 6px 12px; font-size: 0.85rem;">View Details</button>
+                        <button onclick="deleteCheckIn('${checkInId}')" class="button" style="padding: 6px 12px; font-size: 0.85rem; background: #dc3545; border-color: #dc3545;">Delete</button>
                         <div class="check-in-date">${checkedInDate}</div>
                     </div>
                 </div>
@@ -587,6 +588,41 @@ function displayCheckedInItems(checkIns) {
 function viewCheckInDetails(checkInId) {
     console.log('[CHECK-IN] Viewing check-in details:', checkInId);
     window.location.href = `check-in-detail.html?id=${checkInId}`;
+}
+
+async function deleteCheckIn(checkInId) {
+    if (!confirm('Are you sure you want to delete this check-in? This cannot be undone.')) {
+        return;
+    }
+
+    try {
+        const response = await authenticatedFetch(`${window.API_BASE}/api/admin/check-in/${checkInId}`, {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            // Show success message and reload the list
+            const successBanner = document.getElementById('successBanner');
+            successBanner.textContent = 'Check-in deleted successfully';
+            successBanner.style.display = 'block';
+            setTimeout(() => {
+                successBanner.style.display = 'none';
+            }, 3000);
+            loadCheckedInItems();
+        } else {
+            throw new Error(data.error || 'Failed to delete check-in');
+        }
+    } catch (error) {
+        console.error('[CHECK-IN] Error deleting check-in:', error);
+        const errorBanner = document.getElementById('errorBanner');
+        errorBanner.textContent = error.message || 'Failed to delete check-in';
+        errorBanner.style.display = 'block';
+        setTimeout(() => {
+            errorBanner.style.display = 'none';
+        }, 5000);
+    }
 }
 
 function escapeHtml(text) {
