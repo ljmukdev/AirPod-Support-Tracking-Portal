@@ -1,8 +1,19 @@
 {
   "version": "1.2.5",
-  "build": "2025-12-16",
-  "revision": "031",
+  "build": "2026-01-11",
+  "revision": "033",
   "changelog": [
+    {
+      "version": "1.2.5",
+      "date": "2026-01-11",
+      "changes": [
+        "Fixed products page filtering and sorting functionality",
+        "Removed conflicting renderProductsTable function from admin.js",
+        "Refactored loadProducts to only pass data to filter system",
+        "Exposed toggleActionsMenu globally for action dropdowns",
+        "Filter system now properly handles all product rendering"
+      ]
+    },
     {
       "version": "1.2.3",
       "date": "2024-12-19",
