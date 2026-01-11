@@ -117,8 +117,8 @@ app.use('/api', (req, res, next) => {
 });
 
 // Middleware
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json({ limit: '50mb' }));  // Increased for eBay data imports
+app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
 
 // Inject environment info into responses (for staging banner)
 app.use((req, res, next) => {
