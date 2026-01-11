@@ -1073,8 +1073,10 @@ aside.admin-sidebar {
 }
 
 .sidebar-logo .logo-circle {
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
     border-radius: 50%;
     background-color: rgba(255, 255, 255, 0.15);
     border: 1px solid rgba(255, 255, 255, 0.2);
@@ -1084,11 +1086,11 @@ aside.admin-sidebar {
     flex-shrink: 0;
 }
 
-.sidebar-logo .logo-text {
-    font-size: 1rem;
+.sidebar-logo .logo-circle .logo-text {
+    font-size: 0.7rem !important;
     font-weight: 700;
     color: #ffffff !important;
-    letter-spacing: 1px;
+    letter-spacing: 0.5px;
 }
 
 .sidebar-logo-text {
