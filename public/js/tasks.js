@@ -2,6 +2,8 @@
 let allTasks = [];
 let currentFilter = 'all';
 let currentChaseTask = null; // Stores the current delivery chase task when viewing email
+let currentEmailTask = null; // Stores the current task when viewing email modal
+let currentEmailTaskType = null; // Stores the task type for saving
 
 // Tracking URL templates for different carriers
 const trackingUrls = {
@@ -494,8 +496,18 @@ async function viewTaskEmail(taskId, taskType) {
         showMarkEmailSent = true;
     }
 
+    // Store current task info for saving
+    currentEmailTask = task;
+    currentEmailTaskType = taskType;
+
     document.getElementById('emailModalTitle').textContent = emailTitle;
-    document.getElementById('emailContent').value = emailContent;
+
+    // Check if there's a saved draft for this task
+    if (task.saved_email_draft) {
+        document.getElementById('emailContent').value = task.saved_email_draft;
+    } else {
+        document.getElementById('emailContent').value = emailContent;
+    }
 
     // Show/hide Mark Email Sent button
     const markSentButton = document.getElementById('markEmailSentButton');
@@ -811,6 +823,8 @@ function viewPurchase(purchaseId) {
 function closeEmailModal() {
     document.getElementById('emailModal').style.display = 'none';
     currentChaseTask = null;
+    currentEmailTask = null;
+    currentEmailTaskType = null;
 
     // Reset Mark Email Sent button
     const markSentButton = document.getElementById('markEmailSentButton');
@@ -818,6 +832,13 @@ function closeEmailModal() {
         markSentButton.style.display = 'none';
         markSentButton.disabled = false;
         markSentButton.textContent = 'Mark Email Sent';
+    }
+
+    // Reset Save Email button
+    const saveButton = document.getElementById('saveEmailButton');
+    if (saveButton) {
+        saveButton.disabled = false;
+        saveButton.textContent = 'Save Email';
     }
 }
 
@@ -835,6 +856,62 @@ async function copyEmail() {
     } catch (error) {
         console.error('[EMAIL] Error copying:', error);
         alert('Failed to copy email. Please select and copy manually.');
+    }
+}
+
+async function saveEmailDraft() {
+    if (!currentEmailTask) {
+        alert('No task selected');
+        return;
+    }
+
+    const emailContent = document.getElementById('emailContent').value;
+    const button = document.getElementById('saveEmailButton');
+    const originalText = button.textContent;
+
+    button.disabled = true;
+    button.textContent = 'Saving...';
+
+    try {
+        // Determine the correct endpoint based on task type
+        let endpoint = '';
+        if (currentEmailTaskType === 'delivery_overdue' || currentEmailTaskType === 'delivery_chase_followup') {
+            endpoint = `${window.API_BASE}/api/admin/purchases/${currentEmailTask.purchase_id}/save-email-draft`;
+        } else if (currentEmailTaskType === 'workflow_follow_up' || currentEmailTaskType === 'workflow_case_open') {
+            endpoint = `${window.API_BASE}/api/admin/check-in/${currentEmailTask.check_in_id}/save-email-draft`;
+        } else {
+            throw new Error('Cannot save email draft for this task type');
+        }
+
+        const response = await authenticatedFetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                email_draft: emailContent,
+                task_type: currentEmailTaskType
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to save email draft');
+        }
+
+        // Update the task in memory so it persists without reload
+        currentEmailTask.saved_email_draft = emailContent;
+
+        button.textContent = '✓ Saved!';
+        setTimeout(() => {
+            button.disabled = false;
+            button.textContent = originalText;
+        }, 2000);
+    } catch (error) {
+        console.error('[EMAIL] Error saving draft:', error);
+        alert('Error: ' + error.message);
+        button.disabled = false;
+        button.textContent = originalText;
     }
 }
 
