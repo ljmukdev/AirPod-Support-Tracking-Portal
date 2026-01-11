@@ -239,13 +239,39 @@ function renderTaskCard(task) {
     const priorityClass = task.is_overdue ? 'overdue' : (task.due_soon ? 'due-soon' : 'normal');
     const priorityLabel = task.is_overdue ? 'Overdue' : (task.due_soon ? 'Due Soon' : 'Normal');
     
-    const dueDate = new Date(task.due_date).toLocaleString('en-GB', {
-        weekday: 'short',
-        day: 'numeric',
-        month: 'short',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
+    const dueDateObj = new Date(task.due_date);
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const isToday = dueDateObj.toDateString() === today.toDateString();
+    const isTomorrow = dueDateObj.toDateString() === tomorrow.toDateString();
+    const isYesterday = dueDateObj.toDateString() === yesterday.toDateString();
+    const isPast = dueDateObj < today && !isToday;
+
+    let dueDate;
+    if (isToday) {
+        dueDate = `Today, ${dueDateObj.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
+    } else if (isTomorrow) {
+        dueDate = `Tomorrow, ${dueDateObj.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
+    } else if (isYesterday) {
+        dueDate = `Yesterday, ${dueDateObj.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
+    } else if (isPast) {
+        const daysAgo = Math.floor((today - dueDateObj) / (1000 * 60 * 60 * 24));
+        dueDate = `${daysAgo} day${daysAgo !== 1 ? 's' : ''} ago`;
+    } else {
+        dueDate = dueDateObj.toLocaleString('en-GB', {
+            weekday: 'short',
+            day: 'numeric',
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    const dueDateStyle = isPast || isYesterday ? 'color: #dc2626; font-weight: 700;' : '';
     
     let actionButtons = '';
     
@@ -362,7 +388,7 @@ function renderTaskCard(task) {
                     <svg class="task-meta-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                     </svg>
-                    <strong>Due:</strong> <span>${dueDate}</span>
+                    <strong>Due:</strong> <span style="${dueDateStyle}">${dueDate}</span>
                 </div>
                 ${task.tracking_number ? `
                     <div class="task-meta-row">
