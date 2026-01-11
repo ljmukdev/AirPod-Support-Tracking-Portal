@@ -3701,7 +3701,8 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                 order_number: purchase.order_number || checkIn.purchase_order_number,
                 issue_summary: checkIn.issues_detected ? checkIn.issues_detected.map(i => i.item_name).join(', ') : 'Issues detected',
                 completed: followUpCompleted,
-                completed_at: workflow.follow_up_sent_at || workflow.resolved_at
+                completed_at: workflow.follow_up_sent_at || workflow.resolved_at,
+                saved_email_draft: checkIn.email_drafts?.workflow_follow_up || null
             });
 
             // Task 2: Open case (due after 72 hours)
@@ -3709,7 +3710,7 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
             const caseIsOverdue = now > caseOpenDue;
             const caseDueSoon = hoursSinceEmail > 60 && hoursSinceEmail < 72;
             const caseCompleted = !!workflow.case_opened_at || !!workflow.resolved_at;
-            
+
             tasks.push({
                 id: checkIn._id.toString() + '_case',
                 check_in_id: checkIn._id.toString(),
@@ -3727,7 +3728,8 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                 follow_up_sent: !!workflow.follow_up_sent_at,
                 issue_summary: checkIn.issues_detected ? checkIn.issues_detected.map(i => i.item_name).join(', ') : 'Issues detected',
                 completed: caseCompleted,
-                completed_at: workflow.case_opened_at || workflow.resolved_at
+                completed_at: workflow.case_opened_at || workflow.resolved_at,
+                saved_email_draft: checkIn.email_drafts?.workflow_case_open || null
             });
         }
 
@@ -3776,7 +3778,8 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                                 day: 'numeric',
                                 month: 'short',
                                 year: 'numeric'
-                            })
+                            }),
+                            saved_email_draft: purchase.email_drafts?.delivery_chase_followup || null
                         });
                     }
                     // If follow-up is not yet due, don't show any task
@@ -3801,7 +3804,8 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                             day: 'numeric',
                             month: 'short',
                             year: 'numeric'
-                        })
+                        }),
+                        saved_email_draft: purchase.email_drafts?.delivery_overdue || null
                     });
                 }
             }
@@ -4871,6 +4875,42 @@ app.put('/api/admin/check-in/:id', requireAuth, requireDB, (req, res) => {
     }
 });
 
+// Save email draft for check-in (Admin only)
+app.post('/api/admin/check-in/:id/save-email-draft', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    const { email_draft, task_type } = req.body;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid check-in ID' });
+    }
+
+    try {
+        const checkIn = await db.collection('check_ins').findOne({ _id: new ObjectId(id) });
+
+        if (!checkIn) {
+            return res.status(404).json({ error: 'Check-in not found' });
+        }
+
+        // Store the email draft keyed by task type
+        const draftKey = `email_drafts.${task_type}`;
+
+        await db.collection('check_ins').updateOne(
+            { _id: new ObjectId(id) },
+            {
+                $set: {
+                    [draftKey]: email_draft,
+                    updated_at: new Date()
+                }
+            }
+        );
+
+        res.json({ success: true, message: 'Email draft saved' });
+    } catch (err) {
+        console.error('Error saving email draft:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // Mark follow-up email as sent (Admin only)
 app.post('/api/admin/check-in/:id/mark-follow-up-sent', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;
@@ -5489,6 +5529,43 @@ app.post('/api/admin/purchases/:id/update-delivery-date', requireAuth, requireDB
         });
     } catch (err) {
         console.error('[DELIVERY-UPDATE] Error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Save email draft for purchase (Admin only)
+app.post('/api/admin/purchases/:id/save-email-draft', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    const { email_draft, task_type } = req.body;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid purchase ID' });
+    }
+
+    try {
+        const purchase = await db.collection('purchases').findOne({ _id: new ObjectId(id) });
+
+        if (!purchase) {
+            return res.status(404).json({ error: 'Purchase not found' });
+        }
+
+        // Store the email draft keyed by task type
+        const draftKey = `email_drafts.${task_type}`;
+
+        await db.collection('purchases').updateOne(
+            { _id: new ObjectId(id) },
+            {
+                $set: {
+                    [draftKey]: email_draft,
+                    last_updated_at: new Date(),
+                    last_updated_by: req.user.email
+                }
+            }
+        );
+
+        res.json({ success: true, message: 'Email draft saved' });
+    } catch (err) {
+        console.error('Error saving email draft:', err);
         res.status(500).json({ error: 'Database error: ' + err.message });
     }
 });
