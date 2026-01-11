@@ -635,8 +635,16 @@ function generateWorkflowHtml() {
     
     return `
         <div class="workflow-section">
-            <h3>📋 Resolution Workflow</h3>
-            <p style="margin: 8px 0 16px 0; font-size: 0.9rem; color: #6b7280;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <h3 style="margin: 0;">📋 Resolution Workflow</h3>
+                <button onclick="viewAllCorrespondence()" style="background: none; border: 1px solid #d1d5db; padding: 6px 12px; border-radius: 4px; font-size: 0.85rem; color: #6b7280; cursor: pointer; display: flex; align-items: center; gap: 6px;" onmouseover="this.style.borderColor='#9ca3af'; this.style.color='#374151';" onmouseout="this.style.borderColor='#d1d5db'; this.style.color='#6b7280';">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M2 4L8 8L14 4M2 4V12H14V4M2 4H14"/>
+                    </svg>
+                    View All Correspondence
+                </button>
+            </div>
+            <p style="margin: 0 0 16px 0; font-size: 0.9rem; color: #6b7280;">
                 Follow this timeline for professional seller communication
             </p>
             
@@ -652,6 +660,11 @@ function generateWorkflowHtml() {
                     </div>
                     <div class="workflow-due-date">
                         Sent: ${formatDueDate(emailSentDate)}
+                    </div>
+                    <div class="workflow-step-action">
+                        <button onclick="openEmailModal()" class="button button-secondary" style="padding: 6px 12px; font-size: 0.85rem;">
+                            View Email
+                        </button>
                     </div>
                 </div>
                 
@@ -1082,4 +1095,127 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+function viewAllCorrespondence() {
+    if (!checkInData) {
+        alert('Check-in data not loaded');
+        return;
+    }
+
+    const workflow = checkInData.workflow || {};
+    let correspondenceHtml = '';
+
+    // Initial Email
+    if (checkInData.email_sent_at) {
+        const sentDate = new Date(checkInData.email_sent_at).toLocaleString('en-GB', {
+            day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+        });
+        correspondenceHtml += `
+            <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <div>
+                        <strong style="color: #111827;">Initial Email</strong>
+                        <span style="background: #d1fae5; color: #065f46; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; margin-left: 8px;">Sent</span>
+                    </div>
+                    <span style="color: #6b7280; font-size: 0.85rem;">${sentDate}</span>
+                </div>
+                <p style="color: #6b7280; font-size: 0.9rem; margin: 0 0 12px 0;">Professional email explaining issues and proposing resolutions</p>
+                <button onclick="openEmailModal()" class="button button-secondary" style="padding: 6px 12px; font-size: 0.85rem;">View Email</button>
+            </div>
+        `;
+    }
+
+    // Follow-up Message
+    if (workflow.follow_up_sent_at) {
+        const sentDate = new Date(workflow.follow_up_sent_at).toLocaleString('en-GB', {
+            day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+        });
+        correspondenceHtml += `
+            <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <div>
+                        <strong style="color: #111827;">Follow-Up Message</strong>
+                        <span style="background: #d1fae5; color: #065f46; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; margin-left: 8px;">Sent</span>
+                    </div>
+                    <span style="color: #6b7280; font-size: 0.85rem;">${sentDate}</span>
+                </div>
+                <p style="color: #6b7280; font-size: 0.9rem; margin: 0 0 12px 0;">Brief follow-up to check if seller saw initial email</p>
+                <button onclick="viewFollowUpEmail()" class="button button-secondary" style="padding: 6px 12px; font-size: 0.85rem;">View Message</button>
+            </div>
+        `;
+    }
+
+    // eBay Case
+    if (workflow.case_opened_at) {
+        const openedDate = new Date(workflow.case_opened_at).toLocaleString('en-GB', {
+            day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+        });
+        correspondenceHtml += `
+            <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <div>
+                        <strong style="color: #111827;">eBay Case Opened</strong>
+                        <span style="background: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; margin-left: 8px;">Case</span>
+                    </div>
+                    <span style="color: #6b7280; font-size: 0.85rem;">${openedDate}</span>
+                </div>
+                <p style="color: #6b7280; font-size: 0.9rem; margin: 0;">Item not as described case${workflow.case_number ? ` - Case #${workflow.case_number}` : ''}</p>
+            </div>
+        `;
+    }
+
+    // Resolution
+    if (workflow.resolved_at) {
+        const resolvedDate = new Date(workflow.resolved_at).toLocaleString('en-GB', {
+            day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+        });
+        correspondenceHtml += `
+            <div style="border: 1px solid #10b981; border-radius: 8px; padding: 16px; margin-bottom: 16px; background: #f0fdf4;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <div>
+                        <strong style="color: #111827;">Resolution</strong>
+                        <span style="background: #d1fae5; color: #065f46; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; margin-left: 8px;">Resolved</span>
+                    </div>
+                    <span style="color: #6b7280; font-size: 0.85rem;">${resolvedDate}</span>
+                </div>
+                <p style="color: #065f46; font-size: 0.9rem; margin: 0;">${workflow.resolution_type || 'Issue resolved'}</p>
+                ${workflow.refund_amount ? `<p style="color: #065f46; font-size: 0.9rem; margin: 8px 0 0 0;"><strong>Refund:</strong> £${parseFloat(workflow.refund_amount).toFixed(2)}</p>` : ''}
+            </div>
+        `;
+    }
+
+    if (!correspondenceHtml) {
+        correspondenceHtml = '<p style="text-align: center; color: #6b7280; padding: 20px;">No correspondence recorded yet.</p>';
+    }
+
+    // Create and show modal
+    const modalHtml = `
+        <div id="correspondenceModal" class="email-modal active" onclick="if(event.target===this)closeCorrespondenceModal()">
+            <div class="email-modal-content" style="max-width: 600px;">
+                <div class="email-modal-header">
+                    <h2>📧 All Correspondence</h2>
+                    <button class="email-modal-close" onclick="closeCorrespondenceModal()">&times;</button>
+                </div>
+                <div class="email-modal-body" style="max-height: 70vh; overflow-y: auto;">
+                    ${correspondenceHtml}
+                </div>
+                <div class="email-modal-footer">
+                    <button onclick="closeCorrespondenceModal()" class="button button-secondary">Close</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Remove existing modal if any
+    const existing = document.getElementById('correspondenceModal');
+    if (existing) existing.remove();
+
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+function closeCorrespondenceModal() {
+    const modal = document.getElementById('correspondenceModal');
+    if (modal) modal.remove();
 }
