@@ -3696,13 +3696,14 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                 is_overdue: followUpCompleted ? false : followUpIsOverdue,
                 due_soon: followUpCompleted ? false : followUpDueSoon,
                 tracking_number: checkIn.tracking_number || purchase.tracking_number,
+                tracking_provider: purchase.tracking_provider,
                 seller: purchase.seller_name,
                 order_number: purchase.order_number,
                 issue_summary: checkIn.issues_detected ? checkIn.issues_detected.map(i => i.item_name).join(', ') : 'Issues detected',
                 completed: followUpCompleted,
                 completed_at: workflow.follow_up_sent_at || workflow.resolved_at
             });
-            
+
             // Task 2: Open case (due after 72 hours)
             const caseOpenDue = new Date(emailSentDate.getTime() + (72 * 60 * 60 * 1000));
             const caseIsOverdue = now > caseOpenDue;
@@ -3720,6 +3721,7 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                 is_overdue: caseCompleted ? false : caseIsOverdue,
                 due_soon: caseCompleted ? false : caseDueSoon,
                 tracking_number: checkIn.tracking_number || purchase.tracking_number,
+                tracking_provider: purchase.tracking_provider,
                 seller: purchase.seller_name,
                 order_number: purchase.order_number,
                 follow_up_sent: !!workflow.follow_up_sent_at,
@@ -3728,7 +3730,7 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                 completed_at: workflow.case_opened_at || workflow.resolved_at
             });
         }
-        
+
         // 2. Find purchases with overdue deliveries
         const purchasesAwaitingDelivery = await db.collection('purchases').find({
             status: { $in: ['awaiting_delivery', 'dispatched'] },
@@ -3753,6 +3755,7 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                     is_overdue: true,
                     due_soon: false,
                     tracking_number: purchase.tracking_number,
+                    tracking_provider: purchase.tracking_provider,
                     seller: purchase.seller_name,
                     order_number: purchase.order_number,
                     days_overdue: daysOverdue,

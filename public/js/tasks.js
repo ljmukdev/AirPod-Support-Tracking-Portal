@@ -2,6 +2,26 @@
 let allTasks = [];
 let currentFilter = 'all';
 
+// Tracking URL templates for different carriers
+const trackingUrls = {
+    'royal_mail': 'https://www.royalmail.com/track-your-item#/tracking-results/',
+    'dpd': 'https://www.dpd.co.uk/tracking/trackconsignment?reference=',
+    'evri': 'https://www.evri.com/track/parcel/',
+    'ups': 'https://www.ups.com/track?tracknum=',
+    'fedex': 'https://www.fedex.com/fedextrack/?trknbr=',
+    'dhl': 'https://www.dhl.com/gb-en/home/tracking/tracking-parcel.html?submit=1&tracking-id=',
+    'yodel': 'https://www.yodel.co.uk/track/',
+    'amazon_logistics': 'https://track.amazon.co.uk/tracking/'
+};
+
+// Get tracking URL for a given provider and tracking number
+function getTrackingUrl(trackingProvider, trackingNumber) {
+    if (!trackingProvider || !trackingNumber) return null;
+    const baseUrl = trackingUrls[trackingProvider];
+    if (!baseUrl) return null;
+    return baseUrl + encodeURIComponent(trackingNumber);
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
     console.log('[TASKS] Initializing tasks page...');
@@ -265,7 +285,13 @@ function renderTaskCard(task) {
                         <svg class="task-meta-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
                         </svg>
-                        <strong>Tracking:</strong> <span>${escapeHtml(task.tracking_number)}</span>
+                        <strong>Tracking:</strong> ${(() => {
+                            const trackingUrl = getTrackingUrl(task.tracking_provider, task.tracking_number);
+                            if (trackingUrl) {
+                                return `<a href="${trackingUrl}" target="_blank" rel="noopener noreferrer" style="color: #3b82f6; text-decoration: underline;" title="Track with ${task.tracking_provider}">${escapeHtml(task.tracking_number)}</a>`;
+                            }
+                            return `<span>${escapeHtml(task.tracking_number)}</span>`;
+                        })()}
                     </div>
                 ` : ''}
                 ${task.seller ? `
