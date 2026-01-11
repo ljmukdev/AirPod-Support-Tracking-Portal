@@ -12184,16 +12184,45 @@ app.post('/api/admin/ebay-import/sessions/:id/purchases', requireAuth, requireDB
             return res.status(404).json({ error: 'Session not found' });
         }
 
-        // Default column mapping (can be customized via request)
+        // Log the first row to help debug column names
+        if (csv_data.length > 0) {
+            console.log('[eBay Import] Purchases columns detected:', Object.keys(csv_data[0]));
+        }
+
+        // Default column mapping - matches eBay UK purchase export format exactly
         const mapping = column_mapping || {
-            order_number: ['Order number', 'Order ID', 'OrderNumber', 'order_number', 'Item number'],
-            item_title: ['Item title', 'Title', 'Item', 'item_title', 'Item name'],
-            purchase_date: ['Purchase date', 'Date', 'Order date', 'purchase_date', 'Transaction date'],
-            purchase_price: ['Item total', 'Total', 'Price', 'purchase_price', 'Item price', 'Item subtotal'],
-            postage_cost: ['Postage', 'Shipping', 'P&P', 'Delivery', 'postage_cost', 'Shipping and handling'],
-            seller_name: ['Seller', 'Seller name', 'seller_name', 'Seller ID'],
-            quantity: ['Quantity', 'Qty', 'quantity'],
-            payment_status: ['Payment status', 'Status', 'payment_status', 'Order status']
+            order_number: ['OrderNumber', 'Order number', 'Order ID', 'order_number', 'ItemID', 'Item number', 'Transaction ID', 'eBay item number'],
+            item_title: ['ItemName', 'Item title', 'Title', 'Item', 'item_title', 'Item name', 'Product', 'Description'],
+            purchase_date: ['OrderDate', 'Purchase date', 'Date', 'Order date', 'purchase_date', 'Transaction date', 'Date purchased', 'Payment date'],
+            purchase_price: ['OrderTotal', 'ItemPrice', 'Item total', 'Total', 'Price', 'purchase_price', 'Item price', 'Item subtotal', 'Total price', 'Amount'],
+            postage_cost: ['Postage', 'Shipping', 'P&P', 'Delivery', 'postage_cost', 'Shipping and handling', 'Postage and packaging', 'Shipping cost'],
+            seller_name: ['Seller', 'Seller name', 'seller_name', 'Seller ID', 'Seller user ID', 'Sold by', 'Merchant'],
+            quantity: ['Quantity', 'Qty', 'quantity', 'Items', 'Units', 'Quantity purchased'],
+            payment_status: ['Payment status', 'Status', 'payment_status', 'Order status', 'State'],
+            tracking_number: ['TrackingNumber', 'Tracking number', 'Tracking', 'tracking_number'],
+            notes: ['OrderNotes', 'Notes', 'Order notes', 'Comments']
+        };
+
+        // Helper to find value with case-insensitive matching
+        const findValue = (keys, row) => {
+            // First try exact match
+            for (const key of keys) {
+                if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
+                    return row[key];
+                }
+            }
+            // Then try case-insensitive match
+            const rowKeysLower = {};
+            for (const k of Object.keys(row)) {
+                rowKeysLower[k.toLowerCase().trim()] = row[k];
+            }
+            for (const key of keys) {
+                const val = rowKeysLower[key.toLowerCase().trim()];
+                if (val !== undefined && val !== null && val !== '') {
+                    return val;
+                }
+            }
+            return null;
         };
 
         // Process each row
@@ -12204,23 +12233,13 @@ app.post('/api/admin/ebay-import/sessions/:id/purchases', requireAuth, requireDB
             const row = csv_data[i];
 
             try {
-                // Find values using mapping
-                const findValue = (keys) => {
-                    for (const key of keys) {
-                        if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
-                            return row[key];
-                        }
-                    }
-                    return null;
-                };
-
-                const orderNumber = findValue(mapping.order_number);
-                const itemTitle = findValue(mapping.item_title);
-                const purchaseDate = parseEbayDate(findValue(mapping.purchase_date));
-                const purchasePrice = parseEbayPrice(findValue(mapping.purchase_price));
-                const postageCost = parseEbayPrice(findValue(mapping.postage_cost));
-                const sellerName = findValue(mapping.seller_name);
-                const quantity = parseInt(findValue(mapping.quantity)) || 1;
+                const orderNumber = findValue(mapping.order_number, row);
+                const itemTitle = findValue(mapping.item_title, row);
+                const purchaseDate = parseEbayDate(findValue(mapping.purchase_date, row));
+                const purchasePrice = parseEbayPrice(findValue(mapping.purchase_price, row));
+                const postageCost = parseEbayPrice(findValue(mapping.postage_cost, row));
+                const sellerName = findValue(mapping.seller_name, row);
+                const quantity = parseInt(findValue(mapping.quantity, row)) || 1;
 
                 // Skip if no order number or item title
                 if (!orderNumber && !itemTitle) {
@@ -12337,20 +12356,47 @@ app.post('/api/admin/ebay-import/sessions/:id/sales', requireAuth, requireDB, as
             return res.status(404).json({ error: 'Session not found' });
         }
 
-        // Default column mapping for sales
+        // Log the first row to help debug column names
+        if (csv_data.length > 0) {
+            console.log('[eBay Import] Sales columns detected:', Object.keys(csv_data[0]));
+        }
+
+        // Default column mapping for sales - matches eBay UK export format exactly
         const mapping = column_mapping || {
-            order_number: ['Order number', 'Order ID', 'OrderNumber', 'order_number', 'Sales record number'],
-            item_title: ['Item title', 'Title', 'Item', 'item_title', 'Item name'],
-            sale_date: ['Sale date', 'Sold date', 'Date', 'sale_date', 'Transaction date', 'Paid on date'],
-            sale_price: ['Total', 'Sale price', 'Price', 'sale_price', 'Item total', 'Total price'],
-            item_subtotal: ['Item subtotal', 'Subtotal', 'Item price', 'item_subtotal'],
-            postage_charged: ['Postage and packaging', 'Shipping charged', 'P&P', 'Postage', 'postage_charged', 'Shipping and handling'],
-            buyer_username: ['Buyer username', 'Buyer', 'buyer_username', 'Buyer user ID'],
-            buyer_name: ['Buyer name', 'Buyer full name', 'buyer_name'],
-            quantity: ['Quantity', 'Qty', 'quantity', 'Quantity sold'],
-            ebay_fees: ['eBay fees', 'Final value fee', 'FVF', 'ebay_fees', 'Selling fees'],
-            payment_method: ['Payment method', 'payment_method'],
-            tracking_number: ['Tracking number', 'tracking_number', 'Tracking info']
+            order_number: ['Sales record number', 'Order number', 'Item number', 'Transaction ID', 'Order ID', 'OrderNumber', 'order_number'],
+            item_title: ['Item title', 'Title', 'Item', 'item_title', 'Item name', 'Product', 'Description'],
+            sale_date: ['Paid on date', 'Sale date', 'Sold date', 'Date', 'sale_date', 'Transaction date', 'Date sold', 'Payment date', 'Order date'],
+            sale_price: ['Total price', 'Sold for', 'Total', 'Sale price', 'Price', 'sale_price', 'Item total', 'Order total', 'Amount'],
+            item_subtotal: ['Sold for', 'Item subtotal', 'Subtotal', 'Item price', 'item_subtotal', 'Unit price'],
+            postage_charged: ['Postage and packaging', 'P&P', 'Shipping charged', 'Postage', 'postage_charged', 'Shipping and handling', 'Shipping', 'Delivery'],
+            buyer_username: ['Buyer username', 'Buyer user ID', 'Buyer', 'buyer_username', 'Username', 'Buyer ID'],
+            buyer_name: ['Buyer name', 'Post to name', 'Buyer full name', 'buyer_name', 'Customer name', 'Ship to name', 'Name'],
+            quantity: ['Quantity', 'Qty', 'quantity', 'Quantity sold', 'Items', 'Units'],
+            ebay_fees: ['eBay collected tax', 'Seller collected tax', 'Final value fee - fixed', 'Final value fee - variable', 'Final Value Fee', 'eBay fees', 'FVF', 'ebay_fees', 'Selling fees', 'Fees', 'Total fees'],
+            payment_method: ['Payment method', 'payment_method', 'Payment type'],
+            tracking_number: ['Tracking number', 'tracking_number', 'Tracking info', 'Tracking', 'Shipment tracking number']
+        };
+
+        // Helper to find value with case-insensitive matching
+        const findValue = (keys, row) => {
+            // First try exact match
+            for (const key of keys) {
+                if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
+                    return row[key];
+                }
+            }
+            // Then try case-insensitive match
+            const rowKeysLower = {};
+            for (const k of Object.keys(row)) {
+                rowKeysLower[k.toLowerCase().trim()] = row[k];
+            }
+            for (const key of keys) {
+                const val = rowKeysLower[key.toLowerCase().trim()];
+                if (val !== undefined && val !== null && val !== '') {
+                    return val;
+                }
+            }
+            return null;
         };
 
         // Process each row
@@ -12361,27 +12407,17 @@ app.post('/api/admin/ebay-import/sessions/:id/sales', requireAuth, requireDB, as
             const row = csv_data[i];
 
             try {
-                // Find values using mapping
-                const findValue = (keys) => {
-                    for (const key of keys) {
-                        if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
-                            return row[key];
-                        }
-                    }
-                    return null;
-                };
-
-                const orderNumber = findValue(mapping.order_number);
-                const itemTitle = findValue(mapping.item_title);
-                const saleDate = parseEbayDate(findValue(mapping.sale_date));
-                const salePrice = parseEbayPrice(findValue(mapping.sale_price));
-                const itemSubtotal = parseEbayPrice(findValue(mapping.item_subtotal));
-                const postageCharged = parseEbayPrice(findValue(mapping.postage_charged));
-                const buyerUsername = findValue(mapping.buyer_username);
-                const buyerName = findValue(mapping.buyer_name);
-                const quantity = parseInt(findValue(mapping.quantity)) || 1;
-                const ebayFees = parseEbayPrice(findValue(mapping.ebay_fees));
-                const trackingNumber = findValue(mapping.tracking_number);
+                const orderNumber = findValue(mapping.order_number, row);
+                const itemTitle = findValue(mapping.item_title, row);
+                const saleDate = parseEbayDate(findValue(mapping.sale_date, row));
+                const salePrice = parseEbayPrice(findValue(mapping.sale_price, row));
+                const itemSubtotal = parseEbayPrice(findValue(mapping.item_subtotal, row));
+                const postageCharged = parseEbayPrice(findValue(mapping.postage_charged, row));
+                const buyerUsername = findValue(mapping.buyer_username, row);
+                const buyerName = findValue(mapping.buyer_name, row);
+                const quantity = parseInt(findValue(mapping.quantity, row)) || 1;
+                const ebayFees = parseEbayPrice(findValue(mapping.ebay_fees, row));
+                const trackingNumber = findValue(mapping.tracking_number, row);
 
                 // Skip if no order number or item title
                 if (!orderNumber && !itemTitle) {
