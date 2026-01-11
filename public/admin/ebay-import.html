@@ -573,30 +573,45 @@
                         <span class="step-number">1</span>
                         Upload eBay Data
                     </h3>
-                    <p class="help-text">Download your purchase history and sales data from eBay (My eBay > Purchase History/Sold) and upload the CSV files here.</p>
+                    <p class="help-text">Upload your eBay data as CSV or Excel files. Excel files can contain multiple sheets (e.g., 2024 & 2025 data).</p>
 
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-top: 16px;">
                         <div>
                             <h4 style="margin: 0 0 8px 0;">Purchases (What you bought)</h4>
                             <div class="file-upload-area" id="purchasesUploadArea" onclick="document.getElementById('purchasesFileInput').click()">
-                                <input type="file" id="purchasesFileInput" accept=".csv,.txt" onchange="handlePurchasesUpload(event)">
+                                <input type="file" id="purchasesFileInput" accept=".csv,.txt,.xlsx,.xls" onchange="handleFileUpload(event, 'purchases')">
                                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" style="margin-bottom: 8px; color: #6b7280;">
                                     <path d="M21 15V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V15M17 8L12 3M12 3L7 8M12 3V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                 </svg>
-                                <p style="margin: 0; color: #6b7280;">Click or drag CSV file here</p>
-                                <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #9ca3af;">Purchases / Order History</p>
+                                <p style="margin: 0; color: #6b7280;">Click or drag file here</p>
+                                <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #9ca3af;">CSV or Excel (.xlsx) - Purchases / Order History</p>
                             </div>
                         </div>
                         <div>
                             <h4 style="margin: 0 0 8px 0;">Sales (What you sold)</h4>
                             <div class="file-upload-area" id="salesUploadArea" onclick="document.getElementById('salesFileInput').click()">
-                                <input type="file" id="salesFileInput" accept=".csv,.txt" onchange="handleSalesUpload(event)">
+                                <input type="file" id="salesFileInput" accept=".csv,.txt,.xlsx,.xls" onchange="handleFileUpload(event, 'sales')">
                                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" style="margin-bottom: 8px; color: #6b7280;">
                                     <path d="M21 15V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V15M17 8L12 3M12 3L7 8M12 3V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                 </svg>
-                                <p style="margin: 0; color: #6b7280;">Click or drag CSV file here</p>
-                                <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #9ca3af;">Sold Items / Sales History</p>
+                                <p style="margin: 0; color: #6b7280;">Click or drag file here</p>
+                                <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #9ca3af;">CSV or Excel (.xlsx) - Sold Items / Sales History</p>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Combined Excel Upload -->
+                    <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #e5e7eb;">
+                        <h4 style="margin: 0 0 8px 0;">Or upload a combined Excel file with both Purchases & Sales</h4>
+                        <div class="file-upload-area" id="combinedUploadArea" onclick="document.getElementById('combinedFileInput').click()">
+                            <input type="file" id="combinedFileInput" accept=".xlsx,.xls" onchange="handleCombinedExcelUpload(event)">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" style="margin-bottom: 8px; color: #16a34a;">
+                                <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M8 13H16M8 17H16M8 9H10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <p style="margin: 0; color: #6b7280;">Upload Excel with multiple sheets (e.g., "2024" & "2025")</p>
+                            <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #9ca3af;">You'll be able to select which sheets contain purchases vs sales</p>
                         </div>
                     </div>
                 </div>
@@ -837,6 +852,29 @@
         </div>
     </div>
 
+    <!-- Excel Sheet Selector Modal -->
+    <div class="modal" id="sheetSelectorModal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h3>Select Sheets to Import</h3>
+                <button class="modal-close" onclick="closeModal('sheetSelectorModal')">&times;</button>
+            </div>
+            <p class="help-text">Your Excel file contains multiple sheets. Select which sheets to import and specify whether each contains purchases or sales data.</p>
+
+            <div id="sheetsList" style="margin: 16px 0;">
+                <!-- Populated by JS -->
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('sheetSelectorModal')">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="importSelectedSheets()">Import Selected Sheets</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SheetJS library for Excel parsing -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+
     <script src="../js/sidebar.js"></script>
     <script src="../js/auth.js"></script>
     <script>
@@ -1059,8 +1097,10 @@
 
         // Setup drag and drop
         function setupDragDrop() {
+            // Purchases and Sales areas
             ['purchasesUploadArea', 'salesUploadArea'].forEach(id => {
                 const area = document.getElementById(id);
+                if (!area) return;
 
                 area.addEventListener('dragover', e => {
                     e.preventDefault();
@@ -1076,29 +1116,265 @@
                     area.classList.remove('dragover');
                     const file = e.dataTransfer.files[0];
                     if (file) {
-                        if (id === 'purchasesUploadArea') {
-                            parseAndUploadCSV(file, 'purchases');
+                        const type = id === 'purchasesUploadArea' ? 'purchases' : 'sales';
+                        const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
+                        if (isExcel) {
+                            parseExcelFile(file, type);
                         } else {
-                            parseAndUploadCSV(file, 'sales');
+                            parseAndUploadCSV(file, type);
                         }
                     }
                 });
             });
-        }
 
-        // Handle file uploads
-        function handlePurchasesUpload(event) {
-            const file = event.target.files[0];
-            if (file) {
-                parseAndUploadCSV(file, 'purchases');
+            // Combined upload area
+            const combinedArea = document.getElementById('combinedUploadArea');
+            if (combinedArea) {
+                combinedArea.addEventListener('dragover', e => {
+                    e.preventDefault();
+                    combinedArea.classList.add('dragover');
+                });
+
+                combinedArea.addEventListener('dragleave', () => {
+                    combinedArea.classList.remove('dragover');
+                });
+
+                combinedArea.addEventListener('drop', e => {
+                    e.preventDefault();
+                    combinedArea.classList.remove('dragover');
+                    const file = e.dataTransfer.files[0];
+                    if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
+                        // Trigger the combined upload handler
+                        const reader = new FileReader();
+                        reader.onload = (ev) => {
+                            try {
+                                const data = new Uint8Array(ev.target.result);
+                                const workbook = XLSX.read(data, { type: 'array' });
+                                pendingWorkbook = workbook;
+                                pendingSheets = workbook.SheetNames;
+                                renderSheetSelector(workbook.SheetNames);
+                                document.getElementById('sheetSelectorModal').classList.add('active');
+                            } catch (err) {
+                                console.error('Error reading Excel file:', err);
+                                alert('Error reading Excel file: ' + err.message);
+                            }
+                        };
+                        reader.readAsArrayBuffer(file);
+                    } else {
+                        alert('Please upload an Excel file (.xlsx or .xls) for combined import');
+                    }
+                });
             }
         }
 
-        function handleSalesUpload(event) {
+        // Global for Excel workbook data
+        let pendingWorkbook = null;
+        let pendingSheets = [];
+
+        // Handle file uploads (CSV or Excel)
+        function handleFileUpload(event, type) {
             const file = event.target.files[0];
-            if (file) {
-                parseAndUploadCSV(file, 'sales');
+            if (!file) return;
+
+            const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
+
+            if (isExcel) {
+                parseExcelFile(file, type);
+            } else {
+                parseAndUploadCSV(file, type);
             }
+        }
+
+        // Handle combined Excel file with multiple sheets
+        function handleCombinedExcelUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+
+                    pendingWorkbook = workbook;
+                    pendingSheets = workbook.SheetNames;
+
+                    // Show sheet selector modal
+                    renderSheetSelector(workbook.SheetNames);
+                    document.getElementById('sheetSelectorModal').classList.add('active');
+                } catch (err) {
+                    console.error('Error reading Excel file:', err);
+                    alert('Error reading Excel file: ' + err.message);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // Render sheet selector
+        function renderSheetSelector(sheetNames) {
+            const container = document.getElementById('sheetsList');
+            container.innerHTML = sheetNames.map((name, idx) => `
+                <div style="display: flex; align-items: center; gap: 16px; padding: 12px; background: #f9fafb; border-radius: 8px; margin-bottom: 8px;">
+                    <input type="checkbox" id="sheet_${idx}" checked style="width: 20px; height: 20px;">
+                    <div style="flex: 1;">
+                        <strong>${escapeHtml(name)}</strong>
+                        <div style="font-size: 0.85rem; color: #6b7280;" id="sheetPreview_${idx}">
+                            Loading preview...
+                        </div>
+                    </div>
+                    <select id="sheetType_${idx}" class="form-control" style="width: 150px;">
+                        <option value="purchases" ${name.toLowerCase().includes('purchase') || name.toLowerCase().includes('bought') ? 'selected' : ''}>Purchases</option>
+                        <option value="sales" ${name.toLowerCase().includes('sale') || name.toLowerCase().includes('sold') ? 'selected' : ''}>Sales</option>
+                    </select>
+                </div>
+            `).join('');
+
+            // Load previews
+            sheetNames.forEach((name, idx) => {
+                const sheet = pendingWorkbook.Sheets[name];
+                const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                const previewEl = document.getElementById(`sheetPreview_${idx}`);
+                if (rows.length > 0) {
+                    previewEl.textContent = `${rows.length - 1} rows | Columns: ${rows[0].slice(0, 4).join(', ')}${rows[0].length > 4 ? '...' : ''}`;
+                } else {
+                    previewEl.textContent = 'Empty sheet';
+                }
+            });
+        }
+
+        // Import selected sheets
+        async function importSelectedSheets() {
+            if (!pendingWorkbook) {
+                alert('No workbook loaded');
+                return;
+            }
+
+            let totalImported = { purchases: 0, sales: 0, needsReview: 0 };
+
+            for (let i = 0; i < pendingSheets.length; i++) {
+                const checkbox = document.getElementById(`sheet_${i}`);
+                const typeSelect = document.getElementById(`sheetType_${i}`);
+
+                if (!checkbox.checked) continue;
+
+                const sheetName = pendingSheets[i];
+                const type = typeSelect.value;
+
+                const sheet = pendingWorkbook.Sheets[sheetName];
+                const rows = XLSX.utils.sheet_to_json(sheet);
+
+                if (rows.length === 0) continue;
+
+                try {
+                    const result = await uploadData(rows, type);
+                    if (result.success) {
+                        totalImported[type] += result.imported_count;
+                        totalImported.needsReview += result.needs_review;
+                    }
+                } catch (err) {
+                    console.error(`Error importing sheet ${sheetName}:`, err);
+                }
+            }
+
+            closeModal('sheetSelectorModal');
+            pendingWorkbook = null;
+            pendingSheets = [];
+
+            alert(`Import complete!\n\nPurchases imported: ${totalImported.purchases}\nSales imported: ${totalImported.sales}\nItems needing review: ${totalImported.needsReview}`);
+            openSession(currentSessionId);
+        }
+
+        // Parse Excel file for single type (purchases or sales)
+        function parseExcelFile(file, type) {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+
+                    // If multiple sheets, show selector
+                    if (workbook.SheetNames.length > 1) {
+                        pendingWorkbook = workbook;
+                        pendingSheets = workbook.SheetNames;
+
+                        // Pre-select all sheets as the specified type
+                        renderSheetSelectorSingleType(workbook.SheetNames, type);
+                        document.getElementById('sheetSelectorModal').classList.add('active');
+                    } else {
+                        // Single sheet - import directly
+                        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const rows = XLSX.utils.sheet_to_json(sheet);
+
+                        if (rows.length === 0) {
+                            alert('No data found in Excel file');
+                            return;
+                        }
+
+                        const result = await uploadData(rows, type);
+                        if (result.success) {
+                            alert(`Successfully imported ${result.imported_count} ${type}. ${result.needs_review} items need review.`);
+                            openSession(currentSessionId);
+                        } else {
+                            alert('Error importing: ' + result.error);
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error reading Excel file:', err);
+                    alert('Error reading Excel file: ' + err.message);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // Render sheet selector for single type
+        function renderSheetSelectorSingleType(sheetNames, defaultType) {
+            const container = document.getElementById('sheetsList');
+            container.innerHTML = sheetNames.map((name, idx) => `
+                <div style="display: flex; align-items: center; gap: 16px; padding: 12px; background: #f9fafb; border-radius: 8px; margin-bottom: 8px;">
+                    <input type="checkbox" id="sheet_${idx}" checked style="width: 20px; height: 20px;">
+                    <div style="flex: 1;">
+                        <strong>${escapeHtml(name)}</strong>
+                        <div style="font-size: 0.85rem; color: #6b7280;" id="sheetPreview_${idx}">
+                            Loading preview...
+                        </div>
+                    </div>
+                    <select id="sheetType_${idx}" class="form-control" style="width: 150px;">
+                        <option value="purchases" ${defaultType === 'purchases' ? 'selected' : ''}>Purchases</option>
+                        <option value="sales" ${defaultType === 'sales' ? 'selected' : ''}>Sales</option>
+                    </select>
+                </div>
+            `).join('');
+
+            // Load previews
+            sheetNames.forEach((name, idx) => {
+                const sheet = pendingWorkbook.Sheets[name];
+                const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                const previewEl = document.getElementById(`sheetPreview_${idx}`);
+                if (rows.length > 0) {
+                    previewEl.textContent = `${rows.length - 1} rows | Columns: ${rows[0].slice(0, 4).join(', ')}${rows[0].length > 4 ? '...' : ''}`;
+                } else {
+                    previewEl.textContent = 'Empty sheet';
+                }
+            });
+        }
+
+        // Upload data to server
+        async function uploadData(rows, type) {
+            const token = localStorage.getItem('accessToken');
+            const endpoint = type === 'purchases'
+                ? `/api/admin/ebay-import/sessions/${currentSessionId}/purchases`
+                : `/api/admin/ebay-import/sessions/${currentSessionId}/sales`;
+
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ csv_data: rows })
+            });
+
+            return await response.json();
         }
 
         // Parse CSV and upload
@@ -1115,27 +1391,13 @@
                 }
 
                 try {
-                    const token = localStorage.getItem('accessToken');
-                    const endpoint = type === 'purchases'
-                        ? `/api/admin/ebay-import/sessions/${currentSessionId}/purchases`
-                        : `/api/admin/ebay-import/sessions/${currentSessionId}/sales`;
+                    const result = await uploadData(rows, type);
 
-                    const response = await fetch(endpoint, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify({ csv_data: rows })
-                    });
-
-                    const data = await response.json();
-
-                    if (data.success) {
-                        alert(`Successfully imported ${data.imported_count} ${type}. ${data.needs_review} items need review.`);
-                        openSession(currentSessionId); // Reload data
+                    if (result.success) {
+                        alert(`Successfully imported ${result.imported_count} ${type}. ${result.needs_review} items need review.`);
+                        openSession(currentSessionId);
                     } else {
-                        alert('Error importing: ' + data.error);
+                        alert('Error importing: ' + result.error);
                     }
                 } catch (err) {
                     console.error('Error uploading:', err);
