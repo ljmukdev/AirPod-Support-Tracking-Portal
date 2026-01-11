@@ -1145,15 +1145,18 @@ async function initializeDatabase() {
         }
 
         console.log('Database indexes created');
-        
+
         // Check if parts collection is empty and populate
         const partsCount = await db.collection('airpod_parts').countDocuments();
         if (partsCount === 0) {
             await populateInitialParts();
         }
-        
+
         // Initialize warranty pricing if not exists
         await initializeWarrantyPricing();
+
+        // Initialize eBay import indexes
+        await initEbayImportIndexes();
     } catch (err) {
         console.error('Database initialization error:', err);
     }
@@ -11786,6 +11789,1453 @@ app.get('/admin/addon-sales', requireAuthHTML, (req, res) => {
 
 app.get('/admin/settings', requireAuthHTML, (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin', 'settings.html'));
+});
+
+// ============================================
+// eBay Data Import System
+// ============================================
+
+// Create indexes for eBay import collections (called on startup)
+async function initEbayImportIndexes() {
+    try {
+        // eBay Import Sessions
+        await db.collection('ebay_import_sessions').createIndex({ created_at: -1 });
+        await db.collection('ebay_import_sessions').createIndex({ status: 1 });
+
+        // eBay Import Purchases (staging)
+        await db.collection('ebay_import_purchases').createIndex({ session_id: 1 });
+        await db.collection('ebay_import_purchases').createIndex({ order_number: 1 });
+        await db.collection('ebay_import_purchases').createIndex({ status: 1 });
+        await db.collection('ebay_import_purchases').createIndex({ item_title: 'text', seller_name: 'text' });
+
+        // eBay Import Sales (staging)
+        await db.collection('ebay_import_sales').createIndex({ session_id: 1 });
+        await db.collection('ebay_import_sales').createIndex({ order_number: 1 });
+        await db.collection('ebay_import_sales').createIndex({ status: 1 });
+        await db.collection('ebay_import_sales').createIndex({ item_title: 'text', buyer_username: 'text' });
+
+        // eBay Import Matches
+        await db.collection('ebay_import_matches').createIndex({ session_id: 1 });
+        await db.collection('ebay_import_matches').createIndex({ purchase_id: 1 });
+        await db.collection('ebay_import_matches').createIndex({ sale_id: 1 });
+
+        console.log('✅ eBay import indexes created');
+    } catch (err) {
+        console.warn('⚠️  Could not create eBay import indexes:', err.message);
+    }
+}
+
+// Helper function to parse eBay date formats
+function parseEbayDate(dateStr) {
+    if (!dateStr) return null;
+
+    // Try various date formats
+    // eBay UK format: "01 Jan 2024" or "01/01/2024"
+    // eBay US format: "Jan 01, 2024" or "01/01/2024"
+    const formats = [
+        // ISO format
+        /^(\d{4})-(\d{2})-(\d{2})/,
+        // DD/MM/YYYY
+        /^(\d{1,2})\/(\d{1,2})\/(\d{4})/,
+        // DD-MM-YYYY
+        /^(\d{1,2})-(\d{1,2})-(\d{4})/,
+        // DD Mon YYYY
+        /^(\d{1,2})\s+(\w{3})\s+(\d{4})/,
+        // Mon DD, YYYY
+        /^(\w{3})\s+(\d{1,2}),?\s+(\d{4})/
+    ];
+
+    const monthNames = {
+        'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'may': 4, 'jun': 5,
+        'jul': 6, 'aug': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dec': 11
+    };
+
+    const cleanStr = dateStr.trim();
+
+    // Try ISO format first
+    if (formats[0].test(cleanStr)) {
+        const match = cleanStr.match(formats[0]);
+        return new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]));
+    }
+
+    // Try DD/MM/YYYY (UK format)
+    if (formats[1].test(cleanStr)) {
+        const match = cleanStr.match(formats[1]);
+        return new Date(parseInt(match[3]), parseInt(match[2]) - 1, parseInt(match[1]));
+    }
+
+    // Try DD-MM-YYYY
+    if (formats[2].test(cleanStr)) {
+        const match = cleanStr.match(formats[2]);
+        return new Date(parseInt(match[3]), parseInt(match[2]) - 1, parseInt(match[1]));
+    }
+
+    // Try DD Mon YYYY
+    if (formats[3].test(cleanStr)) {
+        const match = cleanStr.match(formats[3]);
+        const month = monthNames[match[2].toLowerCase()];
+        if (month !== undefined) {
+            return new Date(parseInt(match[3]), month, parseInt(match[1]));
+        }
+    }
+
+    // Try Mon DD, YYYY
+    if (formats[4].test(cleanStr)) {
+        const match = cleanStr.match(formats[4]);
+        const month = monthNames[match[1].toLowerCase()];
+        if (month !== undefined) {
+            return new Date(parseInt(match[3]), month, parseInt(match[2]));
+        }
+    }
+
+    // Fallback to Date.parse
+    const parsed = Date.parse(cleanStr);
+    if (!isNaN(parsed)) {
+        return new Date(parsed);
+    }
+
+    return null;
+}
+
+// Helper function to parse eBay price strings
+function parseEbayPrice(priceStr) {
+    if (!priceStr) return 0;
+    if (typeof priceStr === 'number') return priceStr;
+
+    // Remove currency symbols and whitespace
+    const cleaned = priceStr.toString()
+        .replace(/[£$€]/g, '')
+        .replace(/,/g, '')
+        .replace(/\s/g, '')
+        .trim();
+
+    const parsed = parseFloat(cleaned);
+    return isNaN(parsed) ? 0 : parsed;
+}
+
+// Helper function to detect AirPod generation from item title
+function detectGenerationFromTitle(title) {
+    if (!title) return null;
+
+    const lowerTitle = title.toLowerCase();
+
+    // Pro 2nd Gen (check first as it's most specific)
+    if ((lowerTitle.includes('pro') && (lowerTitle.includes('2nd') || lowerTitle.includes('second') || lowerTitle.includes('2022') || lowerTitle.includes('2023'))) ||
+        lowerTitle.includes('pro 2') || lowerTitle.includes('pro2')) {
+        return 'AirPods Pro (2nd Gen)';
+    }
+
+    // Pro 1st Gen
+    if (lowerTitle.includes('pro') && (lowerTitle.includes('1st') || lowerTitle.includes('first') || lowerTitle.includes('2019') || !lowerTitle.includes('2nd'))) {
+        if (!lowerTitle.includes('2nd') && !lowerTitle.includes('second')) {
+            return 'AirPods Pro (1st Gen)';
+        }
+    }
+
+    // 4th Gen
+    if (lowerTitle.includes('4th') || lowerTitle.includes('fourth') || lowerTitle.includes('airpods 4')) {
+        return 'AirPods (4th Gen)';
+    }
+
+    // 3rd Gen
+    if (lowerTitle.includes('3rd') || lowerTitle.includes('third') || lowerTitle.includes('airpods 3')) {
+        return 'AirPods (3rd Gen)';
+    }
+
+    // 2nd Gen
+    if (lowerTitle.includes('2nd') || lowerTitle.includes('second') || lowerTitle.includes('airpods 2')) {
+        return 'AirPods (2nd Gen)';
+    }
+
+    // 1st Gen
+    if (lowerTitle.includes('1st') || lowerTitle.includes('first') || lowerTitle.includes('airpods 1')) {
+        return 'AirPods (1st Gen)';
+    }
+
+    // Generic AirPods Pro (assume 2nd gen as most common now)
+    if (lowerTitle.includes('pro')) {
+        return 'AirPods Pro (2nd Gen)';
+    }
+
+    return null;
+}
+
+// Helper function to detect part type from item title
+function detectPartTypeFromTitle(title) {
+    if (!title) return [];
+
+    const lowerTitle = title.toLowerCase();
+    const parts = [];
+
+    // Check for case
+    if (lowerTitle.includes('case') || lowerTitle.includes('charging')) {
+        parts.push('case');
+    }
+
+    // Check for left AirPod
+    if (lowerTitle.includes('left') || lowerTitle.includes('l ')) {
+        parts.push('left');
+    }
+
+    // Check for right AirPod
+    if (lowerTitle.includes('right') || lowerTitle.includes('r ')) {
+        parts.push('right');
+    }
+
+    // Check for both/pair
+    if (lowerTitle.includes('pair') || lowerTitle.includes('both') ||
+        (lowerTitle.includes('left') && lowerTitle.includes('right'))) {
+        if (!parts.includes('left')) parts.push('left');
+        if (!parts.includes('right')) parts.push('right');
+    }
+
+    // Check for box
+    if (lowerTitle.includes('box') || lowerTitle.includes('sealed')) {
+        parts.push('box');
+    }
+
+    // Check for ear tips
+    if (lowerTitle.includes('ear tip') || lowerTitle.includes('eartip') || lowerTitle.includes('tips')) {
+        parts.push('ear_tips');
+    }
+
+    // Check for cable
+    if (lowerTitle.includes('cable') || lowerTitle.includes('charger') || lowerTitle.includes('usb')) {
+        parts.push('cable');
+    }
+
+    // If no specific parts detected, assume it's a complete set
+    if (parts.length === 0) {
+        parts.push('left', 'right', 'case');
+    }
+
+    return parts;
+}
+
+// Helper function to detect connector type from title
+function detectConnectorType(title) {
+    if (!title) return null;
+
+    const lowerTitle = title.toLowerCase();
+
+    if (lowerTitle.includes('usb-c') || lowerTitle.includes('usbc') || lowerTitle.includes('type-c') || lowerTitle.includes('type c')) {
+        return 'usb-c';
+    }
+
+    if (lowerTitle.includes('lightning')) {
+        return 'lightning';
+    }
+
+    return null;
+}
+
+// Get all import sessions
+app.get('/api/admin/ebay-import/sessions', requireAuth, requireDB, async (req, res) => {
+    try {
+        const sessions = await db.collection('ebay_import_sessions')
+            .find({})
+            .sort({ created_at: -1 })
+            .toArray();
+
+        // Get counts for each session
+        const enrichedSessions = await Promise.all(sessions.map(async (session) => {
+            const purchaseCount = await db.collection('ebay_import_purchases')
+                .countDocuments({ session_id: session._id.toString() });
+            const saleCount = await db.collection('ebay_import_sales')
+                .countDocuments({ session_id: session._id.toString() });
+            const matchCount = await db.collection('ebay_import_matches')
+                .countDocuments({ session_id: session._id.toString() });
+
+            return {
+                ...session,
+                purchase_count: purchaseCount,
+                sale_count: saleCount,
+                match_count: matchCount
+            };
+        }));
+
+        res.json({ success: true, sessions: enrichedSessions });
+    } catch (err) {
+        console.error('Error fetching import sessions:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Create new import session
+app.post('/api/admin/ebay-import/sessions', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { name, description, tax_year } = req.body;
+
+        const session = {
+            name: name || `Import Session ${new Date().toLocaleDateString()}`,
+            description: description || '',
+            tax_year: tax_year || new Date().getFullYear(),
+            status: 'draft', // draft, processing, ready, imported
+            created_at: new Date(),
+            created_by: req.user.email,
+            updated_at: new Date()
+        };
+
+        const result = await db.collection('ebay_import_sessions').insertOne(session);
+
+        res.json({
+            success: true,
+            message: 'Import session created',
+            session_id: result.insertedId,
+            session: { ...session, _id: result.insertedId }
+        });
+    } catch (err) {
+        console.error('Error creating import session:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Get single import session with all data
+app.get('/api/admin/ebay-import/sessions/:id', requireAuth, requireDB, async (req, res) => {
+    try {
+        const sessionId = req.params.id;
+
+        if (!ObjectId.isValid(sessionId)) {
+            return res.status(400).json({ error: 'Invalid session ID' });
+        }
+
+        const session = await db.collection('ebay_import_sessions')
+            .findOne({ _id: new ObjectId(sessionId) });
+
+        if (!session) {
+            return res.status(404).json({ error: 'Session not found' });
+        }
+
+        // Get associated data
+        const purchases = await db.collection('ebay_import_purchases')
+            .find({ session_id: sessionId })
+            .sort({ purchase_date: -1 })
+            .toArray();
+
+        const sales = await db.collection('ebay_import_sales')
+            .find({ session_id: sessionId })
+            .sort({ sale_date: -1 })
+            .toArray();
+
+        const matches = await db.collection('ebay_import_matches')
+            .find({ session_id: sessionId })
+            .toArray();
+
+        res.json({
+            success: true,
+            session,
+            purchases,
+            sales,
+            matches
+        });
+    } catch (err) {
+        console.error('Error fetching import session:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Delete import session and all associated data
+app.delete('/api/admin/ebay-import/sessions/:id', requireAuth, requireDB, async (req, res) => {
+    try {
+        const sessionId = req.params.id;
+
+        if (!ObjectId.isValid(sessionId)) {
+            return res.status(400).json({ error: 'Invalid session ID' });
+        }
+
+        // Delete all associated data
+        await db.collection('ebay_import_purchases').deleteMany({ session_id: sessionId });
+        await db.collection('ebay_import_sales').deleteMany({ session_id: sessionId });
+        await db.collection('ebay_import_matches').deleteMany({ session_id: sessionId });
+
+        // Delete the session
+        const result = await db.collection('ebay_import_sessions').deleteOne({ _id: new ObjectId(sessionId) });
+
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ error: 'Session not found' });
+        }
+
+        res.json({ success: true, message: 'Import session deleted' });
+    } catch (err) {
+        console.error('Error deleting import session:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Parse and import eBay purchases CSV
+app.post('/api/admin/ebay-import/sessions/:id/purchases', requireAuth, requireDB, async (req, res) => {
+    try {
+        const sessionId = req.params.id;
+        const { csv_data, column_mapping } = req.body;
+
+        if (!ObjectId.isValid(sessionId)) {
+            return res.status(400).json({ error: 'Invalid session ID' });
+        }
+
+        if (!csv_data || !Array.isArray(csv_data) || csv_data.length === 0) {
+            return res.status(400).json({ error: 'No CSV data provided' });
+        }
+
+        // Verify session exists
+        const session = await db.collection('ebay_import_sessions')
+            .findOne({ _id: new ObjectId(sessionId) });
+
+        if (!session) {
+            return res.status(404).json({ error: 'Session not found' });
+        }
+
+        // Default column mapping (can be customized via request)
+        const mapping = column_mapping || {
+            order_number: ['Order number', 'Order ID', 'OrderNumber', 'order_number', 'Item number'],
+            item_title: ['Item title', 'Title', 'Item', 'item_title', 'Item name'],
+            purchase_date: ['Purchase date', 'Date', 'Order date', 'purchase_date', 'Transaction date'],
+            purchase_price: ['Item total', 'Total', 'Price', 'purchase_price', 'Item price', 'Item subtotal'],
+            postage_cost: ['Postage', 'Shipping', 'P&P', 'Delivery', 'postage_cost', 'Shipping and handling'],
+            seller_name: ['Seller', 'Seller name', 'seller_name', 'Seller ID'],
+            quantity: ['Quantity', 'Qty', 'quantity'],
+            payment_status: ['Payment status', 'Status', 'payment_status', 'Order status']
+        };
+
+        // Process each row
+        const purchases = [];
+        const errors = [];
+
+        for (let i = 0; i < csv_data.length; i++) {
+            const row = csv_data[i];
+
+            try {
+                // Find values using mapping
+                const findValue = (keys) => {
+                    for (const key of keys) {
+                        if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
+                            return row[key];
+                        }
+                    }
+                    return null;
+                };
+
+                const orderNumber = findValue(mapping.order_number);
+                const itemTitle = findValue(mapping.item_title);
+                const purchaseDate = parseEbayDate(findValue(mapping.purchase_date));
+                const purchasePrice = parseEbayPrice(findValue(mapping.purchase_price));
+                const postageCost = parseEbayPrice(findValue(mapping.postage_cost));
+                const sellerName = findValue(mapping.seller_name);
+                const quantity = parseInt(findValue(mapping.quantity)) || 1;
+
+                // Skip if no order number or item title
+                if (!orderNumber && !itemTitle) {
+                    errors.push({ row: i + 1, error: 'Missing order number and item title' });
+                    continue;
+                }
+
+                // Auto-detect generation and parts from title
+                const detectedGeneration = detectGenerationFromTitle(itemTitle);
+                const detectedParts = detectPartTypeFromTitle(itemTitle);
+                const detectedConnector = detectConnectorType(itemTitle);
+
+                const purchase = {
+                    session_id: sessionId,
+                    order_number: orderNumber,
+                    item_title: itemTitle,
+                    purchase_date: purchaseDate,
+                    purchase_price: purchasePrice,
+                    postage_cost: postageCost,
+                    total_cost: purchasePrice + postageCost,
+                    seller_name: sellerName,
+                    quantity: quantity,
+
+                    // Auto-detected fields (can be edited)
+                    detected_generation: detectedGeneration,
+                    generation: detectedGeneration,
+                    detected_parts: detectedParts,
+                    items_purchased: detectedParts.map(p => ({ item_type: p, quantity: 1 })),
+                    connector_type: detectedConnector,
+
+                    // Status fields
+                    status: 'pending', // pending, validated, imported, skipped
+                    validation_issues: [],
+                    needs_review: !detectedGeneration, // Flag for manual review
+
+                    // Original data for reference
+                    raw_data: row,
+
+                    // Metadata
+                    created_at: new Date(),
+                    updated_at: new Date()
+                };
+
+                // Validation issues
+                if (!purchaseDate) {
+                    purchase.validation_issues.push('Could not parse purchase date');
+                    purchase.needs_review = true;
+                }
+                if (!detectedGeneration) {
+                    purchase.validation_issues.push('Could not detect AirPod generation');
+                }
+                if (purchasePrice === 0) {
+                    purchase.validation_issues.push('Purchase price is zero or could not be parsed');
+                    purchase.needs_review = true;
+                }
+
+                purchases.push(purchase);
+            } catch (rowErr) {
+                errors.push({ row: i + 1, error: rowErr.message });
+            }
+        }
+
+        // Insert purchases
+        let insertedCount = 0;
+        if (purchases.length > 0) {
+            const result = await db.collection('ebay_import_purchases').insertMany(purchases);
+            insertedCount = result.insertedCount;
+        }
+
+        // Update session
+        await db.collection('ebay_import_sessions').updateOne(
+            { _id: new ObjectId(sessionId) },
+            {
+                $set: {
+                    updated_at: new Date(),
+                    status: 'processing'
+                }
+            }
+        );
+
+        res.json({
+            success: true,
+            message: `Imported ${insertedCount} purchases`,
+            imported_count: insertedCount,
+            error_count: errors.length,
+            errors: errors.slice(0, 10), // Return first 10 errors
+            needs_review: purchases.filter(p => p.needs_review).length
+        });
+    } catch (err) {
+        console.error('Error importing purchases:', err);
+        res.status(500).json({ error: 'Import error: ' + err.message });
+    }
+});
+
+// Parse and import eBay sales CSV
+app.post('/api/admin/ebay-import/sessions/:id/sales', requireAuth, requireDB, async (req, res) => {
+    try {
+        const sessionId = req.params.id;
+        const { csv_data, column_mapping } = req.body;
+
+        if (!ObjectId.isValid(sessionId)) {
+            return res.status(400).json({ error: 'Invalid session ID' });
+        }
+
+        if (!csv_data || !Array.isArray(csv_data) || csv_data.length === 0) {
+            return res.status(400).json({ error: 'No CSV data provided' });
+        }
+
+        // Verify session exists
+        const session = await db.collection('ebay_import_sessions')
+            .findOne({ _id: new ObjectId(sessionId) });
+
+        if (!session) {
+            return res.status(404).json({ error: 'Session not found' });
+        }
+
+        // Default column mapping for sales
+        const mapping = column_mapping || {
+            order_number: ['Order number', 'Order ID', 'OrderNumber', 'order_number', 'Sales record number'],
+            item_title: ['Item title', 'Title', 'Item', 'item_title', 'Item name'],
+            sale_date: ['Sale date', 'Sold date', 'Date', 'sale_date', 'Transaction date', 'Paid on date'],
+            sale_price: ['Total', 'Sale price', 'Price', 'sale_price', 'Item total', 'Total price'],
+            item_subtotal: ['Item subtotal', 'Subtotal', 'Item price', 'item_subtotal'],
+            postage_charged: ['Postage and packaging', 'Shipping charged', 'P&P', 'Postage', 'postage_charged', 'Shipping and handling'],
+            buyer_username: ['Buyer username', 'Buyer', 'buyer_username', 'Buyer user ID'],
+            buyer_name: ['Buyer name', 'Buyer full name', 'buyer_name'],
+            quantity: ['Quantity', 'Qty', 'quantity', 'Quantity sold'],
+            ebay_fees: ['eBay fees', 'Final value fee', 'FVF', 'ebay_fees', 'Selling fees'],
+            payment_method: ['Payment method', 'payment_method'],
+            tracking_number: ['Tracking number', 'tracking_number', 'Tracking info']
+        };
+
+        // Process each row
+        const sales = [];
+        const errors = [];
+
+        for (let i = 0; i < csv_data.length; i++) {
+            const row = csv_data[i];
+
+            try {
+                // Find values using mapping
+                const findValue = (keys) => {
+                    for (const key of keys) {
+                        if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
+                            return row[key];
+                        }
+                    }
+                    return null;
+                };
+
+                const orderNumber = findValue(mapping.order_number);
+                const itemTitle = findValue(mapping.item_title);
+                const saleDate = parseEbayDate(findValue(mapping.sale_date));
+                const salePrice = parseEbayPrice(findValue(mapping.sale_price));
+                const itemSubtotal = parseEbayPrice(findValue(mapping.item_subtotal));
+                const postageCharged = parseEbayPrice(findValue(mapping.postage_charged));
+                const buyerUsername = findValue(mapping.buyer_username);
+                const buyerName = findValue(mapping.buyer_name);
+                const quantity = parseInt(findValue(mapping.quantity)) || 1;
+                const ebayFees = parseEbayPrice(findValue(mapping.ebay_fees));
+                const trackingNumber = findValue(mapping.tracking_number);
+
+                // Skip if no order number or item title
+                if (!orderNumber && !itemTitle) {
+                    errors.push({ row: i + 1, error: 'Missing order number and item title' });
+                    continue;
+                }
+
+                // Auto-detect generation and parts from title
+                const detectedGeneration = detectGenerationFromTitle(itemTitle);
+                const detectedParts = detectPartTypeFromTitle(itemTitle);
+
+                const sale = {
+                    session_id: sessionId,
+                    order_number: orderNumber,
+                    item_title: itemTitle,
+                    sale_date: saleDate,
+                    sale_price: salePrice || itemSubtotal + postageCharged,
+                    item_subtotal: itemSubtotal,
+                    postage_charged: postageCharged,
+                    buyer_username: buyerUsername,
+                    buyer_name: buyerName,
+                    quantity: quantity,
+                    ebay_fees: ebayFees,
+                    tracking_number: trackingNumber ? trackingNumber.trim().toUpperCase() : null,
+
+                    // Auto-detected fields
+                    detected_generation: detectedGeneration,
+                    generation: detectedGeneration,
+                    detected_parts: detectedParts,
+
+                    // Platform info
+                    platform: 'eBay',
+
+                    // Matching fields
+                    matched_purchase_id: null, // Will be set during matching
+                    match_confidence: null,
+
+                    // Status fields
+                    status: 'pending', // pending, matched, validated, imported, skipped
+                    validation_issues: [],
+                    needs_review: !detectedGeneration,
+
+                    // Original data for reference
+                    raw_data: row,
+
+                    // Metadata
+                    created_at: new Date(),
+                    updated_at: new Date()
+                };
+
+                // Validation issues
+                if (!saleDate) {
+                    sale.validation_issues.push('Could not parse sale date');
+                    sale.needs_review = true;
+                }
+                if (!detectedGeneration) {
+                    sale.validation_issues.push('Could not detect AirPod generation');
+                }
+                if (salePrice === 0 && itemSubtotal === 0) {
+                    sale.validation_issues.push('Sale price is zero or could not be parsed');
+                    sale.needs_review = true;
+                }
+
+                sales.push(sale);
+            } catch (rowErr) {
+                errors.push({ row: i + 1, error: rowErr.message });
+            }
+        }
+
+        // Insert sales
+        let insertedCount = 0;
+        if (sales.length > 0) {
+            const result = await db.collection('ebay_import_sales').insertMany(sales);
+            insertedCount = result.insertedCount;
+        }
+
+        // Update session
+        await db.collection('ebay_import_sessions').updateOne(
+            { _id: new ObjectId(sessionId) },
+            {
+                $set: {
+                    updated_at: new Date(),
+                    status: 'processing'
+                }
+            }
+        );
+
+        res.json({
+            success: true,
+            message: `Imported ${insertedCount} sales`,
+            imported_count: insertedCount,
+            error_count: errors.length,
+            errors: errors.slice(0, 10),
+            needs_review: sales.filter(s => s.needs_review).length
+        });
+    } catch (err) {
+        console.error('Error importing sales:', err);
+        res.status(500).json({ error: 'Import error: ' + err.message });
+    }
+});
+
+// Update a purchase record
+app.put('/api/admin/ebay-import/purchases/:id', requireAuth, requireDB, async (req, res) => {
+    try {
+        const purchaseId = req.params.id;
+
+        if (!ObjectId.isValid(purchaseId)) {
+            return res.status(400).json({ error: 'Invalid purchase ID' });
+        }
+
+        const updates = req.body;
+        delete updates._id; // Don't update the ID
+        delete updates.session_id; // Don't change session
+        delete updates.raw_data; // Preserve original data
+
+        updates.updated_at = new Date();
+
+        const result = await db.collection('ebay_import_purchases').updateOne(
+            { _id: new ObjectId(purchaseId) },
+            { $set: updates }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ error: 'Purchase not found' });
+        }
+
+        res.json({ success: true, message: 'Purchase updated' });
+    } catch (err) {
+        console.error('Error updating purchase:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Update a sale record
+app.put('/api/admin/ebay-import/sales/:id', requireAuth, requireDB, async (req, res) => {
+    try {
+        const saleId = req.params.id;
+
+        if (!ObjectId.isValid(saleId)) {
+            return res.status(400).json({ error: 'Invalid sale ID' });
+        }
+
+        const updates = req.body;
+        delete updates._id;
+        delete updates.session_id;
+        delete updates.raw_data;
+
+        updates.updated_at = new Date();
+
+        const result = await db.collection('ebay_import_sales').updateOne(
+            { _id: new ObjectId(saleId) },
+            { $set: updates }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ error: 'Sale not found' });
+        }
+
+        res.json({ success: true, message: 'Sale updated' });
+    } catch (err) {
+        console.error('Error updating sale:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Delete a purchase record
+app.delete('/api/admin/ebay-import/purchases/:id', requireAuth, requireDB, async (req, res) => {
+    try {
+        const purchaseId = req.params.id;
+
+        if (!ObjectId.isValid(purchaseId)) {
+            return res.status(400).json({ error: 'Invalid purchase ID' });
+        }
+
+        // Also remove any matches for this purchase
+        await db.collection('ebay_import_matches').deleteMany({ purchase_id: purchaseId });
+
+        const result = await db.collection('ebay_import_purchases').deleteOne({ _id: new ObjectId(purchaseId) });
+
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ error: 'Purchase not found' });
+        }
+
+        res.json({ success: true, message: 'Purchase deleted' });
+    } catch (err) {
+        console.error('Error deleting purchase:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Delete a sale record
+app.delete('/api/admin/ebay-import/sales/:id', requireAuth, requireDB, async (req, res) => {
+    try {
+        const saleId = req.params.id;
+
+        if (!ObjectId.isValid(saleId)) {
+            return res.status(400).json({ error: 'Invalid sale ID' });
+        }
+
+        // Also remove any matches for this sale
+        await db.collection('ebay_import_matches').deleteMany({ sale_id: saleId });
+
+        const result = await db.collection('ebay_import_sales').deleteOne({ _id: new ObjectId(saleId) });
+
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ error: 'Sale not found' });
+        }
+
+        res.json({ success: true, message: 'Sale deleted' });
+    } catch (err) {
+        console.error('Error deleting sale:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Auto-match purchases to sales
+app.post('/api/admin/ebay-import/sessions/:id/auto-match', requireAuth, requireDB, async (req, res) => {
+    try {
+        const sessionId = req.params.id;
+
+        if (!ObjectId.isValid(sessionId)) {
+            return res.status(400).json({ error: 'Invalid session ID' });
+        }
+
+        // Get all unmatched purchases and sales for this session
+        const purchases = await db.collection('ebay_import_purchases')
+            .find({
+                session_id: sessionId,
+                status: { $in: ['pending', 'validated'] }
+            })
+            .toArray();
+
+        const sales = await db.collection('ebay_import_sales')
+            .find({
+                session_id: sessionId,
+                status: { $in: ['pending', 'validated'] },
+                matched_purchase_id: null
+            })
+            .toArray();
+
+        // Track which purchases have been used
+        const usedPurchases = new Set();
+        const matches = [];
+        let matchedCount = 0;
+
+        // For each sale, try to find a matching purchase
+        for (const sale of sales) {
+            let bestMatch = null;
+            let bestScore = 0;
+
+            for (const purchase of purchases) {
+                // Skip if already used
+                if (usedPurchases.has(purchase._id.toString())) continue;
+
+                // Calculate match score
+                let score = 0;
+
+                // Generation match (highest priority)
+                if (sale.generation && purchase.generation &&
+                    sale.generation === purchase.generation) {
+                    score += 50;
+                }
+
+                // Part type match
+                if (sale.detected_parts && purchase.detected_parts) {
+                    const salePartsSet = new Set(sale.detected_parts);
+                    const purchasePartsSet = new Set(purchase.detected_parts);
+                    const intersection = [...salePartsSet].filter(p => purchasePartsSet.has(p));
+                    score += intersection.length * 10;
+                }
+
+                // Date proximity (purchase should be before sale)
+                if (sale.sale_date && purchase.purchase_date) {
+                    const daysDiff = (sale.sale_date - purchase.purchase_date) / (1000 * 60 * 60 * 24);
+                    if (daysDiff >= 0 && daysDiff <= 30) {
+                        score += 20; // Likely match
+                    } else if (daysDiff >= 0 && daysDiff <= 90) {
+                        score += 10; // Possible match
+                    } else if (daysDiff < 0) {
+                        score -= 100; // Sale before purchase - wrong!
+                    }
+                }
+
+                // Price reasonability (sale should be higher than purchase for profit)
+                if (sale.sale_price && purchase.total_cost) {
+                    if (sale.sale_price > purchase.total_cost) {
+                        score += 10; // Profitable sale
+                    }
+                }
+
+                // Title similarity (simple keyword match)
+                if (sale.item_title && purchase.item_title) {
+                    const saleWords = sale.item_title.toLowerCase().split(/\s+/);
+                    const purchaseWords = purchase.item_title.toLowerCase().split(/\s+/);
+                    const commonWords = saleWords.filter(w => purchaseWords.includes(w) && w.length > 3);
+                    score += commonWords.length * 2;
+                }
+
+                if (score > bestScore && score >= 30) {
+                    bestScore = score;
+                    bestMatch = purchase;
+                }
+            }
+
+            if (bestMatch) {
+                usedPurchases.add(bestMatch._id.toString());
+
+                // Create match record
+                const match = {
+                    session_id: sessionId,
+                    purchase_id: bestMatch._id.toString(),
+                    sale_id: sale._id.toString(),
+                    confidence: Math.min(100, bestScore),
+                    match_reason: `Auto-matched with score ${bestScore}`,
+                    created_at: new Date()
+                };
+
+                matches.push(match);
+
+                // Update sale with match
+                await db.collection('ebay_import_sales').updateOne(
+                    { _id: sale._id },
+                    {
+                        $set: {
+                            matched_purchase_id: bestMatch._id.toString(),
+                            match_confidence: Math.min(100, bestScore),
+                            status: 'matched',
+                            updated_at: new Date()
+                        }
+                    }
+                );
+
+                matchedCount++;
+            }
+        }
+
+        // Insert all matches
+        if (matches.length > 0) {
+            await db.collection('ebay_import_matches').insertMany(matches);
+        }
+
+        res.json({
+            success: true,
+            message: `Auto-matched ${matchedCount} sales to purchases`,
+            matched_count: matchedCount,
+            unmatched_sales: sales.length - matchedCount,
+            unmatched_purchases: purchases.length - usedPurchases.size
+        });
+    } catch (err) {
+        console.error('Error auto-matching:', err);
+        res.status(500).json({ error: 'Matching error: ' + err.message });
+    }
+});
+
+// Manually create a match
+app.post('/api/admin/ebay-import/matches', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { session_id, purchase_id, sale_id } = req.body;
+
+        if (!session_id || !purchase_id || !sale_id) {
+            return res.status(400).json({ error: 'session_id, purchase_id, and sale_id are required' });
+        }
+
+        // Verify records exist
+        const purchase = await db.collection('ebay_import_purchases').findOne({ _id: new ObjectId(purchase_id) });
+        const sale = await db.collection('ebay_import_sales').findOne({ _id: new ObjectId(sale_id) });
+
+        if (!purchase) {
+            return res.status(404).json({ error: 'Purchase not found' });
+        }
+        if (!sale) {
+            return res.status(404).json({ error: 'Sale not found' });
+        }
+
+        // Create match
+        const match = {
+            session_id: session_id,
+            purchase_id: purchase_id,
+            sale_id: sale_id,
+            confidence: 100, // Manual match
+            match_reason: 'Manual match',
+            created_at: new Date()
+        };
+
+        await db.collection('ebay_import_matches').insertOne(match);
+
+        // Update sale with match
+        await db.collection('ebay_import_sales').updateOne(
+            { _id: new ObjectId(sale_id) },
+            {
+                $set: {
+                    matched_purchase_id: purchase_id,
+                    match_confidence: 100,
+                    status: 'matched',
+                    updated_at: new Date()
+                }
+            }
+        );
+
+        res.json({ success: true, message: 'Match created' });
+    } catch (err) {
+        console.error('Error creating match:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Remove a match
+app.delete('/api/admin/ebay-import/matches/:id', requireAuth, requireDB, async (req, res) => {
+    try {
+        const matchId = req.params.id;
+
+        if (!ObjectId.isValid(matchId)) {
+            return res.status(400).json({ error: 'Invalid match ID' });
+        }
+
+        const match = await db.collection('ebay_import_matches').findOne({ _id: new ObjectId(matchId) });
+
+        if (!match) {
+            return res.status(404).json({ error: 'Match not found' });
+        }
+
+        // Update sale to remove match
+        await db.collection('ebay_import_sales').updateOne(
+            { _id: new ObjectId(match.sale_id) },
+            {
+                $set: {
+                    matched_purchase_id: null,
+                    match_confidence: null,
+                    status: 'pending',
+                    updated_at: new Date()
+                }
+            }
+        );
+
+        // Delete match
+        await db.collection('ebay_import_matches').deleteOne({ _id: new ObjectId(matchId) });
+
+        res.json({ success: true, message: 'Match removed' });
+    } catch (err) {
+        console.error('Error removing match:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Import matched data into main system
+app.post('/api/admin/ebay-import/sessions/:id/import', requireAuth, requireDB, async (req, res) => {
+    try {
+        const sessionId = req.params.id;
+        const { import_unmatched_purchases, import_unmatched_sales } = req.body;
+
+        if (!ObjectId.isValid(sessionId)) {
+            return res.status(400).json({ error: 'Invalid session ID' });
+        }
+
+        const session = await db.collection('ebay_import_sessions')
+            .findOne({ _id: new ObjectId(sessionId) });
+
+        if (!session) {
+            return res.status(404).json({ error: 'Session not found' });
+        }
+
+        // Get all matched data
+        const matches = await db.collection('ebay_import_matches')
+            .find({ session_id: sessionId })
+            .toArray();
+
+        let importedPurchases = 0;
+        let importedProducts = 0;
+        let importedSales = 0;
+        const errors = [];
+
+        // Process each match
+        for (const match of matches) {
+            try {
+                const purchase = await db.collection('ebay_import_purchases')
+                    .findOne({ _id: new ObjectId(match.purchase_id) });
+                const sale = await db.collection('ebay_import_sales')
+                    .findOne({ _id: new ObjectId(match.sale_id) });
+
+                if (!purchase || !sale) continue;
+                if (purchase.status === 'imported' && sale.status === 'imported') continue;
+
+                // Create purchase record in main system
+                const mainPurchase = {
+                    platform: 'eBay',
+                    order_number: purchase.order_number,
+                    seller_name: purchase.seller_name || 'Unknown Seller',
+                    purchase_date: purchase.purchase_date || new Date(),
+                    generation: purchase.generation || 'Unknown',
+                    connector_type: purchase.connector_type || null,
+                    anc_type: null,
+                    items_purchased: purchase.items_purchased || [{ item_type: 'unknown', quantity: 1 }],
+                    quantity: purchase.quantity || 1,
+                    purchase_price: purchase.purchase_price || 0,
+                    refund_amount: 0,
+                    condition: 'good',
+                    status: 'delivered',
+                    feedback_left: true,
+                    expected_delivery: null,
+                    tracking_provider: null,
+                    tracking_number: null,
+                    serial_numbers: [],
+                    notes: `Imported from eBay history. Original title: ${purchase.item_title}`,
+                    date_added: new Date(),
+                    checked_in: true,
+                    checked_in_date: purchase.purchase_date,
+                    imported_from: 'ebay_import',
+                    import_session_id: sessionId
+                };
+
+                const purchaseResult = await db.collection('purchases').insertOne(mainPurchase);
+                importedPurchases++;
+
+                // Create product records for each part
+                const parts = purchase.items_purchased || [{ item_type: 'unknown', quantity: 1 }];
+                const productIds = [];
+
+                for (const part of parts) {
+                    for (let i = 0; i < (part.quantity || 1); i++) {
+                        // Generate a placeholder security barcode
+                        const timestamp = Date.now();
+                        const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+                        const securityBarcode = `IMP-${timestamp}-${random}`;
+
+                        const product = {
+                            serial_number: null, // Unknown from import
+                            security_barcode: securityBarcode,
+                            part_type: part.item_type || 'unknown',
+                            product_type: getItemDisplayName(part.item_type || 'unknown'),
+                            product_name: `${purchase.generation || 'AirPods'} - ${getItemDisplayName(part.item_type || 'unknown')}`,
+                            generation: purchase.generation || 'Unknown',
+                            part_model_number: null,
+                            notes: `Imported from eBay. Purchase: ${purchase.order_number}`,
+                            ebay_order_number: purchase.order_number,
+                            sales_order_number: sale.order_number,
+                            photos: [], // No photos from import
+                            tracking_number: sale.tracking_number || null,
+                            tracking_date: sale.sale_date,
+                            date_added: purchase.purchase_date || new Date(),
+                            confirmation_checked: true,
+                            confirmation_date: purchase.purchase_date,
+                            purchase_price: (purchase.purchase_price || 0) / parts.length,
+                            status: 'sold',
+                            skip_photos_security: true, // Mark as imported without photos
+                            sale_price: (sale.sale_price || 0) / parts.length,
+                            sale_date: sale.sale_date,
+                            order_total: sale.sale_price || 0,
+                            purchase_id: purchaseResult.insertedId.toString(),
+                            imported_from: 'ebay_import',
+                            import_session_id: sessionId
+                        };
+
+                        const productResult = await db.collection('products').insertOne(product);
+                        productIds.push(productResult.insertedId);
+                        importedProducts++;
+                    }
+                }
+
+                // Create sale record
+                const totalProductCost = purchase.purchase_price || 0;
+                const salePrice = sale.sale_price || 0;
+
+                const mainSale = {
+                    product_id: productIds[0],
+                    product_name: sale.item_title || 'Imported Item',
+                    product_serial: 'N/A (Imported)',
+                    product_cost: totalProductCost,
+                    products: productIds.map((id, idx) => ({
+                        product_id: id,
+                        product_name: `${purchase.generation || 'AirPods'} Part ${idx + 1}`,
+                        product_serial: 'N/A',
+                        product_cost: totalProductCost / productIds.length
+                    })),
+                    platform: 'eBay',
+                    order_number: sale.order_number,
+                    sale_price: salePrice,
+                    sale_date: sale.sale_date || new Date(),
+                    consumables: [],
+                    consumables_cost: 0,
+                    total_cost: totalProductCost + (sale.ebay_fees || 0),
+                    profit: salePrice - totalProductCost - (sale.ebay_fees || 0),
+                    notes: `Imported from eBay history. Buyer: ${sale.buyer_username || sale.buyer_name || 'Unknown'}`,
+                    subtotal: sale.item_subtotal || salePrice,
+                    postage_charged: sale.postage_charged || 0,
+                    transaction_fees: sale.ebay_fees || 0,
+                    postage_label_cost: 0,
+                    ad_fee_general: 0,
+                    order_total: salePrice,
+                    outward_tracking_number: sale.tracking_number || null,
+                    created_at: new Date(),
+                    created_by: req.user.email,
+                    imported_from: 'ebay_import',
+                    import_session_id: sessionId
+                };
+
+                await db.collection('sales').insertOne(mainSale);
+                importedSales++;
+
+                // Mark as imported
+                await db.collection('ebay_import_purchases').updateOne(
+                    { _id: new ObjectId(match.purchase_id) },
+                    { $set: { status: 'imported', updated_at: new Date() } }
+                );
+                await db.collection('ebay_import_sales').updateOne(
+                    { _id: new ObjectId(match.sale_id) },
+                    { $set: { status: 'imported', updated_at: new Date() } }
+                );
+
+            } catch (matchErr) {
+                errors.push({ match_id: match._id, error: matchErr.message });
+            }
+        }
+
+        // Optionally import unmatched purchases
+        if (import_unmatched_purchases) {
+            const unmatchedPurchases = await db.collection('ebay_import_purchases')
+                .find({
+                    session_id: sessionId,
+                    status: { $in: ['pending', 'validated'] }
+                })
+                .toArray();
+
+            for (const purchase of unmatchedPurchases) {
+                try {
+                    const mainPurchase = {
+                        platform: 'eBay',
+                        order_number: purchase.order_number,
+                        seller_name: purchase.seller_name || 'Unknown Seller',
+                        purchase_date: purchase.purchase_date || new Date(),
+                        generation: purchase.generation || 'Unknown',
+                        connector_type: purchase.connector_type || null,
+                        anc_type: null,
+                        items_purchased: purchase.items_purchased || [{ item_type: 'unknown', quantity: 1 }],
+                        quantity: purchase.quantity || 1,
+                        purchase_price: purchase.purchase_price || 0,
+                        refund_amount: 0,
+                        condition: 'good',
+                        status: 'delivered',
+                        feedback_left: true,
+                        notes: `Imported from eBay (unmatched). Original title: ${purchase.item_title}`,
+                        date_added: new Date(),
+                        checked_in: false,
+                        imported_from: 'ebay_import',
+                        import_session_id: sessionId
+                    };
+
+                    await db.collection('purchases').insertOne(mainPurchase);
+                    importedPurchases++;
+
+                    await db.collection('ebay_import_purchases').updateOne(
+                        { _id: purchase._id },
+                        { $set: { status: 'imported', updated_at: new Date() } }
+                    );
+                } catch (err) {
+                    errors.push({ purchase_id: purchase._id, error: err.message });
+                }
+            }
+        }
+
+        // Optionally import unmatched sales
+        if (import_unmatched_sales) {
+            const unmatchedSales = await db.collection('ebay_import_sales')
+                .find({
+                    session_id: sessionId,
+                    status: { $in: ['pending', 'validated'] }
+                })
+                .toArray();
+
+            for (const sale of unmatchedSales) {
+                try {
+                    // Create a placeholder product for unmatched sale
+                    const timestamp = Date.now();
+                    const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+                    const securityBarcode = `IMP-${timestamp}-${random}`;
+
+                    const product = {
+                        serial_number: null,
+                        security_barcode: securityBarcode,
+                        part_type: 'unknown',
+                        product_type: 'Imported Item',
+                        product_name: sale.item_title || 'Imported eBay Sale',
+                        generation: sale.generation || 'Unknown',
+                        notes: `Imported from eBay (unmatched sale). Order: ${sale.order_number}`,
+                        sales_order_number: sale.order_number,
+                        photos: [],
+                        date_added: new Date(),
+                        purchase_price: 0, // Unknown
+                        status: 'sold',
+                        skip_photos_security: true,
+                        sale_price: sale.sale_price || 0,
+                        sale_date: sale.sale_date,
+                        imported_from: 'ebay_import',
+                        import_session_id: sessionId
+                    };
+
+                    const productResult = await db.collection('products').insertOne(product);
+                    importedProducts++;
+
+                    const mainSale = {
+                        product_id: productResult.insertedId,
+                        product_name: sale.item_title || 'Imported Sale',
+                        product_serial: 'N/A (Imported)',
+                        product_cost: 0,
+                        products: [{
+                            product_id: productResult.insertedId,
+                            product_name: sale.item_title || 'Imported Sale',
+                            product_serial: 'N/A',
+                            product_cost: 0
+                        }],
+                        platform: 'eBay',
+                        order_number: sale.order_number,
+                        sale_price: sale.sale_price || 0,
+                        sale_date: sale.sale_date || new Date(),
+                        consumables: [],
+                        consumables_cost: 0,
+                        total_cost: sale.ebay_fees || 0,
+                        profit: (sale.sale_price || 0) - (sale.ebay_fees || 0),
+                        notes: `Imported from eBay (unmatched - no purchase record). Buyer: ${sale.buyer_username || 'Unknown'}`,
+                        subtotal: sale.item_subtotal || sale.sale_price || 0,
+                        postage_charged: sale.postage_charged || 0,
+                        transaction_fees: sale.ebay_fees || 0,
+                        order_total: sale.sale_price || 0,
+                        outward_tracking_number: sale.tracking_number || null,
+                        created_at: new Date(),
+                        created_by: req.user.email,
+                        imported_from: 'ebay_import',
+                        import_session_id: sessionId
+                    };
+
+                    await db.collection('sales').insertOne(mainSale);
+                    importedSales++;
+
+                    await db.collection('ebay_import_sales').updateOne(
+                        { _id: sale._id },
+                        { $set: { status: 'imported', updated_at: new Date() } }
+                    );
+                } catch (err) {
+                    errors.push({ sale_id: sale._id, error: err.message });
+                }
+            }
+        }
+
+        // Update session status
+        await db.collection('ebay_import_sessions').updateOne(
+            { _id: new ObjectId(sessionId) },
+            {
+                $set: {
+                    status: 'imported',
+                    updated_at: new Date(),
+                    import_summary: {
+                        purchases_imported: importedPurchases,
+                        products_created: importedProducts,
+                        sales_imported: importedSales,
+                        errors: errors.length
+                    }
+                }
+            }
+        );
+
+        res.json({
+            success: true,
+            message: 'Import completed',
+            summary: {
+                purchases_imported: importedPurchases,
+                products_created: importedProducts,
+                sales_imported: importedSales,
+                error_count: errors.length,
+                errors: errors.slice(0, 10)
+            }
+        });
+    } catch (err) {
+        console.error('Error importing to main system:', err);
+        res.status(500).json({ error: 'Import error: ' + err.message });
+    }
+});
+
+// Get available generations (for dropdown)
+app.get('/api/admin/ebay-import/generations', requireAuth, requireDB, async (req, res) => {
+    try {
+        const generations = await db.collection('airpod_parts').distinct('generation');
+        res.json({ success: true, generations });
+    } catch (err) {
+        console.error('Error fetching generations:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Get import statistics for a session
+app.get('/api/admin/ebay-import/sessions/:id/stats', requireAuth, requireDB, async (req, res) => {
+    try {
+        const sessionId = req.params.id;
+
+        if (!ObjectId.isValid(sessionId)) {
+            return res.status(400).json({ error: 'Invalid session ID' });
+        }
+
+        // Get counts by status
+        const purchaseStats = await db.collection('ebay_import_purchases').aggregate([
+            { $match: { session_id: sessionId } },
+            { $group: { _id: '$status', count: { $sum: 1 } } }
+        ]).toArray();
+
+        const saleStats = await db.collection('ebay_import_sales').aggregate([
+            { $match: { session_id: sessionId } },
+            { $group: { _id: '$status', count: { $sum: 1 } } }
+        ]).toArray();
+
+        // Get totals
+        const totalPurchaseValue = await db.collection('ebay_import_purchases').aggregate([
+            { $match: { session_id: sessionId } },
+            { $group: { _id: null, total: { $sum: '$purchase_price' } } }
+        ]).toArray();
+
+        const totalSaleValue = await db.collection('ebay_import_sales').aggregate([
+            { $match: { session_id: sessionId } },
+            { $group: { _id: null, total: { $sum: '$sale_price' } } }
+        ]).toArray();
+
+        // Items needing review
+        const purchasesNeedingReview = await db.collection('ebay_import_purchases')
+            .countDocuments({ session_id: sessionId, needs_review: true });
+        const salesNeedingReview = await db.collection('ebay_import_sales')
+            .countDocuments({ session_id: sessionId, needs_review: true });
+
+        // Match count
+        const matchCount = await db.collection('ebay_import_matches')
+            .countDocuments({ session_id: sessionId });
+
+        res.json({
+            success: true,
+            stats: {
+                purchases: {
+                    by_status: purchaseStats.reduce((acc, s) => ({ ...acc, [s._id]: s.count }), {}),
+                    total_value: totalPurchaseValue[0]?.total || 0,
+                    needs_review: purchasesNeedingReview
+                },
+                sales: {
+                    by_status: saleStats.reduce((acc, s) => ({ ...acc, [s._id]: s.count }), {}),
+                    total_value: totalSaleValue[0]?.total || 0,
+                    needs_review: salesNeedingReview
+                },
+                matches: matchCount,
+                estimated_profit: (totalSaleValue[0]?.total || 0) - (totalPurchaseValue[0]?.total || 0)
+            }
+        });
+    } catch (err) {
+        console.error('Error fetching stats:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Serve eBay import page
+app.get('/admin/ebay-import', requireAuthHTML, (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'admin', 'ebay-import.html'));
 });
 
 // Health check endpoint - shows database status and readiness for warranty registration
