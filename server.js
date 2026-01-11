@@ -3737,34 +3737,73 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
             expected_delivery: { $exists: true, $ne: null },
             checked_in: { $ne: true }
         }).toArray();
-        
+
         for (const purchase of purchasesAwaitingDelivery) {
             const expectedDelivery = new Date(purchase.expected_delivery);
             const isOverdue = now > expectedDelivery;
-            
+
             if (isOverdue) {
                 const daysOverdue = Math.floor((now - expectedDelivery) / (1000 * 60 * 60 * 24));
-                
-                tasks.push({
-                    id: purchase._id.toString() + '_delivery',
-                    purchase_id: purchase._id.toString(),
-                    type: 'delivery_overdue',
-                    title: 'Chase Overdue Delivery',
-                    description: `${purchase.generation || 'AirPods'} delivery overdue by ${daysOverdue} day${daysOverdue !== 1 ? 's' : ''} (Tracking: ${purchase.tracking_number || 'N/A'})`,
-                    due_date: expectedDelivery,
-                    is_overdue: true,
-                    due_soon: false,
-                    tracking_number: purchase.tracking_number,
-                    tracking_provider: purchase.tracking_provider,
-                    seller: purchase.seller_name,
-                    order_number: purchase.order_number,
-                    days_overdue: daysOverdue,
-                    expected_delivery_formatted: expectedDelivery.toLocaleDateString('en-GB', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric'
-                    })
-                });
+                const chaseCount = purchase.delivery_chases ? purchase.delivery_chases.length : 0;
+                const hasChaseBeenSent = chaseCount > 0;
+
+                // If a chase has been sent, check if follow-up is due
+                if (hasChaseBeenSent) {
+                    const followUpDue = purchase.chase_follow_up_due ? new Date(purchase.chase_follow_up_due) : null;
+                    const isFollowUpDue = followUpDue && now >= followUpDue;
+
+                    if (isFollowUpDue) {
+                        const daysSinceLastChase = followUpDue ? Math.floor((now - followUpDue) / (1000 * 60 * 60 * 24)) : 0;
+                        const lastChase = purchase.delivery_chases[purchase.delivery_chases.length - 1];
+
+                        tasks.push({
+                            id: purchase._id.toString() + '_delivery_followup',
+                            purchase_id: purchase._id.toString(),
+                            type: 'delivery_chase_followup',
+                            title: 'Chase Delivery Follow-Up',
+                            description: `Follow-up #${chaseCount + 1} for ${purchase.generation || 'AirPods'} - ${daysSinceLastChase} day${daysSinceLastChase !== 1 ? 's' : ''} since last chase (Tracking: ${purchase.tracking_number || 'N/A'})`,
+                            due_date: followUpDue,
+                            is_overdue: daysSinceLastChase > 0,
+                            due_soon: daysSinceLastChase === 0,
+                            tracking_number: purchase.tracking_number,
+                            tracking_provider: purchase.tracking_provider,
+                            seller: purchase.seller_name,
+                            order_number: purchase.order_number,
+                            days_overdue: daysOverdue,
+                            chase_count: chaseCount,
+                            last_chase_date: lastChase ? lastChase.sent_at : null,
+                            expected_delivery_formatted: expectedDelivery.toLocaleDateString('en-GB', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric'
+                            })
+                        });
+                    }
+                    // If follow-up is not yet due, don't show any task
+                } else {
+                    // No chase sent yet - show original chase task
+                    tasks.push({
+                        id: purchase._id.toString() + '_delivery',
+                        purchase_id: purchase._id.toString(),
+                        type: 'delivery_overdue',
+                        title: 'Chase Overdue Delivery',
+                        description: `${purchase.generation || 'AirPods'} delivery overdue by ${daysOverdue} day${daysOverdue !== 1 ? 's' : ''} (Tracking: ${purchase.tracking_number || 'N/A'})`,
+                        due_date: expectedDelivery,
+                        is_overdue: true,
+                        due_soon: false,
+                        tracking_number: purchase.tracking_number,
+                        tracking_provider: purchase.tracking_provider,
+                        seller: purchase.seller_name,
+                        order_number: purchase.order_number,
+                        days_overdue: daysOverdue,
+                        chase_count: 0,
+                        expected_delivery_formatted: expectedDelivery.toLocaleDateString('en-GB', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric'
+                        })
+                    });
+                }
             }
         }
         
@@ -5446,6 +5485,78 @@ app.post('/api/admin/purchases/:id/update-delivery-date', requireAuth, requireDB
         });
     } catch (err) {
         console.error('[DELIVERY-UPDATE] Error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Mark chase delivery email as sent (Admin only)
+app.post('/api/admin/purchases/:id/mark-chase-sent', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    const { email_content, chase_number } = req.body;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid purchase ID' });
+    }
+
+    try {
+        const purchase = await db.collection('purchases').findOne({ _id: new ObjectId(id) });
+
+        if (!purchase) {
+            return res.status(404).json({ error: 'Purchase not found' });
+        }
+
+        const now = new Date();
+
+        // Determine chase number (1 for first chase, 2 for follow-up, etc.)
+        const currentChaseNumber = chase_number || 1;
+
+        // Create chase record
+        const chaseRecord = {
+            chase_number: currentChaseNumber,
+            sent_at: now,
+            sent_by: req.user.email,
+            email_content: email_content || null
+        };
+
+        // Calculate follow-up due date (3 days from now)
+        const followUpDueDate = new Date(now.getTime() + (3 * 24 * 60 * 60 * 1000));
+
+        // Update purchase record
+        const updateData = {
+            $set: {
+                last_updated_at: now,
+                last_updated_by: req.user.email
+            },
+            $push: {
+                delivery_chases: chaseRecord
+            }
+        };
+
+        // If this is the first chase, set the initial chase timestamp
+        if (currentChaseNumber === 1) {
+            updateData.$set.first_chase_sent_at = now;
+            updateData.$set.chase_follow_up_due = followUpDueDate;
+        } else {
+            // For follow-up chases, update the follow-up due date
+            updateData.$set.last_chase_sent_at = now;
+            updateData.$set.chase_follow_up_due = followUpDueDate;
+        }
+
+        await db.collection('purchases').updateOne(
+            { _id: new ObjectId(id) },
+            updateData
+        );
+
+        console.log(`[CHASE-DELIVERY] Marked chase #${currentChaseNumber} sent for purchase ${id}`);
+
+        res.json({
+            success: true,
+            message: `Chase email #${currentChaseNumber} marked as sent`,
+            chase_number: currentChaseNumber,
+            follow_up_due: followUpDueDate
+        });
+    } catch (err) {
+        console.error('[CHASE-DELIVERY] Error:', err);
         res.status(500).json({ error: 'Database error: ' + err.message });
     }
 });

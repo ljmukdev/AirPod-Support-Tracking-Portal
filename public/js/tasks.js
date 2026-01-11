@@ -1,6 +1,7 @@
 // Tasks page logic
 let allTasks = [];
 let currentFilter = 'all';
+let currentChaseTask = null; // Stores the current delivery chase task when viewing email
 
 // Tracking URL templates for different carriers
 const trackingUrls = {
@@ -113,7 +114,7 @@ function filterAndDisplayTasks() {
     } else if (currentFilter === 'workflow') {
         filteredTasks = filteredTasks.filter(t => t.type.includes('workflow'));
     } else if (currentFilter === 'delivery') {
-        filteredTasks = filteredTasks.filter(t => t.type === 'delivery_overdue');
+        filteredTasks = filteredTasks.filter(t => t.type === 'delivery_overdue' || t.type === 'delivery_chase_followup');
     }
     
     // Apply search filter
@@ -190,6 +191,18 @@ function renderTaskCard(task) {
             </button>
         `;
     } else if (task.type === 'delivery_overdue') {
+        actionButtons = `
+            <button onclick="viewTaskEmail('${task.id}', '${task.type}')" class="button button-secondary" style="padding: 10px 16px; font-size: 0.9rem;">
+                View Email
+            </button>
+            <button onclick="openUpdateDeliveryModal('${task.purchase_id}', '${task.expected_delivery_formatted || ''}')" class="button" style="background: #f59e0b; color: white; padding: 10px 16px; font-size: 0.9rem;">
+                Update Date
+            </button>
+            <button onclick="viewPurchase('${task.purchase_id}')" class="button" style="background: #6b7280; color: white; padding: 10px 16px; font-size: 0.9rem;">
+                View Purchase
+            </button>
+        `;
+    } else if (task.type === 'delivery_chase_followup') {
         actionButtons = `
             <button onclick="viewTaskEmail('${task.id}', '${task.type}')" class="button button-secondary" style="padding: 10px 16px; font-size: 0.9rem;">
                 View Email
@@ -322,10 +335,14 @@ function renderTaskCard(task) {
 async function viewTaskEmail(taskId, taskType) {
     const task = allTasks.find(t => t.id === taskId);
     if (!task) return;
-    
+
     let emailContent = '';
     let emailTitle = '';
-    
+    let showMarkEmailSent = false;
+
+    // Reset current chase task
+    currentChaseTask = null;
+
     if (taskType === 'workflow_follow_up') {
         emailTitle = 'Follow-Up Email';
         emailContent = `Hi,\n\nJust checking you've seen the message below regarding the issue with the item.\n\nHappy to resolve this amicably.\n\nKind regards,\nLJMUK`;
@@ -345,21 +362,50 @@ async function viewTaskEmail(taskId, taskType) {
         emailContent = `Hi,\n\nI hope you're well.\n\n`;
         emailContent += `I'm writing to follow up on my order (tracking: ${task.tracking_number || 'N/A'}). `;
         emailContent += `The expected delivery date was ${task.expected_delivery_formatted}, `;
-        
+
         const daysOverdue = task.days_overdue || 0;
         if (daysOverdue === 1) {
             emailContent += `which was yesterday.`;
         } else {
             emailContent += `which was ${daysOverdue} days ago.`;
         }
-        
+
         emailContent += `\n\nI understand delays can happen, but I wanted to check if you have any update on when I might expect to receive the item?\n\n`;
         emailContent += `If there's been an issue with dispatch or delivery, please let me know so we can work out the best way forward.\n\n`;
         emailContent += `Kind regards,\nLJMUK`;
+
+        // Store task for marking as sent
+        currentChaseTask = task;
+        showMarkEmailSent = true;
+    } else if (taskType === 'delivery_chase_followup') {
+        emailTitle = 'Chase Delivery Follow-Up';
+        const chaseNumber = (task.chase_count || 0) + 1;
+
+        emailContent = `Hi,\n\nI hope you're well.\n\n`;
+        emailContent += `I'm writing to follow up again on my order (tracking: ${task.tracking_number || 'N/A'}). `;
+        emailContent += `The expected delivery date was ${task.expected_delivery_formatted}, and it's now ${task.days_overdue || 0} days overdue.\n\n`;
+        emailContent += `I sent a message a few days ago but haven't heard back yet. I understand you may be busy, but I would really appreciate an update on the status of this delivery.\n\n`;
+        emailContent += `Could you please let me know:\n`;
+        emailContent += `- Has the item been dispatched?\n`;
+        emailContent += `- Is there a tracking update available?\n`;
+        emailContent += `- What is the expected delivery date now?\n\n`;
+        emailContent += `If there are any issues, I'm happy to work with you to find a solution.\n\n`;
+        emailContent += `Kind regards,\nLJMUK`;
+
+        // Store task for marking as sent
+        currentChaseTask = task;
+        showMarkEmailSent = true;
     }
-    
+
     document.getElementById('emailModalTitle').textContent = emailTitle;
     document.getElementById('emailContent').value = emailContent;
+
+    // Show/hide Mark Email Sent button
+    const markSentButton = document.getElementById('markEmailSentButton');
+    if (markSentButton) {
+        markSentButton.style.display = showMarkEmailSent ? 'block' : 'none';
+    }
+
     document.getElementById('emailModal').style.display = 'flex';
 }
 
@@ -667,22 +713,89 @@ function viewPurchase(purchaseId) {
 
 function closeEmailModal() {
     document.getElementById('emailModal').style.display = 'none';
+    currentChaseTask = null;
+
+    // Reset Mark Email Sent button
+    const markSentButton = document.getElementById('markEmailSentButton');
+    if (markSentButton) {
+        markSentButton.style.display = 'none';
+        markSentButton.disabled = false;
+        markSentButton.textContent = 'Mark Email Sent';
+    }
 }
 
 async function copyEmail() {
     const emailContent = document.getElementById('emailContent').value;
     const button = document.getElementById('copyEmailButton');
-    
+
     try {
         await navigator.clipboard.writeText(emailContent);
         button.textContent = '✓ Copied!';
-        
+
         setTimeout(() => {
             button.textContent = 'Copy Email';
         }, 2000);
     } catch (error) {
         console.error('[EMAIL] Error copying:', error);
         alert('Failed to copy email. Please select and copy manually.');
+    }
+}
+
+async function markChaseEmailSent() {
+    if (!currentChaseTask) {
+        alert('No task selected');
+        return;
+    }
+
+    if (!confirm('Have you sent the chase email to the seller?\n\nThis will mark this task as done and create a follow-up task in 3 days.')) {
+        return;
+    }
+
+    const emailContent = document.getElementById('emailContent').value;
+    const chaseNumber = (currentChaseTask.chase_count || 0) + 1;
+    const button = document.getElementById('markEmailSentButton');
+    const originalText = button.textContent;
+
+    button.disabled = true;
+    button.textContent = 'Saving...';
+
+    try {
+        const response = await authenticatedFetch(`${window.API_BASE}/api/admin/purchases/${currentChaseTask.purchase_id}/mark-chase-sent`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                email_content: emailContent,
+                chase_number: chaseNumber
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to mark chase as sent');
+        }
+
+        const data = await response.json();
+
+        if (data.success) {
+            const followUpDate = new Date(data.follow_up_due).toLocaleDateString('en-GB', {
+                weekday: 'short',
+                day: 'numeric',
+                month: 'short'
+            });
+
+            alert(`Chase email #${chaseNumber} marked as sent!\n\nA follow-up task will appear on ${followUpDate} if no delivery is received.`);
+            closeEmailModal();
+            loadTasks(); // Reload tasks to reflect changes
+        } else {
+            throw new Error(data.error || 'Failed to mark chase as sent');
+        }
+    } catch (error) {
+        console.error('[CHASE] Error:', error);
+        alert('Error: ' + error.message);
+        button.disabled = false;
+        button.textContent = originalText;
     }
 }
 
