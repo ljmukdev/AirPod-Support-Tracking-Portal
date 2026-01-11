@@ -2910,11 +2910,14 @@ function generateSellerEmailTemplate(purchase, checkIn, baseUrl) {
     // Resolution options
     if (hasAuthenticityIssues) {
         emailBody += 'Given the authenticity concerns, we would need to return the item for a full refund.\n\n';
+    } else if (affectedPercent === 100) {
+        // All items affected - only offer full refund since partial would be the same
+        emailBody += 'Given the significant issues with the entire order, we would like to request a full refund and return the items at your expense as the seller.\n\n';
     } else {
         emailBody += 'We will continue to try to resolve ';
         emailBody += issues.length === 1 ? 'it' : 'these issues';
         emailBody += ', as our preference is always to get items fully working. However, if this proves unsuccessful, we would like to propose one of the following options:\n\n';
-        
+
         // Calculate partial refund amount based on affected proportion
         const totalPrice = parseFloat(purchase.purchase_price) || 0;
         const refundBaseCount = totalItems || (purchase.items_purchased ? purchase.items_purchased.length : 1);
@@ -2922,12 +2925,12 @@ function generateSellerEmailTemplate(purchase, checkIn, baseUrl) {
         const partialRefundAmount = refundBaseCount > 0
             ? (totalPrice * affectedItemCount / refundBaseCount).toFixed(2)
             : totalPrice.toFixed(2);
-        
+
         emailBody += `• Return the full set for a full refund\n`;
         emailBody += `• Keep the `;
         emailBody += affectedItemCount === 1 ? 'item' : 'items';
         emailBody += ` and receive a partial refund of £${partialRefundAmount}, reflecting the `;
-        
+
         if (affectedItemCount === 1) {
             const itemName = issues[0].item_name.toLowerCase();
             emailBody += `non-functioning ${itemName}`;
@@ -3005,14 +3008,18 @@ Requirements:
 3. Explain what issues we found during our inspection
 4. Include photo URLs directly in the text (NO brackets or markdown around URLs)
 5. Mention the affected item count and percentage
-6. REQUEST (not offer) one of two options:
+${affectedPercent === 100 ? `6. REQUEST a full refund for returning the entire order (at seller's expense for return shipping)
+7. Since ALL items are affected, do NOT offer a partial refund option - only request the full refund
+8. Sign off with "Kind regards, LJMUK" or vary slightly
+9. Keep it concise (under 300 words)
+10. Make each message UNIQUE - vary sentence structure, opening, and phrasing while maintaining professionalism` : `6. REQUEST (not offer) one of two options:
    Option A: Return the ENTIRE ORDER for a full refund (at seller's expense for return shipping)
    Option B: Keep the items and receive a partial refund of £${partialRefundAmount}
 7. Make it CLEAR that if we return, it would be the entire order back to them at their cost
 8. Ask the seller which option they prefer
 9. Sign off with "Kind regards, LJMUK" or vary slightly
 10. Keep it concise (under 300 words)
-11. Make each message UNIQUE - vary sentence structure, opening, and phrasing while maintaining professionalism`;
+11. Make each message UNIQUE - vary sentence structure, opening, and phrasing while maintaining professionalism`}`;
 
     console.log('[AI-SELLER-EMAIL] Calling Claude API...');
 
