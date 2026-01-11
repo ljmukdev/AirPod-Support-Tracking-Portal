@@ -2485,6 +2485,18 @@ html {
     color: #3b82f6;
 }
 
+/* Seller Link */
+.seller-link {
+    font-size: 0.8125rem;
+    color: #6b7280;
+    text-decoration: none;
+    transition: color 0.15s;
+}
+
+.seller-link:hover {
+    color: #3b82f6;
+}
+
 /* Status Column */
 .status-cell {
     display: flex;
