@@ -1026,13 +1026,14 @@ async function initializeDatabase() {
                 console.log('Note: Could not drop security_barcode index (may not exist):', err.message);
             }
         }
-        // Use partial index to only index non-null string values - this allows multiple null values
+        // Use partial index to only index non-empty values - this allows multiple null/empty values
+        // Note: Using $exists and $gt instead of $type+$ne for MongoDB compatibility
         await db.collection('products').createIndex(
             { security_barcode: 1 },
             {
                 unique: true,
                 partialFilterExpression: {
-                    security_barcode: { $type: 'string', $ne: '' }
+                    security_barcode: { $exists: true, $gt: '' }
                 }
             }
         );
