@@ -2,7 +2,7 @@
  * Remove Duplicate Check-in
  *
  * This script removes the duplicate check-in for tracking H05QTA0162066623
- * The one with 4 items checked at 11:38 on 10 Jan 2026 should be removed.
+ * Specifically targets ID: 69623a51809ea3d5b78fb68f (4 items at 11:38)
  * The one with 3 items checked at 12:19 should be kept.
  */
 
@@ -11,9 +11,13 @@ const { MongoClient, ObjectId } = require('mongodb');
 
 const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URL;
 
+// Specific ID of the duplicate check-in to delete
+const CHECK_IN_ID_TO_DELETE = '69623a51809ea3d5b78fb68f';
+
 async function removeDuplicateCheckIn() {
-    console.log('🔍 Finding and removing duplicate check-in\n');
+    console.log('🔍 Removing duplicate check-in\n');
     console.log('='.repeat(60));
+    console.log(`Target ID: ${CHECK_IN_ID_TO_DELETE}\n`);
 
     if (!MONGODB_URI) {
         console.error('❌ MONGODB_URI environment variable is required');
@@ -29,44 +33,26 @@ async function removeDuplicateCheckIn() {
 
         const db = client.db('ARSDB');
 
-        // Find all check-ins for this tracking number
-        const trackingNumber = 'H05QTA0162066623';
-        const checkIns = await db.collection('check_ins')
-            .find({ tracking_number: trackingNumber })
-            .sort({ checked_in_at: -1 })
-            .toArray();
-
-        console.log(`Found ${checkIns.length} check-ins for tracking ${trackingNumber}:\n`);
-
-        checkIns.forEach((checkIn, index) => {
-            const itemCount = checkIn.items ? checkIn.items.length : 0;
-            const date = checkIn.checked_in_at ? new Date(checkIn.checked_in_at).toLocaleString() : 'unknown';
-            console.log(`${index + 1}. ID: ${checkIn._id}`);
-            console.log(`   Items: ${itemCount}`);
-            console.log(`   Date: ${date}`);
-            console.log(`   Split into products: ${checkIn.split_into_products || false}`);
-            console.log('');
-        });
-
-        // Find the one to delete: 4 items, around 11:38 on 10 Jan 2026
-        // We'll identify it by the item count of 4
-        const toDelete = checkIns.find(c => {
-            const itemCount = c.items ? c.items.length : 0;
-            return itemCount === 4;
+        // Find the specific check-in to delete
+        const toDelete = await db.collection('check_ins').findOne({
+            _id: new ObjectId(CHECK_IN_ID_TO_DELETE)
         });
 
         if (!toDelete) {
-            console.log('❌ Could not find the check-in with 4 items to delete.');
-            console.log('   The duplicate may have already been removed.');
+            console.log('❌ Check-in not found. It may have already been deleted.');
             await client.close();
             return;
         }
 
-        console.log('='.repeat(60));
-        console.log('🗑️  Will delete check-in:');
+        const itemCount = toDelete.items ? toDelete.items.length : 0;
+        const date = toDelete.checked_in_at ? new Date(toDelete.checked_in_at).toLocaleString() : 'unknown';
+
+        console.log('Found check-in to delete:');
         console.log(`   ID: ${toDelete._id}`);
-        console.log(`   Items: ${toDelete.items ? toDelete.items.length : 0}`);
-        console.log(`   Date: ${new Date(toDelete.checked_in_at).toLocaleString()}`);
+        console.log(`   Tracking: ${toDelete.tracking_number}`);
+        console.log(`   Items: ${itemCount}`);
+        console.log(`   Date: ${date}`);
+        console.log(`   Split into products: ${toDelete.split_into_products || false}`);
         console.log('');
 
         // Check for related tasks that need to be cleaned up
