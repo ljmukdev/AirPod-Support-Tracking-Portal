@@ -10602,8 +10602,20 @@ app.put('/api/admin/sales/:id', requireAuth, requireDB, async (req, res) => {
                 outward_tracking_number
             } = req.body;
 
+            console.log('[DERIVED SALE UPDATE] Received data:', {
+                productId,
+                platform,
+                order_number,
+                sale_price,
+                order_total,
+                transaction_fees,
+                ad_fee_general,
+                postage_label_cost
+            });
+            console.log('[DERIVED SALE UPDATE] Existing product order_total:', product.order_total);
+
             // Update the product record directly
-            await db.collection('products').updateOne(
+            const updateResult = await db.collection('products').updateOne(
                 { _id: new ObjectId(productId) },
                 {
                     $set: {
@@ -10622,6 +10634,8 @@ app.put('/api/admin/sales/:id', requireAuth, requireDB, async (req, res) => {
                     }
                 }
             );
+
+            console.log('[DERIVED SALE UPDATE] Update result:', updateResult);
 
             return res.json({ success: true, message: 'Sale updated successfully' });
         } catch (err) {
