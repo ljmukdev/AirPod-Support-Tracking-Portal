@@ -1137,7 +1137,8 @@ async function openEditSaleModal(id) {
         document.getElementById('selectedProductId').value = sale.product_id;
         document.getElementById('saleOrderNumber').value = sale.order_number || '';
         document.getElementById('salePlatform').value = sale.platform || 'Other';
-        document.getElementById('salePrice').value = sale.sale_price ?? '';
+        // Use order_total as the primary value (this is "Amount Paid"), fall back to sale_price
+        document.getElementById('salePrice').value = sale.order_total ?? sale.sale_price ?? '';
         document.getElementById('saleDate').value = sale.sale_date ? new Date(sale.sale_date).toISOString().split('T')[0] : '';
         document.getElementById('transactionFees').value = sale.transaction_fees ?? 0;
         document.getElementById('adFeeGeneral').value = sale.ad_fee_general ?? 0;
@@ -1259,11 +1260,14 @@ async function handleSaleSubmit(e) {
     const postageLabelCost = parseFloat(document.getElementById('postageLabelCost').value) || 0;
     const outwardTrackingNumber = document.getElementById('outwardTrackingNumber').value.trim();
 
+    const salePriceValue = parseFloat(document.getElementById('salePrice').value) || 0;
+
     const saleData = {
         products: selectedProducts, // Send array of products
         platform: document.getElementById('salePlatform').value,
         order_number: document.getElementById('saleOrderNumber').value.trim(),
-        sale_price: parseFloat(document.getElementById('salePrice').value),
+        sale_price: salePriceValue,
+        order_total: salePriceValue, // Include order_total for derived sales
         sale_date: document.getElementById('saleDate').value,
         transaction_fees: transactionFees,
         ad_fee_general: adFeeGeneral,
