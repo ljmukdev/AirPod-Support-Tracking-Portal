@@ -12359,18 +12359,18 @@ app.post('/api/admin/ebay-import/sessions/:id/sales', requireAuth, requireDB, as
             console.log('[eBay Import] Sales columns detected:', Object.keys(csv_data[0]));
         }
 
-        // Default column mapping for sales - extensive list for eBay UK/US exports
+        // Default column mapping for sales - matches eBay UK export format exactly
         const mapping = column_mapping || {
-            order_number: ['Sales record number', 'Order number', 'Order ID', 'OrderNumber', 'order_number', 'Item number', 'Transaction ID', 'eBay item number'],
+            order_number: ['Sales record number', 'Order number', 'Item number', 'Transaction ID', 'Order ID', 'OrderNumber', 'order_number'],
             item_title: ['Item title', 'Title', 'Item', 'item_title', 'Item name', 'Product', 'Description'],
             sale_date: ['Paid on date', 'Sale date', 'Sold date', 'Date', 'sale_date', 'Transaction date', 'Date sold', 'Payment date', 'Order date'],
-            sale_price: ['Total price', 'Total', 'Sale price', 'Price', 'sale_price', 'Item total', 'Order total', 'Amount', 'Net amount'],
-            item_subtotal: ['Item subtotal', 'Subtotal', 'Item price', 'item_subtotal', 'Unit price'],
+            sale_price: ['Total price', 'Sold for', 'Total', 'Sale price', 'Price', 'sale_price', 'Item total', 'Order total', 'Amount'],
+            item_subtotal: ['Sold for', 'Item subtotal', 'Subtotal', 'Item price', 'item_subtotal', 'Unit price'],
             postage_charged: ['Postage and packaging', 'P&P', 'Shipping charged', 'Postage', 'postage_charged', 'Shipping and handling', 'Shipping', 'Delivery'],
-            buyer_username: ['Buyer user ID', 'Buyer username', 'Buyer', 'buyer_username', 'Username', 'Buyer ID'],
-            buyer_name: ['Buyer name', 'Buyer full name', 'buyer_name', 'Customer name', 'Ship to name', 'Name'],
+            buyer_username: ['Buyer username', 'Buyer user ID', 'Buyer', 'buyer_username', 'Username', 'Buyer ID'],
+            buyer_name: ['Buyer name', 'Post to name', 'Buyer full name', 'buyer_name', 'Customer name', 'Ship to name', 'Name'],
             quantity: ['Quantity', 'Qty', 'quantity', 'Quantity sold', 'Items', 'Units'],
-            ebay_fees: ['eBay collected tax', 'Final value fee - fixed', 'Final value fee - variable', 'Final Value Fee', 'eBay fees', 'FVF', 'ebay_fees', 'Selling fees', 'Fees', 'Total fees'],
+            ebay_fees: ['eBay collected tax', 'Seller collected tax', 'Final value fee - fixed', 'Final value fee - variable', 'Final Value Fee', 'eBay fees', 'FVF', 'ebay_fees', 'Selling fees', 'Fees', 'Total fees'],
             payment_method: ['Payment method', 'payment_method', 'Payment type'],
             tracking_number: ['Tracking number', 'tracking_number', 'Tracking info', 'Tracking', 'Shipment tracking number']
         };
