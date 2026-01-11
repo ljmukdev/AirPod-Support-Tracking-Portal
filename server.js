@@ -3817,7 +3817,46 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                 }
             }
         }
-        
+
+        // 2.5 Find purchases awaiting delivery but missing tracking numbers
+        const purchasesMissingTracking = await db.collection('purchases').find({
+            status: { $in: ['awaiting_delivery', 'dispatched'] },
+            $or: [
+                { tracking_number: { $exists: false } },
+                { tracking_number: null },
+                { tracking_number: '' }
+            ],
+            checked_in: { $ne: true }
+        }).toArray();
+
+        for (const purchase of purchasesMissingTracking) {
+            const purchaseDate = new Date(purchase.purchase_date || purchase.date_added);
+            // Due 2 days after purchase date
+            const dueDate = new Date(purchaseDate.getTime() + (2 * 24 * 60 * 60 * 1000));
+            const isOverdue = now > dueDate;
+            const dueSoon = !isOverdue && (dueDate - now) < (24 * 60 * 60 * 1000); // Due within 24 hours
+
+            tasks.push({
+                id: purchase._id.toString() + '_missing_tracking',
+                purchase_id: purchase._id.toString(),
+                type: 'missing_tracking',
+                title: 'Add Tracking Number',
+                description: `${purchase.generation || 'AirPods'} - tracking info needed`,
+                due_date: dueDate,
+                is_overdue: isOverdue,
+                due_soon: dueSoon,
+                seller: purchase.seller_name,
+                order_number: purchase.order_number,
+                platform: purchase.platform,
+                items_purchased: purchase.items_purchased,
+                purchase_date_formatted: purchaseDate.toLocaleDateString('en-GB', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric'
+                })
+            });
+        }
+
         // 3. Find purchases where feedback hasn't been left yet (after check-in)
         const purchasesNeedingFeedback = await db.collection('purchases').find({
             checked_in: true,
@@ -5633,6 +5672,63 @@ app.post('/api/admin/purchases/:id/update-delivery-date', requireAuth, requireDB
         });
     } catch (err) {
         console.error('[DELIVERY-UPDATE] Error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Add tracking number to purchase (Admin only)
+app.post('/api/admin/purchases/:id/add-tracking', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    const { tracking_provider, tracking_number, expected_delivery } = req.body;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid purchase ID' });
+    }
+
+    if (!tracking_provider) {
+        return res.status(400).json({ error: 'Tracking provider is required' });
+    }
+
+    if (!tracking_number || !tracking_number.trim()) {
+        return res.status(400).json({ error: 'Tracking number is required' });
+    }
+
+    try {
+        const purchase = await db.collection('purchases').findOne({ _id: new ObjectId(id) });
+
+        if (!purchase) {
+            return res.status(404).json({ error: 'Purchase not found' });
+        }
+
+        const now = new Date();
+        const updateFields = {
+            tracking_provider: tracking_provider,
+            tracking_number: tracking_number.trim().toUpperCase(),
+            last_updated_at: now,
+            last_updated_by: req.user.email
+        };
+
+        // Add expected delivery if provided
+        if (expected_delivery) {
+            updateFields.expected_delivery = new Date(expected_delivery);
+        }
+
+        // Update purchase record
+        await db.collection('purchases').updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updateFields }
+        );
+
+        console.log(`[ADD-TRACKING] Added tracking for purchase ${id}: ${tracking_provider} - ${tracking_number}`);
+
+        res.json({
+            success: true,
+            message: 'Tracking added successfully',
+            tracking_provider: tracking_provider,
+            tracking_number: tracking_number.trim().toUpperCase()
+        });
+    } catch (err) {
+        console.error('[ADD-TRACKING] Error:', err);
         res.status(500).json({ error: 'Database error: ' + err.message });
     }
 });
