@@ -10496,18 +10496,72 @@ app.post('/api/admin/sales', requireAuth, requireDB, async (req, res) => {
 // Get single sale
 app.get('/api/admin/sales/:id', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;
-    
+
+    // Handle derived sales (product-prefixed IDs)
+    if (id.startsWith('product-')) {
+        const productId = id.replace('product-', '');
+        if (!ObjectId.isValid(productId)) {
+            return res.status(400).json({ error: 'Invalid sale ID' });
+        }
+
+        try {
+            const product = await db.collection('products').findOne({ _id: new ObjectId(productId) });
+
+            if (!product) {
+                return res.status(404).json({ error: 'Sale not found' });
+            }
+
+            // Build sale object from product data
+            const salePrice = parseFloat(product.order_total || product.sale_price) || 0;
+            const transactionFees = parseFloat(product.transaction_fees) || 0;
+            const postageLabelCost = parseFloat(product.postage_label_cost) || 0;
+            const adFeeGeneral = parseFloat(product.ad_fee_general) || 0;
+            const productCost = parseFloat(product.purchase_price) || 0;
+            const totalCost = productCost + transactionFees + postageLabelCost + adFeeGeneral;
+
+            const sale = {
+                _id: id,
+                product_id: product._id,
+                product_name: product.product_name || product.generation || 'Unknown Product',
+                product_serial: product.serial_number || 'N/A',
+                platform: 'Product Record',
+                order_number: product.sales_order_number || null,
+                purchase_order_number: product.ebay_order_number || null,
+                sale_price: salePrice,
+                sale_date: product.sale_date ? new Date(product.sale_date) : null,
+                product_cost: productCost,
+                total_cost: totalCost,
+                profit: salePrice - totalCost,
+                notes: product.sale_notes || '',
+                subtotal: parseFloat(product.subtotal) || 0,
+                postage_charged: parseFloat(product.postage_charged) || 0,
+                transaction_fees: transactionFees,
+                postage_label_cost: postageLabelCost,
+                ad_fee_general: adFeeGeneral,
+                consumables_cost: 0,
+                order_total: parseFloat(product.order_total) || null,
+                outward_tracking_number: product.outward_tracking_number || null,
+                isDerivedSale: true
+            };
+
+            return res.json({ success: true, sale });
+        } catch (err) {
+            console.error('Error fetching derived sale:', err);
+            return res.status(500).json({ error: 'Database error: ' + err.message });
+        }
+    }
+
     if (!ObjectId.isValid(id)) {
         return res.status(400).json({ error: 'Invalid sale ID' });
     }
-    
+
     try {
         const sale = await db.collection('sales').findOne({ _id: new ObjectId(id) });
-        
+
         if (!sale) {
             return res.status(404).json({ error: 'Sale not found' });
         }
-        
+
         res.json({ success: true, sale });
     } catch (err) {
         console.error('Error fetching sale:', err);
@@ -10518,18 +10572,73 @@ app.get('/api/admin/sales/:id', requireAuth, requireDB, async (req, res) => {
 // Update sale (including consumables)
 app.put('/api/admin/sales/:id', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;
-    
+
+    // Handle derived sales (product-prefixed IDs)
+    if (id.startsWith('product-')) {
+        const productId = id.replace('product-', '');
+        if (!ObjectId.isValid(productId)) {
+            return res.status(400).json({ error: 'Invalid sale ID' });
+        }
+
+        try {
+            const product = await db.collection('products').findOne({ _id: new ObjectId(productId) });
+
+            if (!product) {
+                return res.status(404).json({ error: 'Sale not found' });
+            }
+
+            const {
+                order_number,
+                sale_price,
+                sale_date,
+                notes,
+                subtotal,
+                postage_charged,
+                transaction_fees,
+                postage_label_cost,
+                ad_fee_general,
+                order_total,
+                outward_tracking_number
+            } = req.body;
+
+            // Update the product record directly
+            await db.collection('products').updateOne(
+                { _id: new ObjectId(productId) },
+                {
+                    $set: {
+                        sales_order_number: order_number || product.sales_order_number,
+                        sale_date: sale_date ? new Date(sale_date) : product.sale_date,
+                        sale_price: parseFloat(sale_price ?? product.sale_price) || 0,
+                        subtotal: parseFloat(subtotal ?? product.subtotal) || 0,
+                        postage_charged: parseFloat(postage_charged ?? product.postage_charged) || 0,
+                        transaction_fees: parseFloat(transaction_fees ?? product.transaction_fees) || 0,
+                        postage_label_cost: parseFloat(postage_label_cost ?? product.postage_label_cost) || 0,
+                        ad_fee_general: parseFloat(ad_fee_general ?? product.ad_fee_general) || 0,
+                        order_total: order_total !== undefined ? parseFloat(order_total) || 0 : product.order_total || null,
+                        outward_tracking_number: outward_tracking_number ? outward_tracking_number.trim() : product.outward_tracking_number || null,
+                        sale_notes: notes ?? product.sale_notes ?? ''
+                    }
+                }
+            );
+
+            return res.json({ success: true, message: 'Sale updated successfully' });
+        } catch (err) {
+            console.error('Error updating derived sale:', err);
+            return res.status(500).json({ error: 'Database error: ' + err.message });
+        }
+    }
+
     if (!ObjectId.isValid(id)) {
         return res.status(400).json({ error: 'Invalid sale ID' });
     }
-    
+
     try {
         const existingSale = await db.collection('sales').findOne({ _id: new ObjectId(id) });
-        
+
         if (!existingSale) {
             return res.status(404).json({ error: 'Sale not found' });
         }
-        
+
         const {
             product_id,
             product_name,
@@ -10645,6 +10754,48 @@ app.put('/api/admin/sales/:id', requireAuth, requireDB, async (req, res) => {
 // Delete sale (marks product as unsold again)
 app.delete('/api/admin/sales/:id', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;
+
+    // Handle derived sales (product-prefixed IDs)
+    if (id.startsWith('product-')) {
+        const productId = id.replace('product-', '');
+        if (!ObjectId.isValid(productId)) {
+            return res.status(400).json({ error: 'Invalid sale ID' });
+        }
+
+        try {
+            const product = await db.collection('products').findOne({ _id: new ObjectId(productId) });
+
+            if (!product) {
+                return res.status(404).json({ error: 'Sale not found' });
+            }
+
+            // Clear sale data from product and mark as unsold
+            await db.collection('products').updateOne(
+                { _id: new ObjectId(productId) },
+                {
+                    $set: { status: 'in_stock' },
+                    $unset: {
+                        sales_order_number: "",
+                        sale_date: "",
+                        sale_price: "",
+                        subtotal: "",
+                        postage_charged: "",
+                        transaction_fees: "",
+                        postage_label_cost: "",
+                        ad_fee_general: "",
+                        order_total: "",
+                        outward_tracking_number: "",
+                        sale_notes: ""
+                    }
+                }
+            );
+
+            return res.json({ success: true, message: 'Sale deleted and product marked as unsold' });
+        } catch (err) {
+            console.error('Error deleting derived sale:', err);
+            return res.status(500).json({ error: 'Database error: ' + err.message });
+        }
+    }
 
     if (!ObjectId.isValid(id)) {
         return res.status(400).json({ error: 'Invalid sale ID' });
