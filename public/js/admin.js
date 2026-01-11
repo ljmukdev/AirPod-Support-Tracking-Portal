@@ -431,87 +431,8 @@ function authenticatedFetch(url, options = {}) {
     });
 }
 
-// Login form - User Service authentication only
-const loginForm = document.getElementById('loginForm');
-if (loginForm) {
-    loginForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-
-        const email = document.getElementById('email').value.trim();
-        const password = document.getElementById('password').value;
-        const loginButton = document.getElementById('loginButton');
-
-        if (!email || !password) {
-            showError('Please enter both email and password');
-            return;
-        }
-
-        loginButton.disabled = true;
-        showSpinner();
-
-        try {
-            const USER_SERVICE_URL = 'https://autorestock-user-service-production.up.railway.app';
-
-            const response = await fetch(`${USER_SERVICE_URL}/api/v1/users/login`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                credentials: 'include',
-                body: JSON.stringify({
-                    email: email,
-                    password: password,
-                    serviceName: 'AirPod-Support-Tracking-Portal'
-                })
-            });
-
-            console.log('User Service login response status:', response.status);
-
-            let data;
-            try {
-                data = await response.json();
-            } catch (parseError) {
-                const text = await response.text();
-                console.error('Failed to parse response:', text);
-                showError(`Server error (${response.status}): ${text || response.statusText}`);
-                loginButton.disabled = false;
-                hideSpinner();
-                return;
-            }
-
-            if (response.ok && data.success) {
-                // Store tokens in storage
-                const storage = getStorage();
-                storage.setItem('accessToken', data.data.accessToken);
-                storage.setItem('refreshToken', data.data.refreshToken);
-                storage.setItem('user', JSON.stringify(data.data.user));
-
-                console.log(`[SESSION] Tokens stored in ${SESSION_CONFIG.STORAGE_TYPE}`);
-
-                // Redirect to dashboard
-                window.location.href = '/admin/dashboard';
-            } else {
-                // Show detailed error message
-                const errorMsg = data.message || data.error || 'Invalid credentials';
-                console.error('Login failed:', errorMsg, data);
-
-                let userFriendlyMsg = errorMsg;
-                if (response.status === 401) {
-                    userFriendlyMsg = `Authentication failed: ${errorMsg}. Please check your credentials.`;
-                }
-
-                showError(userFriendlyMsg);
-                loginButton.disabled = false;
-            }
-        } catch (error) {
-            console.error('Login error:', error);
-            showError(`Network error: ${error.message}. Please check your connection and try again.`);
-            loginButton.disabled = false;
-        } finally {
-            hideSpinner();
-        }
-    });
-}
+// Native login form removed - User Service redirect only
+// Authentication is handled via OAuth redirect to User Service
 
 // Logout
 const logoutButton = document.getElementById('logoutButton');
