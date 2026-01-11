@@ -10375,7 +10375,8 @@ async function buildSalesLedger(db) {
             const postageLabelCost = parseFloat(product.postage_label_cost) || 0;
             const adFeeGeneral = parseFloat(product.ad_fee_general) || 0;
             const productCost = parseFloat(product.purchase_price) || 0;
-            const totalCost = productCost + transactionFees + postageLabelCost + adFeeGeneral;
+            const consumablesCost = parseFloat(product.sale_consumables_cost) || 0;
+            const totalCost = productCost + transactionFees + postageLabelCost + adFeeGeneral + consumablesCost;
             const saleDate = product.sale_date ? new Date(product.sale_date) : null;
 
             return {
@@ -10397,7 +10398,8 @@ async function buildSalesLedger(db) {
                 transaction_fees: transactionFees,
                 postage_label_cost: postageLabelCost,
                 ad_fee_general: adFeeGeneral,
-                consumables_cost: 0,
+                consumables: product.sale_consumables || [],
+                consumables_cost: consumablesCost,
                 order_total: parseFloat(product.order_total) || null,
                 outward_tracking_number: product.outward_tracking_number || null
             };
@@ -10613,7 +10615,8 @@ app.get('/api/admin/sales/:id', requireAuth, requireDB, async (req, res) => {
             const postageLabelCost = parseFloat(product.postage_label_cost) || 0;
             const adFeeGeneral = parseFloat(product.ad_fee_general) || 0;
             const productCost = parseFloat(product.purchase_price) || 0;
-            const totalCost = productCost + transactionFees + postageLabelCost + adFeeGeneral;
+            const consumablesCost = parseFloat(product.sale_consumables_cost) || 0;
+            const totalCost = productCost + transactionFees + postageLabelCost + adFeeGeneral + consumablesCost;
 
             const sale = {
                 _id: id,
@@ -10634,7 +10637,8 @@ app.get('/api/admin/sales/:id', requireAuth, requireDB, async (req, res) => {
                 transaction_fees: transactionFees,
                 postage_label_cost: postageLabelCost,
                 ad_fee_general: adFeeGeneral,
-                consumables_cost: 0,
+                consumables: product.sale_consumables || [],
+                consumables_cost: consumablesCost,
                 order_total: parseFloat(product.order_total) || null,
                 outward_tracking_number: product.outward_tracking_number || null,
                 isDerivedSale: true
@@ -10695,7 +10699,9 @@ app.put('/api/admin/sales/:id', requireAuth, requireDB, async (req, res) => {
                 postage_label_cost,
                 ad_fee_general,
                 order_total,
-                outward_tracking_number
+                outward_tracking_number,
+                consumables,
+                consumables_cost
             } = req.body;
 
             console.log('[DERIVED SALE UPDATE] Received data:', {
@@ -10706,9 +10712,41 @@ app.put('/api/admin/sales/:id', requireAuth, requireDB, async (req, res) => {
                 order_total,
                 transaction_fees,
                 ad_fee_general,
-                postage_label_cost
+                postage_label_cost,
+                consumables: consumables?.length || 0,
+                consumables_cost
             });
             console.log('[DERIVED SALE UPDATE] Existing product order_total:', product.order_total);
+
+            // Handle consumables stock updates for derived sales
+            const updatedConsumables = Array.isArray(consumables) ? consumables : [];
+            const oldConsumables = product.sale_consumables || [];
+            const oldMap = new Map(oldConsumables.map(item => [String(item.consumable_id), item.quantity || 0]));
+            const newMap = new Map(updatedConsumables.map(item => [String(item.consumable_id), item.quantity || 0]));
+            const allConsumableIds = new Set([...oldMap.keys(), ...newMap.keys()]);
+
+            for (const consumableId of allConsumableIds) {
+                const oldQty = oldMap.get(consumableId) || 0;
+                const newQty = newMap.get(consumableId) || 0;
+                const delta = newQty - oldQty;
+
+                if (!delta) continue;
+
+                await db.collection('consumables').updateOne(
+                    { _id: new ObjectId(consumableId) },
+                    {
+                        $inc: { quantity_in_stock: -delta },
+                        $push: {
+                            usage_history: {
+                                date: new Date(),
+                                quantity: Math.abs(delta),
+                                reason: `Sale update: ${order_number || product.sales_order_number || product.product_name}`,
+                                user: req.user.email
+                            }
+                        }
+                    }
+                );
+            }
 
             // Update the product record directly
             const updateResult = await db.collection('products').updateOne(
@@ -10726,7 +10764,9 @@ app.put('/api/admin/sales/:id', requireAuth, requireDB, async (req, res) => {
                         ad_fee_general: parseFloat(ad_fee_general ?? product.ad_fee_general) || 0,
                         order_total: order_total !== undefined ? parseFloat(order_total) || 0 : product.order_total || null,
                         outward_tracking_number: outward_tracking_number ? outward_tracking_number.trim() : product.outward_tracking_number || null,
-                        sale_notes: notes ?? product.sale_notes ?? ''
+                        sale_notes: notes ?? product.sale_notes ?? '',
+                        sale_consumables: updatedConsumables,
+                        sale_consumables_cost: parseFloat(consumables_cost ?? product.sale_consumables_cost) || 0
                     }
                 }
             );
