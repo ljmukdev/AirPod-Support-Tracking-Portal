@@ -239,13 +239,18 @@ function renderTaskCard(task) {
     const priorityClass = task.is_overdue ? 'overdue' : (task.due_soon ? 'due-soon' : 'normal');
     const priorityLabel = task.is_overdue ? 'Overdue' : (task.due_soon ? 'Due Soon' : 'Normal');
     
-    const dueDate = new Date(task.due_date).toLocaleString('en-GB', {
-        weekday: 'short',
-        day: 'numeric',
-        month: 'short',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
+    const dueDateObj = new Date(task.due_date);
+    const today = new Date();
+    const isToday = dueDateObj.toDateString() === today.toDateString();
+    const dueDate = isToday
+        ? `Today, ${dueDateObj.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`
+        : dueDateObj.toLocaleString('en-GB', {
+            weekday: 'short',
+            day: 'numeric',
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
     
     let actionButtons = '';
     
