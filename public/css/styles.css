@@ -3432,52 +3432,66 @@ html {
     }
 }
 
-/* Mobile: Switch to cards */
-@media (max-width: 768px) {
-    .products-table-wrapper {
-        display: none;
+/* Mobile: Switch to cards - Sales page specific */
+@media screen and (max-width: 768px) {
+    /* Force hide table on mobile */
+    .products-main .products-table-wrapper {
+        display: none !important;
     }
 
-    .sales-cards-mobile {
-        display: flex;
+    /* Force show mobile cards */
+    .products-main .sales-cards-mobile {
+        display: flex !important;
+    }
+
+    /* Prevent horizontal scroll on mobile */
+    .products-main {
+        overflow-x: hidden !important;
     }
 
     /* Adjust stats cards for mobile */
     .stats-grid {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(2, 1fr) !important;
         gap: 10px;
     }
 
     .stat-card {
-        padding: 14px;
+        padding: 12px !important;
     }
 
     .stat-value {
-        font-size: 1.3rem;
+        font-size: 1.2rem !important;
     }
 
     .stat-label {
-        font-size: 0.75rem;
+        font-size: 0.7rem !important;
     }
 
     .stat-description {
-        font-size: 0.7rem;
+        font-size: 0.65rem !important;
+        display: none; /* Hide descriptions on mobile to save space */
     }
 
     /* Adjust sidebar for mobile */
     .products-sidebar {
-        padding: 16px;
+        padding: 12px !important;
+        max-height: none !important;
     }
 
     .sidebar-section {
-        margin-bottom: 16px;
+        margin-bottom: 12px;
+    }
+
+    /* Collapse filter sections on mobile */
+    .sidebar-section h3 {
+        font-size: 0.75rem;
     }
 }
 
 /* Small mobile adjustments */
-@media (max-width: 480px) {
+@media screen and (max-width: 480px) {
     .sale-card-details {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr !important;
         gap: 10px;
     }
 
@@ -3491,6 +3505,10 @@ html {
     }
 
     .stats-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr !important;
+    }
+
+    .stat-card {
+        padding: 10px !important;
     }
 }
