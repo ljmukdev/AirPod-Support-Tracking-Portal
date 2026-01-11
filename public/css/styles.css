@@ -1061,7 +1061,7 @@ aside.admin-sidebar {
 
 /* Sidebar Header */
 .sidebar-header {
-    padding: 10px 12px;
+    padding: 8px 10px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     flex-shrink: 0;
 }
@@ -1073,8 +1073,8 @@ aside.admin-sidebar {
 }
 
 .sidebar-logo .logo-circle {
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
     background-color: rgba(255, 255, 255, 0.15);
     border: 1px solid rgba(255, 255, 255, 0.2);
@@ -1111,13 +1111,13 @@ aside.admin-sidebar {
 /* Sidebar Navigation */
 .sidebar-nav {
     flex: 1;
-    padding: 4px 10px;
+    padding: 2px 8px;
     overflow: hidden;
     min-height: 0;
 }
 
 .nav-section {
-    margin-bottom: 4px;
+    margin-bottom: 0px;
 }
 
 .nav-section-header {
@@ -1138,7 +1138,7 @@ aside.admin-sidebar {
 }
 
 .nav-item {
-    margin: 0 0 1px 0 !important;
+    margin: 0 !important;
     padding: 0 !important;
     list-style: none !important;
 }
@@ -1148,13 +1148,13 @@ aside.admin-sidebar {
     display: flex !important;
     align-items: center !important;
     gap: 8px !important;
-    height: 30px !important;
-    padding: 4px 10px !important;
+    height: 28px !important;
+    padding: 2px 10px !important;
     color: var(--sidebar-text) !important;
     text-decoration: none !important;
-    font-size: 12.5px !important;
+    font-size: 12px !important;
     font-weight: 500 !important;
-    border-radius: 8px !important;
+    border-radius: 6px !important;
     transition: all 0.2s ease;
     border-left: 3px solid transparent;
     position: relative;
@@ -1258,9 +1258,9 @@ aside.admin-sidebar {
 }
 
 .nav-submenu .nav-link {
-    padding-left: 32px !important;
-    font-size: 11.5px !important;
-    height: 26px !important;
+    padding-left: 30px !important;
+    font-size: 11px !important;
+    height: 24px !important;
 }
 
 .nav-submenu .nav-link:hover {
@@ -1274,7 +1274,7 @@ aside.admin-sidebar {
 
 /* Sidebar Footer (Pinned to Bottom) */
 .sidebar-footer {
-    padding: 6px 10px;
+    padding: 4px 8px;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
     flex-direction: column;
@@ -1287,11 +1287,11 @@ aside.admin-sidebar {
     display: flex !important;
     align-items: center !important;
     gap: 8px !important;
-    height: 30px !important;
-    padding: 4px 10px !important;
+    height: 28px !important;
+    padding: 2px 10px !important;
     color: var(--sidebar-text) !important;
     text-decoration: none !important;
-    font-size: 12.5px !important;
+    font-size: 12px !important;
     font-weight: 500 !important;
     border-radius: 10px !important;
     transition: all 0.2s ease;
