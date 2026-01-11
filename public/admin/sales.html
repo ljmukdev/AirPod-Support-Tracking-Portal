@@ -507,22 +507,23 @@
 
                 <!-- Main Content: Sales Table -->
                 <main class="products-main">
+                    <!-- Desktop Table View -->
                     <div class="products-table-wrapper">
                         <table class="products-table">
                             <thead>
                                 <tr>
-                                    <th>Date</th>
-                                    <th>Product</th>
-                                    <th>Platform</th>
-                                    <th>Sales Order Number</th>
-                                    <th>Purchase Order Number</th>
-                                    <th>Amount Paid</th>
-                                    <th>Purchase Price</th>
-                                    <th>Fees</th>
-                                    <th>Postage Cost</th>
-                                    <th>Consumables Cost</th>
-                                    <th>Profit</th>
-                                    <th></th>
+                                    <th class="col-date">Date</th>
+                                    <th class="col-product">Product</th>
+                                    <th class="col-platform">Platform</th>
+                                    <th class="col-order">Order #</th>
+                                    <th class="col-purchase-order">Purchase #</th>
+                                    <th class="col-money">Paid</th>
+                                    <th class="col-purchase-price col-money">Cost</th>
+                                    <th class="col-money">Fees</th>
+                                    <th class="col-postage col-money">Postage</th>
+                                    <th class="col-consumables col-money">Consumables</th>
+                                    <th class="col-profit">Profit</th>
+                                    <th class="col-actions"></th>
                                 </tr>
                             </thead>
                             <tbody id="salesTableBody">
@@ -531,6 +532,15 @@
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+
+                    <!-- Mobile Cards View -->
+                    <div class="sales-cards-mobile" id="salesCardsMobile">
+                        <div class="sale-card">
+                            <div class="sale-card-body" style="text-align: center; padding: 40px;">
+                                <p style="color: #9ca3af;">Loading sales...</p>
+                            </div>
+                        </div>
                     </div>
                 </main>
             </div>
