@@ -1249,7 +1249,15 @@
                 return;
             }
 
+            if (!currentSessionId) {
+                alert('Please create or select a session first before importing data.');
+                closeModal('sheetSelectorModal');
+                return;
+            }
+
+            console.log('[eBay Import] Starting import with session:', currentSessionId);
             let totalImported = { purchases: 0, sales: 0, needsReview: 0 };
+            let hasErrors = false;
 
             for (let i = 0; i < pendingSheets.length; i++) {
                 const checkbox = document.getElementById(`sheet_${i}`);
@@ -1263,16 +1271,32 @@
                 const sheet = pendingWorkbook.Sheets[sheetName];
                 const rows = XLSX.utils.sheet_to_json(sheet);
 
-                if (rows.length === 0) continue;
+                console.log(`[eBay Import] Processing sheet "${sheetName}" as ${type}:`, rows.length, 'rows');
+                if (rows.length > 0) {
+                    console.log('[eBay Import] First row columns:', Object.keys(rows[0]));
+                    console.log('[eBay Import] First row data:', rows[0]);
+                }
+
+                if (rows.length === 0) {
+                    console.log(`[eBay Import] Skipping empty sheet: ${sheetName}`);
+                    continue;
+                }
 
                 try {
                     const result = await uploadData(rows, type);
+                    console.log(`[eBay Import] Upload result for ${sheetName}:`, result);
                     if (result.success) {
                         totalImported[type] += result.imported_count;
                         totalImported.needsReview += result.needs_review;
+                    } else {
+                        console.error(`[eBay Import] Error for ${sheetName}:`, result.error);
+                        hasErrors = true;
+                        alert(`Error importing ${sheetName}: ${result.error}`);
                     }
                 } catch (err) {
-                    console.error(`Error importing sheet ${sheetName}:`, err);
+                    console.error(`[eBay Import] Exception importing sheet ${sheetName}:`, err);
+                    hasErrors = true;
+                    alert(`Error importing ${sheetName}: ${err.message}`);
                 }
             }
 
@@ -1280,17 +1304,26 @@
             pendingWorkbook = null;
             pendingSheets = [];
 
-            alert(`Import complete!\n\nPurchases imported: ${totalImported.purchases}\nSales imported: ${totalImported.sales}\nItems needing review: ${totalImported.needsReview}`);
+            if (!hasErrors) {
+                alert(`Import complete!\n\nPurchases imported: ${totalImported.purchases}\nSales imported: ${totalImported.sales}\nItems needing review: ${totalImported.needsReview}`);
+            }
             openSession(currentSessionId);
         }
 
         // Parse Excel file for single type (purchases or sales)
         function parseExcelFile(file, type) {
+            if (!currentSessionId) {
+                alert('Please create or select a session first before importing data.');
+                return;
+            }
+
+            console.log(`[eBay Import] Parsing Excel file: ${file.name} as ${type}`);
             const reader = new FileReader();
             reader.onload = async (e) => {
                 try {
                     const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, { type: 'array' });
+                    console.log('[eBay Import] Excel sheets found:', workbook.SheetNames);
 
                     // If multiple sheets, show selector
                     if (workbook.SheetNames.length > 1) {
@@ -1305,12 +1338,19 @@
                         const sheet = workbook.Sheets[workbook.SheetNames[0]];
                         const rows = XLSX.utils.sheet_to_json(sheet);
 
+                        console.log(`[eBay Import] Single sheet rows:`, rows.length);
+                        if (rows.length > 0) {
+                            console.log('[eBay Import] First row columns:', Object.keys(rows[0]));
+                            console.log('[eBay Import] First row data:', rows[0]);
+                        }
+
                         if (rows.length === 0) {
                             alert('No data found in Excel file');
                             return;
                         }
 
                         const result = await uploadData(rows, type);
+                        console.log('[eBay Import] Upload result:', result);
                         if (result.success) {
                             alert(`Successfully imported ${result.imported_count} ${type}. ${result.needs_review} items need review.`);
                             openSession(currentSessionId);
@@ -1319,7 +1359,7 @@
                         }
                     }
                 } catch (err) {
-                    console.error('Error reading Excel file:', err);
+                    console.error('[eBay Import] Error reading Excel file:', err);
                     alert('Error reading Excel file: ' + err.message);
                 }
             };
