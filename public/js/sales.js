@@ -238,6 +238,7 @@ let allSalesData = [];
 
 function displaySales(sales) {
     const tbody = document.getElementById('salesTableBody');
+    const mobileCards = document.getElementById('salesCardsMobile');
     allSalesData = sales || [];
 
     // Apply filters
@@ -251,11 +252,25 @@ function displaySales(sales) {
 
     if (!filtered || filtered.length === 0) {
         tbody.innerHTML = '<tr><td colspan="12" class="table-loading">No sales found matching filters</td></tr>';
+        if (mobileCards) {
+            mobileCards.innerHTML = `
+                <div class="sale-card">
+                    <div class="sale-card-body" style="text-align: center; padding: 40px;">
+                        <p style="color: #9ca3af;">No sales found matching filters</p>
+                    </div>
+                </div>
+            `;
+        }
         return;
     }
 
-    tbody.innerHTML = filtered.map(sale => {
+    // Build both desktop table rows and mobile cards
+    let tableRows = '';
+    let mobileCardsHtml = '';
+
+    filtered.forEach(sale => {
         const saleDate = new Date(sale.sale_date).toLocaleDateString();
+        const saleDateShort = new Date(sale.sale_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
         const amountPaid = typeof sale.order_total === 'number'
             ? sale.order_total
             : (typeof sale.sale_price === 'number' ? sale.sale_price : 0);
@@ -273,6 +288,7 @@ function displaySales(sales) {
             : (amountPaid - totalCost);
         const profit = profitValue.toFixed(2);
         const profitColor = profitValue >= 0 ? '#10b981' : '#ef4444';
+        const profitClass = profitValue >= 0 ? 'positive' : 'negative';
 
         // Sales order number as clickable link to edit sale
         const salesOrderLink = sale.order_number
@@ -284,8 +300,11 @@ function displaySales(sales) {
             ? `<a href="purchases.html?order=${encodeURIComponent(sale.purchase_order_number)}" style="color: #0ea5e9; text-decoration: none; font-weight: 500;">${sale.purchase_order_number}</a>`
             : '<span style="color: #999;">N/A</span>';
 
-        // Build product display - show multiple products if available
+        // Build product display for table - show multiple products if available
         let productDisplay = '';
+        let productNameForCard = '';
+        let productSerialForCard = '';
+
         if (sale.products && Array.isArray(sale.products) && sale.products.length > 1) {
             // Multiple products - show each on its own line
             productDisplay = sale.products.map((p, idx) => `
@@ -294,57 +313,127 @@ function displaySales(sales) {
                     <div style="font-size: 0.8rem; color: #666;">${p.product_serial || 'N/A'}</div>
                 </div>
             `).join('');
+            productNameForCard = `${sale.products.length} items`;
+            productSerialForCard = sale.products.map(p => p.product_name || 'Unknown').join(', ');
         } else {
             // Single product
             productDisplay = `
                 <div style="font-weight: 600;">${sale.product_name || 'Unknown Product'}</div>
                 <div style="font-size: 0.85rem; color: #666;">${sale.product_serial || 'N/A'}</div>
             `;
+            productNameForCard = sale.product_name || 'Unknown Product';
+            productSerialForCard = sale.product_serial || 'N/A';
         }
 
-        return `
+        // Desktop table row
+        tableRows += `
             <tr>
-                <td>${saleDate}</td>
-                <td>${productDisplay}</td>
-                <td>${sale.platform || 'N/A'}</td>
-                <td>
+                <td class="col-date">${saleDateShort}</td>
+                <td class="col-product">${productDisplay}</td>
+                <td class="col-platform">${sale.platform || 'N/A'}</td>
+                <td class="col-order">
                     <div>${salesOrderLink}</div>
-                    ${sale.outward_tracking_number ? `<div style="font-size: 0.85rem; color: #666;">Tracking: ${sale.outward_tracking_number}</div>` : ''}
+                    ${sale.outward_tracking_number ? `<div style="font-size: 0.75rem; color: #666;">Track: ${sale.outward_tracking_number.substring(0, 10)}...</div>` : ''}
                 </td>
-                <td>${purchaseOrderLink}</td>
-                <td style="font-weight: 600;">£${amountPaid.toFixed(2)}</td>
-                <td>£${purchasePrice.toFixed(2)}</td>
-                <td>
+                <td class="col-purchase-order">${purchaseOrderLink}</td>
+                <td class="col-money" style="font-weight: 600;">£${amountPaid.toFixed(2)}</td>
+                <td class="col-purchase-price col-money">£${purchasePrice.toFixed(2)}</td>
+                <td class="col-money">
                     £${feesTotal.toFixed(2)}
                     ${(transactionFees || adFeeGeneral)
-                        ? `<div style="font-size: 0.8rem; color: #666;">(${transactionFees.toFixed(2)} fees + ${adFeeGeneral.toFixed(2)} ad)</div>`
+                        ? `<div class="fees-breakdown">${transactionFees.toFixed(2)}+${adFeeGeneral.toFixed(2)}</div>`
                         : ''}
                 </td>
-                <td>£${postageCost.toFixed(2)}</td>
-                <td>£${consumablesCost.toFixed(2)}</td>
-                <td style="font-weight: 700; color: ${profitColor};">£${profit}</td>
-                <td>
-                    <button class="button-icon" onclick="viewSale('${sale._id}')" title="View Sale">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <td class="col-postage col-money">£${postageCost.toFixed(2)}</td>
+                <td class="col-consumables col-money">£${consumablesCost.toFixed(2)}</td>
+                <td class="col-profit" style="color: ${profitColor};">£${profit}</td>
+                <td class="col-actions">
+                    <div class="sale-actions">
+                        <button class="sale-action-btn" onclick="viewSale('${sale._id}')" title="View">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M8 3C4.5 3 2 8 2 8s2.5 5 6 5 6-5 6-5-2.5-5-6-5z" stroke="currentColor" stroke-width="1.5"/>
+                                <circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.5"/>
+                            </svg>
+                        </button>
+                        <button class="sale-action-btn" onclick="editSale('${sale._id}')" title="Edit">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M11.5 1.5l3 3L6 13H3v-3L11.5 1.5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                        <button class="sale-action-btn delete" onclick="deleteSale('${sale._id}')" title="Delete">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M2 4h12M5 4V3h6v1M5 7v6M8 7v6M11 7v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+
+        // Mobile card
+        mobileCardsHtml += `
+            <div class="sale-card">
+                <div class="sale-card-header">
+                    <div class="sale-card-product">
+                        <div class="sale-card-product-name">${productNameForCard}</div>
+                        <div class="sale-card-product-serial">${productSerialForCard}</div>
+                    </div>
+                    <div class="sale-card-profit ${profitClass}">£${profit}</div>
+                </div>
+                <div class="sale-card-body">
+                    <div class="sale-card-details">
+                        <div class="sale-card-detail">
+                            <span class="sale-card-label">Date</span>
+                            <span class="sale-card-value">${saleDate}</span>
+                        </div>
+                        <div class="sale-card-detail">
+                            <span class="sale-card-label">Platform</span>
+                            <span class="sale-card-value">${sale.platform || 'N/A'}</span>
+                        </div>
+                        <div class="sale-card-detail">
+                            <span class="sale-card-label">Order #</span>
+                            <span class="sale-card-value">${salesOrderLink}</span>
+                        </div>
+                        <div class="sale-card-detail">
+                            <span class="sale-card-label">Amount Paid</span>
+                            <span class="sale-card-value" style="font-weight: 600;">£${amountPaid.toFixed(2)}</span>
+                        </div>
+                        <div class="sale-card-detail">
+                            <span class="sale-card-label">Total Costs</span>
+                            <span class="sale-card-value">£${totalCost.toFixed(2)}</span>
+                        </div>
+                        <div class="sale-card-detail">
+                            <span class="sale-card-label">Fees</span>
+                            <span class="sale-card-value">£${feesTotal.toFixed(2)}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="sale-card-footer">
+                    <button class="sale-card-action" onclick="viewSale('${sale._id}')" title="View Sale">
+                        <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
                             <path d="M8 3C4.5 3 2 8 2 8s2.5 5 6 5 6-5 6-5-2.5-5-6-5z" stroke="currentColor" stroke-width="1.5"/>
                             <circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.5"/>
                         </svg>
                     </button>
-                    <button class="button-icon" onclick="editSale('${sale._id}')" title="Edit Sale">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <button class="sale-card-action" onclick="editSale('${sale._id}')" title="Edit Sale">
+                        <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
                             <path d="M11.5 1.5l3 3L6 13H3v-3L11.5 1.5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                            <path d="M10 3l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                         </svg>
                     </button>
-                    <button class="button-icon" onclick="deleteSale('${sale._id}')" title="Delete Sale">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <button class="sale-card-action delete" onclick="deleteSale('${sale._id}')" title="Delete Sale">
+                        <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
                             <path d="M2 4h12M5 4V3h6v1M5 7v6M8 7v6M11 7v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                         </svg>
                     </button>
-                </td>
-            </tr>
+                </div>
+            </div>
         `;
-    }).join('');
+    });
+
+    tbody.innerHTML = tableRows;
+    if (mobileCards) {
+        mobileCards.innerHTML = mobileCardsHtml;
+    }
 }
 
 function applyFilters(sales) {
