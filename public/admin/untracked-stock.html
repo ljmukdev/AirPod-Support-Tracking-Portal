@@ -902,7 +902,7 @@
                     throw new Error(reconciliationData.error || 'Failed to create reconciliation session');
                 }
 
-                const reconciliationId = reconciliationData.reconciliation._id;
+                const reconciliationId = reconciliationData.reconciliation_id;
 
                 // Convert to product with reconciliation flag
                 const convertResponse = await fetch(API_BASE + `/api/admin/reconciliation/${reconciliationId}/convert-to-product`, {
