@@ -467,20 +467,8 @@ async function submitCheckIn() {
         const data = await response.json();
         
         if (response.ok && data.success) {
-            // Check if there are any issues that require seller contact
-            if (data.issues_found && data.issues_found.length > 0) {
-                // Redirect to check-in details page with generated email
-                window.location.href = `check-in-detail.html?id=${data.id}&purchase_id=${currentPurchase._id}`;
-            } else {
-                successBanner.textContent = 'Check-in completed successfully! No issues detected.';
-                successBanner.style.display = 'block';
-                
-                // Reset after 2 seconds
-                setTimeout(() => {
-                    resetForm();
-                    successBanner.style.display = 'none';
-                }, 2000);
-            }
+            // Always redirect to check-in details page after successful check-in
+            window.location.href = `check-in-detail.html?id=${data.id}&purchase_id=${currentPurchase._id}`;
         } else {
             throw new Error(data.error || 'Failed to complete check-in');
         }
