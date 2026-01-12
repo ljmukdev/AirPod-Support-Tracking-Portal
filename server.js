@@ -14106,7 +14106,7 @@ app.post('/api/admin/reconciliation/:id/match-sale', requireAuth, requireDB, asy
 // Convert untracked stock to product without matching to purchase/sale
 app.post('/api/admin/reconciliation/:id/convert-to-product', requireAuth, requireDB, async (req, res) => {
     try {
-        const { untracked_stock_id, purchase_price, notes } = req.body;
+        const { untracked_stock_id, purchase_price, notes, needs_purchase_reconciliation } = req.body;
 
         if (!ObjectId.isValid(req.params.id) || !ObjectId.isValid(untracked_stock_id)) {
             return res.status(400).json({ error: 'Invalid IDs provided' });
@@ -14141,11 +14141,14 @@ app.post('/api/admin/reconciliation/:id/convert-to-product', requireAuth, requir
             condition: untrackedItem.condition,
             is_genuine: untrackedItem.is_genuine,
             photos: untrackedItem.photos || [],
-            notes: `Converted from untracked stock (no purchase/sale match). Original notes: ${untrackedItem.notes}. ${notes || ''}`,
+            notes: `Converted from untracked stock. Original notes: ${untrackedItem.notes || 'None'}. ${notes || ''}`.trim(),
             reconciled_from: untrackedItem._id,
             reconciliation_id: new ObjectId(req.params.id),
             reconciled_at: new Date(),
-            reconciled_by: req.user.email
+            reconciled_by: req.user.email,
+            // Flag for later purchase reconciliation (for P&L/tax purposes)
+            needs_purchase_reconciliation: needs_purchase_reconciliation === true,
+            linked_purchase_id: null // Will be set when reconciled with a historical purchase
         };
 
         const productResult = await db.collection('products').insertOne(product);
