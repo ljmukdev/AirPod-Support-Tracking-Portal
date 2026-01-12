@@ -1403,13 +1403,25 @@
                 ? `/api/admin/ebay-import/sessions/${currentSessionId}/purchases`
                 : `/api/admin/ebay-import/sessions/${currentSessionId}/sales`;
 
+            // Clean row keys - remove invisible Unicode characters (NBSP, zero-width, etc.)
+            const cleanedRows = rows.map(row =>
+                Object.fromEntries(
+                    Object.entries(row).map(([k, v]) => [
+                        k.replace(/[\u00A0\u200B\u200C\u200D\uFEFF]/g, ' ').replace(/\s+/g, ' ').trim(),
+                        v
+                    ])
+                )
+            );
+
+            console.log('[eBay Import] Cleaned row keys:', Object.keys(cleanedRows[0] || {}));
+
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ csv_data: rows })
+                body: JSON.stringify({ csv_data: cleanedRows })
             });
 
             return await response.json();
