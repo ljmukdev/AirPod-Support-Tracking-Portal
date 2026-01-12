@@ -454,6 +454,10 @@
                             <input type="text" id="serial_number" name="serial_number" placeholder="Enter serial number if available">
                         </div>
                         <div class="form-group">
+                            <label for="security_barcode">Security Barcode</label>
+                            <input type="text" id="security_barcode" name="security_barcode" placeholder="Enter security barcode (or leave blank to auto-generate)">
+                        </div>
+                        <div class="form-group">
                             <label for="condition">Condition</label>
                             <select id="condition" name="condition">
                                 <option value="unknown">Unknown</option>
@@ -685,6 +689,7 @@
                 part_type: document.getElementById('part_type').value,
                 connector_type: document.getElementById('connector_type').value || null,
                 serial_number: document.getElementById('serial_number').value || null,
+                security_barcode: document.getElementById('security_barcode').value || null,
                 condition: document.getElementById('condition').value,
                 is_genuine: document.getElementById('is_genuine').value === '' ? null : document.getElementById('is_genuine').value === 'true',
                 notes: document.getElementById('notes').value

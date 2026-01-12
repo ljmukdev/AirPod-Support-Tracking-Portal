@@ -13643,6 +13643,7 @@ app.post('/api/admin/untracked-stock', requireAuth, requireDB, async (req, res) 
             connector_type,
             anc_type,
             serial_number,
+            security_barcode,
             condition,
             is_genuine,
             notes,
@@ -13653,12 +13654,29 @@ app.post('/api/admin/untracked-stock', requireAuth, requireDB, async (req, res) 
             return res.status(400).json({ error: 'Part type and generation are required' });
         }
 
+        // If security_barcode provided, check it's unique
+        if (security_barcode) {
+            const existing = await db.collection('products').findOne({
+                security_barcode: security_barcode.trim().toUpperCase()
+            });
+            if (existing) {
+                return res.status(400).json({ error: 'Security barcode already exists in products' });
+            }
+            const existingUntracked = await db.collection('untracked_stock').findOne({
+                security_barcode: security_barcode.trim().toUpperCase()
+            });
+            if (existingUntracked) {
+                return res.status(400).json({ error: 'Security barcode already exists in untracked stock' });
+            }
+        }
+
         const item = {
             part_type,
             generation,
             connector_type: connector_type || null,
             anc_type: anc_type || null,
             serial_number: serial_number ? serial_number.trim().toUpperCase() : null,
+            security_barcode: security_barcode ? security_barcode.trim().toUpperCase() : null,
             condition: condition || 'unknown',
             is_genuine: is_genuine !== undefined ? is_genuine : null,
             notes: notes || '',
@@ -14043,9 +14061,13 @@ app.post('/api/admin/reconciliation/:id/match-purchase', requireAuth, requireDB,
         }
 
         // Create a product from the untracked item
+        // Use security barcode from untracked item if provided, otherwise auto-generate
+        const securityBarcode = untrackedItem.security_barcode ||
+            `REC-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+
         const product = {
             serial_number: untrackedItem.serial_number || null,
-            security_barcode: `REC-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
+            security_barcode: securityBarcode,
             part_type: untrackedItem.part_type,
             product_type: untrackedItem.part_type,
             product_name: `${untrackedItem.generation} ${untrackedItem.part_type}`,
@@ -14158,9 +14180,13 @@ app.post('/api/admin/reconciliation/:id/match-sale', requireAuth, requireDB, asy
         }
 
         // Create a product from the untracked item (marked as sold)
+        // Use security barcode from untracked item if provided, otherwise auto-generate
+        const securityBarcode = untrackedItem.security_barcode ||
+            `REC-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+
         const product = {
             serial_number: untrackedItem.serial_number || null,
-            security_barcode: `REC-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
+            security_barcode: securityBarcode,
             part_type: untrackedItem.part_type,
             product_type: untrackedItem.part_type,
             product_name: `${untrackedItem.generation} ${untrackedItem.part_type}`,
@@ -14263,9 +14289,13 @@ app.post('/api/admin/reconciliation/:id/convert-to-product', requireAuth, requir
         }
 
         // Create a product from the untracked item
+        // Use security_barcode from untracked item if available, otherwise generate one
+        const securityBarcode = untrackedItem.security_barcode ||
+            `REC-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+
         const product = {
             serial_number: untrackedItem.serial_number || null,
-            security_barcode: `REC-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
+            security_barcode: securityBarcode,
             part_type: untrackedItem.part_type,
             product_type: untrackedItem.part_type,
             product_name: `${untrackedItem.generation} ${untrackedItem.part_type}`,
