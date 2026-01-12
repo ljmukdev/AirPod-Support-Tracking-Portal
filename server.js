@@ -3715,6 +3715,52 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
             });
         }
 
+        // 1b. Find check-ins with unresolved issues that need chasing (no email sent yet or stale)
+        const checkInsNeedingChase = await db.collection('check_ins').find({
+            $or: [
+                { has_issues: true },
+                { 'resolution_workflow': { $exists: true } }
+            ],
+            'resolution_workflow.resolved_at': { $exists: false }
+        }).toArray();
+
+        for (const checkIn of checkInsNeedingChase) {
+            // Skip if email was already sent (covered by workflow tasks above)
+            if (checkIn.email_sent_at) continue;
+
+            // Get purchase info
+            const purchase = await db.collection('purchases').findOne({
+                _id: new ObjectId(checkIn.purchase_id)
+            });
+
+            if (!purchase) continue;
+
+            // Calculate due date - issues should be chased within 24 hours of check-in
+            const checkInDate = checkIn.checked_in_at ? new Date(checkIn.checked_in_at) : new Date(checkIn.created_at || Date.now());
+            const chaseDue = new Date(checkInDate.getTime() + (24 * 60 * 60 * 1000));
+            const hoursSinceCheckIn = (now - checkInDate) / (1000 * 60 * 60);
+            const isOverdue = now > chaseDue;
+            const dueSoon = hoursSinceCheckIn > 12 && hoursSinceCheckIn < 24;
+
+            tasks.push({
+                id: checkIn._id.toString() + '_chase_resolution',
+                check_in_id: checkIn._id.toString(),
+                purchase_id: purchase._id.toString(),
+                type: 'chase_resolution',
+                title: 'Chase Issue Resolution',
+                description: `Contact seller about ${purchase.generation || 'AirPods'} issue`,
+                due_date: chaseDue,
+                is_overdue: isOverdue,
+                due_soon: dueSoon,
+                tracking_number: checkIn.tracking_number || purchase.tracking_number,
+                tracking_provider: purchase.tracking_provider,
+                seller: purchase.seller_name || checkIn.purchase_seller_name || null,
+                order_number: purchase.order_number || checkIn.purchase_order_number,
+                issue_summary: checkIn.issues_detected ? checkIn.issues_detected.map(i => i.item_name).join(', ') : 'Issues detected',
+                completed: false
+            });
+        }
+
         // 2. Find purchases with overdue deliveries
         const purchasesAwaitingDelivery = await db.collection('purchases').find({
             status: { $in: ['awaiting_delivery', 'dispatched'] },

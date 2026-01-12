@@ -114,7 +114,7 @@ function filterAndDisplayTasks() {
     if (currentFilter === 'overdue') {
         filteredTasks = filteredTasks.filter(t => t.is_overdue);
     } else if (currentFilter === 'workflow') {
-        filteredTasks = filteredTasks.filter(t => t.type.includes('workflow'));
+        filteredTasks = filteredTasks.filter(t => t.type.includes('workflow') || t.type === 'chase_resolution');
     } else if (currentFilter === 'delivery') {
         filteredTasks = filteredTasks.filter(t => t.type === 'delivery_overdue' || t.type === 'delivery_chase_followup' || t.type === 'missing_tracking');
     }
@@ -148,6 +148,7 @@ function filterOneTaskPerSeller(tasks) {
         'missing_tracking': 0.5,
         'delivery_overdue': 1,
         'delivery_chase_followup': 2,
+        'chase_resolution': 2.5,
         'workflow_follow_up': 3,
         'workflow_case_open': 4,
         'leave_feedback': 5,
@@ -311,6 +312,15 @@ function renderTaskCard(task) {
                 Update Date
             </button>
             <button onclick="viewPurchase('${task.purchase_id}')" class="button" style="background: #6b7280; color: white; padding: 10px 16px; font-size: 0.9rem;">
+                View Purchase
+            </button>
+        `;
+    } else if (task.type === 'chase_resolution') {
+        actionButtons = `
+            <button onclick="goToCheckIn('${task.check_in_id}')" class="button" style="padding: 10px 16px; font-size: 0.9rem; background: #ef4444;">
+                Start Resolution
+            </button>
+            <button onclick="viewPurchase('${task.purchase_id}')" class="button button-secondary" style="padding: 10px 16px; font-size: 0.9rem;">
                 View Purchase
             </button>
         `;
