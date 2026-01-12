@@ -7157,6 +7157,108 @@ app.put('/api/admin/product/:id/resale', requireAuth, requireDB, async (req, res
     }
 });
 
+// Put returned product back in stock with optional new security barcode (Admin only)
+app.put('/api/admin/product/:id/restock', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid product ID' });
+    }
+
+    const { security_barcode, restock_notes, archive_return } = req.body;
+
+    try {
+        // Get current product
+        const product = await db.collection('products').findOne({ _id: new ObjectId(id) });
+
+        if (!product) {
+            return res.status(404).json({ error: 'Product not found' });
+        }
+
+        if (product.status !== 'returned') {
+            return res.status(400).json({ error: 'Product is not marked as returned' });
+        }
+
+        // Initialize or get restock history
+        const restockHistory = product.restock_history || [];
+        const restockCount = (product.restock_count || 0) + 1;
+
+        // Create restock record
+        const restockRecord = {
+            restock_date: new Date(),
+            restock_number: restockCount,
+            security_barcode_changed: security_barcode ? true : false,
+            old_security_barcode: product.security_barcode,
+            new_security_barcode: security_barcode || product.security_barcode,
+            restock_notes: restock_notes || '',
+            return_info_archived: archive_return === true
+        };
+
+        // If archiving return info, add it to the restock record
+        if (archive_return) {
+            restockRecord.archived_return_data = {
+                return_reason: product.return_reason,
+                refund_amount: product.refund_amount,
+                original_postage_packaging: product.original_postage_packaging,
+                return_postage_cost: product.return_postage_cost,
+                item_opened: product.item_opened,
+                return_date: product.return_date,
+                return_count: product.return_count,
+                total_refund_amount: product.total_refund_amount,
+                total_postage_lost: product.total_postage_lost,
+                total_return_cost: product.total_return_cost
+            };
+        }
+
+        restockHistory.push(restockRecord);
+
+        // Build update data - set status to 'in_stock' (available for sale)
+        const updateData = {
+            status: 'in_stock',
+            restock_count: restockCount,
+            restock_history: restockHistory,
+            last_restock_date: new Date(),
+            ebay_order_number: null // Clear the old order number since this is back in stock
+        };
+
+        // Update security barcode if provided
+        if (security_barcode && security_barcode.trim()) {
+            updateData.security_barcode = security_barcode.trim().toUpperCase();
+        }
+
+        // If archiving, clear return fields from main product
+        if (archive_return) {
+            updateData.return_reason = null;
+            updateData.refund_amount = null;
+            updateData.original_postage_packaging = null;
+            updateData.return_postage_cost = null;
+            updateData.item_opened = null;
+            updateData.return_date = null;
+        }
+
+        const result = await db.collection('products').updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updateData }
+        );
+
+        if (result.matchedCount === 0) {
+            res.status(404).json({ error: 'Product not found' });
+        } else {
+            console.log('Product restocked, ID:', id);
+            res.json({
+                success: true,
+                message: 'Product put back in stock successfully',
+                restock_count: restockCount,
+                security_barcode: security_barcode ? security_barcode.trim().toUpperCase() : product.security_barcode,
+                archived: archive_return
+            });
+        }
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // Get settings (Admin only)
 app.get('/api/admin/settings', requireAuth, requireDB, async (req, res) => {
     try {
@@ -7169,6 +7271,7 @@ app.get('/api/admin/settings', requireAuth, requireDB, async (req, res) => {
                 settings: {
                     product_status_options: [
                         { value: 'active', label: 'Active' },
+                        { value: 'in_stock', label: 'In Stock' },
                         { value: 'item_in_dispute', label: 'Item in Dispute' },
                         { value: 'delivered_no_warranty', label: 'Delivered (No Warranty)' },
                         { value: 'returned', label: 'Returned' },
@@ -7366,7 +7469,7 @@ app.post('/api/admin/test-email', requireAuth, requireDB, async (req, res) => {
 async function getValidStatuses() {
     // Check if db is available
     if (!db) {
-        return ['active', 'returned', 'delivered_no_warranty', 'pending'];
+        return ['active', 'in_stock', 'returned', 'delivered_no_warranty', 'pending'];
     }
     
     try {
