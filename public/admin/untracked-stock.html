@@ -251,7 +251,7 @@
             }
         }
         /* Modal styles */
-        .modal-overlay {
+        .checkin-modal-overlay {
             display: none;
             position: fixed;
             top: 0;
@@ -261,10 +261,10 @@
             background: rgba(0,0,0,0.5);
             z-index: 99999;
         }
-        .modal-overlay.active {
+        .checkin-modal-overlay.active {
             display: block !important;
         }
-        .modal {
+        .checkin-modal {
             background: white;
             border-radius: 12px;
             padding: 30px;
@@ -279,27 +279,27 @@
             transform: translate(-50%, -50%);
             z-index: 100000;
         }
-        .modal h2 {
+        .checkin-modal h2 {
             margin-top: 0;
             color: #333;
             border-bottom: 2px solid #f0f0f0;
             padding-bottom: 15px;
         }
-        .modal-item-details {
+        .checkin-modal-item-details {
             background: #f8f9fa;
             padding: 15px;
             border-radius: 8px;
             margin-bottom: 20px;
         }
-        .modal-item-details p {
+        .checkin-modal-item-details p {
             margin: 8px 0;
         }
-        .modal-item-details strong {
+        .checkin-modal-item-details strong {
             color: #666;
             display: inline-block;
             width: 120px;
         }
-        .modal-actions {
+        .checkin-modal-actions {
             display: flex;
             gap: 15px;
             justify-content: flex-end;
@@ -587,12 +587,12 @@
     </main>
 
     <!-- Check-In Modal -->
-    <div class="modal-overlay" id="checkInModal">
-        <div class="modal">
+    <div class="checkin-modal-overlay" id="checkInModal">
+        <div class="checkin-modal">
             <h2>Check In Untracked Item</h2>
             <p style="color: #666; margin-bottom: 20px;">Review the item details and set a purchase price to add it to your inventory.</p>
 
-            <div class="modal-item-details" id="modalItemDetails">
+            <div class="checkin-modal-item-details" id="modalItemDetails">
                 <!-- Populated by JavaScript -->
             </div>
 
@@ -606,7 +606,7 @@
                 <textarea id="modal_notes" rows="2" placeholder="Any notes about this check-in..."></textarea>
             </div>
 
-            <div class="modal-actions">
+            <div class="checkin-modal-actions">
                 <button class="btn btn-secondary" onclick="closeCheckInModal()">Cancel</button>
                 <button class="btn btn-primary" id="confirmCheckInBtn">Add to Inventory</button>
             </div>
