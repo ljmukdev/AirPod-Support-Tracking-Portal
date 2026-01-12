@@ -1144,6 +1144,29 @@ async function initializeDatabase() {
             }
         }
 
+        // Create indexes for untracked stock collection
+        try {
+            await db.collection('untracked_stock').createIndex({ status: 1 });
+            await db.collection('untracked_stock').createIndex({ generation: 1 });
+            await db.collection('untracked_stock').createIndex({ part_type: 1 });
+            await db.collection('untracked_stock').createIndex({ serial_number: 1 });
+            await db.collection('untracked_stock').createIndex({ created_at: -1 });
+        } catch (err) {
+            if (!err.message.includes('already exists') && !err.message.includes('E11000')) {
+                console.error('Warning: Could not create untracked_stock indexes:', err.message);
+            }
+        }
+
+        // Create indexes for stock reconciliations collection
+        try {
+            await db.collection('stock_reconciliations').createIndex({ status: 1 });
+            await db.collection('stock_reconciliations').createIndex({ created_at: -1 });
+        } catch (err) {
+            if (!err.message.includes('already exists') && !err.message.includes('E11000')) {
+                console.error('Warning: Could not create stock_reconciliations indexes:', err.message);
+            }
+        }
+
         console.log('Database indexes created');
 
         // Check if parts collection is empty and populate
@@ -2404,6 +2427,60 @@ app.post('/api/admin/purchases/migrate-refunds', requireAuth, requireDB, async (
     } catch (err) {
         console.error('[MIGRATION] Error:', err);
         res.status(500).json({ error: 'Migration failed: ' + err.message });
+    }
+});
+
+// Cleanup endpoint: Fix seller names with "user ID" suffix
+app.post('/api/admin/purchases/cleanup-seller-names', requireAuth, requireDB, async (req, res) => {
+    try {
+        console.log('[CLEANUP] Starting seller name cleanup...');
+
+        // Find all purchases with seller_name containing "user ID", "seller ID", or "buyer ID" suffix
+        const purchasesWithBadNames = await db.collection('purchases').find({
+            $or: [
+                { seller_name: { $regex: /user\s*ID$/i } },
+                { seller_name: { $regex: /seller\s*ID$/i } },
+                { seller_name: { $regex: /buyer\s*ID$/i } }
+            ]
+        }).toArray();
+
+        console.log(`[CLEANUP] Found ${purchasesWithBadNames.length} purchases with names to clean`);
+
+        let updated = 0;
+        const details = [];
+
+        for (const purchase of purchasesWithBadNames) {
+            const oldName = purchase.seller_name;
+            const newName = oldName
+                .replace(/user\s*ID$/i, '')
+                .replace(/seller\s*ID$/i, '')
+                .replace(/buyer\s*ID$/i, '')
+                .trim();
+
+            if (newName !== oldName) {
+                await db.collection('purchases').updateOne(
+                    { _id: purchase._id },
+                    { $set: { seller_name: newName } }
+                );
+
+                const detail = `Fixed seller name: "${oldName}" -> "${newName}" (order: ${purchase.order_number || purchase._id})`;
+                console.log(`[CLEANUP] ${detail}`);
+                details.push(detail);
+                updated++;
+            }
+        }
+
+        console.log(`[CLEANUP] Complete! Updated ${updated} purchase records.`);
+
+        res.json({
+            success: true,
+            message: `Successfully cleaned ${updated} seller names`,
+            updated: updated,
+            details: details
+        });
+    } catch (err) {
+        console.error('[CLEANUP] Error:', err);
+        res.status(500).json({ error: 'Cleanup failed: ' + err.message });
     }
 });
 
@@ -3820,17 +3897,25 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
         }).toArray();
 
         for (const purchase of purchasesNeedingFeedback) {
-            // Check if there's a check-in with issues for this purchase
+            // Check if there's a check-in with issues or an unresolved workflow for this purchase
             const checkInWithIssues = await db.collection('check_ins').findOne({
                 purchase_id: purchase._id.toString(),
-                has_issues: true
+                $or: [
+                    { has_issues: true },
+                    { 'resolution_workflow': { $exists: true }, 'resolution_workflow.resolved_at': { $exists: false } },
+                    { 'resolution_workflow': { $exists: true }, 'resolution_workflow.resolved_at': null }
+                ]
             });
 
-            // If there are issues, check if they're fully resolved
+            // If there are issues or an unresolved workflow, check if they're fully resolved
             if (checkInWithIssues) {
                 const hasResolvedAt = checkInWithIssues.resolution_workflow?.resolved_at;
-                const isReturnResolution = checkInWithIssues.resolution_workflow?.resolution_type === 'return' ||
+                const resolutionType = checkInWithIssues.resolution_workflow?.resolution_type || '';
+                const isReturnResolution = resolutionType.toLowerCase().includes('return') ||
                                            checkInWithIssues.resolution_workflow?.return_tracking;
+                const isRefundResolution = (resolutionType.toLowerCase().includes('refund') &&
+                                           !resolutionType.toLowerCase().includes('no refund')) ||
+                                           resolutionType.toLowerCase().includes('ebay case closed in our favor');
 
                 // Skip if not resolved yet
                 if (!hasResolvedAt) {
@@ -3841,10 +3926,28 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                 if (isReturnResolution && (!purchase.return_tracking || !purchase.return_tracking.refund_verified)) {
                     continue;
                 }
+
+                // Skip if it's a refund resolution (non-return) and refund not verified
+                if (isRefundResolution && !isReturnResolution) {
+                    // Check if refund_pending exists and is not verified
+                    if (purchase.refund_pending && !purchase.refund_pending.refund_verified) {
+                        continue;
+                    }
+                    // Also skip if the resolution indicates a refund but refund_pending wasn't set
+                    // (e.g., refund amount wasn't entered but refund is still expected)
+                    if (!purchase.refund_pending && !purchase.refund_verified) {
+                        continue;
+                    }
+                }
             }
 
             // Skip feedback task if there's a pending refund (item was returned)
             if (purchase.return_tracking && !purchase.return_tracking.refund_verified) {
+                continue;
+            }
+
+            // Skip feedback task if there's a pending non-return refund awaiting verification
+            if (purchase.refund_pending && !purchase.refund_pending.refund_verified) {
                 continue;
             }
 
@@ -4244,6 +4347,54 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                 tracking_provider: purchase.tracking_provider || null,
                 expected_refund: purchase.return_tracking.expected_refund_amount || null,
                 return_tracking: purchase.return_tracking
+            });
+        }
+
+        // 7b. Find purchases awaiting refund verification (non-return eBay resolutions)
+        const pendingNonReturnRefunds = await db.collection('purchases').find({
+            'refund_pending.refund_check_due': { $exists: true },
+            'refund_pending.refund_verified': { $ne: true }
+        }).toArray();
+
+        for (const purchase of pendingNonReturnRefunds) {
+            const refundCheckDue = new Date(purchase.refund_pending.refund_check_due);
+            const isOverdue = now > refundCheckDue;
+            const daysUntil = Math.ceil((refundCheckDue - now) / (1000 * 60 * 60 * 24));
+            const dueSoon = daysUntil >= 0 && daysUntil <= 2;
+
+            const taskId = `refund-pending-${purchase._id.toString()}`;
+
+            let description = `Resolution: ${purchase.refund_pending.resolution_type || 'eBay refund'}. `;
+
+            if (isOverdue) {
+                description += `Expected refund check ${refundCheckDue.toLocaleDateString('en-GB')} - OVERDUE by ${Math.abs(daysUntil)} day(s).`;
+            } else if (daysUntil === 0) {
+                description += 'Check for refund TODAY!';
+            } else if (daysUntil === 1) {
+                description += 'Check for refund TOMORROW.';
+            } else {
+                description += `Check for refund in ${daysUntil} days (${refundCheckDue.toLocaleDateString('en-GB')}).`;
+            }
+
+            if (purchase.refund_pending.expected_refund_amount) {
+                description += ` Expected refund: £${purchase.refund_pending.expected_refund_amount.toFixed(2)}.`;
+            }
+
+            tasks.push({
+                id: taskId,
+                purchase_id: purchase._id.toString(),
+                type: 'refund_verification',
+                title: `Confirm refund received: ${purchase.generation || 'AirPods'}`,
+                description: description,
+                due_date: refundCheckDue,
+                is_overdue: isOverdue,
+                due_soon: dueSoon,
+                order_number: purchase.order_number || null,
+                seller: purchase.seller_name || null,
+                tracking_number: purchase.tracking_number || null,
+                tracking_provider: purchase.tracking_provider || null,
+                expected_refund: purchase.refund_pending.expected_refund_amount || null,
+                refund_pending: purchase.refund_pending
             });
         }
 
@@ -5215,36 +5366,36 @@ app.post('/api/admin/check-in/:id/mark-resolved', requireAuth, requireDB, async 
             refundCheckTaskCreated = true;
             console.log(`[WORKFLOW] Return tracking recorded. Refund check task will be created for ${refundCheckDate.toLocaleDateString('en-GB')}`);
         } else {
-            // Not a return, just mark as resolved
-            await db.collection('purchases').updateOne(
-                { _id: new ObjectId(checkIn.purchase_id) },
-                { $set: { status: 'resolved', last_updated_at: now } }
-            );
-
-            // If partial/full refund received immediately, update purchase cost
+            // Not a return - check if there's a refund to verify
             if (refund_amount && parseFloat(refund_amount) > 0) {
-                const purchase = await db.collection('purchases').findOne({ _id: new ObjectId(checkIn.purchase_id) });
-                if (purchase) {
-                    const refundValue = parseFloat(refund_amount);
-                    const updateFields = {
-                        refund_received: refundValue,
-                        refund_amount: refundValue  // Sync to refund_amount for part value calculation
-                    };
+                // Refund expected but not a return - create refund verification task
+                // Calculate when to check (3 days from now for eBay resolution refunds)
+                const refundCheckDate = new Date();
+                refundCheckDate.setDate(refundCheckDate.getDate() + 3);
 
-                    // Update legacy total_price_paid if it exists
-                    if (purchase.total_price_paid) {
-                        const newTotal = Math.max(0, purchase.total_price_paid - refundValue);
-                        updateFields.total_price_paid = newTotal;
-                        console.log(`[WORKFLOW] Updated purchase total from £${purchase.total_price_paid} to £${newTotal} (refund: £${refund_amount})`);
+                await db.collection('purchases').updateOne(
+                    { _id: new ObjectId(checkIn.purchase_id) },
+                    {
+                        $set: {
+                            status: 'awaiting_refund',
+                            'refund_pending.refund_check_due': refundCheckDate,
+                            'refund_pending.refund_verified': false,
+                            'refund_pending.expected_refund_amount': parseFloat(refund_amount),
+                            'refund_pending.resolution_type': resolution_type,
+                            'refund_pending.created_at': now,
+                            last_updated_at: now
+                        }
                     }
+                );
 
-                    await db.collection('purchases').updateOne(
-                        { _id: new ObjectId(checkIn.purchase_id) },
-                        { $set: updateFields }
-                    );
-
-                    console.log(`[WORKFLOW] Synced refund amount (£${refund_amount}) to purchase record for part value calculation`);
-                }
+                refundCheckTaskCreated = true;
+                console.log(`[WORKFLOW] Non-return refund expected. Refund check task will be created for ${refundCheckDate.toLocaleDateString('en-GB')}`);
+            } else {
+                // No refund, just mark as resolved
+                await db.collection('purchases').updateOne(
+                    { _id: new ObjectId(checkIn.purchase_id) },
+                    { $set: { status: 'resolved', last_updated_at: now } }
+                );
             }
         }
 
@@ -5495,25 +5646,41 @@ app.post('/api/admin/purchases/:id/confirm-refund', requireAuth, requireDB, asyn
         const originalCost = purchase.total_price_paid || purchase.purchase_price || 0;
         const newCost = Math.max(0, originalCost - refundValue);
 
+        // Determine if this is a return refund or a non-return (eBay resolution) refund
+        const isReturnRefund = purchase.return_tracking && purchase.return_tracking.refund_check_due;
+        const isNonReturnRefund = purchase.refund_pending && purchase.refund_pending.refund_check_due;
+
+        // Build update fields
+        const updateFields = {
+            total_price_paid: newCost,
+            refund_received: refundValue,
+            refund_amount: refundValue,  // Sync to refund_amount for part value calculation
+            status: 'refunded',
+            last_updated_at: now,
+            last_updated_by: req.user.email
+        };
+
+        // Add appropriate tracking fields based on refund type
+        if (isReturnRefund) {
+            updateFields['return_tracking.refund_verified'] = true;
+            updateFields['return_tracking.refund_verified_at'] = now;
+            updateFields['return_tracking.actual_refund_amount'] = refundValue;
+        }
+
+        if (isNonReturnRefund) {
+            updateFields['refund_pending.refund_verified'] = true;
+            updateFields['refund_pending.refund_verified_at'] = now;
+            updateFields['refund_pending.actual_refund_amount'] = refundValue;
+        }
+
         // Update purchase record
         await db.collection('purchases').updateOne(
             { _id: new ObjectId(id) },
-            {
-                $set: {
-                    'return_tracking.refund_verified': true,
-                    'return_tracking.refund_verified_at': now,
-                    'return_tracking.actual_refund_amount': refundValue,
-                    total_price_paid: newCost,
-                    refund_received: refundValue,
-                    refund_amount: refundValue,  // Sync to refund_amount for part value calculation
-                    status: 'refunded',
-                    last_updated_at: now,
-                    last_updated_by: req.user.email
-                }
-            }
+            { $set: updateFields }
         );
 
         console.log(`[REFUND-VERIFY] Synced refund amount (£${refund_amount}) to purchase record for part value calculation`);
+        console.log(`[REFUND-VERIFY] Refund type: ${isReturnRefund ? 'return' : (isNonReturnRefund ? 'eBay resolution' : 'unknown')}`);
 
         // If items were split into products, update their purchase prices proportionally
         const checkIns = await db.collection('check_ins').find({
@@ -7134,6 +7301,108 @@ app.put('/api/admin/product/:id/resale', requireAuth, requireDB, async (req, res
     }
 });
 
+// Put returned product back in stock with optional new security barcode (Admin only)
+app.put('/api/admin/product/:id/restock', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid product ID' });
+    }
+
+    const { security_barcode, restock_notes, archive_return } = req.body;
+
+    try {
+        // Get current product
+        const product = await db.collection('products').findOne({ _id: new ObjectId(id) });
+
+        if (!product) {
+            return res.status(404).json({ error: 'Product not found' });
+        }
+
+        if (product.status !== 'returned') {
+            return res.status(400).json({ error: 'Product is not marked as returned' });
+        }
+
+        // Initialize or get restock history
+        const restockHistory = product.restock_history || [];
+        const restockCount = (product.restock_count || 0) + 1;
+
+        // Create restock record
+        const restockRecord = {
+            restock_date: new Date(),
+            restock_number: restockCount,
+            security_barcode_changed: security_barcode ? true : false,
+            old_security_barcode: product.security_barcode,
+            new_security_barcode: security_barcode || product.security_barcode,
+            restock_notes: restock_notes || '',
+            return_info_archived: archive_return === true
+        };
+
+        // If archiving return info, add it to the restock record
+        if (archive_return) {
+            restockRecord.archived_return_data = {
+                return_reason: product.return_reason,
+                refund_amount: product.refund_amount,
+                original_postage_packaging: product.original_postage_packaging,
+                return_postage_cost: product.return_postage_cost,
+                item_opened: product.item_opened,
+                return_date: product.return_date,
+                return_count: product.return_count,
+                total_refund_amount: product.total_refund_amount,
+                total_postage_lost: product.total_postage_lost,
+                total_return_cost: product.total_return_cost
+            };
+        }
+
+        restockHistory.push(restockRecord);
+
+        // Build update data - set status to 'in_stock' (available for sale)
+        const updateData = {
+            status: 'in_stock',
+            restock_count: restockCount,
+            restock_history: restockHistory,
+            last_restock_date: new Date(),
+            ebay_order_number: null // Clear the old order number since this is back in stock
+        };
+
+        // Update security barcode if provided
+        if (security_barcode && security_barcode.trim()) {
+            updateData.security_barcode = security_barcode.trim().toUpperCase();
+        }
+
+        // If archiving, clear return fields from main product
+        if (archive_return) {
+            updateData.return_reason = null;
+            updateData.refund_amount = null;
+            updateData.original_postage_packaging = null;
+            updateData.return_postage_cost = null;
+            updateData.item_opened = null;
+            updateData.return_date = null;
+        }
+
+        const result = await db.collection('products').updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updateData }
+        );
+
+        if (result.matchedCount === 0) {
+            res.status(404).json({ error: 'Product not found' });
+        } else {
+            console.log('Product restocked, ID:', id);
+            res.json({
+                success: true,
+                message: 'Product put back in stock successfully',
+                restock_count: restockCount,
+                security_barcode: security_barcode ? security_barcode.trim().toUpperCase() : product.security_barcode,
+                archived: archive_return
+            });
+        }
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // Get settings (Admin only)
 app.get('/api/admin/settings', requireAuth, requireDB, async (req, res) => {
     try {
@@ -7146,6 +7415,7 @@ app.get('/api/admin/settings', requireAuth, requireDB, async (req, res) => {
                 settings: {
                     product_status_options: [
                         { value: 'active', label: 'Active' },
+                        { value: 'in_stock', label: 'In Stock' },
                         { value: 'item_in_dispute', label: 'Item in Dispute' },
                         { value: 'delivered_no_warranty', label: 'Delivered (No Warranty)' },
                         { value: 'returned', label: 'Returned' },
@@ -7343,7 +7613,7 @@ app.post('/api/admin/test-email', requireAuth, requireDB, async (req, res) => {
 async function getValidStatuses() {
     // Check if db is available
     if (!db) {
-        return ['active', 'returned', 'delivered_no_warranty', 'pending'];
+        return ['active', 'in_stock', 'returned', 'delivered_no_warranty', 'pending'];
     }
     
     try {
@@ -9497,15 +9767,82 @@ app.get('/api/admin/search-product', requireAuth, requireDB, async (req, res) =>
         }
         
         console.log('🔍 Search query:', JSON.stringify(query));
-        
+
         // Search for product
-        const product = await db.collection('products').findOne(query);
-        
+        let product = await db.collection('products').findOne(query);
+
+        // If not found and searching by ebay_order_number, also check the purchases collection
+        if (!product && ebay_order_number && !serial_number && !security_barcode) {
+            console.log('🔍 Product not found, checking purchases collection for order number:', ebay_order_number.trim());
+
+            const purchase = await db.collection('purchases').findOne({
+                order_number: ebay_order_number.trim()
+            });
+
+            if (purchase) {
+                console.log('✅ Purchase found:', purchase.order_number);
+
+                // Find any products linked to this purchase
+                const linkedProducts = await db.collection('products').find({
+                    purchase_id: purchase._id.toString()
+                }).toArray();
+
+                // Return purchase info with linked products
+                const purchaseData = {
+                    id: purchase._id.toString(),
+                    type: 'purchase',
+                    platform: purchase.platform,
+                    order_number: purchase.order_number,
+                    seller_name: purchase.seller_name,
+                    purchase_date: purchase.purchase_date,
+                    generation: purchase.generation,
+                    connector_type: purchase.connector_type,
+                    anc_type: purchase.anc_type,
+                    items_purchased: purchase.items_purchased,
+                    quantity: purchase.quantity,
+                    purchase_price: purchase.purchase_price,
+                    refund_amount: purchase.refund_amount || 0,
+                    condition: purchase.condition,
+                    status: purchase.status,
+                    feedback_left: purchase.feedback_left,
+                    tracking_provider: purchase.tracking_provider,
+                    tracking_number: purchase.tracking_number,
+                    expected_delivery: purchase.expected_delivery,
+                    serial_numbers: purchase.serial_numbers || [],
+                    notes: purchase.notes,
+                    date_added: purchase.date_added,
+                    checked_in: purchase.checked_in || false,
+                    checked_in_date: purchase.checked_in_date
+                };
+
+                // Format linked products
+                const linkedProductsData = linkedProducts.map(p => ({
+                    id: p._id.toString(),
+                    serial_number: p.serial_number,
+                    security_barcode: p.security_barcode,
+                    part_type: p.part_type,
+                    generation: p.generation,
+                    status: p.status
+                }));
+
+                return res.json({
+                    success: true,
+                    purchase: purchaseData,
+                    linked_products: linkedProductsData,
+                    product: null,
+                    warranty: null
+                });
+            }
+
+            console.log('❌ Purchase not found with order number:', ebay_order_number.trim());
+            return res.status(404).json({ error: 'Product not found' });
+        }
+
         if (!product) {
             console.log('❌ Product not found with query:', JSON.stringify(query));
             return res.status(404).json({ error: 'Product not found' });
         }
-        
+
         console.log('✅ Product found:', product.security_barcode);
         
         // Get associated warranty if exists
@@ -12236,6 +12573,18 @@ app.post('/api/admin/ebay-import/sessions/:id/purchases', requireAuth, requireDB
             return null;
         };
 
+        // Helper to clean up usernames (remove common suffixes from eBay exports)
+        const cleanUsername = (name) => {
+            if (!name || typeof name !== 'string') return name;
+            // Remove common suffixes that might be accidentally concatenated from column headers
+            // Patterns like "bigady1user ID" should become "bigady1"
+            return name
+                .replace(/user\s*ID$/i, '')  // Remove "user ID" or "userID" suffix
+                .replace(/seller\s*ID$/i, '') // Remove "seller ID" suffix
+                .replace(/buyer\s*ID$/i, '')  // Remove "buyer ID" suffix
+                .trim();
+        };
+
         // Process each row
         const purchases = [];
         const errors = [];
@@ -12249,7 +12598,7 @@ app.post('/api/admin/ebay-import/sessions/:id/purchases', requireAuth, requireDB
                 const purchaseDate = parseEbayDate(findValue(mapping.purchase_date, row));
                 const purchasePrice = parseEbayPrice(findValue(mapping.purchase_price, row));
                 const postageCost = parseEbayPrice(findValue(mapping.postage_cost, row));
-                const sellerName = findValue(mapping.seller_name, row);
+                const sellerName = cleanUsername(findValue(mapping.seller_name, row));
                 const quantity = parseInt(findValue(mapping.quantity, row)) || 1;
 
                 // Skip if no order number or item title
@@ -12459,6 +12808,18 @@ app.post('/api/admin/ebay-import/sessions/:id/sales', requireAuth, requireDB, as
                 }
             }
             return null;
+        };
+
+        // Helper to clean up usernames (remove common suffixes from eBay exports)
+        const cleanUsername = (name) => {
+            if (!name || typeof name !== 'string') return name;
+            // Remove common suffixes that might be accidentally concatenated from column headers
+            // Patterns like "bigady1user ID" should become "bigady1"
+            return name
+                .replace(/user\s*ID$/i, '')  // Remove "user ID" or "userID" suffix
+                .replace(/seller\s*ID$/i, '') // Remove "seller ID" suffix
+                .replace(/buyer\s*ID$/i, '')  // Remove "buyer ID" suffix
+                .trim();
         };
 
         // Process each row
@@ -13395,6 +13756,865 @@ app.get('/api/admin/ebay-import/sessions/:id/stats', requireAuth, requireDB, asy
 // Serve eBay import page
 app.get('/admin/ebay-import', requireAuthHTML, (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin', 'ebay-import.html'));
+});
+
+// ============================================
+// UNTRACKED STOCK & RECONCILIATION ENDPOINTS
+// ============================================
+
+// Get all untracked stock items
+app.get('/api/admin/untracked-stock', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { status, generation, part_type } = req.query;
+        const filter = {};
+
+        if (status) filter.status = status;
+        if (generation) filter.generation = generation;
+        if (part_type) filter.part_type = part_type;
+
+        const items = await db.collection('untracked_stock')
+            .find(filter)
+            .sort({ created_at: -1 })
+            .toArray();
+
+        res.json({ success: true, items });
+    } catch (err) {
+        console.error('Error fetching untracked stock:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Add new untracked stock item
+app.post('/api/admin/untracked-stock', requireAuth, requireDB, async (req, res) => {
+    try {
+        const {
+            part_type,
+            generation,
+            connector_type,
+            anc_type,
+            serial_number,
+            security_barcode,
+            condition,
+            is_genuine,
+            notes,
+            photos
+        } = req.body;
+
+        if (!part_type || !generation) {
+            return res.status(400).json({ error: 'Part type and generation are required' });
+        }
+
+        // If security_barcode provided, check it's unique
+        if (security_barcode) {
+            const existing = await db.collection('products').findOne({
+                security_barcode: security_barcode.trim().toUpperCase()
+            });
+            if (existing) {
+                return res.status(400).json({ error: 'Security barcode already exists in products' });
+            }
+            const existingUntracked = await db.collection('untracked_stock').findOne({
+                security_barcode: security_barcode.trim().toUpperCase()
+            });
+            if (existingUntracked) {
+                return res.status(400).json({ error: 'Security barcode already exists in untracked stock' });
+            }
+        }
+
+        const item = {
+            part_type,
+            generation,
+            connector_type: connector_type || null,
+            anc_type: anc_type || null,
+            serial_number: serial_number ? serial_number.trim().toUpperCase() : null,
+            security_barcode: security_barcode ? security_barcode.trim().toUpperCase() : null,
+            condition: condition || 'unknown',
+            is_genuine: is_genuine !== undefined ? is_genuine : null,
+            notes: notes || '',
+            photos: photos || [],
+            status: 'pending', // pending, matched, converted_to_product, written_off
+            matched_purchase_id: null,
+            matched_sale_id: null,
+            reconciliation_id: null,
+            created_at: new Date(),
+            created_by: req.user.email,
+            updated_at: new Date()
+        };
+
+        const result = await db.collection('untracked_stock').insertOne(item);
+
+        res.json({
+            success: true,
+            message: 'Untracked stock item added',
+            item_id: result.insertedId
+        });
+    } catch (err) {
+        console.error('Error adding untracked stock:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Get single untracked stock item
+app.get('/api/admin/untracked-stock/:id', requireAuth, requireDB, async (req, res) => {
+    try {
+        if (!ObjectId.isValid(req.params.id)) {
+            return res.status(400).json({ error: 'Invalid item ID' });
+        }
+
+        const item = await db.collection('untracked_stock').findOne({
+            _id: new ObjectId(req.params.id)
+        });
+
+        if (!item) {
+            return res.status(404).json({ error: 'Item not found' });
+        }
+
+        res.json({ success: true, item });
+    } catch (err) {
+        console.error('Error fetching untracked stock item:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Update untracked stock item (PUT and PATCH)
+const updateUntrackedStockHandler = async (req, res) => {
+    try {
+        if (!ObjectId.isValid(req.params.id)) {
+            return res.status(400).json({ error: 'Invalid item ID' });
+        }
+
+        const updateFields = {};
+        const allowedFields = ['part_type', 'generation', 'connector_type', 'anc_type',
+                              'serial_number', 'condition', 'is_genuine', 'notes', 'photos', 'status', 'purchase_price'];
+
+        for (const field of allowedFields) {
+            if (req.body[field] !== undefined) {
+                if (field === 'serial_number' && req.body[field]) {
+                    updateFields[field] = req.body[field].trim().toUpperCase();
+                } else if (field === 'purchase_price') {
+                    updateFields[field] = parseFloat(req.body[field]) || 0;
+                } else {
+                    updateFields[field] = req.body[field];
+                }
+            }
+        }
+
+        updateFields.updated_at = new Date();
+        updateFields.updated_by = req.user.email;
+
+        const result = await db.collection('untracked_stock').updateOne(
+            { _id: new ObjectId(req.params.id) },
+            { $set: updateFields }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ error: 'Item not found' });
+        }
+
+        res.json({ success: true, message: 'Item updated' });
+    } catch (err) {
+        console.error('Error updating untracked stock item:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+};
+
+app.put('/api/admin/untracked-stock/:id', requireAuth, requireDB, updateUntrackedStockHandler);
+app.patch('/api/admin/untracked-stock/:id', requireAuth, requireDB, updateUntrackedStockHandler);
+
+// Delete untracked stock item
+app.delete('/api/admin/untracked-stock/:id', requireAuth, requireDB, async (req, res) => {
+    try {
+        if (!ObjectId.isValid(req.params.id)) {
+            return res.status(400).json({ error: 'Invalid item ID' });
+        }
+
+        const result = await db.collection('untracked_stock').deleteOne({
+            _id: new ObjectId(req.params.id)
+        });
+
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ error: 'Item not found' });
+        }
+
+        res.json({ success: true, message: 'Item deleted' });
+    } catch (err) {
+        console.error('Error deleting untracked stock item:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Get orphaned purchases (purchases without checked-in products)
+app.get('/api/admin/orphaned-purchases', requireAuth, requireDB, async (req, res) => {
+    try {
+        // Find purchases that are marked as delivered but have no products linked to them
+        const purchases = await db.collection('purchases')
+            .find({
+                status: { $in: ['delivered', 'awaiting_delivery', 'on_hold'] },
+                checked_in: { $ne: true }
+            })
+            .sort({ purchase_date: -1 })
+            .toArray();
+
+        // Also find purchases where expected items don't match checked-in products
+        const allDeliveredPurchases = await db.collection('purchases')
+            .find({ status: 'delivered' })
+            .toArray();
+
+        const orphanedPurchases = [];
+
+        for (const purchase of allDeliveredPurchases) {
+            // Count products linked to this purchase
+            const linkedProducts = await db.collection('products').countDocuments({
+                purchase_id: purchase._id
+            });
+
+            // Calculate expected quantity from items_purchased
+            let expectedQty = purchase.quantity || 0;
+            if (purchase.items_purchased && Array.isArray(purchase.items_purchased)) {
+                expectedQty = purchase.items_purchased.reduce((sum, item) => sum + (item.quantity || 0), 0);
+            }
+
+            // If fewer products than expected, it's orphaned
+            if (linkedProducts < expectedQty) {
+                orphanedPurchases.push({
+                    ...purchase,
+                    linked_products: linkedProducts,
+                    expected_quantity: expectedQty,
+                    missing_items: expectedQty - linkedProducts
+                });
+            }
+        }
+
+        // Combine non-checked-in purchases with under-linked purchases
+        const nonCheckedInIds = new Set(purchases.map(p => p._id.toString()));
+        const combinedOrphaned = [
+            ...purchases.map(p => ({
+                ...p,
+                linked_products: 0,
+                expected_quantity: p.quantity || (p.items_purchased ? p.items_purchased.reduce((s, i) => s + (i.quantity || 0), 0) : 0),
+                missing_items: p.quantity || (p.items_purchased ? p.items_purchased.reduce((s, i) => s + (i.quantity || 0), 0) : 0),
+                orphan_reason: 'not_checked_in'
+            })),
+            ...orphanedPurchases.filter(p => !nonCheckedInIds.has(p._id.toString())).map(p => ({
+                ...p,
+                orphan_reason: 'missing_products'
+            }))
+        ];
+
+        res.json({ success: true, purchases: combinedOrphaned });
+    } catch (err) {
+        console.error('Error fetching orphaned purchases:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Get orphaned sales (sales without properly linked products)
+app.get('/api/admin/orphaned-sales', requireAuth, requireDB, async (req, res) => {
+    try {
+        // Find sales where product_id references don't exist or products don't have matching sales_order_number
+        const sales = await db.collection('sales').find({}).toArray();
+        const orphanedSales = [];
+
+        for (const sale of sales) {
+            let isOrphaned = false;
+            let orphanReason = '';
+
+            // Check if product exists
+            if (sale.product_id) {
+                const product = await db.collection('products').findOne({
+                    _id: sale.product_id
+                });
+
+                if (!product) {
+                    isOrphaned = true;
+                    orphanReason = 'product_not_found';
+                } else if (product.sales_order_number !== sale.order_number) {
+                    isOrphaned = true;
+                    orphanReason = 'order_number_mismatch';
+                }
+            }
+
+            // Check multi-product sales
+            if (sale.products && Array.isArray(sale.products)) {
+                for (const saleProduct of sale.products) {
+                    const product = await db.collection('products').findOne({
+                        _id: saleProduct.product_id
+                    });
+
+                    if (!product) {
+                        isOrphaned = true;
+                        orphanReason = 'product_not_found';
+                        break;
+                    }
+                }
+            }
+
+            // Check for sales with no product references at all
+            if (!sale.product_id && (!sale.products || sale.products.length === 0)) {
+                isOrphaned = true;
+                orphanReason = 'no_product_reference';
+            }
+
+            if (isOrphaned) {
+                orphanedSales.push({
+                    ...sale,
+                    orphan_reason: orphanReason
+                });
+            }
+        }
+
+        res.json({ success: true, sales: orphanedSales });
+    } catch (err) {
+        console.error('Error fetching orphaned sales:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Get reconciliation summary/dashboard data
+app.get('/api/admin/reconciliation/summary', requireAuth, requireDB, async (req, res) => {
+    try {
+        const [
+            untrackedCount,
+            orphanedPurchasesCount,
+            orphanedSalesCount,
+            activeReconciliations,
+            recentMatches
+        ] = await Promise.all([
+            db.collection('untracked_stock').countDocuments({ status: 'pending' }),
+            db.collection('purchases').countDocuments({
+                status: { $in: ['delivered', 'awaiting_delivery', 'on_hold'] },
+                checked_in: { $ne: true }
+            }),
+            // For orphaned sales, we need to do a more complex query
+            (async () => {
+                const sales = await db.collection('sales').find({}).toArray();
+                let count = 0;
+                for (const sale of sales) {
+                    if (!sale.product_id && (!sale.products || sale.products.length === 0)) {
+                        count++;
+                    }
+                }
+                return count;
+            })(),
+            db.collection('stock_reconciliations').countDocuments({ status: 'in_progress' }),
+            db.collection('stock_reconciliations')
+                .find({ status: 'completed' })
+                .sort({ completed_at: -1 })
+                .limit(5)
+                .toArray()
+        ]);
+
+        res.json({
+            success: true,
+            summary: {
+                untracked_stock_count: untrackedCount,
+                orphaned_purchases_count: orphanedPurchasesCount,
+                orphaned_sales_count: orphanedSalesCount,
+                active_reconciliations: activeReconciliations,
+                recent_reconciliations: recentMatches
+            }
+        });
+    } catch (err) {
+        console.error('Error fetching reconciliation summary:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Create a new reconciliation session
+app.post('/api/admin/reconciliation', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { notes } = req.body;
+
+        const reconciliation = {
+            status: 'in_progress',
+            notes: notes || '',
+            matches: [],
+            created_at: new Date(),
+            created_by: req.user.email,
+            updated_at: new Date(),
+            completed_at: null
+        };
+
+        const result = await db.collection('stock_reconciliations').insertOne(reconciliation);
+
+        res.json({
+            success: true,
+            message: 'Reconciliation session created',
+            reconciliation_id: result.insertedId
+        });
+    } catch (err) {
+        console.error('Error creating reconciliation:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Get reconciliation sessions
+app.get('/api/admin/reconciliation', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { status } = req.query;
+        const filter = {};
+        if (status) filter.status = status;
+
+        const reconciliations = await db.collection('stock_reconciliations')
+            .find(filter)
+            .sort({ created_at: -1 })
+            .toArray();
+
+        res.json({ success: true, reconciliations });
+    } catch (err) {
+        console.error('Error fetching reconciliations:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Get single reconciliation session
+app.get('/api/admin/reconciliation/:id', requireAuth, requireDB, async (req, res) => {
+    try {
+        if (!ObjectId.isValid(req.params.id)) {
+            return res.status(400).json({ error: 'Invalid reconciliation ID' });
+        }
+
+        const reconciliation = await db.collection('stock_reconciliations').findOne({
+            _id: new ObjectId(req.params.id)
+        });
+
+        if (!reconciliation) {
+            return res.status(404).json({ error: 'Reconciliation not found' });
+        }
+
+        res.json({ success: true, reconciliation });
+    } catch (err) {
+        console.error('Error fetching reconciliation:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Match untracked stock item to a purchase (creates product from untracked item)
+app.post('/api/admin/reconciliation/:id/match-purchase', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { untracked_stock_id, purchase_id, notes } = req.body;
+
+        if (!ObjectId.isValid(req.params.id) || !ObjectId.isValid(untracked_stock_id) || !ObjectId.isValid(purchase_id)) {
+            return res.status(400).json({ error: 'Invalid IDs provided' });
+        }
+
+        // Get the untracked stock item
+        const untrackedItem = await db.collection('untracked_stock').findOne({
+            _id: new ObjectId(untracked_stock_id)
+        });
+
+        if (!untrackedItem) {
+            return res.status(404).json({ error: 'Untracked stock item not found' });
+        }
+
+        // Get the purchase
+        const purchase = await db.collection('purchases').findOne({
+            _id: new ObjectId(purchase_id)
+        });
+
+        if (!purchase) {
+            return res.status(404).json({ error: 'Purchase not found' });
+        }
+
+        // Create a product from the untracked item
+        // Use security barcode from untracked item if provided, otherwise auto-generate
+        const securityBarcode = untrackedItem.security_barcode ||
+            `REC-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+
+        const product = {
+            serial_number: untrackedItem.serial_number || null,
+            security_barcode: securityBarcode,
+            part_type: untrackedItem.part_type,
+            product_type: untrackedItem.part_type,
+            product_name: `${untrackedItem.generation} ${untrackedItem.part_type}`,
+            generation: untrackedItem.generation,
+            connector_type: untrackedItem.connector_type,
+            anc_type: untrackedItem.anc_type,
+            purchase_id: purchase._id,
+            purchase_price: purchase.purchase_price ? (purchase.purchase_price / (purchase.quantity || 1)) : 0,
+            ebay_order_number: purchase.order_number,
+            date_added: new Date(),
+            status: 'in_stock',
+            condition: untrackedItem.condition,
+            is_genuine: untrackedItem.is_genuine,
+            photos: untrackedItem.photos || [],
+            notes: `Reconciled from untracked stock. Original notes: ${untrackedItem.notes}`,
+            reconciled_from: untrackedItem._id,
+            reconciliation_id: new ObjectId(req.params.id),
+            reconciled_at: new Date(),
+            reconciled_by: req.user.email
+        };
+
+        const productResult = await db.collection('products').insertOne(product);
+
+        // Update the untracked item status
+        await db.collection('untracked_stock').updateOne(
+            { _id: untrackedItem._id },
+            {
+                $set: {
+                    status: 'matched',
+                    matched_purchase_id: purchase._id,
+                    matched_product_id: productResult.insertedId,
+                    reconciliation_id: new ObjectId(req.params.id),
+                    updated_at: new Date(),
+                    updated_by: req.user.email
+                }
+            }
+        );
+
+        // Update the purchase to mark it as having more items checked in
+        await db.collection('purchases').updateOne(
+            { _id: purchase._id },
+            {
+                $set: { checked_in: true, checked_in_date: new Date() },
+                $push: {
+                    serial_numbers: untrackedItem.serial_number || 'N/A',
+                    reconciliation_notes: {
+                        date: new Date(),
+                        note: notes || 'Matched from untracked stock',
+                        by: req.user.email
+                    }
+                }
+            }
+        );
+
+        // Add to reconciliation matches
+        await db.collection('stock_reconciliations').updateOne(
+            { _id: new ObjectId(req.params.id) },
+            {
+                $push: {
+                    matches: {
+                        type: 'untracked_to_purchase',
+                        untracked_stock_id: untrackedItem._id,
+                        purchase_id: purchase._id,
+                        product_id: productResult.insertedId,
+                        matched_at: new Date(),
+                        matched_by: req.user.email,
+                        notes: notes || ''
+                    }
+                },
+                $set: { updated_at: new Date() }
+            }
+        );
+
+        res.json({
+            success: true,
+            message: 'Successfully matched untracked item to purchase',
+            product_id: productResult.insertedId
+        });
+    } catch (err) {
+        console.error('Error matching to purchase:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Match untracked stock item to a sale (creates product and links to sale)
+app.post('/api/admin/reconciliation/:id/match-sale', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { untracked_stock_id, sale_id, purchase_price, notes } = req.body;
+
+        if (!ObjectId.isValid(req.params.id) || !ObjectId.isValid(untracked_stock_id) || !ObjectId.isValid(sale_id)) {
+            return res.status(400).json({ error: 'Invalid IDs provided' });
+        }
+
+        // Get the untracked stock item
+        const untrackedItem = await db.collection('untracked_stock').findOne({
+            _id: new ObjectId(untracked_stock_id)
+        });
+
+        if (!untrackedItem) {
+            return res.status(404).json({ error: 'Untracked stock item not found' });
+        }
+
+        // Get the sale
+        const sale = await db.collection('sales').findOne({
+            _id: new ObjectId(sale_id)
+        });
+
+        if (!sale) {
+            return res.status(404).json({ error: 'Sale not found' });
+        }
+
+        // Create a product from the untracked item (marked as sold)
+        // Use security barcode from untracked item if provided, otherwise auto-generate
+        const securityBarcode = untrackedItem.security_barcode ||
+            `REC-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+
+        const product = {
+            serial_number: untrackedItem.serial_number || null,
+            security_barcode: securityBarcode,
+            part_type: untrackedItem.part_type,
+            product_type: untrackedItem.part_type,
+            product_name: `${untrackedItem.generation} ${untrackedItem.part_type}`,
+            generation: untrackedItem.generation,
+            connector_type: untrackedItem.connector_type,
+            anc_type: untrackedItem.anc_type,
+            purchase_price: parseFloat(purchase_price) || 0,
+            date_added: new Date(),
+            status: 'sold',
+            sales_order_number: sale.order_number,
+            sale_date: sale.sale_date,
+            sale_price: sale.sale_price,
+            condition: untrackedItem.condition,
+            is_genuine: untrackedItem.is_genuine,
+            photos: untrackedItem.photos || [],
+            notes: `Reconciled from untracked stock and matched to sale. Original notes: ${untrackedItem.notes}`,
+            reconciled_from: untrackedItem._id,
+            reconciliation_id: new ObjectId(req.params.id),
+            reconciled_at: new Date(),
+            reconciled_by: req.user.email
+        };
+
+        const productResult = await db.collection('products').insertOne(product);
+
+        // Update the untracked item status
+        await db.collection('untracked_stock').updateOne(
+            { _id: untrackedItem._id },
+            {
+                $set: {
+                    status: 'matched',
+                    matched_sale_id: sale._id,
+                    matched_product_id: productResult.insertedId,
+                    reconciliation_id: new ObjectId(req.params.id),
+                    updated_at: new Date(),
+                    updated_by: req.user.email
+                }
+            }
+        );
+
+        // Update the sale to link to the new product
+        await db.collection('sales').updateOne(
+            { _id: sale._id },
+            {
+                $set: {
+                    product_id: productResult.insertedId,
+                    product_serial: untrackedItem.serial_number || 'N/A',
+                    product_cost: parseFloat(purchase_price) || 0,
+                    reconciled: true,
+                    reconciled_at: new Date()
+                }
+            }
+        );
+
+        // Add to reconciliation matches
+        await db.collection('stock_reconciliations').updateOne(
+            { _id: new ObjectId(req.params.id) },
+            {
+                $push: {
+                    matches: {
+                        type: 'untracked_to_sale',
+                        untracked_stock_id: untrackedItem._id,
+                        sale_id: sale._id,
+                        product_id: productResult.insertedId,
+                        matched_at: new Date(),
+                        matched_by: req.user.email,
+                        notes: notes || ''
+                    }
+                },
+                $set: { updated_at: new Date() }
+            }
+        );
+
+        res.json({
+            success: true,
+            message: 'Successfully matched untracked item to sale',
+            product_id: productResult.insertedId
+        });
+    } catch (err) {
+        console.error('Error matching to sale:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Convert untracked stock to product without matching to purchase/sale
+app.post('/api/admin/reconciliation/:id/convert-to-product', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { untracked_stock_id, purchase_price, notes, needs_purchase_reconciliation } = req.body;
+
+        if (!ObjectId.isValid(req.params.id) || !ObjectId.isValid(untracked_stock_id)) {
+            return res.status(400).json({ error: 'Invalid IDs provided' });
+        }
+
+        // Get the untracked stock item
+        const untrackedItem = await db.collection('untracked_stock').findOne({
+            _id: new ObjectId(untracked_stock_id)
+        });
+
+        if (!untrackedItem) {
+            return res.status(404).json({ error: 'Untracked stock item not found' });
+        }
+
+        // Create a product from the untracked item
+        // Use security_barcode from untracked item if available, otherwise generate one
+        const securityBarcode = untrackedItem.security_barcode ||
+            `REC-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+
+        const product = {
+            serial_number: untrackedItem.serial_number || null,
+            security_barcode: securityBarcode,
+            part_type: untrackedItem.part_type,
+            product_type: untrackedItem.part_type,
+            product_name: `${untrackedItem.generation} ${untrackedItem.part_type}`,
+            generation: untrackedItem.generation,
+            connector_type: untrackedItem.connector_type,
+            anc_type: untrackedItem.anc_type,
+            purchase_price: parseFloat(purchase_price) || 0,
+            date_added: new Date(),
+            status: 'in_stock',
+            condition: untrackedItem.condition,
+            is_genuine: untrackedItem.is_genuine,
+            photos: untrackedItem.photos || [],
+            notes: `Converted from untracked stock. Original notes: ${untrackedItem.notes || 'None'}. ${notes || ''}`.trim(),
+            reconciled_from: untrackedItem._id,
+            reconciliation_id: new ObjectId(req.params.id),
+            reconciled_at: new Date(),
+            reconciled_by: req.user.email,
+            // Flag for later purchase reconciliation (for P&L/tax purposes)
+            needs_purchase_reconciliation: needs_purchase_reconciliation === true,
+            linked_purchase_id: null // Will be set when reconciled with a historical purchase
+        };
+
+        const productResult = await db.collection('products').insertOne(product);
+
+        // Update the untracked item status
+        await db.collection('untracked_stock').updateOne(
+            { _id: untrackedItem._id },
+            {
+                $set: {
+                    status: 'converted_to_product',
+                    matched_product_id: productResult.insertedId,
+                    reconciliation_id: new ObjectId(req.params.id),
+                    updated_at: new Date(),
+                    updated_by: req.user.email
+                }
+            }
+        );
+
+        // Add to reconciliation matches
+        await db.collection('stock_reconciliations').updateOne(
+            { _id: new ObjectId(req.params.id) },
+            {
+                $push: {
+                    matches: {
+                        type: 'converted_to_product',
+                        untracked_stock_id: untrackedItem._id,
+                        product_id: productResult.insertedId,
+                        matched_at: new Date(),
+                        matched_by: req.user.email,
+                        notes: notes || ''
+                    }
+                },
+                $set: { updated_at: new Date() }
+            }
+        );
+
+        res.json({
+            success: true,
+            message: 'Successfully converted untracked item to product',
+            product_id: productResult.insertedId
+        });
+    } catch (err) {
+        console.error('Error converting to product:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Write off untracked stock item
+app.post('/api/admin/reconciliation/:id/write-off', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { untracked_stock_id, reason, notes } = req.body;
+
+        if (!ObjectId.isValid(req.params.id) || !ObjectId.isValid(untracked_stock_id)) {
+            return res.status(400).json({ error: 'Invalid IDs provided' });
+        }
+
+        if (!reason) {
+            return res.status(400).json({ error: 'Write-off reason is required' });
+        }
+
+        // Update the untracked item status
+        await db.collection('untracked_stock').updateOne(
+            { _id: new ObjectId(untracked_stock_id) },
+            {
+                $set: {
+                    status: 'written_off',
+                    write_off_reason: reason,
+                    write_off_notes: notes || '',
+                    reconciliation_id: new ObjectId(req.params.id),
+                    updated_at: new Date(),
+                    updated_by: req.user.email
+                }
+            }
+        );
+
+        // Add to reconciliation matches
+        await db.collection('stock_reconciliations').updateOne(
+            { _id: new ObjectId(req.params.id) },
+            {
+                $push: {
+                    matches: {
+                        type: 'written_off',
+                        untracked_stock_id: new ObjectId(untracked_stock_id),
+                        reason: reason,
+                        matched_at: new Date(),
+                        matched_by: req.user.email,
+                        notes: notes || ''
+                    }
+                },
+                $set: { updated_at: new Date() }
+            }
+        );
+
+        res.json({
+            success: true,
+            message: 'Untracked item written off'
+        });
+    } catch (err) {
+        console.error('Error writing off item:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Complete reconciliation session
+app.post('/api/admin/reconciliation/:id/complete', requireAuth, requireDB, async (req, res) => {
+    try {
+        if (!ObjectId.isValid(req.params.id)) {
+            return res.status(400).json({ error: 'Invalid reconciliation ID' });
+        }
+
+        const { notes } = req.body;
+
+        const result = await db.collection('stock_reconciliations').updateOne(
+            { _id: new ObjectId(req.params.id) },
+            {
+                $set: {
+                    status: 'completed',
+                    completion_notes: notes || '',
+                    completed_at: new Date(),
+                    completed_by: req.user.email,
+                    updated_at: new Date()
+                }
+            }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ error: 'Reconciliation not found' });
+        }
+
+        res.json({ success: true, message: 'Reconciliation completed' });
+    } catch (err) {
+        console.error('Error completing reconciliation:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Serve untracked stock page
+app.get('/admin/untracked-stock', requireAuthHTML, (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'admin', 'untracked-stock.html'));
+});
+
+// Serve reconciliation page
+app.get('/admin/reconciliation', requireAuthHTML, (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'admin', 'reconciliation.html'));
 });
 
 // Health check endpoint - shows database status and readiness for warranty registration

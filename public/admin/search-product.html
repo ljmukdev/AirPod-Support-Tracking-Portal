@@ -291,6 +291,16 @@
                                     <span>Consumables</span>
                                 </a>
                             </li>
+                            <li class="nav-item">
+                                <a href="untracked-stock.html" class="nav-link" data-page="untracked-stock">
+                                    <span>Untracked Stock</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="reconciliation.html" class="nav-link" data-page="reconciliation">
+                                    <span>Reconciliation</span>
+                                </a>
+                            </li>
                         </ul>
                     </li>
 
@@ -505,6 +515,7 @@
             </div>
 
             <div class="results-container" id="resultsContainer">
+                <div class="purchase-details" id="purchaseDetails" style="display: none;"></div>
                 <div class="product-details" id="productDetails"></div>
                 <div class="warranty-details" id="warrantyDetails"></div>
             </div>
@@ -669,6 +680,47 @@
         </div>
     </div>
 
+    <!-- Put Back in Stock Modal -->
+    <div id="restockProductModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>📦 Put Back in Stock</h2>
+                <span class="modal-close" id="closeRestockModal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div style="background: #d4edda; padding: 12px; border-radius: 6px; margin-bottom: 20px; border-left: 4px solid #28a745;">
+                    <p style="margin: 0; font-size: 0.9rem; color: #155724;">
+                        <strong>📋 Note:</strong> This will put the returned item back in stock, ready for the next sale. Use this when you've resealed the item with a new security sticker.
+                    </p>
+                </div>
+                <form id="restockProductForm">
+                    <div class="form-group">
+                        <label for="restockSecurityBarcode">New Security Barcode *</label>
+                        <input type="text" id="restockSecurityBarcode" name="security_barcode" required placeholder="Enter the new security seal number">
+                        <small style="color: #666; display: block; margin-top: 5px;">Enter the barcode/number from the new security sticker you applied</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="restockNotes">Restock Notes (Optional)</label>
+                        <textarea id="restockNotes" name="restock_notes" rows="3" placeholder="Any notes about this restock (e.g., inspected, tested, repackaged, etc.)"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" id="restockArchiveReturn" name="archive_return" checked style="width: auto; height: 18px; cursor: pointer;">
+                            <span>Archive return information (recommended)</span>
+                        </label>
+                        <small style="color: #666; display: block; margin-top: 5px; margin-left: 28px;">Return details will be moved to history. Uncheck to keep visible in main product details.</small>
+                    </div>
+                    <div id="restockProductError" class="error-message" style="display: none;"></div>
+                    <div id="restockProductSuccess" class="success-message" style="display: none;"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="button button-secondary" id="cancelRestockBtn">Cancel</button>
+                <button type="button" class="button" id="confirmRestockBtn" style="background: #28a745;">Put Back in Stock</button>
+            </div>
+        </div>
+    </div>
+
     <script src="../js/admin.js"></script>
     <script src="../js/main.js?v=1.0.0"></script>
     <script>
@@ -732,8 +784,16 @@
                 }
                 
                 // Display results
-                displayProduct(data.product);
-                displayWarranty(data.warranty);
+                // Check if this is a purchase result (no product found but purchase exists)
+                if (data.purchase && !data.product) {
+                    displayPurchase(data.purchase, data.linked_products || []);
+                    document.getElementById('productDetails').innerHTML = '';
+                    document.getElementById('warrantyDetails').innerHTML = '';
+                } else {
+                    document.getElementById('purchaseDetails').style.display = 'none';
+                    displayProduct(data.product);
+                    displayWarranty(data.warranty);
+                }
                 document.getElementById('resultsContainer').style.display = 'block';
                 
             } catch (error) {
@@ -802,6 +862,22 @@
                         <div class="detail-value">${formatValue(product.security_barcode)}</div>
                     </div>
                     <div class="detail-item">
+                        <div class="detail-label">Status</div>
+                        <div class="detail-value">
+                            <span style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 4px; font-size: 0.85rem; font-weight: 600; ${
+                                product.status === 'returned' ? 'background: #fff3cd; color: #856404;' :
+                                product.status === 'in_stock' ? 'background: #d4edda; color: #155724;' :
+                                product.status === 'active' ? 'background: #cce5ff; color: #004085;' :
+                                'background: #e9ecef; color: #495057;'
+                            }">${
+                                product.status === 'returned' ? '⚠️ Returned' :
+                                product.status === 'in_stock' ? '📦 In Stock' :
+                                product.status === 'active' ? '✅ Active (Sold)' :
+                                product.status ? product.status.charAt(0).toUpperCase() + product.status.slice(1).replace(/_/g, ' ') : 'N/A'
+                            }</span>
+                        </div>
+                    </div>
+                    <div class="detail-item">
                         <div class="detail-label">eBay Order Number</div>
                         <div class="detail-value ${!product.ebay_order_number ? 'null' : ''}">${formatValue(product.ebay_order_number)}</div>
                     </div>
@@ -850,11 +926,14 @@
                             ✏️ Edit Product
                         </button>
                         ${product.status === 'returned' ? `
-                            <button id="resoldProductBtn" class="button" style="background: #17a2b8; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600;">
-                                💰 Mark as Resold to New Buyer
+                            <button id="restockProductBtn" class="button" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                                📦 Put Back in Stock
                             </button>
-                            <button id="reopenProductBtn" class="button" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600;">
-                                ✅ Reopen (Keep Same Buyer)
+                            <button id="resoldProductBtn" class="button" style="background: #17a2b8; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                                💰 Resold to New Buyer
+                            </button>
+                            <button id="reopenProductBtn" class="button" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                                ↩️ Reopen (Same Buyer)
                             </button>
                         ` : `
                             <button id="markReturnedBtn" class="button" style="background: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600;">
@@ -910,13 +989,203 @@
                         `).join('')}
                     </div>
                 ` : ''}
+                ${product.status === 'in_stock' ? `
+                    <div style="margin-top: 20px; padding: 15px; background: #d4edda; border-left: 4px solid #28a745; border-radius: 4px;">
+                        <strong>📦 Product Status: IN STOCK</strong>
+                        <p style="margin: 10px 0 0 0; color: #155724;">This item is available for sale. When sold, use "Mark as Returned" if it comes back, or edit the product to update details.</p>
+                        ${product.restock_count ? `<p style="margin: 5px 0;"><strong>Times Restocked:</strong> ${product.restock_count}</p>` : ''}
+                        ${product.last_restock_date ? `<p style="margin: 5px 0;"><strong>Last Restocked:</strong> ${formatDate(product.last_restock_date)}</p>` : ''}
+                    </div>
+                ` : ''}
+                ${product.restock_history && product.restock_history.length > 0 ? `
+                    <div style="margin-top: 20px; padding: 15px; background: #e8f5e9; border-left: 4px solid #4caf50; border-radius: 4px;">
+                        <strong>📦 Restock History (${product.restock_count || product.restock_history.length} time${(product.restock_count || product.restock_history.length) !== 1 ? 's' : ''})</strong>
+                        ${product.restock_history.slice().reverse().map((restock, index) => `
+                            <div style="margin-top: 15px; padding: 12px; background: white; border-radius: 4px; border: 1px solid #c8e6c9;">
+                                <p style="margin: 5px 0; font-weight: bold; color: #2e7d32;">Restock #${restock.restock_number} - ${formatDate(restock.restock_date)}</p>
+                                ${restock.security_barcode_changed ? `
+                                    <p style="margin: 5px 0;"><strong>Security Barcode:</strong> ${restock.old_security_barcode} → ${restock.new_security_barcode}</p>
+                                ` : `<p style="margin: 5px 0;"><strong>Security Barcode:</strong> ${restock.new_security_barcode} (unchanged)</p>`}
+                                ${restock.restock_notes ? `<p style="margin: 5px 0;"><strong>Notes:</strong> ${restock.restock_notes}</p>` : ''}
+                                ${restock.return_info_archived && restock.archived_return_data ? `
+                                    <details style="margin-top: 10px;">
+                                        <summary style="cursor: pointer; color: #666; font-size: 0.9rem;">📦 View Archived Return Info</summary>
+                                        <div style="margin-top: 8px; padding-left: 15px; border-left: 2px solid #ddd;">
+                                            ${restock.archived_return_data.return_reason ? `<p style="margin: 3px 0; font-size: 0.85rem;"><strong>Reason:</strong> ${restock.archived_return_data.return_reason}</p>` : ''}
+                                            ${restock.archived_return_data.item_opened !== undefined ? `<p style="margin: 3px 0; font-size: 0.85rem;"><strong>Condition:</strong> ${restock.archived_return_data.item_opened ? 'Opened' : 'Sealed'}</p>` : ''}
+                                            ${restock.archived_return_data.refund_amount !== undefined ? `<p style="margin: 3px 0; font-size: 0.85rem;"><strong>Refund:</strong> £${parseFloat(restock.archived_return_data.refund_amount).toFixed(2)}</p>` : ''}
+                                            ${restock.archived_return_data.return_date ? `<p style="margin: 3px 0; font-size: 0.85rem;"><strong>Return Date:</strong> ${formatDate(restock.archived_return_data.return_date)}</p>` : ''}
+                                        </div>
+                                    </details>
+                                ` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
             `;
-            
+
             // Store product ID for actions
             window.currentProductId = product.id;
             window.currentProduct = product;
         }
-        
+
+        function displayPurchase(purchase, linkedProducts) {
+            const container = document.getElementById('purchaseDetails');
+            container.style.display = 'block';
+
+            const formatDate = (date) => {
+                if (!date) return 'N/A';
+                return new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+            };
+
+            const formatValue = (value) => {
+                if (value === null || value === undefined || value === '') return 'N/A';
+                return value;
+            };
+
+            // Item labels
+            const itemLabels = {
+                'case': 'Case',
+                'left': 'Left',
+                'right': 'Right',
+                'box': 'Box',
+                'ear_tips': 'Ear Tips',
+                'cable': 'Cable',
+                'protective_case': 'Protective Case'
+            };
+
+            // Items badges
+            const itemsPurchased = purchase.items_purchased || [];
+            const itemsBadges = itemsPurchased.map(item => {
+                const itemName = typeof item === 'object' ? item.item_type : item;
+                const label = itemLabels[itemName] || itemName;
+                return `<span style="display: inline-block; padding: 3px 8px; background-color: #6c757d; color: white; border-radius: 4px; font-size: 0.85rem; margin: 2px;">${label}</span>`;
+            }).join(' ');
+
+            // Status badge
+            const statusColors = {
+                'paid': '#17a2b8',
+                'awaiting_despatch': '#ffc107',
+                'awaiting_delivery': '#fd7e14',
+                'delivered': '#28a745',
+                'awaiting_return': '#6c757d',
+                'returned': '#dc3545',
+                'refunded': '#343a40'
+            };
+            const statusLabels = {
+                'paid': 'Paid',
+                'awaiting_despatch': 'Awaiting Despatch',
+                'awaiting_delivery': 'Awaiting Delivery',
+                'delivered': 'Delivered',
+                'awaiting_return': 'Awaiting Return',
+                'returned': 'Returned',
+                'refunded': 'Refunded'
+            };
+            const statusColor = statusColors[purchase.status] || '#6c757d';
+            const statusLabel = statusLabels[purchase.status] || purchase.status || 'Unknown';
+
+            // Platform badge color
+            const platformColors = {
+                'ebay': '#0064D2',
+                'eBay': '#0064D2',
+                'vinted': '#09B1BA',
+                'facebook': '#1877F2',
+                'other': '#666'
+            };
+            const platformColor = platformColors[purchase.platform] || platformColors.other;
+
+            // Linked products HTML
+            let linkedProductsHtml = '';
+            if (linkedProducts && linkedProducts.length > 0) {
+                linkedProductsHtml = `
+                    <div style="margin-top: 20px; padding: 15px; background: #e3f2fd; border-left: 4px solid #2196f3; border-radius: 4px;">
+                        <strong>📦 Linked Products (${linkedProducts.length})</strong>
+                        <div style="margin-top: 10px;">
+                            ${linkedProducts.map(p => `
+                                <div style="margin: 8px 0; padding: 10px; background: white; border-radius: 4px; border: 1px solid #bbdefb;">
+                                    <p style="margin: 0;"><strong>${p.part_type || 'Unknown'}</strong> - ${p.security_barcode || 'No barcode'}</p>
+                                    <p style="margin: 5px 0 0 0; font-size: 0.85rem; color: #666;">Status: ${p.status || 'Unknown'}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            } else {
+                linkedProductsHtml = `
+                    <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+                        <strong>⚠️ No Products Checked In Yet</strong>
+                        <p style="margin: 10px 0 0 0;">This purchase hasn't been checked in yet. Products will be created when items are checked in via the <a href="check-in.html" style="color: #004085; font-weight: 600;">Check-In page</a>.</p>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = `
+                <div style="background: linear-gradient(135deg, #f5f7fa 0%, #e8ecef 100%); border-radius: 12px; padding: 25px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2 style="margin: 0; display: flex; align-items: center; gap: 10px;">
+                            🛒 Purchase Found
+                            <span style="display: inline-block; padding: 4px 10px; background-color: ${platformColor}; color: white; border-radius: 4px; font-size: 0.85rem; font-weight: 500; text-transform: uppercase;">${purchase.platform || 'Unknown'}</span>
+                        </h2>
+                        <a href="edit-purchase.html?id=${purchase.id}" class="button" style="background: #17a2b8; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 500;">Edit Purchase</a>
+                    </div>
+
+                    <div class="details-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px;">
+                        <div class="detail-item" style="background: white; padding: 12px; border-radius: 8px;">
+                            <div class="detail-label" style="font-size: 0.85rem; color: #666; margin-bottom: 4px;">Order Number</div>
+                            <div class="detail-value" style="font-weight: 600; color: #0064D2;">${formatValue(purchase.order_number)}</div>
+                        </div>
+                        <div class="detail-item" style="background: white; padding: 12px; border-radius: 8px;">
+                            <div class="detail-label" style="font-size: 0.85rem; color: #666; margin-bottom: 4px;">Seller</div>
+                            <div class="detail-value" style="font-weight: 600;">${formatValue(purchase.seller_name)}</div>
+                        </div>
+                        <div class="detail-item" style="background: white; padding: 12px; border-radius: 8px;">
+                            <div class="detail-label" style="font-size: 0.85rem; color: #666; margin-bottom: 4px;">Purchase Date</div>
+                            <div class="detail-value" style="font-weight: 600;">${formatDate(purchase.purchase_date)}</div>
+                        </div>
+                        <div class="detail-item" style="background: white; padding: 12px; border-radius: 8px;">
+                            <div class="detail-label" style="font-size: 0.85rem; color: #666; margin-bottom: 4px;">Status</div>
+                            <div class="detail-value">
+                                <span style="display: inline-block; padding: 4px 10px; background-color: ${statusColor}; color: white; border-radius: 4px; font-size: 0.85rem;">${statusLabel}</span>
+                            </div>
+                        </div>
+                        <div class="detail-item" style="background: white; padding: 12px; border-radius: 8px;">
+                            <div class="detail-label" style="font-size: 0.85rem; color: #666; margin-bottom: 4px;">Generation</div>
+                            <div class="detail-value" style="font-weight: 600;">${formatValue(purchase.generation)}</div>
+                        </div>
+                        <div class="detail-item" style="background: white; padding: 12px; border-radius: 8px;">
+                            <div class="detail-label" style="font-size: 0.85rem; color: #666; margin-bottom: 4px;">Price</div>
+                            <div class="detail-value" style="font-weight: 600; color: #28a745;">£${parseFloat(purchase.purchase_price || 0).toFixed(2)}</div>
+                        </div>
+                        <div class="detail-item" style="background: white; padding: 12px; border-radius: 8px;">
+                            <div class="detail-label" style="font-size: 0.85rem; color: #666; margin-bottom: 4px;">Quantity</div>
+                            <div class="detail-value" style="font-weight: 600;">${formatValue(purchase.quantity)}</div>
+                        </div>
+                        <div class="detail-item" style="background: white; padding: 12px; border-radius: 8px;">
+                            <div class="detail-label" style="font-size: 0.85rem; color: #666; margin-bottom: 4px;">Items Purchased</div>
+                            <div class="detail-value">${itemsBadges || '<span style="color: #999;">N/A</span>'}</div>
+                        </div>
+                        ${purchase.tracking_number ? `
+                            <div class="detail-item" style="background: white; padding: 12px; border-radius: 8px;">
+                                <div class="detail-label" style="font-size: 0.85rem; color: #666; margin-bottom: 4px;">Tracking</div>
+                                <div class="detail-value" style="font-weight: 600;">${purchase.tracking_provider || ''} ${purchase.tracking_number}</div>
+                            </div>
+                        ` : ''}
+                        ${purchase.notes ? `
+                            <div class="detail-item" style="background: white; padding: 12px; border-radius: 8px; grid-column: span 2;">
+                                <div class="detail-label" style="font-size: 0.85rem; color: #666; margin-bottom: 4px;">Notes</div>
+                                <div class="detail-value">${formatValue(purchase.notes)}</div>
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    ${linkedProductsHtml}
+                </div>
+            `;
+
+            // Store for reference
+            window.currentPurchase = purchase;
+        }
+
         // Handle edit product button
         document.addEventListener('click', async (e) => {
             if (e.target.id === 'editProductBtn') {
@@ -985,7 +1254,16 @@
                 document.getElementById('resaleProductSuccess').style.display = 'none';
                 document.getElementById('resaleProductModal').style.display = 'block';
             }
-            
+
+            if (e.target.id === 'restockProductBtn') {
+                // Reset form for restock
+                document.getElementById('restockProductForm').reset();
+                document.getElementById('restockArchiveReturn').checked = true; // Default to archiving
+                document.getElementById('restockProductError').style.display = 'none';
+                document.getElementById('restockProductSuccess').style.display = 'none';
+                document.getElementById('restockProductModal').style.display = 'block';
+            }
+
             if (e.target.id === 'reopenProductBtn') {
                 if (confirm('Are you sure you want to reopen this product? This will change its status back to active and keep the same buyer information.')) {
                     try {
@@ -1030,6 +1308,13 @@
                 document.getElementById('resaleProductError').style.display = 'none';
                 document.getElementById('resaleProductSuccess').style.display = 'none';
                 document.getElementById('resaleProductForm').reset();
+            }
+
+            if (e.target.id === 'closeRestockModal' || e.target.id === 'cancelRestockBtn') {
+                document.getElementById('restockProductModal').style.display = 'none';
+                document.getElementById('restockProductError').style.display = 'none';
+                document.getElementById('restockProductSuccess').style.display = 'none';
+                document.getElementById('restockProductForm').reset();
             }
         });
         
@@ -1196,7 +1481,55 @@
                 document.getElementById('resaleProductSuccess').style.display = 'none';
             }
         });
-        
+
+        // Handle restock form submission
+        document.getElementById('confirmRestockBtn')?.addEventListener('click', async () => {
+            const securityBarcode = document.getElementById('restockSecurityBarcode').value.trim();
+
+            if (!securityBarcode) {
+                document.getElementById('restockProductError').textContent = 'New security barcode is required';
+                document.getElementById('restockProductError').style.display = 'block';
+                return;
+            }
+
+            const data = {
+                security_barcode: securityBarcode,
+                restock_notes: document.getElementById('restockNotes').value.trim() || null,
+                archive_return: document.getElementById('restockArchiveReturn').checked
+            };
+
+            try {
+                const apiBase = window.API_BASE || '';
+                const response = await authenticatedFetch(`${apiBase}/api/admin/product/${window.currentProductId}/restock`, {
+                    method: 'PUT',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    document.getElementById('restockProductSuccess').textContent =
+                        `Product put back in stock! New security barcode: ${result.security_barcode}`;
+                    document.getElementById('restockProductSuccess').style.display = 'block';
+                    document.getElementById('restockProductError').style.display = 'none';
+                    setTimeout(() => {
+                        document.getElementById('restockProductModal').style.display = 'none';
+                        // Refresh the search results
+                        document.getElementById('searchForm').dispatchEvent(new Event('submit'));
+                    }, 2000);
+                } else {
+                    document.getElementById('restockProductError').textContent = result.error || 'Failed to put product back in stock';
+                    document.getElementById('restockProductError').style.display = 'block';
+                    document.getElementById('restockProductSuccess').style.display = 'none';
+                }
+            } catch (error) {
+                document.getElementById('restockProductError').textContent = 'Network error: ' + error.message;
+                document.getElementById('restockProductError').style.display = 'block';
+                document.getElementById('restockProductSuccess').style.display = 'none';
+            }
+        });
+
         function displayWarranty(warranty) {
             const container = document.getElementById('warrantyDetails');
             

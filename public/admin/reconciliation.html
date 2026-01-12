@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Stock Reconciliation | LJM Admin</title>
+    <link rel="stylesheet" href="../css/styles.css?v=1.2.7">
+    <link rel="stylesheet" href="../css/ios-mobile-optimizations.css">
+    <style>
+        .page-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        .page-header h1 {
+            margin: 0;
+            font-size: 1.8rem;
+            color: #333;
+        }
+        .header-actions {
+            display: flex;
+            gap: 15px;
+        }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-primary {
+            background: var(--accent-teal);
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #138496;
+        }
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        .btn-success:hover {
+            background: #218838;
+        }
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+        .btn-warning:hover {
+            background: #e0a800;
+        }
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 0.85rem;
+        }
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .stat-card h3 {
+            margin: 0 0 10px 0;
+            font-size: 0.85rem;
+            color: #666;
+            text-transform: uppercase;
+        }
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent-teal);
+        }
+        .stat-card .value.warning {
+            color: #ffc107;
+        }
+        .stat-card .value.danger {
+            color: #dc3545;
+        }
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        .card h2 {
+            margin-top: 0;
+            color: #333;
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .reconciliation-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+        .panel {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .panel h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #333;
+            font-size: 1.1rem;
+        }
+        .item-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .item-card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .item-card:hover {
+            border-color: var(--accent-teal);
+        }
+        .item-card.selected {
+            border-color: var(--accent-teal);
+            background: #e8f4f8;
+        }
+        .item-card .item-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        .item-card .item-details {
+            font-size: 0.9rem;
+            color: #666;
+        }
+        .item-card .item-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+            font-size: 0.85rem;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        .badge-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .badge-info {
+            background: #cce5ff;
+            color: #004085;
+        }
+        .badge-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .badge-danger {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .match-actions {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #e0e0e0;
+        }
+        .match-actions h4 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        .match-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .form-group {
+            margin-bottom: 0;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            box-sizing: border-box;
+        }
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            border-color: var(--accent-teal);
+            outline: none;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 30px;
+            color: #666;
+        }
+        .empty-state svg {
+            width: 50px;
+            height: 50px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+        .success-banner, .error-banner {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .success-banner {
+            background: #d4edda;
+            color: #155724;
+        }
+        .error-banner {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .session-info {
+            background: #e8f4f8;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .session-info.active {
+            display: block;
+        }
+        .session-info h4 {
+            margin: 0 0 10px 0;
+            color: var(--accent-teal);
+        }
+        .session-info p {
+            margin: 0;
+            font-size: 0.95rem;
+        }
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .history-table th,
+        .history-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .history-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #e0e0e0;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 12px 24px;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            font-weight: 600;
+            color: #666;
+        }
+        .tab:hover {
+            color: #333;
+        }
+        .tab.active {
+            border-bottom-color: var(--accent-teal);
+            color: var(--accent-teal);
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        @media (max-width: 1024px) {
+            .reconciliation-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        @media (max-width: 768px) {
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+            .stats-row {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body class="admin-panel">
+    <!-- Sidebar Navigation -->
+    <aside class="admin-sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <div class="logo-circle">
+                    <span class="logo-text">LJM</span>
+                </div>
+                <div>
+                    <div class="sidebar-logo-text">LJM Admin</div>
+                    <div class="sidebar-subtitle">Dashboard</div>
+                </div>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-section">
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="dashboard.html" class="nav-link" data-page="dashboard">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 10L9 4L9 10L17 10M3 10L3 16M3 10L17 10M17 10L17 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+
+                    <li class="nav-item has-submenu">
+                        <a href="#" class="nav-link" data-page="inventory" onclick="event.preventDefault(); toggleSubmenu(this.parentElement);">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 5L10 2L17 5M3 5L3 15L10 18M3 5L10 8M17 5L17 15L10 18M17 5L10 8M10 8L10 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Inventory</span>
+                        </a>
+                        <ul class="nav-submenu">
+                            <li class="nav-item">
+                                <a href="products.html" class="nav-link" data-page="products">
+                                    <span>Products</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="parts.html" class="nav-link" data-page="parts">
+                                    <span>Manage Parts</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="purchases.html" class="nav-link" data-page="purchases">
+                                    <span>Purchases</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="check-in.html" class="nav-link" data-page="check-in">
+                                    <span>Check-In</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="consumables.html" class="nav-link" data-page="consumables">
+                                    <span>Consumables</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="untracked-stock.html" class="nav-link" data-page="untracked-stock">
+                                    <span>Untracked Stock</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="reconciliation.html" class="nav-link active" data-page="reconciliation">
+                                    <span>Reconciliation</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+
+                    <li class="nav-item has-submenu">
+                        <a href="#" class="nav-link" data-page="sales-category" onclick="event.preventDefault(); toggleSubmenu(this.parentElement);">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 2L5 9L2 12L5 15L8 12L15 5M14 7L17 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <circle cx="14.5" cy="5.5" r="1.5" fill="currentColor"/>
+                            </svg>
+                            <span>Sales</span>
+                        </a>
+                        <ul class="nav-submenu">
+                            <li class="nav-item">
+                                <a href="sales.html" class="nav-link" data-page="sales">
+                                    <span>Sales Orders</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="addon-sales.html" class="nav-link" data-page="addon-sales">
+                                    <span>Add-On Sales</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+
+                    <li class="nav-item">
+                        <a href="tasks.html" class="nav-link" data-page="tasks">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M9 5H7C5.89543 5 5 5.89543 5 7V15C5 16.1046 5.89543 17 7 17H13C14.1046 17 15 16.1046 15 15V7C15 5.89543 14.1046 5 13 5H11M9 5C9 3.89543 9.89543 3 11 3H9C7.89543 3 7 3.89543 7 5M9 5C9 6.10457 9.89543 7 11 7H9C7.89543 7 7 6.10457 7 5M8 10H12M8 13H12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Tasks</span>
+                        </a>
+                    </li>
+
+                    <li class="nav-item has-submenu">
+                        <a href="#" class="nav-link" data-page="tools-category" onclick="event.preventDefault(); toggleSubmenu(this.parentElement);">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M14.7 6.3a1 1 0 0 0 0-1.4l-1.6-1.6a1 1 0 0 0-1.4 0l-1.4 1.4-2.2-2.2a1 1 0 0 0-1.4 0L3.3 5.9a1 1 0 0 0 0 1.4l2.2 2.2-4.8 4.8a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l4.8-4.8 2.2 2.2a1 1 0 0 0 1.4 0l3.4-3.4a1 1 0 0 0 0-1.4l-2.2-2.2 1.4-1.4z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Tools</span>
+                        </a>
+                        <ul class="nav-submenu">
+                            <li class="nav-item">
+                                <a href="ebay-import.html" class="nav-link" data-page="ebay-import">
+                                    <span>eBay Import</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+
+                    <li class="nav-item">
+                        <a href="settings.html" class="nav-link" data-page="settings">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M10 13C11.6569 13 13 11.6569 13 10C13 8.34315 11.6569 7 10 7C8.34315 7 7 8.34315 7 10C7 11.6569 8.34315 13 10 13Z" stroke="currentColor" stroke-width="1.5"/>
+                            </svg>
+                            <span>Settings</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="admin-main">
+        <div class="page-container">
+            <div class="success-banner" id="successBanner"></div>
+            <div class="error-banner" id="errorBanner"></div>
+
+            <div class="page-header">
+                <h1>Stock Reconciliation</h1>
+                <div class="header-actions">
+                    <a href="untracked-stock.html" class="btn btn-secondary">
+                        Add Untracked Stock
+                    </a>
+                    <button class="btn btn-primary" onclick="startNewSession()">
+                        Start New Session
+                    </button>
+                </div>
+            </div>
+
+            <div class="stats-row">
+                <div class="stat-card">
+                    <h3>Untracked Stock</h3>
+                    <div class="value" id="untrackedCount">0</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Orphaned Purchases</h3>
+                    <div class="value warning" id="orphanedPurchasesCount">0</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Orphaned Sales</h3>
+                    <div class="value danger" id="orphanedSalesCount">0</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Active Sessions</h3>
+                    <div class="value" id="activeSessionsCount">0</div>
+                </div>
+            </div>
+
+            <!-- Active Session Info -->
+            <div class="session-info" id="sessionInfo">
+                <h4>Active Reconciliation Session</h4>
+                <p id="sessionDetails">Session ID: <span id="sessionId"></span></p>
+                <div style="margin-top: 15px;">
+                    <button class="btn btn-success btn-sm" onclick="completeSession()">Complete Session</button>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="tabs">
+                <div class="tab active" data-tab="reconcile" onclick="switchTab('reconcile')">Reconcile</div>
+                <div class="tab" data-tab="history" onclick="switchTab('history')">History</div>
+            </div>
+
+            <!-- Reconcile Tab -->
+            <div class="tab-content active" id="reconcileTab">
+                <div class="reconciliation-grid">
+                    <!-- Left Panel: Untracked Stock -->
+                    <div class="panel">
+                        <h3>Untracked Stock Items</h3>
+                        <div class="item-list" id="untrackedList">
+                            <div class="empty-state">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                </svg>
+                                <p>No pending untracked items</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Panel: Orphaned Records -->
+                    <div class="panel">
+                        <h3>Orphaned Purchases & Sales</h3>
+                        <div class="tabs" style="margin-bottom: 15px; border-bottom: 1px solid #ddd;">
+                            <div class="tab active" data-subtab="purchases" onclick="switchSubTab('purchases')" style="padding: 8px 16px; font-size: 0.9rem;">Purchases</div>
+                            <div class="tab" data-subtab="sales" onclick="switchSubTab('sales')" style="padding: 8px 16px; font-size: 0.9rem;">Sales</div>
+                        </div>
+                        <div id="purchasesSubTab" class="item-list">
+                            <div class="empty-state">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                </svg>
+                                <p>No orphaned purchases</p>
+                            </div>
+                        </div>
+                        <div id="salesSubTab" class="item-list" style="display: none;">
+                            <div class="empty-state">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg>
+                                <p>No orphaned sales</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Match Actions -->
+                <div class="card" id="matchActionsCard" style="display: none;">
+                    <h2>Match Selected Items</h2>
+                    <div class="match-form">
+                        <div id="selectedItemsSummary"></div>
+                        <div class="form-group">
+                            <label for="matchNotes">Notes</label>
+                            <textarea id="matchNotes" rows="2" placeholder="Add notes about this match..."></textarea>
+                        </div>
+                        <div class="form-group" id="purchasePriceGroup" style="display: none;">
+                            <label for="purchasePrice">Purchase Price (for sale matches)</label>
+                            <input type="number" id="purchasePrice" step="0.01" placeholder="Enter purchase price">
+                        </div>
+                        <div class="action-buttons">
+                            <button class="btn btn-success" id="matchPurchaseBtn" onclick="matchToPurchase()" style="display: none;">
+                                Match to Purchase
+                            </button>
+                            <button class="btn btn-warning" id="matchSaleBtn" onclick="matchToSale()" style="display: none;">
+                                Match to Sale
+                            </button>
+                            <button class="btn btn-primary" id="convertBtn" onclick="convertToProduct()">
+                                Convert to Product (No Match)
+                            </button>
+                            <button class="btn btn-danger" id="writeOffBtn" onclick="writeOff()">
+                                Write Off
+                            </button>
+                            <button class="btn btn-secondary" onclick="clearSelection()">
+                                Clear Selection
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- History Tab -->
+            <div class="tab-content" id="historyTab">
+                <div class="card">
+                    <h2>Reconciliation History</h2>
+                    <div id="historyContainer">
+                        <div class="empty-state">
+                            <p>No reconciliation history yet</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_BASE = window.API_BASE || '';
+        let currentSession = null;
+        let selectedUntracked = null;
+        let selectedPurchase = null;
+        let selectedSale = null;
+        let untrackedItems = [];
+        let orphanedPurchases = [];
+        let orphanedSales = [];
+
+        // Get auth token
+        function getAuthToken() {
+            return localStorage.getItem('accessToken');
+        }
+
+        // Get auth headers
+        function getAuthHeaders() {
+            const token = getAuthToken();
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+        }
+
+        // Toggle submenu
+        function toggleSubmenu(element) {
+            element.classList.toggle('open');
+        }
+
+        // Show messages
+        function showSuccess(message) {
+            const banner = document.getElementById('successBanner');
+            banner.textContent = message;
+            banner.style.display = 'block';
+            setTimeout(() => banner.style.display = 'none', 5000);
+        }
+
+        function showError(message) {
+            const banner = document.getElementById('errorBanner');
+            banner.textContent = message;
+            banner.style.display = 'block';
+            setTimeout(() => banner.style.display = 'none', 5000);
+        }
+
+        // Switch tabs
+        function switchTab(tab) {
+            document.querySelectorAll('.tabs .tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+            document.getElementById(`${tab}Tab`).classList.add('active');
+
+            if (tab === 'history') {
+                loadHistory();
+            }
+        }
+
+        // Switch sub tabs
+        function switchSubTab(tab) {
+            document.querySelectorAll('[data-subtab]').forEach(t => t.classList.remove('active'));
+            document.querySelector(`[data-subtab="${tab}"]`).classList.add('active');
+            document.getElementById('purchasesSubTab').style.display = tab === 'purchases' ? 'block' : 'none';
+            document.getElementById('salesSubTab').style.display = tab === 'sales' ? 'block' : 'none';
+        }
+
+        // Load summary data
+        async function loadSummary() {
+            try {
+                const token = getAuthToken();
+                const response = await fetch(API_BASE + '/api/admin/reconciliation/summary', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    document.getElementById('untrackedCount').textContent = data.summary.untracked_stock_count;
+                    document.getElementById('orphanedPurchasesCount').textContent = data.summary.orphaned_purchases_count;
+                    document.getElementById('orphanedSalesCount').textContent = data.summary.orphaned_sales_count;
+                    document.getElementById('activeSessionsCount').textContent = data.summary.active_reconciliations;
+                }
+            } catch (err) {
+                console.error('Error loading summary:', err);
+            }
+        }
+
+        // Load untracked items (pending and awaiting_reconciliation)
+        async function loadUntrackedItems() {
+            try {
+                const token = getAuthToken();
+                // Load both pending and awaiting_reconciliation items
+                const [pendingResponse, awaitingResponse] = await Promise.all([
+                    fetch(API_BASE + '/api/admin/untracked-stock?status=pending', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    }),
+                    fetch(API_BASE + '/api/admin/untracked-stock?status=awaiting_reconciliation', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    })
+                ]);
+
+                const pendingData = await pendingResponse.json();
+                const awaitingData = await awaitingResponse.json();
+
+                untrackedItems = [];
+                if (pendingData.success) {
+                    untrackedItems = untrackedItems.concat(pendingData.items);
+                }
+                if (awaitingData.success) {
+                    untrackedItems = untrackedItems.concat(awaitingData.items);
+                }
+
+                renderUntrackedItems();
+            } catch (err) {
+                console.error('Error loading untracked items:', err);
+            }
+        }
+
+        // Load orphaned purchases
+        async function loadOrphanedPurchases() {
+            try {
+                const token = getAuthToken();
+                const response = await fetch(API_BASE + '/api/admin/orphaned-purchases', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    orphanedPurchases = data.purchases;
+                    renderOrphanedPurchases();
+                }
+            } catch (err) {
+                console.error('Error loading orphaned purchases:', err);
+            }
+        }
+
+        // Load orphaned sales
+        async function loadOrphanedSales() {
+            try {
+                const token = getAuthToken();
+                const response = await fetch(API_BASE + '/api/admin/orphaned-sales', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    orphanedSales = data.sales;
+                    renderOrphanedSales();
+                }
+            } catch (err) {
+                console.error('Error loading orphaned sales:', err);
+            }
+        }
+
+        // Render untracked items
+        function renderUntrackedItems() {
+            const container = document.getElementById('untrackedList');
+            if (untrackedItems.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                        </svg>
+                        <p>No pending untracked items</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const partTypeLabel = (type) => {
+                const labels = { 'left': 'Left', 'right': 'Right', 'case': 'Case', 'full_set': 'Full Set' };
+                return labels[type] || type;
+            };
+
+            const statusBadge = (status) => {
+                if (status === 'awaiting_reconciliation') {
+                    return '<span class="badge" style="background: #e2e3ff; color: #3730a3;">Awaiting Reconciliation</span>';
+                }
+                return '<span class="badge badge-pending">Pending</span>';
+            };
+
+            container.innerHTML = untrackedItems.map(item => `
+                <div class="item-card ${selectedUntracked && selectedUntracked._id === item._id ? 'selected' : ''}"
+                     onclick="selectUntracked('${item._id}')">
+                    <div class="item-title">${item.generation} - ${partTypeLabel(item.part_type)}</div>
+                    <div class="item-details">
+                        ${item.serial_number ? `Serial: ${item.serial_number}<br>` : ''}
+                        Condition: ${item.condition || 'Unknown'}
+                        ${item.purchase_price ? `<br>Purchase: £${item.purchase_price.toFixed(2)}` : ''}
+                    </div>
+                    <div class="item-meta">
+                        ${statusBadge(item.status)}
+                        <span>${new Date(item.created_at).toLocaleDateString()}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Render orphaned purchases
+        function renderOrphanedPurchases() {
+            const container = document.getElementById('purchasesSubTab');
+            if (orphanedPurchases.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                        <p>No orphaned purchases</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const reasonBadge = (reason) => {
+                const badges = {
+                    'not_checked_in': '<span class="badge badge-warning">Not Checked In</span>',
+                    'missing_products': '<span class="badge badge-danger">Missing Products</span>'
+                };
+                return badges[reason] || '';
+            };
+
+            container.innerHTML = orphanedPurchases.map(purchase => `
+                <div class="item-card ${selectedPurchase && selectedPurchase._id === purchase._id ? 'selected' : ''}"
+                     onclick="selectPurchase('${purchase._id}')">
+                    <div class="item-title">${purchase.order_number || 'No Order #'}</div>
+                    <div class="item-details">
+                        ${purchase.seller_name || 'Unknown Seller'}<br>
+                        ${purchase.generation || 'Unknown Gen'} - Qty: ${purchase.expected_quantity || purchase.quantity || 0}
+                        ${purchase.missing_items ? `<br><strong>Missing: ${purchase.missing_items} items</strong>` : ''}
+                    </div>
+                    <div class="item-meta">
+                        ${reasonBadge(purchase.orphan_reason)}
+                        <span>${purchase.purchase_date ? new Date(purchase.purchase_date).toLocaleDateString() : 'No date'}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Render orphaned sales
+        function renderOrphanedSales() {
+            const container = document.getElementById('salesSubTab');
+            if (orphanedSales.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                        <p>No orphaned sales</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const reasonBadge = (reason) => {
+                const badges = {
+                    'product_not_found': '<span class="badge badge-danger">Product Not Found</span>',
+                    'order_number_mismatch': '<span class="badge badge-warning">Order # Mismatch</span>',
+                    'no_product_reference': '<span class="badge badge-info">No Product Ref</span>'
+                };
+                return badges[reason] || '';
+            };
+
+            container.innerHTML = orphanedSales.map(sale => `
+                <div class="item-card ${selectedSale && selectedSale._id === sale._id ? 'selected' : ''}"
+                     onclick="selectSale('${sale._id}')">
+                    <div class="item-title">${sale.order_number || 'No Order #'}</div>
+                    <div class="item-details">
+                        ${sale.platform || 'Unknown Platform'}<br>
+                        Sale: ${sale.sale_price ? '£' + sale.sale_price.toFixed(2) : 'N/A'}
+                    </div>
+                    <div class="item-meta">
+                        ${reasonBadge(sale.orphan_reason)}
+                        <span>${sale.sale_date ? new Date(sale.sale_date).toLocaleDateString() : 'No date'}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Selection handlers
+        function selectUntracked(id) {
+            const item = untrackedItems.find(i => i._id === id);
+            if (selectedUntracked && selectedUntracked._id === id) {
+                selectedUntracked = null;
+            } else {
+                selectedUntracked = item;
+            }
+            renderUntrackedItems();
+            updateMatchActions();
+        }
+
+        function selectPurchase(id) {
+            const item = orphanedPurchases.find(p => p._id === id);
+            if (selectedPurchase && selectedPurchase._id === id) {
+                selectedPurchase = null;
+            } else {
+                selectedPurchase = item;
+                selectedSale = null; // Can only match to one
+            }
+            renderOrphanedPurchases();
+            renderOrphanedSales();
+            updateMatchActions();
+        }
+
+        function selectSale(id) {
+            const item = orphanedSales.find(s => s._id === id);
+            if (selectedSale && selectedSale._id === id) {
+                selectedSale = null;
+            } else {
+                selectedSale = item;
+                selectedPurchase = null; // Can only match to one
+            }
+            renderOrphanedPurchases();
+            renderOrphanedSales();
+            updateMatchActions();
+        }
+
+        // Update match actions visibility
+        function updateMatchActions() {
+            const card = document.getElementById('matchActionsCard');
+            const summary = document.getElementById('selectedItemsSummary');
+            const matchPurchaseBtn = document.getElementById('matchPurchaseBtn');
+            const matchSaleBtn = document.getElementById('matchSaleBtn');
+            const purchasePriceGroup = document.getElementById('purchasePriceGroup');
+
+            if (!selectedUntracked) {
+                card.style.display = 'none';
+                return;
+            }
+
+            card.style.display = 'block';
+
+            let summaryHtml = `<p><strong>Selected Untracked Item:</strong> ${selectedUntracked.generation} - ${selectedUntracked.part_type}</p>`;
+
+            if (selectedPurchase) {
+                summaryHtml += `<p><strong>Match to Purchase:</strong> ${selectedPurchase.order_number || 'No Order #'} from ${selectedPurchase.seller_name || 'Unknown'}</p>`;
+                matchPurchaseBtn.style.display = 'inline-flex';
+                matchSaleBtn.style.display = 'none';
+                purchasePriceGroup.style.display = 'none';
+            } else if (selectedSale) {
+                summaryHtml += `<p><strong>Match to Sale:</strong> ${selectedSale.order_number || 'No Order #'}</p>`;
+                matchPurchaseBtn.style.display = 'none';
+                matchSaleBtn.style.display = 'inline-flex';
+                purchasePriceGroup.style.display = 'block';
+            } else {
+                matchPurchaseBtn.style.display = 'none';
+                matchSaleBtn.style.display = 'none';
+                purchasePriceGroup.style.display = 'block';
+            }
+
+            summary.innerHTML = summaryHtml;
+        }
+
+        function clearSelection() {
+            selectedUntracked = null;
+            selectedPurchase = null;
+            selectedSale = null;
+            renderUntrackedItems();
+            renderOrphanedPurchases();
+            renderOrphanedSales();
+            updateMatchActions();
+        }
+
+        // Start new session
+        async function startNewSession() {
+            try {
+                const response = await fetch(API_BASE + '/api/admin/reconciliation', {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ notes: 'Started from web interface' })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    currentSession = data.reconciliation_id;
+                    document.getElementById('sessionInfo').classList.add('active');
+                    document.getElementById('sessionId').textContent = currentSession;
+                    showSuccess('Reconciliation session started');
+                    loadSummary();
+                } else {
+                    showError(data.error || 'Failed to start session');
+                }
+            } catch (err) {
+                console.error('Error starting session:', err);
+                showError('Failed to start session');
+            }
+        }
+
+        // Complete session
+        async function completeSession() {
+            if (!currentSession) return;
+
+            try {
+                const response = await fetch(API_BASE + `/api/admin/reconciliation/${currentSession}/complete`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ notes: 'Completed from web interface' })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    currentSession = null;
+                    document.getElementById('sessionInfo').classList.remove('active');
+                    showSuccess('Reconciliation session completed');
+                    loadSummary();
+                } else {
+                    showError(data.error || 'Failed to complete session');
+                }
+            } catch (err) {
+                console.error('Error completing session:', err);
+                showError('Failed to complete session');
+            }
+        }
+
+        // Match to purchase
+        async function matchToPurchase() {
+            if (!currentSession) {
+                await startNewSession();
+            }
+
+            if (!selectedUntracked || !selectedPurchase) {
+                showError('Please select both an untracked item and a purchase');
+                return;
+            }
+
+            try {
+                const response = await fetch(API_BASE + `/api/admin/reconciliation/${currentSession}/match-purchase`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({
+                        untracked_stock_id: selectedUntracked._id,
+                        purchase_id: selectedPurchase._id,
+                        notes: document.getElementById('matchNotes').value
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showSuccess('Successfully matched to purchase');
+                    clearSelection();
+                    loadAll();
+                } else {
+                    showError(data.error || 'Failed to match');
+                }
+            } catch (err) {
+                console.error('Error matching:', err);
+                showError('Failed to match');
+            }
+        }
+
+        // Match to sale
+        async function matchToSale() {
+            if (!currentSession) {
+                await startNewSession();
+            }
+
+            if (!selectedUntracked || !selectedSale) {
+                showError('Please select both an untracked item and a sale');
+                return;
+            }
+
+            const purchasePrice = document.getElementById('purchasePrice').value;
+
+            try {
+                const response = await fetch(API_BASE + `/api/admin/reconciliation/${currentSession}/match-sale`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({
+                        untracked_stock_id: selectedUntracked._id,
+                        sale_id: selectedSale._id,
+                        purchase_price: purchasePrice || 0,
+                        notes: document.getElementById('matchNotes').value
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showSuccess('Successfully matched to sale');
+                    clearSelection();
+                    loadAll();
+                } else {
+                    showError(data.error || 'Failed to match');
+                }
+            } catch (err) {
+                console.error('Error matching:', err);
+                showError('Failed to match');
+            }
+        }
+
+        // Convert to product
+        async function convertToProduct() {
+            if (!currentSession) {
+                await startNewSession();
+            }
+
+            if (!selectedUntracked) {
+                showError('Please select an untracked item');
+                return;
+            }
+
+            const purchasePrice = document.getElementById('purchasePrice').value;
+
+            try {
+                const response = await fetch(API_BASE + `/api/admin/reconciliation/${currentSession}/convert-to-product`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({
+                        untracked_stock_id: selectedUntracked._id,
+                        purchase_price: purchasePrice || 0,
+                        notes: document.getElementById('matchNotes').value
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showSuccess('Successfully converted to product');
+                    clearSelection();
+                    loadAll();
+                } else {
+                    showError(data.error || 'Failed to convert');
+                }
+            } catch (err) {
+                console.error('Error converting:', err);
+                showError('Failed to convert');
+            }
+        }
+
+        // Write off
+        async function writeOff() {
+            if (!currentSession) {
+                await startNewSession();
+            }
+
+            if (!selectedUntracked) {
+                showError('Please select an untracked item');
+                return;
+            }
+
+            const reason = prompt('Enter write-off reason:');
+            if (!reason) return;
+
+            try {
+                const response = await fetch(API_BASE + `/api/admin/reconciliation/${currentSession}/write-off`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({
+                        untracked_stock_id: selectedUntracked._id,
+                        reason: reason,
+                        notes: document.getElementById('matchNotes').value
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showSuccess('Item written off');
+                    clearSelection();
+                    loadAll();
+                } else {
+                    showError(data.error || 'Failed to write off');
+                }
+            } catch (err) {
+                console.error('Error writing off:', err);
+                showError('Failed to write off');
+            }
+        }
+
+        // Load history
+        async function loadHistory() {
+            try {
+                const token = getAuthToken();
+                const response = await fetch(API_BASE + '/api/admin/reconciliation', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    renderHistory(data.reconciliations);
+                }
+            } catch (err) {
+                console.error('Error loading history:', err);
+            }
+        }
+
+        // Render history
+        function renderHistory(reconciliations) {
+            const container = document.getElementById('historyContainer');
+
+            if (reconciliations.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>No reconciliation history yet</p></div>';
+                return;
+            }
+
+            container.innerHTML = `
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th>Matches</th>
+                            <th>Created By</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${reconciliations.map(r => `
+                            <tr>
+                                <td>${new Date(r.created_at).toLocaleString()}</td>
+                                <td>
+                                    <span class="badge ${r.status === 'completed' ? 'badge-info' : 'badge-warning'}">
+                                        ${r.status}
+                                    </span>
+                                </td>
+                                <td>${r.matches ? r.matches.length : 0}</td>
+                                <td>${r.created_by || 'Unknown'}</td>
+                                <td>${r.notes || '-'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        // Load all data
+        function loadAll() {
+            loadSummary();
+            loadUntrackedItems();
+            loadOrphanedPurchases();
+            loadOrphanedSales();
+        }
+
+        // Check for active session
+        async function checkActiveSession() {
+            try {
+                const token = getAuthToken();
+                const response = await fetch(API_BASE + '/api/admin/reconciliation?status=in_progress', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+
+                if (data.success && data.reconciliations.length > 0) {
+                    currentSession = data.reconciliations[0]._id;
+                    document.getElementById('sessionInfo').classList.add('active');
+                    document.getElementById('sessionId').textContent = currentSession;
+                }
+            } catch (err) {
+                console.error('Error checking active session:', err);
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            const inventoryMenu = document.querySelector('[data-page="inventory"]');
+            if (inventoryMenu) {
+                inventoryMenu.parentElement.classList.add('open');
+            }
+
+            checkActiveSession();
+            loadAll();
+        });
+    </script>
+</body>
+</html>
