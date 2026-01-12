@@ -12351,12 +12351,28 @@ app.post('/api/admin/ebay-import/sessions/:id/sales', requireAuth, requireDB, as
         const sessionId = req.params.id;
         const { csv_data, column_mapping } = req.body;
 
+        console.log(`[eBay Import] Sales import request received. Session: ${sessionId}, Rows: ${csv_data?.length || 0}`);
+
         if (!ObjectId.isValid(sessionId)) {
             return res.status(400).json({ error: 'Invalid session ID' });
         }
 
         if (!csv_data || !Array.isArray(csv_data) || csv_data.length === 0) {
             return res.status(400).json({ error: 'No CSV data provided' });
+        }
+
+        // Log first row immediately to debug
+        if (csv_data.length > 0) {
+            console.log('[eBay Import] First row keys:', Object.keys(csv_data[0]));
+            console.log('[eBay Import] First row sample values:', {
+                'Sales record number': csv_data[0]['Sales record number'],
+                'Order number': csv_data[0]['Order number'],
+                'Item title': csv_data[0]['Item title'],
+                'Total price': csv_data[0]['Total price'],
+                'Sold for': csv_data[0]['Sold for'],
+                'Paid on date': csv_data[0]['Paid on date'],
+                'Sale date': csv_data[0]['Sale date']
+            });
         }
 
         // Verify session exists
