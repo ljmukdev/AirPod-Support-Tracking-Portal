@@ -12830,68 +12830,53 @@ app.post('/api/admin/ebay-import/sessions/:id/sales', requireAuth, requireDB, as
             const row = csv_data[i];
 
             try {
-                // Use DIRECT column access only - exact eBay UK export column names
+                // Direct column mapping - eBay UK Export columns to our system fields
+                // Using exact column names from eBay export
                 const finalOrderNumber = row['Sales record number'];
                 const finalItemTitle = row['Item title'];
                 const rawSaleDate = row['Paid on date'] || row['Sale date'];
-                const rawSalePrice = row['Total price'] || row['Sold for'];
+                const rawSalePrice = row['Total price'];
+                const rawItemSubtotal = row['Sold for'];
                 const finalBuyerUsername = row['Buyer username'];
                 const buyerName = row['Buyer name'] || row['Post to name'];
                 const trackingNumber = row['Tracking number'];
-                const postageCharged = parseEbayPrice(row['Postage and packaging']);
-                const ebayFees = parseEbayPrice(row['eBay collected tax']);
-                const quantity = parseInt(row['Quantity']) || 1;
+                const rawPostage = row['Postage and packaging'];
+                const rawEbayFees = row['eBay collected tax'];
+                const rawQuantity = row['Quantity'];
 
-                // Parse dates and prices
+                // Parse values
                 const finalSaleDate = parseEbayDate(rawSaleDate);
                 const finalSalePrice = parseEbayPrice(rawSalePrice);
-                const itemSubtotal = parseEbayPrice(row['Sold for']);
+                const itemSubtotal = parseEbayPrice(rawItemSubtotal);
+                const postageCharged = parseEbayPrice(rawPostage);
+                const ebayFees = parseEbayPrice(rawEbayFees);
+                const quantity = parseInt(rawQuantity) || 1;
 
                 // Log first 5 rows for debugging
                 if (i < 5) {
-                    console.log(`[eBay Import] Row ${i+1} DIRECT:`, {
+                    console.log(`[eBay Import] Row ${i+1} RAW VALUES:`, {
                         'Sales record number': row['Sales record number'],
-                        'Item title': row['Item title'] ? String(row['Item title']).substring(0, 40) : null,
+                        'Item title': row['Item title'] ? String(row['Item title']).substring(0, 30) : null,
                         'Total price': row['Total price'],
-                        'Paid on date': row['Paid on date']
+                        'Paid on date': row['Paid on date'],
+                        'Buyer username': row['Buyer username']
                     });
                 }
 
-                // Convert order number to string for checking
-                const orderStr = String(finalOrderNumber || '').toLowerCase();
-
-                // Log what we're checking for first 10 rows
-                if (i < 10) {
-                    console.log(`[eBay Import] Row ${i+1} check - orderNumber: "${finalOrderNumber}", type: ${typeof finalOrderNumber}, orderStr: "${orderStr}"`);
+                // Skip rows without a valid order number (must be numeric or eBay order format)
+                if (finalOrderNumber === undefined || finalOrderNumber === null || finalOrderNumber === '') {
+                    if (i < 10) {
+                        console.log(`[eBay Import] Row ${i+1} SKIPPED - no order number`);
+                    }
+                    continue;
                 }
 
-                // Skip header/metadata rows (like "Seller ID : ...", "Report generated", etc.)
-                if (orderStr.includes('seller id') ||
-                    orderStr.includes('report') ||
-                    orderStr.includes('generated') ||
-                    orderStr.includes('total') ||
-                    orderStr === '' ||
-                    orderStr === 'undefined' ||
-                    orderStr === 'null') {
-                    console.log(`[eBay Import] Row ${i+1} SKIPPED - header/metadata. Order: "${finalOrderNumber}"`);
-                    continue; // Skip silently, don't count as error
-                }
-
-                // Log first few rows for debugging
-                if (i < 5) {
-                    console.log(`[eBay Import] Row ${i+1} IMPORTING:`, {
-                        orderNumber: finalOrderNumber,
-                        itemTitle: finalItemTitle ? String(finalItemTitle).substring(0, 50) : null,
-                        totalPrice: directTotalPrice,
-                        saleDate: directSaleDate,
-                        buyerUsername: finalBuyerUsername
-                    });
-                }
-
-                // Import rows with a valid order number (even if item title is empty)
-                if (!finalOrderNumber) {
-                    console.log(`[eBay Import] Row ${i+1} SKIPPED - no order number`);
-                    errors.push({ row: i + 1, error: 'Missing order number' });
+                // Convert to string and check for header/metadata rows
+                const orderStr = String(finalOrderNumber).toLowerCase();
+                if (orderStr.includes('seller') || orderStr.includes('record') || orderStr.includes('total')) {
+                    if (i < 10) {
+                        console.log(`[eBay Import] Row ${i+1} SKIPPED - header row. Order: "${finalOrderNumber}"`);
+                    }
                     continue;
                 }
 
