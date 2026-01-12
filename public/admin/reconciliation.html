@@ -629,6 +629,20 @@
         let orphanedPurchases = [];
         let orphanedSales = [];
 
+        // Get auth token
+        function getAuthToken() {
+            return localStorage.getItem('accessToken');
+        }
+
+        // Get auth headers
+        function getAuthHeaders() {
+            const token = getAuthToken();
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+        }
+
         // Toggle submenu
         function toggleSubmenu(element) {
             element.classList.toggle('open');
@@ -672,8 +686,9 @@
         // Load summary data
         async function loadSummary() {
             try {
+                const token = getAuthToken();
                 const response = await fetch(API_BASE + '/api/admin/reconciliation/summary', {
-                    credentials: 'include'
+                    headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await response.json();
 
@@ -691,8 +706,9 @@
         // Load untracked items
         async function loadUntrackedItems() {
             try {
+                const token = getAuthToken();
                 const response = await fetch(API_BASE + '/api/admin/untracked-stock?status=pending', {
-                    credentials: 'include'
+                    headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await response.json();
 
@@ -708,8 +724,9 @@
         // Load orphaned purchases
         async function loadOrphanedPurchases() {
             try {
+                const token = getAuthToken();
                 const response = await fetch(API_BASE + '/api/admin/orphaned-purchases', {
-                    credentials: 'include'
+                    headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await response.json();
 
@@ -725,8 +742,9 @@
         // Load orphaned sales
         async function loadOrphanedSales() {
             try {
+                const token = getAuthToken();
                 const response = await fetch(API_BASE + '/api/admin/orphaned-sales', {
-                    credentials: 'include'
+                    headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await response.json();
 
@@ -944,8 +962,7 @@
             try {
                 const response = await fetch(API_BASE + '/api/admin/reconciliation', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
+                    headers: getAuthHeaders(),
                     body: JSON.stringify({ notes: 'Started from web interface' })
                 });
 
@@ -973,8 +990,7 @@
             try {
                 const response = await fetch(API_BASE + `/api/admin/reconciliation/${currentSession}/complete`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
+                    headers: getAuthHeaders(),
                     body: JSON.stringify({ notes: 'Completed from web interface' })
                 });
 
@@ -1008,8 +1024,7 @@
             try {
                 const response = await fetch(API_BASE + `/api/admin/reconciliation/${currentSession}/match-purchase`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
+                    headers: getAuthHeaders(),
                     body: JSON.stringify({
                         untracked_stock_id: selectedUntracked._id,
                         purchase_id: selectedPurchase._id,
@@ -1048,8 +1063,7 @@
             try {
                 const response = await fetch(API_BASE + `/api/admin/reconciliation/${currentSession}/match-sale`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
+                    headers: getAuthHeaders(),
                     body: JSON.stringify({
                         untracked_stock_id: selectedUntracked._id,
                         sale_id: selectedSale._id,
@@ -1089,8 +1103,7 @@
             try {
                 const response = await fetch(API_BASE + `/api/admin/reconciliation/${currentSession}/convert-to-product`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
+                    headers: getAuthHeaders(),
                     body: JSON.stringify({
                         untracked_stock_id: selectedUntracked._id,
                         purchase_price: purchasePrice || 0,
@@ -1130,8 +1143,7 @@
             try {
                 const response = await fetch(API_BASE + `/api/admin/reconciliation/${currentSession}/write-off`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
+                    headers: getAuthHeaders(),
                     body: JSON.stringify({
                         untracked_stock_id: selectedUntracked._id,
                         reason: reason,
@@ -1157,8 +1169,9 @@
         // Load history
         async function loadHistory() {
             try {
+                const token = getAuthToken();
                 const response = await fetch(API_BASE + '/api/admin/reconciliation', {
-                    credentials: 'include'
+                    headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await response.json();
 
@@ -1220,8 +1233,9 @@
         // Check for active session
         async function checkActiveSession() {
             try {
+                const token = getAuthToken();
                 const response = await fetch(API_BASE + '/api/admin/reconciliation?status=in_progress', {
-                    credentials: 'include'
+                    headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await response.json();
 
