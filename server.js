@@ -12830,30 +12830,45 @@ app.post('/api/admin/ebay-import/sessions/:id/sales', requireAuth, requireDB, as
             const row = csv_data[i];
 
             try {
-                // Use DIRECT column access only - exact eBay UK export column names
-                const finalOrderNumber = row['Sales record number'];
-                const finalItemTitle = row['Item title'];
-                const rawSaleDate = row['Paid on date'] || row['Sale date'];
-                const rawSalePrice = row['Total price'] || row['Sold for'];
-                const finalBuyerUsername = row['Buyer username'];
-                const buyerName = row['Buyer name'] || row['Post to name'];
-                const trackingNumber = row['Tracking number'];
-                const postageCharged = parseEbayPrice(row['Postage and packaging']);
-                const ebayFees = parseEbayPrice(row['eBay collected tax']);
-                const quantity = parseInt(row['Quantity']) || 1;
+                // Helper to find column by partial match (handles invisible characters)
+                const findColumn = (keywords) => {
+                    const keys = Object.keys(row);
+                    for (const key of keys) {
+                        const keyLower = key.toLowerCase().trim();
+                        for (const kw of keywords) {
+                            if (keyLower.includes(kw.toLowerCase())) {
+                                return row[key];
+                            }
+                        }
+                    }
+                    return undefined;
+                };
+
+                // Find values by partial column name match
+                const finalOrderNumber = findColumn(['sales record']) || findColumn(['order number']);
+                const finalItemTitle = findColumn(['item title']);
+                const rawSaleDate = findColumn(['paid on']) || findColumn(['sale date']);
+                const rawSalePrice = findColumn(['total price']) || findColumn(['sold for']);
+                const finalBuyerUsername = findColumn(['buyer username']);
+                const buyerName = findColumn(['buyer name']) || findColumn(['post to name']);
+                const trackingNumber = findColumn(['tracking number']);
+                const postageCharged = parseEbayPrice(findColumn(['postage and packaging']));
+                const ebayFees = parseEbayPrice(findColumn(['ebay collected tax']));
+                const quantity = parseInt(findColumn(['quantity'])) || 1;
 
                 // Parse dates and prices
                 const finalSaleDate = parseEbayDate(rawSaleDate);
                 const finalSalePrice = parseEbayPrice(rawSalePrice);
-                const itemSubtotal = parseEbayPrice(row['Sold for']);
+                const itemSubtotal = parseEbayPrice(findColumn(['sold for']));
 
                 // Log first 5 rows for debugging
                 if (i < 5) {
-                    console.log(`[eBay Import] Row ${i+1} DIRECT:`, {
-                        'Sales record number': row['Sales record number'],
-                        'Item title': row['Item title'] ? String(row['Item title']).substring(0, 40) : null,
-                        'Total price': row['Total price'],
-                        'Paid on date': row['Paid on date']
+                    console.log(`[eBay Import] Row ${i+1} FOUND:`, {
+                        orderNumber: finalOrderNumber,
+                        itemTitle: finalItemTitle ? String(finalItemTitle).substring(0, 40) : null,
+                        totalPrice: rawSalePrice,
+                        saleDate: rawSaleDate,
+                        buyerUsername: finalBuyerUsername
                     });
                 }
 
