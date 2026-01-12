@@ -13553,8 +13553,8 @@ app.get('/api/admin/untracked-stock/:id', requireAuth, requireDB, async (req, re
     }
 });
 
-// Update untracked stock item
-app.put('/api/admin/untracked-stock/:id', requireAuth, requireDB, async (req, res) => {
+// Update untracked stock item (PUT and PATCH)
+const updateUntrackedStockHandler = async (req, res) => {
     try {
         if (!ObjectId.isValid(req.params.id)) {
             return res.status(400).json({ error: 'Invalid item ID' });
@@ -13562,12 +13562,14 @@ app.put('/api/admin/untracked-stock/:id', requireAuth, requireDB, async (req, re
 
         const updateFields = {};
         const allowedFields = ['part_type', 'generation', 'connector_type', 'anc_type',
-                              'serial_number', 'condition', 'is_genuine', 'notes', 'photos', 'status'];
+                              'serial_number', 'condition', 'is_genuine', 'notes', 'photos', 'status', 'purchase_price'];
 
         for (const field of allowedFields) {
             if (req.body[field] !== undefined) {
                 if (field === 'serial_number' && req.body[field]) {
                     updateFields[field] = req.body[field].trim().toUpperCase();
+                } else if (field === 'purchase_price') {
+                    updateFields[field] = parseFloat(req.body[field]) || 0;
                 } else {
                     updateFields[field] = req.body[field];
                 }
@@ -13591,7 +13593,10 @@ app.put('/api/admin/untracked-stock/:id', requireAuth, requireDB, async (req, re
         console.error('Error updating untracked stock item:', err);
         res.status(500).json({ error: 'Database error: ' + err.message });
     }
-});
+};
+
+app.put('/api/admin/untracked-stock/:id', requireAuth, requireDB, updateUntrackedStockHandler);
+app.patch('/api/admin/untracked-stock/:id', requireAuth, requireDB, updateUntrackedStockHandler);
 
 // Delete untracked stock item
 app.delete('/api/admin/untracked-stock/:id', requireAuth, requireDB, async (req, res) => {

@@ -176,6 +176,10 @@
             background: #f8d7da;
             color: #721c24;
         }
+        .badge-awaiting {
+            background: #e2e3ff;
+            color: #3730a3;
+        }
         .action-btn {
             padding: 6px 12px;
             border: none;
@@ -558,6 +562,7 @@
                     <select id="filterStatus">
                         <option value="">All Statuses</option>
                         <option value="pending">Pending</option>
+                        <option value="awaiting_reconciliation">Awaiting Reconciliation</option>
                         <option value="matched">Matched</option>
                         <option value="converted_to_product">Converted</option>
                         <option value="written_off">Written Off</option>
@@ -604,6 +609,14 @@
             <div class="form-group">
                 <label for="modal_notes">Additional Notes</label>
                 <textarea id="modal_notes" rows="2" placeholder="Any notes about this check-in..."></textarea>
+            </div>
+
+            <div class="form-group" style="background: #fff3cd; padding: 12px; border-radius: 6px; margin-top: 15px;">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; margin: 0;">
+                    <input type="checkbox" id="modal_needs_reconciliation" style="width: 18px; height: 18px;">
+                    <span style="font-weight: 500;">Needs reconciliation with historical purchase/sale</span>
+                </label>
+                <p style="margin: 8px 0 0 28px; font-size: 0.85rem; color: #856404;">Check this if you need to match this item with a past purchase or sale record later.</p>
             </div>
 
             <div class="checkin-modal-actions">
@@ -714,12 +727,14 @@
             const statusBadge = (status) => {
                 const classes = {
                     'pending': 'badge-pending',
+                    'awaiting_reconciliation': 'badge-awaiting',
                     'matched': 'badge-matched',
                     'converted_to_product': 'badge-converted',
                     'written_off': 'badge-written-off'
                 };
                 const labels = {
                     'pending': 'Pending',
+                    'awaiting_reconciliation': 'Awaiting Reconciliation',
                     'matched': 'Matched',
                     'converted_to_product': 'Converted',
                     'written_off': 'Written Off'
@@ -841,6 +856,7 @@
 
             document.getElementById('modal_purchase_price').value = '';
             document.getElementById('modal_notes').value = '';
+            document.getElementById('modal_needs_reconciliation').checked = false;
             document.getElementById('checkInModal').classList.add('active');
         }
 
@@ -860,46 +876,70 @@
             }
 
             const notes = document.getElementById('modal_notes').value;
+            const needsReconciliation = document.getElementById('modal_needs_reconciliation').checked;
 
             try {
-                // First create a reconciliation session if needed, then convert to product
-                const token = getAuthToken();
+                if (needsReconciliation) {
+                    // Mark for reconciliation - update the item with purchase price and status
+                    const updateResponse = await fetch(API_BASE + `/api/admin/untracked-stock/${currentCheckInItem._id}`, {
+                        method: 'PATCH',
+                        headers: getAuthHeaders(),
+                        body: JSON.stringify({
+                            status: 'awaiting_reconciliation',
+                            purchase_price: parseFloat(purchasePrice),
+                            notes: currentCheckInItem.notes ? `${currentCheckInItem.notes}\n${notes}` : notes
+                        })
+                    });
 
-                // Create a simple reconciliation to convert directly to product
-                const reconciliationResponse = await fetch(API_BASE + '/api/admin/reconciliation', {
-                    method: 'POST',
-                    headers: getAuthHeaders(),
-                    body: JSON.stringify({
-                        name: `Quick Check-In - ${new Date().toLocaleString()}`
-                    })
-                });
+                    const updateData = await updateResponse.json();
 
-                const reconciliationData = await reconciliationResponse.json();
-                if (!reconciliationData.success) {
-                    throw new Error(reconciliationData.error || 'Failed to create reconciliation session');
-                }
-
-                const reconciliationId = reconciliationData.reconciliation._id;
-
-                // Convert to product
-                const convertResponse = await fetch(API_BASE + `/api/admin/reconciliation/${reconciliationId}/convert-to-product`, {
-                    method: 'POST',
-                    headers: getAuthHeaders(),
-                    body: JSON.stringify({
-                        untracked_stock_id: currentCheckInItem._id,
-                        purchase_price: parseFloat(purchasePrice),
-                        notes: notes
-                    })
-                });
-
-                const convertData = await convertResponse.json();
-
-                if (convertData.success) {
-                    showSuccess('Item checked in and added to inventory successfully!');
-                    closeCheckInModal();
-                    loadItems();
+                    if (updateData.success) {
+                        showSuccess('Item marked for reconciliation. Go to Reconciliation page to match with historical records.');
+                        closeCheckInModal();
+                        loadItems();
+                    } else {
+                        throw new Error(updateData.error || 'Failed to update item');
+                    }
                 } else {
-                    throw new Error(convertData.error || 'Failed to check in item');
+                    // Convert directly to product
+                    const token = getAuthToken();
+
+                    // Create a simple reconciliation to convert directly to product
+                    const reconciliationResponse = await fetch(API_BASE + '/api/admin/reconciliation', {
+                        method: 'POST',
+                        headers: getAuthHeaders(),
+                        body: JSON.stringify({
+                            name: `Quick Check-In - ${new Date().toLocaleString()}`
+                        })
+                    });
+
+                    const reconciliationData = await reconciliationResponse.json();
+                    if (!reconciliationData.success) {
+                        throw new Error(reconciliationData.error || 'Failed to create reconciliation session');
+                    }
+
+                    const reconciliationId = reconciliationData.reconciliation._id;
+
+                    // Convert to product
+                    const convertResponse = await fetch(API_BASE + `/api/admin/reconciliation/${reconciliationId}/convert-to-product`, {
+                        method: 'POST',
+                        headers: getAuthHeaders(),
+                        body: JSON.stringify({
+                            untracked_stock_id: currentCheckInItem._id,
+                            purchase_price: parseFloat(purchasePrice),
+                            notes: notes
+                        })
+                    });
+
+                    const convertData = await convertResponse.json();
+
+                    if (convertData.success) {
+                        showSuccess('Item checked in and added to inventory successfully!');
+                        closeCheckInModal();
+                        loadItems();
+                    } else {
+                        throw new Error(convertData.error || 'Failed to check in item');
+                    }
                 }
             } catch (err) {
                 console.error('Error checking in item:', err);
