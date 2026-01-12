@@ -3843,13 +3843,17 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
         }).toArray();
 
         for (const purchase of purchasesNeedingFeedback) {
-            // Check if there's a check-in with issues for this purchase
+            // Check if there's a check-in with issues or an unresolved workflow for this purchase
             const checkInWithIssues = await db.collection('check_ins').findOne({
                 purchase_id: purchase._id.toString(),
-                has_issues: true
+                $or: [
+                    { has_issues: true },
+                    { 'resolution_workflow': { $exists: true }, 'resolution_workflow.resolved_at': { $exists: false } },
+                    { 'resolution_workflow': { $exists: true }, 'resolution_workflow.resolved_at': null }
+                ]
             });
 
-            // If there are issues, check if they're fully resolved
+            // If there are issues or an unresolved workflow, check if they're fully resolved
             if (checkInWithIssues) {
                 const hasResolvedAt = checkInWithIssues.resolution_workflow?.resolved_at;
                 const resolutionType = checkInWithIssues.resolution_workflow?.resolution_type || '';
