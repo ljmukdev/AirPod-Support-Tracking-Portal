@@ -534,7 +534,7 @@
                 <div class="reconciliation-grid">
                     <!-- Left Panel: Untracked Stock -->
                     <div class="panel">
-                        <h3>Untracked Stock Items (Pending)</h3>
+                        <h3>Untracked Stock Items</h3>
                         <div class="item-list" id="untrackedList">
                             <div class="empty-state">
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -703,19 +703,32 @@
             }
         }
 
-        // Load untracked items
+        // Load untracked items (pending and awaiting_reconciliation)
         async function loadUntrackedItems() {
             try {
                 const token = getAuthToken();
-                const response = await fetch(API_BASE + '/api/admin/untracked-stock?status=pending', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const data = await response.json();
+                // Load both pending and awaiting_reconciliation items
+                const [pendingResponse, awaitingResponse] = await Promise.all([
+                    fetch(API_BASE + '/api/admin/untracked-stock?status=pending', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    }),
+                    fetch(API_BASE + '/api/admin/untracked-stock?status=awaiting_reconciliation', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    })
+                ]);
 
-                if (data.success) {
-                    untrackedItems = data.items;
-                    renderUntrackedItems();
+                const pendingData = await pendingResponse.json();
+                const awaitingData = await awaitingResponse.json();
+
+                untrackedItems = [];
+                if (pendingData.success) {
+                    untrackedItems = untrackedItems.concat(pendingData.items);
                 }
+                if (awaitingData.success) {
+                    untrackedItems = untrackedItems.concat(awaitingData.items);
+                }
+
+                renderUntrackedItems();
             } catch (err) {
                 console.error('Error loading untracked items:', err);
             }
@@ -777,6 +790,13 @@
                 return labels[type] || type;
             };
 
+            const statusBadge = (status) => {
+                if (status === 'awaiting_reconciliation') {
+                    return '<span class="badge" style="background: #e2e3ff; color: #3730a3;">Awaiting Reconciliation</span>';
+                }
+                return '<span class="badge badge-pending">Pending</span>';
+            };
+
             container.innerHTML = untrackedItems.map(item => `
                 <div class="item-card ${selectedUntracked && selectedUntracked._id === item._id ? 'selected' : ''}"
                      onclick="selectUntracked('${item._id}')">
@@ -784,9 +804,10 @@
                     <div class="item-details">
                         ${item.serial_number ? `Serial: ${item.serial_number}<br>` : ''}
                         Condition: ${item.condition || 'Unknown'}
+                        ${item.purchase_price ? `<br>Purchase: £${item.purchase_price.toFixed(2)}` : ''}
                     </div>
                     <div class="item-meta">
-                        <span class="badge badge-pending">Pending</span>
+                        ${statusBadge(item.status)}
                         <span>${new Date(item.created_at).toLocaleDateString()}</span>
                     </div>
                 </div>
