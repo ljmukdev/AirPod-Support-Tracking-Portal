@@ -12872,41 +12872,20 @@ app.post('/api/admin/ebay-import/sessions/:id/sales', requireAuth, requireDB, as
                     });
                 }
 
-                // Convert order number to string for checking
-                const orderStr = String(finalOrderNumber || '').toLowerCase();
-
-                // Log what we're checking for first 10 rows
-                if (i < 10) {
-                    console.log(`[eBay Import] Row ${i+1} check - orderNumber: "${finalOrderNumber}", type: ${typeof finalOrderNumber}, orderStr: "${orderStr}"`);
+                // Skip rows without a valid order number (must be numeric or eBay order format)
+                if (finalOrderNumber === undefined || finalOrderNumber === null || finalOrderNumber === '') {
+                    if (i < 10) {
+                        console.log(`[eBay Import] Row ${i+1} SKIPPED - no order number`);
+                    }
+                    continue;
                 }
 
-                // Skip header/metadata rows (like "Seller ID : ...", "Report generated", etc.)
-                if (orderStr.includes('seller id') ||
-                    orderStr.includes('report') ||
-                    orderStr.includes('generated') ||
-                    orderStr.includes('total') ||
-                    orderStr === '' ||
-                    orderStr === 'undefined' ||
-                    orderStr === 'null') {
-                    console.log(`[eBay Import] Row ${i+1} SKIPPED - header/metadata. Order: "${finalOrderNumber}"`);
-                    continue; // Skip silently, don't count as error
-                }
-
-                // Log first few rows for debugging
-                if (i < 5) {
-                    console.log(`[eBay Import] Row ${i+1} IMPORTING:`, {
-                        orderNumber: finalOrderNumber,
-                        itemTitle: finalItemTitle ? String(finalItemTitle).substring(0, 50) : null,
-                        totalPrice: directTotalPrice,
-                        saleDate: directSaleDate,
-                        buyerUsername: finalBuyerUsername
-                    });
-                }
-
-                // Import rows with a valid order number (even if item title is empty)
-                if (!finalOrderNumber) {
-                    console.log(`[eBay Import] Row ${i+1} SKIPPED - no order number`);
-                    errors.push({ row: i + 1, error: 'Missing order number' });
+                // Convert to string and check for header/metadata rows
+                const orderStr = String(finalOrderNumber).toLowerCase();
+                if (orderStr.includes('seller') || orderStr.includes('record') || orderStr.includes('total')) {
+                    if (i < 10) {
+                        console.log(`[eBay Import] Row ${i+1} SKIPPED - header row. Order: "${finalOrderNumber}"`);
+                    }
                     continue;
                 }
 
