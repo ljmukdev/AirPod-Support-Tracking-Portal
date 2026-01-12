@@ -12166,6 +12166,16 @@ async function initEbayImportIndexes() {
 function parseEbayDate(dateStr) {
     if (!dateStr) return null;
 
+    if (dateStr instanceof Date) {
+        return dateStr;
+    }
+
+    if (typeof dateStr === 'number') {
+        // Excel serial date (days since 1899-12-30)
+        const excelEpoch = Date.UTC(1899, 11, 30);
+        return new Date(excelEpoch + dateStr * 86400000);
+    }
+
     // Try various date formats
     // eBay UK format: "01 Jan 2024" or "01/01/2024"
     // eBay US format: "Jan 01, 2024" or "01/01/2024"
@@ -12187,7 +12197,15 @@ function parseEbayDate(dateStr) {
         'jul': 6, 'aug': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dec': 11
     };
 
-    const cleanStr = dateStr.trim();
+    const cleanStr = String(dateStr).trim();
+
+    if (/^\d+(\.\d+)?$/.test(cleanStr)) {
+        const serial = parseFloat(cleanStr);
+        if (!isNaN(serial)) {
+            const excelEpoch = Date.UTC(1899, 11, 30);
+            return new Date(excelEpoch + serial * 86400000);
+        }
+    }
 
     // Try ISO format first
     if (formats[0].test(cleanStr)) {
@@ -12905,7 +12923,7 @@ app.post('/api/admin/ebay-import/sessions/:id/sales', requireAuth, requireDB, as
                     buyer_name: buyerName,
                     quantity: quantity,
                     ebay_fees: ebayFees,
-                    tracking_number: trackingNumber ? trackingNumber.trim().toUpperCase() : null,
+                    tracking_number: trackingNumber ? String(trackingNumber).trim().toUpperCase() : null,
 
                     // Auto-detected fields
                     detected_generation: detectedGeneration,
