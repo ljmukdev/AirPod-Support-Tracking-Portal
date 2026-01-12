@@ -522,6 +522,20 @@
         const API_BASE = window.API_BASE || '';
         let allItems = [];
 
+        // Get auth token
+        function getAuthToken() {
+            return localStorage.getItem('accessToken');
+        }
+
+        // Get auth headers
+        function getAuthHeaders() {
+            const token = getAuthToken();
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+        }
+
         // Toggle submenu
         function toggleSubmenu(element) {
             element.classList.toggle('open');
@@ -546,8 +560,9 @@
         // Load items
         async function loadItems() {
             try {
+                const token = getAuthToken();
                 const response = await fetch(API_BASE + '/api/admin/untracked-stock', {
-                    credentials: 'include'
+                    headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await response.json();
 
@@ -678,8 +693,7 @@
             try {
                 const response = await fetch(API_BASE + '/api/admin/untracked-stock', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
+                    headers: getAuthHeaders(),
                     body: JSON.stringify(formData)
                 });
 
@@ -703,9 +717,10 @@
             if (!confirm('Are you sure you want to delete this item?')) return;
 
             try {
+                const token = getAuthToken();
                 const response = await fetch(API_BASE + '/api/admin/untracked-stock/' + id, {
                     method: 'DELETE',
-                    credentials: 'include'
+                    headers: { 'Authorization': `Bearer ${token}` }
                 });
 
                 const data = await response.json();
