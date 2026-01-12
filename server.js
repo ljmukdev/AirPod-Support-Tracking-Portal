@@ -12585,6 +12585,20 @@ app.post('/api/admin/ebay-import/sessions/:id/sales', requireAuth, requireDB, as
             }
         }
 
+        // Log summary before insert
+        console.log(`[eBay Import] Processing complete. Sales to insert: ${sales.length}, Errors: ${errors.length}`);
+        if (errors.length > 0) {
+            console.log('[eBay Import] First 5 errors:', errors.slice(0, 5));
+        }
+        if (sales.length > 0) {
+            console.log('[eBay Import] First sale sample:', {
+                order_number: sales[0].order_number,
+                item_title: sales[0].item_title?.substring(0, 50),
+                sale_price: sales[0].sale_price,
+                buyer_username: sales[0].buyer_username
+            });
+        }
+
         // Insert sales
         let insertedCount = 0;
         if (sales.length > 0) {
