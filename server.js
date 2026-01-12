@@ -12933,14 +12933,14 @@ app.post('/api/admin/ebay-import/sessions/:id/sales', requireAuth, requireDB, as
                 };
 
                 // Validation issues
-                if (!saleDate) {
+                if (!finalSaleDate) {
                     sale.validation_issues.push('Could not parse sale date');
                     sale.needs_review = true;
                 }
                 if (!detectedGeneration) {
                     sale.validation_issues.push('Could not detect AirPod generation');
                 }
-                if (salePrice === 0 && itemSubtotal === 0) {
+                if (finalSalePrice === 0 && itemSubtotal === 0) {
                     sale.validation_issues.push('Sale price is zero or could not be parsed');
                     sale.needs_review = true;
                 }
