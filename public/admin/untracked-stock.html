@@ -192,6 +192,13 @@
             background: #dc3545;
             color: white;
         }
+        .action-btn-checkin {
+            background: var(--accent-teal);
+            color: white;
+        }
+        .action-btn-checkin:hover {
+            background: #138496;
+        }
         .empty-state {
             text-align: center;
             padding: 40px;
@@ -242,6 +249,59 @@
                 flex: 1;
                 justify-content: center;
             }
+        }
+        /* Modal styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal h2 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 15px;
+        }
+        .modal-item-details {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .modal-item-details p {
+            margin: 8px 0;
+        }
+        .modal-item-details strong {
+            color: #666;
+            display: inline-block;
+            width: 120px;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #f0f0f0;
         }
     </style>
 </head>
@@ -522,6 +582,33 @@
         </div>
     </main>
 
+    <!-- Check-In Modal -->
+    <div class="modal-overlay" id="checkInModal">
+        <div class="modal">
+            <h2>Check In Untracked Item</h2>
+            <p style="color: #666; margin-bottom: 20px;">Review the item details and set a purchase price to add it to your inventory.</p>
+
+            <div class="modal-item-details" id="modalItemDetails">
+                <!-- Populated by JavaScript -->
+            </div>
+
+            <div class="form-group">
+                <label for="modal_purchase_price">Purchase Price (£) *</label>
+                <input type="number" id="modal_purchase_price" step="0.01" min="0" placeholder="Enter purchase price" required>
+            </div>
+
+            <div class="form-group">
+                <label for="modal_notes">Additional Notes</label>
+                <textarea id="modal_notes" rows="2" placeholder="Any notes about this check-in..."></textarea>
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeCheckInModal()">Cancel</button>
+                <button class="btn btn-primary" id="confirmCheckInBtn">Add to Inventory</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const API_BASE = window.API_BASE || '';
         let allItems = [];
@@ -670,6 +757,7 @@
                                 <td>${new Date(item.created_at).toLocaleDateString()}</td>
                                 <td>
                                     ${item.status === 'pending' ? `
+                                        <button class="action-btn action-btn-checkin" onclick="openCheckInModal('${item._id}')">Check In</button>
                                         <button class="action-btn action-btn-delete" onclick="deleteItem('${item._id}')">Delete</button>
                                     ` : ''}
                                 </td>
@@ -714,6 +802,111 @@
             } catch (err) {
                 console.error('Error adding item:', err);
                 showError('Failed to add item: ' + err.message);
+            }
+        });
+
+        // Check-in modal functions
+        let currentCheckInItem = null;
+
+        function openCheckInModal(itemId) {
+            const item = allItems.find(i => i._id === itemId);
+            if (!item) {
+                showError('Item not found');
+                return;
+            }
+
+            currentCheckInItem = item;
+
+            const partTypeLabels = {
+                'left': 'Left Earbud',
+                'right': 'Right Earbud',
+                'case': 'Charging Case',
+                'full_set': 'Full Set'
+            };
+
+            document.getElementById('modalItemDetails').innerHTML = `
+                <p><strong>Generation:</strong> ${item.generation}</p>
+                <p><strong>Part Type:</strong> ${partTypeLabels[item.part_type] || item.part_type}</p>
+                <p><strong>Connector:</strong> ${item.connector_type || 'N/A'}</p>
+                <p><strong>Serial Number:</strong> ${item.serial_number || 'N/A'}</p>
+                <p><strong>Security Barcode:</strong> ${item.security_barcode || 'Will be auto-generated'}</p>
+                <p><strong>Condition:</strong> ${item.condition || 'Unknown'}</p>
+                <p><strong>Genuine:</strong> ${item.is_genuine === true ? 'Yes' : item.is_genuine === false ? 'No' : 'Unknown'}</p>
+                ${item.notes ? `<p><strong>Notes:</strong> ${item.notes}</p>` : ''}
+            `;
+
+            document.getElementById('modal_purchase_price').value = '';
+            document.getElementById('modal_notes').value = '';
+            document.getElementById('checkInModal').classList.add('active');
+        }
+
+        function closeCheckInModal() {
+            document.getElementById('checkInModal').classList.remove('active');
+            currentCheckInItem = null;
+        }
+
+        // Handle confirm check-in
+        document.getElementById('confirmCheckInBtn').addEventListener('click', async () => {
+            if (!currentCheckInItem) return;
+
+            const purchasePrice = document.getElementById('modal_purchase_price').value;
+            if (!purchasePrice || parseFloat(purchasePrice) < 0) {
+                showError('Please enter a valid purchase price');
+                return;
+            }
+
+            const notes = document.getElementById('modal_notes').value;
+
+            try {
+                // First create a reconciliation session if needed, then convert to product
+                const token = getAuthToken();
+
+                // Create a simple reconciliation to convert directly to product
+                const reconciliationResponse = await fetch(API_BASE + '/api/admin/reconciliation', {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({
+                        name: `Quick Check-In - ${new Date().toLocaleString()}`
+                    })
+                });
+
+                const reconciliationData = await reconciliationResponse.json();
+                if (!reconciliationData.success) {
+                    throw new Error(reconciliationData.error || 'Failed to create reconciliation session');
+                }
+
+                const reconciliationId = reconciliationData.reconciliation._id;
+
+                // Convert to product
+                const convertResponse = await fetch(API_BASE + `/api/admin/reconciliation/${reconciliationId}/convert-to-product`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({
+                        untracked_stock_id: currentCheckInItem._id,
+                        purchase_price: parseFloat(purchasePrice),
+                        notes: notes
+                    })
+                });
+
+                const convertData = await convertResponse.json();
+
+                if (convertData.success) {
+                    showSuccess('Item checked in and added to inventory successfully!');
+                    closeCheckInModal();
+                    loadItems();
+                } else {
+                    throw new Error(convertData.error || 'Failed to check in item');
+                }
+            } catch (err) {
+                console.error('Error checking in item:', err);
+                showError('Failed to check in item: ' + err.message);
+            }
+        });
+
+        // Close modal on overlay click
+        document.getElementById('checkInModal').addEventListener('click', (e) => {
+            if (e.target.id === 'checkInModal') {
+                closeCheckInModal();
             }
         });
 
