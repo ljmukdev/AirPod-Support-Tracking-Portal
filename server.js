@@ -3852,8 +3852,12 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
             // If there are issues, check if they're fully resolved
             if (checkInWithIssues) {
                 const hasResolvedAt = checkInWithIssues.resolution_workflow?.resolved_at;
-                const isReturnResolution = checkInWithIssues.resolution_workflow?.resolution_type === 'return' ||
+                const resolutionType = checkInWithIssues.resolution_workflow?.resolution_type || '';
+                const isReturnResolution = resolutionType.toLowerCase().includes('return') ||
                                            checkInWithIssues.resolution_workflow?.return_tracking;
+                const isRefundResolution = (resolutionType.toLowerCase().includes('refund') &&
+                                           !resolutionType.toLowerCase().includes('no refund')) ||
+                                           resolutionType.toLowerCase().includes('ebay case closed in our favor');
 
                 // Skip if not resolved yet
                 if (!hasResolvedAt) {
@@ -3863,6 +3867,19 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                 // Skip if it's a return resolution and refund not verified
                 if (isReturnResolution && (!purchase.return_tracking || !purchase.return_tracking.refund_verified)) {
                     continue;
+                }
+
+                // Skip if it's a refund resolution (non-return) and refund not verified
+                if (isRefundResolution && !isReturnResolution) {
+                    // Check if refund_pending exists and is not verified
+                    if (purchase.refund_pending && !purchase.refund_pending.refund_verified) {
+                        continue;
+                    }
+                    // Also skip if the resolution indicates a refund but refund_pending wasn't set
+                    // (e.g., refund amount wasn't entered but refund is still expected)
+                    if (!purchase.refund_pending && !purchase.refund_verified) {
+                        continue;
+                    }
                 }
             }
 
