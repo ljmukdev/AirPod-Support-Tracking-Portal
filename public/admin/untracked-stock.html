@@ -794,6 +794,9 @@
                                         <button class="action-btn action-btn-checkin" onclick="openCheckInModal('${item._id}')">Process</button>
                                         <button class="action-btn action-btn-delete" onclick="deleteItem('${item._id}')">Delete</button>
                                     ` : ''}
+                                    ${item.status === 'awaiting_reconciliation' ? `
+                                        <a href="reconciliation.html" class="action-btn action-btn-checkin" style="text-decoration: none; display: inline-block;">Reconcile</a>
+                                    ` : ''}
                                 </td>
                             </tr>
                         `).join('')}
