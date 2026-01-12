@@ -12516,20 +12516,37 @@ app.post('/api/admin/ebay-import/sessions/:id/sales', requireAuth, requireDB, as
                 const finalSaleDate = saleDate || parseEbayDate(directSaleDate);
                 const finalBuyerUsername = buyerUsername || directBuyerUsername;
 
+                // Convert order number to string for checking
+                const orderStr = String(finalOrderNumber || '').toLowerCase();
+
+                // Skip header/metadata rows (like "Seller ID : ...", "Report generated", etc.)
+                if (orderStr.includes('seller id') ||
+                    orderStr.includes('report') ||
+                    orderStr.includes('generated') ||
+                    orderStr.includes('total') ||
+                    orderStr === '' ||
+                    orderStr === 'undefined' ||
+                    orderStr === 'null') {
+                    if (i < 10) {
+                        console.log(`[eBay Import] Row ${i+1} skipped - header/metadata row. Order: "${finalOrderNumber}"`);
+                    }
+                    continue; // Skip silently, don't count as error
+                }
+
                 // Log first few rows for debugging
-                if (i < 3) {
-                    console.log(`[eBay Import] Row ${i+1} values:`, {
-                        findValue_itemTitle: itemTitle,
-                        direct_itemTitle: directItemTitle,
-                        final_itemTitle: finalItemTitle,
-                        findValue_orderNumber: orderNumber,
-                        direct_orderNumber: directOrderNumber
+                if (i < 5) {
+                    console.log(`[eBay Import] Row ${i+1} IMPORTING:`, {
+                        orderNumber: finalOrderNumber,
+                        itemTitle: finalItemTitle ? finalItemTitle.substring(0, 50) : null,
+                        totalPrice: directTotalPrice,
+                        saleDate: directSaleDate,
+                        buyerUsername: finalBuyerUsername
                     });
                 }
 
-                // Skip only if we have absolutely no identifier
-                if (!finalOrderNumber && !finalItemTitle) {
-                    errors.push({ row: i + 1, error: 'Missing order number and item title' });
+                // Import rows with a valid order number (even if item title is empty)
+                if (!finalOrderNumber) {
+                    errors.push({ row: i + 1, error: 'Missing order number' });
                     continue;
                 }
 
