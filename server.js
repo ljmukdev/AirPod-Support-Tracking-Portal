@@ -12364,6 +12364,7 @@ app.post('/api/admin/ebay-import/sessions/:id/sales', requireAuth, requireDB, as
         // Log first row immediately to debug
         if (csv_data.length > 0) {
             console.log('[eBay Import] First row keys:', Object.keys(csv_data[0]));
+            console.log('[eBay Import] FULL first row data:', JSON.stringify(csv_data[0]));
             console.log('[eBay Import] First row sample values:', {
                 'Sales record number': csv_data[0]['Sales record number'],
                 'Order number': csv_data[0]['Order number'],
@@ -12373,6 +12374,15 @@ app.post('/api/admin/ebay-import/sessions/:id/sales', requireAuth, requireDB, as
                 'Paid on date': csv_data[0]['Paid on date'],
                 'Sale date': csv_data[0]['Sale date']
             });
+            // Also log rows 2 and 3 to see if they're different
+            if (csv_data.length > 1) {
+                console.log('[eBay Import] Row 2 Item title:', csv_data[1]['Item title']);
+                console.log('[eBay Import] Row 2 Sales record:', csv_data[1]['Sales record number']);
+            }
+            if (csv_data.length > 2) {
+                console.log('[eBay Import] Row 3 Item title:', csv_data[2]['Item title']);
+                console.log('[eBay Import] Row 3 Sales record:', csv_data[2]['Sales record number']);
+            }
         }
 
         // Verify session exists
@@ -12583,6 +12593,20 @@ app.post('/api/admin/ebay-import/sessions/:id/sales', requireAuth, requireDB, as
             } catch (rowErr) {
                 errors.push({ row: i + 1, error: rowErr.message });
             }
+        }
+
+        // Log summary before insert
+        console.log(`[eBay Import] Processing complete. Sales to insert: ${sales.length}, Errors: ${errors.length}`);
+        if (errors.length > 0) {
+            console.log('[eBay Import] First 5 errors:', errors.slice(0, 5));
+        }
+        if (sales.length > 0) {
+            console.log('[eBay Import] First sale sample:', {
+                order_number: sales[0].order_number,
+                item_title: sales[0].item_title?.substring(0, 50),
+                sale_price: sales[0].sale_price,
+                buyer_username: sales[0].buyer_username
+            });
         }
 
         // Insert sales
