@@ -601,37 +601,30 @@
     <!-- Check-In Modal -->
     <div class="checkin-modal-overlay" id="checkInModal">
         <div class="checkin-modal">
-            <h2>Process Untracked Item</h2>
-            <p style="color: #666; margin-bottom: 20px;">Choose how to process this item - add directly to inventory or save for matching with historical records.</p>
+            <h2>Add to Inventory</h2>
+            <p style="color: #666; margin-bottom: 20px;">Add this item to your product inventory. It will be ready for sale immediately.</p>
 
             <div class="checkin-modal-item-details" id="modalItemDetails">
                 <!-- Populated by JavaScript -->
             </div>
 
-            <div class="form-group" style="background: #fff3cd; padding: 12px; border-radius: 6px;">
+            <div class="form-group">
+                <label for="modal_purchase_price">Purchase Price (£) *</label>
+                <input type="number" id="modal_purchase_price" step="0.01" min="0" placeholder="Enter purchase price (use 0 if unknown)" required>
+                <p style="font-size: 0.85rem; color: #666; margin-top: 5px;">Enter the purchase cost, or £0 if unknown.</p>
+            </div>
+
+            <div class="form-group">
+                <label for="modal_notes">Additional Notes</label>
+                <textarea id="modal_notes" rows="2" placeholder="Any notes about this item..."></textarea>
+            </div>
+
+            <div class="form-group" style="background: #e8f4f8; padding: 12px; border-radius: 6px; margin-top: 15px;">
                 <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; margin: 0;">
-                    <input type="checkbox" id="modal_needs_reconciliation" style="width: 18px; height: 18px;" onchange="toggleReconciliationMode()">
-                    <span style="font-weight: 500;">Match with historical purchase/sale later</span>
+                    <input type="checkbox" id="modal_needs_reconciliation" style="width: 18px; height: 18px;" checked>
+                    <span style="font-weight: 500;">Flag for purchase reconciliation later</span>
                 </label>
-                <p style="margin: 8px 0 0 28px; font-size: 0.85rem; color: #856404;">Check this to match with an existing purchase or sale record in the Reconciliation page.</p>
-            </div>
-
-            <div id="directAddFields">
-                <div class="form-group">
-                    <label for="modal_purchase_price">Purchase Price (£) *</label>
-                    <input type="number" id="modal_purchase_price" step="0.01" min="0" placeholder="Enter purchase price" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="modal_notes">Additional Notes</label>
-                    <textarea id="modal_notes" rows="2" placeholder="Any notes about this check-in..."></textarea>
-                </div>
-            </div>
-
-            <div id="reconciliationInfo" style="display: none; background: #e8f4f8; padding: 15px; border-radius: 6px; margin-top: 15px;">
-                <p style="margin: 0; color: #0c5460;">
-                    <strong>Next step:</strong> After saving, go to the <a href="reconciliation.html" style="color: #17a2b8; font-weight: 600;">Reconciliation page</a> to match this item with a purchase or sale record.
-                </p>
+                <p style="margin: 8px 0 0 28px; font-size: 0.85rem; color: #0c5460;">Keep this checked to match with a historical purchase record later (for P&L/tax). The item will still be added to inventory and ready for sale.</p>
             </div>
 
             <div class="checkin-modal-actions">
@@ -790,8 +783,8 @@
                                 <td>${statusBadge(item.status)}</td>
                                 <td>${new Date(item.created_at).toLocaleDateString()}</td>
                                 <td>
-                                    ${item.status === 'pending' ? `
-                                        <button class="action-btn action-btn-checkin" onclick="openCheckInModal('${item._id}')">Process</button>
+                                    ${item.status === 'pending' || item.status === 'awaiting_reconciliation' ? `
+                                        <button class="action-btn action-btn-checkin" onclick="openCheckInModal('${item._id}')">Add to Inventory</button>
                                         <button class="action-btn action-btn-delete" onclick="deleteItem('${item._id}')">Delete</button>
                                     ` : ''}
                                 </td>
@@ -871,14 +864,7 @@
 
             document.getElementById('modal_purchase_price').value = '';
             document.getElementById('modal_notes').value = '';
-            document.getElementById('modal_needs_reconciliation').checked = false;
-            // Reset to default mode
-            document.getElementById('directAddFields').style.display = 'block';
-            document.getElementById('reconciliationInfo').style.display = 'none';
-            const confirmBtn = document.getElementById('confirmCheckInBtn');
-            confirmBtn.textContent = 'Add to Inventory';
-            confirmBtn.classList.remove('btn-warning');
-            confirmBtn.classList.add('btn-primary');
+            document.getElementById('modal_needs_reconciliation').checked = true; // Default to flagged for reconciliation
 
             document.getElementById('checkInModal').classList.add('active');
         }
@@ -888,107 +874,61 @@
             currentCheckInItem = null;
         }
 
-        function toggleReconciliationMode() {
-            const isReconciliation = document.getElementById('modal_needs_reconciliation').checked;
-            const directFields = document.getElementById('directAddFields');
-            const reconciliationInfo = document.getElementById('reconciliationInfo');
-            const confirmBtn = document.getElementById('confirmCheckInBtn');
-
-            if (isReconciliation) {
-                directFields.style.display = 'none';
-                reconciliationInfo.style.display = 'block';
-                confirmBtn.textContent = 'Save for Reconciliation';
-                confirmBtn.classList.remove('btn-primary');
-                confirmBtn.classList.add('btn-warning');
-            } else {
-                directFields.style.display = 'block';
-                reconciliationInfo.style.display = 'none';
-                confirmBtn.textContent = 'Add to Inventory';
-                confirmBtn.classList.remove('btn-warning');
-                confirmBtn.classList.add('btn-primary');
-            }
-        }
-
-        // Handle confirm check-in
+        // Handle confirm check-in - always creates a product
         document.getElementById('confirmCheckInBtn').addEventListener('click', async () => {
             if (!currentCheckInItem) return;
 
-            const needsReconciliation = document.getElementById('modal_needs_reconciliation').checked;
+            const purchasePrice = document.getElementById('modal_purchase_price').value;
+            if (purchasePrice === '' || parseFloat(purchasePrice) < 0) {
+                showError('Please enter a valid purchase price (use 0 if unknown)');
+                return;
+            }
+
             const notes = document.getElementById('modal_notes').value;
+            const needsPurchaseReconciliation = document.getElementById('modal_needs_reconciliation').checked;
 
             try {
-                if (needsReconciliation) {
-                    // Mark for reconciliation - no purchase price needed yet
-                    const updateResponse = await fetch(API_BASE + `/api/admin/untracked-stock/${currentCheckInItem._id}`, {
-                        method: 'PATCH',
-                        headers: getAuthHeaders(),
-                        body: JSON.stringify({
-                            status: 'awaiting_reconciliation'
-                        })
-                    });
+                // Create a reconciliation session to convert to product
+                const reconciliationResponse = await fetch(API_BASE + '/api/admin/reconciliation', {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({
+                        name: `Untracked Stock - ${new Date().toLocaleString()}`
+                    })
+                });
 
-                    const updateData = await updateResponse.json();
+                const reconciliationData = await reconciliationResponse.json();
+                if (!reconciliationData.success) {
+                    throw new Error(reconciliationData.error || 'Failed to create reconciliation session');
+                }
 
-                    if (updateData.success) {
-                        closeCheckInModal();
-                        loadItems();
-                        // Show success with link to reconciliation
-                        if (confirm('Item saved for reconciliation.\n\nWould you like to go to the Reconciliation page now to match it with a purchase or sale?')) {
-                            window.location.href = 'reconciliation.html';
-                        }
-                    } else {
-                        throw new Error(updateData.error || 'Failed to update item');
-                    }
+                const reconciliationId = reconciliationData.reconciliation._id;
+
+                // Convert to product with reconciliation flag
+                const convertResponse = await fetch(API_BASE + `/api/admin/reconciliation/${reconciliationId}/convert-to-product`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({
+                        untracked_stock_id: currentCheckInItem._id,
+                        purchase_price: parseFloat(purchasePrice),
+                        notes: notes,
+                        needs_purchase_reconciliation: needsPurchaseReconciliation
+                    })
+                });
+
+                const convertData = await convertResponse.json();
+
+                if (convertData.success) {
+                    const flagMsg = needsPurchaseReconciliation ? ' (flagged for purchase reconciliation)' : '';
+                    showSuccess(`Item added to inventory${flagMsg}! Ready for sale.`);
+                    closeCheckInModal();
+                    loadItems();
                 } else {
-                    // Direct add to inventory - require purchase price
-                    const purchasePrice = document.getElementById('modal_purchase_price').value;
-                    if (!purchasePrice || parseFloat(purchasePrice) < 0) {
-                        showError('Please enter a valid purchase price');
-                        return;
-                    }
-                    // Convert directly to product
-                    const token = getAuthToken();
-
-                    // Create a simple reconciliation to convert directly to product
-                    const reconciliationResponse = await fetch(API_BASE + '/api/admin/reconciliation', {
-                        method: 'POST',
-                        headers: getAuthHeaders(),
-                        body: JSON.stringify({
-                            name: `Quick Check-In - ${new Date().toLocaleString()}`
-                        })
-                    });
-
-                    const reconciliationData = await reconciliationResponse.json();
-                    if (!reconciliationData.success) {
-                        throw new Error(reconciliationData.error || 'Failed to create reconciliation session');
-                    }
-
-                    const reconciliationId = reconciliationData.reconciliation._id;
-
-                    // Convert to product
-                    const convertResponse = await fetch(API_BASE + `/api/admin/reconciliation/${reconciliationId}/convert-to-product`, {
-                        method: 'POST',
-                        headers: getAuthHeaders(),
-                        body: JSON.stringify({
-                            untracked_stock_id: currentCheckInItem._id,
-                            purchase_price: parseFloat(purchasePrice),
-                            notes: notes
-                        })
-                    });
-
-                    const convertData = await convertResponse.json();
-
-                    if (convertData.success) {
-                        showSuccess('Item checked in and added to inventory successfully!');
-                        closeCheckInModal();
-                        loadItems();
-                    } else {
-                        throw new Error(convertData.error || 'Failed to check in item');
-                    }
+                    throw new Error(convertData.error || 'Failed to add to inventory');
                 }
             } catch (err) {
-                console.error('Error checking in item:', err);
-                showError('Failed to check in item: ' + err.message);
+                console.error('Error adding to inventory:', err);
+                showError('Failed to add to inventory: ' + err.message);
             }
         });
 
