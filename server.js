@@ -12830,45 +12830,36 @@ app.post('/api/admin/ebay-import/sessions/:id/sales', requireAuth, requireDB, as
             const row = csv_data[i];
 
             try {
-                // Helper to find column by partial match (handles invisible characters)
-                const findColumn = (keywords) => {
-                    const keys = Object.keys(row);
-                    for (const key of keys) {
-                        const keyLower = key.toLowerCase().trim();
-                        for (const kw of keywords) {
-                            if (keyLower.includes(kw.toLowerCase())) {
-                                return row[key];
-                            }
-                        }
-                    }
-                    return undefined;
-                };
+                // Direct column mapping - eBay UK Export columns to our system fields
+                // Using exact column names from eBay export
+                const finalOrderNumber = row['Sales record number'];
+                const finalItemTitle = row['Item title'];
+                const rawSaleDate = row['Paid on date'] || row['Sale date'];
+                const rawSalePrice = row['Total price'];
+                const rawItemSubtotal = row['Sold for'];
+                const finalBuyerUsername = row['Buyer username'];
+                const buyerName = row['Buyer name'] || row['Post to name'];
+                const trackingNumber = row['Tracking number'];
+                const rawPostage = row['Postage and packaging'];
+                const rawEbayFees = row['eBay collected tax'];
+                const rawQuantity = row['Quantity'];
 
-                // Find values by partial column name match
-                const finalOrderNumber = findColumn(['sales record']) || findColumn(['order number']);
-                const finalItemTitle = findColumn(['item title']);
-                const rawSaleDate = findColumn(['paid on']) || findColumn(['sale date']);
-                const rawSalePrice = findColumn(['total price']) || findColumn(['sold for']);
-                const finalBuyerUsername = findColumn(['buyer username']);
-                const buyerName = findColumn(['buyer name']) || findColumn(['post to name']);
-                const trackingNumber = findColumn(['tracking number']);
-                const postageCharged = parseEbayPrice(findColumn(['postage and packaging']));
-                const ebayFees = parseEbayPrice(findColumn(['ebay collected tax']));
-                const quantity = parseInt(findColumn(['quantity'])) || 1;
-
-                // Parse dates and prices
+                // Parse values
                 const finalSaleDate = parseEbayDate(rawSaleDate);
                 const finalSalePrice = parseEbayPrice(rawSalePrice);
-                const itemSubtotal = parseEbayPrice(findColumn(['sold for']));
+                const itemSubtotal = parseEbayPrice(rawItemSubtotal);
+                const postageCharged = parseEbayPrice(rawPostage);
+                const ebayFees = parseEbayPrice(rawEbayFees);
+                const quantity = parseInt(rawQuantity) || 1;
 
                 // Log first 5 rows for debugging
                 if (i < 5) {
-                    console.log(`[eBay Import] Row ${i+1} FOUND:`, {
-                        orderNumber: finalOrderNumber,
-                        itemTitle: finalItemTitle ? String(finalItemTitle).substring(0, 40) : null,
-                        totalPrice: rawSalePrice,
-                        saleDate: rawSaleDate,
-                        buyerUsername: finalBuyerUsername
+                    console.log(`[eBay Import] Row ${i+1} RAW VALUES:`, {
+                        'Sales record number': row['Sales record number'],
+                        'Item title': row['Item title'] ? String(row['Item title']).substring(0, 30) : null,
+                        'Total price': row['Total price'],
+                        'Paid on date': row['Paid on date'],
+                        'Buyer username': row['Buyer username']
                     });
                 }
 
