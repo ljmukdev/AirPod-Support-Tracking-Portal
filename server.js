@@ -2430,6 +2430,60 @@ app.post('/api/admin/purchases/migrate-refunds', requireAuth, requireDB, async (
     }
 });
 
+// Cleanup endpoint: Fix seller names with "user ID" suffix
+app.post('/api/admin/purchases/cleanup-seller-names', requireAuth, requireDB, async (req, res) => {
+    try {
+        console.log('[CLEANUP] Starting seller name cleanup...');
+
+        // Find all purchases with seller_name containing "user ID", "seller ID", or "buyer ID" suffix
+        const purchasesWithBadNames = await db.collection('purchases').find({
+            $or: [
+                { seller_name: { $regex: /user\s*ID$/i } },
+                { seller_name: { $regex: /seller\s*ID$/i } },
+                { seller_name: { $regex: /buyer\s*ID$/i } }
+            ]
+        }).toArray();
+
+        console.log(`[CLEANUP] Found ${purchasesWithBadNames.length} purchases with names to clean`);
+
+        let updated = 0;
+        const details = [];
+
+        for (const purchase of purchasesWithBadNames) {
+            const oldName = purchase.seller_name;
+            const newName = oldName
+                .replace(/user\s*ID$/i, '')
+                .replace(/seller\s*ID$/i, '')
+                .replace(/buyer\s*ID$/i, '')
+                .trim();
+
+            if (newName !== oldName) {
+                await db.collection('purchases').updateOne(
+                    { _id: purchase._id },
+                    { $set: { seller_name: newName } }
+                );
+
+                const detail = `Fixed seller name: "${oldName}" -> "${newName}" (order: ${purchase.order_number || purchase._id})`;
+                console.log(`[CLEANUP] ${detail}`);
+                details.push(detail);
+                updated++;
+            }
+        }
+
+        console.log(`[CLEANUP] Complete! Updated ${updated} purchase records.`);
+
+        res.json({
+            success: true,
+            message: `Successfully cleaned ${updated} seller names`,
+            updated: updated,
+            details: details
+        });
+    } catch (err) {
+        console.error('[CLEANUP] Error:', err);
+        res.status(500).json({ error: 'Cleanup failed: ' + err.message });
+    }
+});
+
 // Get all purchases (Admin only)
 app.get('/api/admin/purchases', requireAuth, requireDB, async (req, res) => {
     try {
@@ -9692,15 +9746,82 @@ app.get('/api/admin/search-product', requireAuth, requireDB, async (req, res) =>
         }
         
         console.log('🔍 Search query:', JSON.stringify(query));
-        
+
         // Search for product
-        const product = await db.collection('products').findOne(query);
-        
+        let product = await db.collection('products').findOne(query);
+
+        // If not found and searching by ebay_order_number, also check the purchases collection
+        if (!product && ebay_order_number && !serial_number && !security_barcode) {
+            console.log('🔍 Product not found, checking purchases collection for order number:', ebay_order_number.trim());
+
+            const purchase = await db.collection('purchases').findOne({
+                order_number: ebay_order_number.trim()
+            });
+
+            if (purchase) {
+                console.log('✅ Purchase found:', purchase.order_number);
+
+                // Find any products linked to this purchase
+                const linkedProducts = await db.collection('products').find({
+                    purchase_id: purchase._id.toString()
+                }).toArray();
+
+                // Return purchase info with linked products
+                const purchaseData = {
+                    id: purchase._id.toString(),
+                    type: 'purchase',
+                    platform: purchase.platform,
+                    order_number: purchase.order_number,
+                    seller_name: purchase.seller_name,
+                    purchase_date: purchase.purchase_date,
+                    generation: purchase.generation,
+                    connector_type: purchase.connector_type,
+                    anc_type: purchase.anc_type,
+                    items_purchased: purchase.items_purchased,
+                    quantity: purchase.quantity,
+                    purchase_price: purchase.purchase_price,
+                    refund_amount: purchase.refund_amount || 0,
+                    condition: purchase.condition,
+                    status: purchase.status,
+                    feedback_left: purchase.feedback_left,
+                    tracking_provider: purchase.tracking_provider,
+                    tracking_number: purchase.tracking_number,
+                    expected_delivery: purchase.expected_delivery,
+                    serial_numbers: purchase.serial_numbers || [],
+                    notes: purchase.notes,
+                    date_added: purchase.date_added,
+                    checked_in: purchase.checked_in || false,
+                    checked_in_date: purchase.checked_in_date
+                };
+
+                // Format linked products
+                const linkedProductsData = linkedProducts.map(p => ({
+                    id: p._id.toString(),
+                    serial_number: p.serial_number,
+                    security_barcode: p.security_barcode,
+                    part_type: p.part_type,
+                    generation: p.generation,
+                    status: p.status
+                }));
+
+                return res.json({
+                    success: true,
+                    purchase: purchaseData,
+                    linked_products: linkedProductsData,
+                    product: null,
+                    warranty: null
+                });
+            }
+
+            console.log('❌ Purchase not found with order number:', ebay_order_number.trim());
+            return res.status(404).json({ error: 'Product not found' });
+        }
+
         if (!product) {
             console.log('❌ Product not found with query:', JSON.stringify(query));
             return res.status(404).json({ error: 'Product not found' });
         }
-        
+
         console.log('✅ Product found:', product.security_barcode);
         
         // Get associated warranty if exists
@@ -12431,6 +12552,18 @@ app.post('/api/admin/ebay-import/sessions/:id/purchases', requireAuth, requireDB
             return null;
         };
 
+        // Helper to clean up usernames (remove common suffixes from eBay exports)
+        const cleanUsername = (name) => {
+            if (!name || typeof name !== 'string') return name;
+            // Remove common suffixes that might be accidentally concatenated from column headers
+            // Patterns like "bigady1user ID" should become "bigady1"
+            return name
+                .replace(/user\s*ID$/i, '')  // Remove "user ID" or "userID" suffix
+                .replace(/seller\s*ID$/i, '') // Remove "seller ID" suffix
+                .replace(/buyer\s*ID$/i, '')  // Remove "buyer ID" suffix
+                .trim();
+        };
+
         // Process each row
         const purchases = [];
         const errors = [];
@@ -12444,7 +12577,7 @@ app.post('/api/admin/ebay-import/sessions/:id/purchases', requireAuth, requireDB
                 const purchaseDate = parseEbayDate(findValue(mapping.purchase_date, row));
                 const purchasePrice = parseEbayPrice(findValue(mapping.purchase_price, row));
                 const postageCost = parseEbayPrice(findValue(mapping.postage_cost, row));
-                const sellerName = findValue(mapping.seller_name, row);
+                const sellerName = cleanUsername(findValue(mapping.seller_name, row));
                 const quantity = parseInt(findValue(mapping.quantity, row)) || 1;
 
                 // Skip if no order number or item title
@@ -12656,6 +12789,18 @@ app.post('/api/admin/ebay-import/sessions/:id/sales', requireAuth, requireDB, as
             return null;
         };
 
+        // Helper to clean up usernames (remove common suffixes from eBay exports)
+        const cleanUsername = (name) => {
+            if (!name || typeof name !== 'string') return name;
+            // Remove common suffixes that might be accidentally concatenated from column headers
+            // Patterns like "bigady1user ID" should become "bigady1"
+            return name
+                .replace(/user\s*ID$/i, '')  // Remove "user ID" or "userID" suffix
+                .replace(/seller\s*ID$/i, '') // Remove "seller ID" suffix
+                .replace(/buyer\s*ID$/i, '')  // Remove "buyer ID" suffix
+                .trim();
+        };
+
         // Process each row
         const sales = [];
         const errors = [];
@@ -12672,8 +12817,8 @@ app.post('/api/admin/ebay-import/sessions/:id/sales', requireAuth, requireDB, as
                 const salePrice = parseEbayPrice(rawSalePrice);
                 const itemSubtotal = parseEbayPrice(findValue(mapping.item_subtotal, row));
                 const postageCharged = parseEbayPrice(findValue(mapping.postage_charged, row));
-                const buyerUsername = findValue(mapping.buyer_username, row);
-                const buyerName = findValue(mapping.buyer_name, row);
+                const buyerUsername = cleanUsername(findValue(mapping.buyer_username, row));
+                const buyerName = cleanUsername(findValue(mapping.buyer_name, row));
                 const quantity = parseInt(findValue(mapping.quantity, row)) || 1;
                 const ebayFees = parseEbayPrice(findValue(mapping.ebay_fees, row));
                 const trackingNumber = findValue(mapping.tracking_number, row);
