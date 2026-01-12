@@ -3871,6 +3871,11 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                 continue;
             }
 
+            // Skip feedback task if there's a pending non-return refund awaiting verification
+            if (purchase.refund_pending && !purchase.refund_pending.refund_verified) {
+                continue;
+            }
+
             // For purchases split into products, only show feedback when ALL products are complete
             const checkIn = checkInWithIssues || await db.collection('check_ins').findOne({
                 purchase_id: purchase._id.toString()
@@ -4267,6 +4272,54 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                 tracking_provider: purchase.tracking_provider || null,
                 expected_refund: purchase.return_tracking.expected_refund_amount || null,
                 return_tracking: purchase.return_tracking
+            });
+        }
+
+        // 7b. Find purchases awaiting refund verification (non-return eBay resolutions)
+        const pendingNonReturnRefunds = await db.collection('purchases').find({
+            'refund_pending.refund_check_due': { $exists: true },
+            'refund_pending.refund_verified': { $ne: true }
+        }).toArray();
+
+        for (const purchase of pendingNonReturnRefunds) {
+            const refundCheckDue = new Date(purchase.refund_pending.refund_check_due);
+            const isOverdue = now > refundCheckDue;
+            const daysUntil = Math.ceil((refundCheckDue - now) / (1000 * 60 * 60 * 24));
+            const dueSoon = daysUntil >= 0 && daysUntil <= 2;
+
+            const taskId = `refund-pending-${purchase._id.toString()}`;
+
+            let description = `Resolution: ${purchase.refund_pending.resolution_type || 'eBay refund'}. `;
+
+            if (isOverdue) {
+                description += `Expected refund check ${refundCheckDue.toLocaleDateString('en-GB')} - OVERDUE by ${Math.abs(daysUntil)} day(s).`;
+            } else if (daysUntil === 0) {
+                description += 'Check for refund TODAY!';
+            } else if (daysUntil === 1) {
+                description += 'Check for refund TOMORROW.';
+            } else {
+                description += `Check for refund in ${daysUntil} days (${refundCheckDue.toLocaleDateString('en-GB')}).`;
+            }
+
+            if (purchase.refund_pending.expected_refund_amount) {
+                description += ` Expected refund: £${purchase.refund_pending.expected_refund_amount.toFixed(2)}.`;
+            }
+
+            tasks.push({
+                id: taskId,
+                purchase_id: purchase._id.toString(),
+                type: 'refund_verification',
+                title: `Confirm refund received: ${purchase.generation || 'AirPods'}`,
+                description: description,
+                due_date: refundCheckDue,
+                is_overdue: isOverdue,
+                due_soon: dueSoon,
+                order_number: purchase.order_number || null,
+                seller: purchase.seller_name || null,
+                tracking_number: purchase.tracking_number || null,
+                tracking_provider: purchase.tracking_provider || null,
+                expected_refund: purchase.refund_pending.expected_refund_amount || null,
+                refund_pending: purchase.refund_pending
             });
         }
 
@@ -5238,36 +5291,36 @@ app.post('/api/admin/check-in/:id/mark-resolved', requireAuth, requireDB, async 
             refundCheckTaskCreated = true;
             console.log(`[WORKFLOW] Return tracking recorded. Refund check task will be created for ${refundCheckDate.toLocaleDateString('en-GB')}`);
         } else {
-            // Not a return, just mark as resolved
-            await db.collection('purchases').updateOne(
-                { _id: new ObjectId(checkIn.purchase_id) },
-                { $set: { status: 'resolved', last_updated_at: now } }
-            );
-
-            // If partial/full refund received immediately, update purchase cost
+            // Not a return - check if there's a refund to verify
             if (refund_amount && parseFloat(refund_amount) > 0) {
-                const purchase = await db.collection('purchases').findOne({ _id: new ObjectId(checkIn.purchase_id) });
-                if (purchase) {
-                    const refundValue = parseFloat(refund_amount);
-                    const updateFields = {
-                        refund_received: refundValue,
-                        refund_amount: refundValue  // Sync to refund_amount for part value calculation
-                    };
+                // Refund expected but not a return - create refund verification task
+                // Calculate when to check (3 days from now for eBay resolution refunds)
+                const refundCheckDate = new Date();
+                refundCheckDate.setDate(refundCheckDate.getDate() + 3);
 
-                    // Update legacy total_price_paid if it exists
-                    if (purchase.total_price_paid) {
-                        const newTotal = Math.max(0, purchase.total_price_paid - refundValue);
-                        updateFields.total_price_paid = newTotal;
-                        console.log(`[WORKFLOW] Updated purchase total from £${purchase.total_price_paid} to £${newTotal} (refund: £${refund_amount})`);
+                await db.collection('purchases').updateOne(
+                    { _id: new ObjectId(checkIn.purchase_id) },
+                    {
+                        $set: {
+                            status: 'awaiting_refund',
+                            'refund_pending.refund_check_due': refundCheckDate,
+                            'refund_pending.refund_verified': false,
+                            'refund_pending.expected_refund_amount': parseFloat(refund_amount),
+                            'refund_pending.resolution_type': resolution_type,
+                            'refund_pending.created_at': now,
+                            last_updated_at: now
+                        }
                     }
+                );
 
-                    await db.collection('purchases').updateOne(
-                        { _id: new ObjectId(checkIn.purchase_id) },
-                        { $set: updateFields }
-                    );
-
-                    console.log(`[WORKFLOW] Synced refund amount (£${refund_amount}) to purchase record for part value calculation`);
-                }
+                refundCheckTaskCreated = true;
+                console.log(`[WORKFLOW] Non-return refund expected. Refund check task will be created for ${refundCheckDate.toLocaleDateString('en-GB')}`);
+            } else {
+                // No refund, just mark as resolved
+                await db.collection('purchases').updateOne(
+                    { _id: new ObjectId(checkIn.purchase_id) },
+                    { $set: { status: 'resolved', last_updated_at: now } }
+                );
             }
         }
 
@@ -5518,25 +5571,41 @@ app.post('/api/admin/purchases/:id/confirm-refund', requireAuth, requireDB, asyn
         const originalCost = purchase.total_price_paid || purchase.purchase_price || 0;
         const newCost = Math.max(0, originalCost - refundValue);
 
+        // Determine if this is a return refund or a non-return (eBay resolution) refund
+        const isReturnRefund = purchase.return_tracking && purchase.return_tracking.refund_check_due;
+        const isNonReturnRefund = purchase.refund_pending && purchase.refund_pending.refund_check_due;
+
+        // Build update fields
+        const updateFields = {
+            total_price_paid: newCost,
+            refund_received: refundValue,
+            refund_amount: refundValue,  // Sync to refund_amount for part value calculation
+            status: 'refunded',
+            last_updated_at: now,
+            last_updated_by: req.user.email
+        };
+
+        // Add appropriate tracking fields based on refund type
+        if (isReturnRefund) {
+            updateFields['return_tracking.refund_verified'] = true;
+            updateFields['return_tracking.refund_verified_at'] = now;
+            updateFields['return_tracking.actual_refund_amount'] = refundValue;
+        }
+
+        if (isNonReturnRefund) {
+            updateFields['refund_pending.refund_verified'] = true;
+            updateFields['refund_pending.refund_verified_at'] = now;
+            updateFields['refund_pending.actual_refund_amount'] = refundValue;
+        }
+
         // Update purchase record
         await db.collection('purchases').updateOne(
             { _id: new ObjectId(id) },
-            {
-                $set: {
-                    'return_tracking.refund_verified': true,
-                    'return_tracking.refund_verified_at': now,
-                    'return_tracking.actual_refund_amount': refundValue,
-                    total_price_paid: newCost,
-                    refund_received: refundValue,
-                    refund_amount: refundValue,  // Sync to refund_amount for part value calculation
-                    status: 'refunded',
-                    last_updated_at: now,
-                    last_updated_by: req.user.email
-                }
-            }
+            { $set: updateFields }
         );
 
         console.log(`[REFUND-VERIFY] Synced refund amount (£${refund_amount}) to purchase record for part value calculation`);
+        console.log(`[REFUND-VERIFY] Refund type: ${isReturnRefund ? 'return' : (isNonReturnRefund ? 'eBay resolution' : 'unknown')}`);
 
         // If items were split into products, update their purchase prices proportionally
         const checkIns = await db.collection('check_ins').find({
