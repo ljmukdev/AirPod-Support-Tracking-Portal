@@ -12492,37 +12492,50 @@ app.post('/api/admin/ebay-import/sessions/:id/sales', requireAuth, requireDB, as
                     });
                 }
 
-                // Skip if no order number AND no item title (need at least one identifier)
-                if (!orderNumber && !itemTitle) {
-                    if (errors.length < 5) {
-                        console.log(`[eBay Import] Row ${i+1} skipped - no order number and no item title`);
-                    }
+                // Try direct column access as fallback if findValue didn't work
+                const directItemTitle = row['Item title'] || row['item title'] || row['Item Title'];
+                const directOrderNumber = row['Sales record number'] || row['Order number'];
+                const directTotalPrice = row['Total price'] || row['Sold for'];
+                const directSaleDate = row['Paid on date'] || row['Sale date'];
+                const directBuyerUsername = row['Buyer username'];
+
+                // Use direct values as fallback
+                const finalItemTitle = itemTitle || directItemTitle;
+                const finalOrderNumber = orderNumber || directOrderNumber;
+                const finalSalePrice = salePrice || parseEbayPrice(directTotalPrice);
+                const finalSaleDate = saleDate || parseEbayDate(directSaleDate);
+                const finalBuyerUsername = buyerUsername || directBuyerUsername;
+
+                // Log first few rows for debugging
+                if (i < 3) {
+                    console.log(`[eBay Import] Row ${i+1} values:`, {
+                        findValue_itemTitle: itemTitle,
+                        direct_itemTitle: directItemTitle,
+                        final_itemTitle: finalItemTitle,
+                        findValue_orderNumber: orderNumber,
+                        direct_orderNumber: directOrderNumber
+                    });
+                }
+
+                // Skip only if we have absolutely no identifier
+                if (!finalOrderNumber && !finalItemTitle) {
                     errors.push({ row: i + 1, error: 'Missing order number and item title' });
                     continue;
                 }
 
-                // Skip rows without an item title (probably not actual sales - refunds, fees, etc.)
-                if (!itemTitle) {
-                    if (errors.length < 5) {
-                        console.log(`[eBay Import] Row ${i+1} skipped - no item title (likely a refund/fee). Order: ${orderNumber}`);
-                    }
-                    errors.push({ row: i + 1, error: `Missing item title (order: ${orderNumber})` });
-                    continue;
-                }
-
                 // Auto-detect generation and parts from title
-                const detectedGeneration = detectGenerationFromTitle(itemTitle);
-                const detectedParts = detectPartTypeFromTitle(itemTitle);
+                const detectedGeneration = detectGenerationFromTitle(finalItemTitle);
+                const detectedParts = detectPartTypeFromTitle(finalItemTitle);
 
                 const sale = {
                     session_id: sessionId,
-                    order_number: orderNumber,
-                    item_title: itemTitle,
-                    sale_date: saleDate,
-                    sale_price: salePrice || itemSubtotal + postageCharged,
+                    order_number: finalOrderNumber,
+                    item_title: finalItemTitle,
+                    sale_date: finalSaleDate,
+                    sale_price: finalSalePrice || itemSubtotal + postageCharged,
                     item_subtotal: itemSubtotal,
                     postage_charged: postageCharged,
-                    buyer_username: buyerUsername,
+                    buyer_username: finalBuyerUsername,
                     buyer_name: buyerName,
                     quantity: quantity,
                     ebay_fees: ebayFees,
