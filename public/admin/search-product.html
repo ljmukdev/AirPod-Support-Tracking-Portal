@@ -515,6 +515,7 @@
             </div>
 
             <div class="results-container" id="resultsContainer">
+                <div class="purchase-details" id="purchaseDetails" style="display: none;"></div>
                 <div class="product-details" id="productDetails"></div>
                 <div class="warranty-details" id="warrantyDetails"></div>
             </div>
@@ -783,8 +784,16 @@
                 }
                 
                 // Display results
-                displayProduct(data.product);
-                displayWarranty(data.warranty);
+                // Check if this is a purchase result (no product found but purchase exists)
+                if (data.purchase && !data.product) {
+                    displayPurchase(data.purchase, data.linked_products || []);
+                    document.getElementById('productDetails').innerHTML = '';
+                    document.getElementById('warrantyDetails').innerHTML = '';
+                } else {
+                    document.getElementById('purchaseDetails').style.display = 'none';
+                    displayProduct(data.product);
+                    displayWarranty(data.warranty);
+                }
                 document.getElementById('resultsContainer').style.display = 'block';
                 
             } catch (error) {
@@ -1019,7 +1028,164 @@
             window.currentProductId = product.id;
             window.currentProduct = product;
         }
-        
+
+        function displayPurchase(purchase, linkedProducts) {
+            const container = document.getElementById('purchaseDetails');
+            container.style.display = 'block';
+
+            const formatDate = (date) => {
+                if (!date) return 'N/A';
+                return new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+            };
+
+            const formatValue = (value) => {
+                if (value === null || value === undefined || value === '') return 'N/A';
+                return value;
+            };
+
+            // Item labels
+            const itemLabels = {
+                'case': 'Case',
+                'left': 'Left',
+                'right': 'Right',
+                'box': 'Box',
+                'ear_tips': 'Ear Tips',
+                'cable': 'Cable',
+                'protective_case': 'Protective Case'
+            };
+
+            // Items badges
+            const itemsPurchased = purchase.items_purchased || [];
+            const itemsBadges = itemsPurchased.map(item => {
+                const itemName = typeof item === 'object' ? item.item_type : item;
+                const label = itemLabels[itemName] || itemName;
+                return `<span style="display: inline-block; padding: 3px 8px; background-color: #6c757d; color: white; border-radius: 4px; font-size: 0.85rem; margin: 2px;">${label}</span>`;
+            }).join(' ');
+
+            // Status badge
+            const statusColors = {
+                'paid': '#17a2b8',
+                'awaiting_despatch': '#ffc107',
+                'awaiting_delivery': '#fd7e14',
+                'delivered': '#28a745',
+                'awaiting_return': '#6c757d',
+                'returned': '#dc3545',
+                'refunded': '#343a40'
+            };
+            const statusLabels = {
+                'paid': 'Paid',
+                'awaiting_despatch': 'Awaiting Despatch',
+                'awaiting_delivery': 'Awaiting Delivery',
+                'delivered': 'Delivered',
+                'awaiting_return': 'Awaiting Return',
+                'returned': 'Returned',
+                'refunded': 'Refunded'
+            };
+            const statusColor = statusColors[purchase.status] || '#6c757d';
+            const statusLabel = statusLabels[purchase.status] || purchase.status || 'Unknown';
+
+            // Platform badge color
+            const platformColors = {
+                'ebay': '#0064D2',
+                'eBay': '#0064D2',
+                'vinted': '#09B1BA',
+                'facebook': '#1877F2',
+                'other': '#666'
+            };
+            const platformColor = platformColors[purchase.platform] || platformColors.other;
+
+            // Linked products HTML
+            let linkedProductsHtml = '';
+            if (linkedProducts && linkedProducts.length > 0) {
+                linkedProductsHtml = `
+                    <div style="margin-top: 20px; padding: 15px; background: #e3f2fd; border-left: 4px solid #2196f3; border-radius: 4px;">
+                        <strong>📦 Linked Products (${linkedProducts.length})</strong>
+                        <div style="margin-top: 10px;">
+                            ${linkedProducts.map(p => `
+                                <div style="margin: 8px 0; padding: 10px; background: white; border-radius: 4px; border: 1px solid #bbdefb;">
+                                    <p style="margin: 0;"><strong>${p.part_type || 'Unknown'}</strong> - ${p.security_barcode || 'No barcode'}</p>
+                                    <p style="margin: 5px 0 0 0; font-size: 0.85rem; color: #666;">Status: ${p.status || 'Unknown'}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            } else {
+                linkedProductsHtml = `
+                    <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+                        <strong>⚠️ No Products Checked In Yet</strong>
+                        <p style="margin: 10px 0 0 0;">This purchase hasn't been checked in yet. Products will be created when items are checked in via the <a href="check-in.html" style="color: #004085; font-weight: 600;">Check-In page</a>.</p>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = `
+                <div style="background: linear-gradient(135deg, #f5f7fa 0%, #e8ecef 100%); border-radius: 12px; padding: 25px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2 style="margin: 0; display: flex; align-items: center; gap: 10px;">
+                            🛒 Purchase Found
+                            <span style="display: inline-block; padding: 4px 10px; background-color: ${platformColor}; color: white; border-radius: 4px; font-size: 0.85rem; font-weight: 500; text-transform: uppercase;">${purchase.platform || 'Unknown'}</span>
+                        </h2>
+                        <a href="edit-purchase.html?id=${purchase.id}" class="button" style="background: #17a2b8; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 500;">Edit Purchase</a>
+                    </div>
+
+                    <div class="details-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px;">
+                        <div class="detail-item" style="background: white; padding: 12px; border-radius: 8px;">
+                            <div class="detail-label" style="font-size: 0.85rem; color: #666; margin-bottom: 4px;">Order Number</div>
+                            <div class="detail-value" style="font-weight: 600; color: #0064D2;">${formatValue(purchase.order_number)}</div>
+                        </div>
+                        <div class="detail-item" style="background: white; padding: 12px; border-radius: 8px;">
+                            <div class="detail-label" style="font-size: 0.85rem; color: #666; margin-bottom: 4px;">Seller</div>
+                            <div class="detail-value" style="font-weight: 600;">${formatValue(purchase.seller_name)}</div>
+                        </div>
+                        <div class="detail-item" style="background: white; padding: 12px; border-radius: 8px;">
+                            <div class="detail-label" style="font-size: 0.85rem; color: #666; margin-bottom: 4px;">Purchase Date</div>
+                            <div class="detail-value" style="font-weight: 600;">${formatDate(purchase.purchase_date)}</div>
+                        </div>
+                        <div class="detail-item" style="background: white; padding: 12px; border-radius: 8px;">
+                            <div class="detail-label" style="font-size: 0.85rem; color: #666; margin-bottom: 4px;">Status</div>
+                            <div class="detail-value">
+                                <span style="display: inline-block; padding: 4px 10px; background-color: ${statusColor}; color: white; border-radius: 4px; font-size: 0.85rem;">${statusLabel}</span>
+                            </div>
+                        </div>
+                        <div class="detail-item" style="background: white; padding: 12px; border-radius: 8px;">
+                            <div class="detail-label" style="font-size: 0.85rem; color: #666; margin-bottom: 4px;">Generation</div>
+                            <div class="detail-value" style="font-weight: 600;">${formatValue(purchase.generation)}</div>
+                        </div>
+                        <div class="detail-item" style="background: white; padding: 12px; border-radius: 8px;">
+                            <div class="detail-label" style="font-size: 0.85rem; color: #666; margin-bottom: 4px;">Price</div>
+                            <div class="detail-value" style="font-weight: 600; color: #28a745;">£${parseFloat(purchase.purchase_price || 0).toFixed(2)}</div>
+                        </div>
+                        <div class="detail-item" style="background: white; padding: 12px; border-radius: 8px;">
+                            <div class="detail-label" style="font-size: 0.85rem; color: #666; margin-bottom: 4px;">Quantity</div>
+                            <div class="detail-value" style="font-weight: 600;">${formatValue(purchase.quantity)}</div>
+                        </div>
+                        <div class="detail-item" style="background: white; padding: 12px; border-radius: 8px;">
+                            <div class="detail-label" style="font-size: 0.85rem; color: #666; margin-bottom: 4px;">Items Purchased</div>
+                            <div class="detail-value">${itemsBadges || '<span style="color: #999;">N/A</span>'}</div>
+                        </div>
+                        ${purchase.tracking_number ? `
+                            <div class="detail-item" style="background: white; padding: 12px; border-radius: 8px;">
+                                <div class="detail-label" style="font-size: 0.85rem; color: #666; margin-bottom: 4px;">Tracking</div>
+                                <div class="detail-value" style="font-weight: 600;">${purchase.tracking_provider || ''} ${purchase.tracking_number}</div>
+                            </div>
+                        ` : ''}
+                        ${purchase.notes ? `
+                            <div class="detail-item" style="background: white; padding: 12px; border-radius: 8px; grid-column: span 2;">
+                                <div class="detail-label" style="font-size: 0.85rem; color: #666; margin-bottom: 4px;">Notes</div>
+                                <div class="detail-value">${formatValue(purchase.notes)}</div>
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    ${linkedProductsHtml}
+                </div>
+            `;
+
+            // Store for reference
+            window.currentPurchase = purchase;
+        }
+
         // Handle edit product button
         document.addEventListener('click', async (e) => {
             if (e.target.id === 'editProductBtn') {
