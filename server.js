@@ -12469,52 +12469,32 @@ app.post('/api/admin/ebay-import/sessions/:id/sales', requireAuth, requireDB, as
             const row = csv_data[i];
 
             try {
-                const orderNumber = findValue(mapping.order_number, row);
-                const itemTitle = findValue(mapping.item_title, row);
-                const rawSaleDate = findValue(mapping.sale_date, row);
-                const rawSalePrice = findValue(mapping.sale_price, row);
-                const saleDate = parseEbayDate(rawSaleDate);
-                const salePrice = parseEbayPrice(rawSalePrice);
-                const itemSubtotal = parseEbayPrice(findValue(mapping.item_subtotal, row));
-                const postageCharged = parseEbayPrice(findValue(mapping.postage_charged, row));
-                const buyerUsername = findValue(mapping.buyer_username, row);
-                const buyerName = findValue(mapping.buyer_name, row);
-                const quantity = parseInt(findValue(mapping.quantity, row)) || 1;
-                const ebayFees = parseEbayPrice(findValue(mapping.ebay_fees, row));
-                const trackingNumber = findValue(mapping.tracking_number, row);
+                // Use DIRECT column access only - exact eBay UK export column names
+                const finalOrderNumber = row['Sales record number'];
+                const finalItemTitle = row['Item title'];
+                const rawSaleDate = row['Paid on date'] || row['Sale date'];
+                const rawSalePrice = row['Total price'] || row['Sold for'];
+                const finalBuyerUsername = row['Buyer username'];
+                const buyerName = row['Buyer name'] || row['Post to name'];
+                const trackingNumber = row['Tracking number'];
+                const postageCharged = parseEbayPrice(row['Postage and packaging']);
+                const ebayFees = parseEbayPrice(row['eBay collected tax']);
+                const quantity = parseInt(row['Quantity']) || 1;
 
-                // Log first row values for debugging
-                if (i === 0) {
-                    console.log('[eBay Import] First row values extracted:', {
-                        orderNumber,
-                        itemTitle,
-                        rawSaleDate,
-                        rawSalePrice,
-                        saleDate,
-                        salePrice,
-                        itemSubtotal,
-                        postageCharged,
-                        buyerUsername,
-                        buyerName,
-                        quantity,
-                        ebayFees,
-                        trackingNumber
+                // Parse dates and prices
+                const finalSaleDate = parseEbayDate(rawSaleDate);
+                const finalSalePrice = parseEbayPrice(rawSalePrice);
+                const itemSubtotal = parseEbayPrice(row['Sold for']);
+
+                // Log first 5 rows for debugging
+                if (i < 5) {
+                    console.log(`[eBay Import] Row ${i+1} DIRECT:`, {
+                        'Sales record number': row['Sales record number'],
+                        'Item title': row['Item title'] ? String(row['Item title']).substring(0, 40) : null,
+                        'Total price': row['Total price'],
+                        'Paid on date': row['Paid on date']
                     });
                 }
-
-                // Try direct column access as fallback if findValue didn't work
-                const directItemTitle = row['Item title'] || row['item title'] || row['Item Title'];
-                const directOrderNumber = row['Sales record number'] || row['Order number'];
-                const directTotalPrice = row['Total price'] || row['Sold for'];
-                const directSaleDate = row['Paid on date'] || row['Sale date'];
-                const directBuyerUsername = row['Buyer username'];
-
-                // Use direct values as fallback
-                const finalItemTitle = itemTitle || directItemTitle;
-                const finalOrderNumber = orderNumber || directOrderNumber;
-                const finalSalePrice = salePrice || parseEbayPrice(directTotalPrice);
-                const finalSaleDate = saleDate || parseEbayDate(directSaleDate);
-                const finalBuyerUsername = buyerUsername || directBuyerUsername;
 
                 // Convert order number to string for checking
                 const orderStr = String(finalOrderNumber || '').toLowerCase();
