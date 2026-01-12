@@ -12712,25 +12712,23 @@ app.post('/api/admin/ebay-import/sessions/:id/sales', requireAuth, requireDB, as
 
         // Log first row immediately to debug
         if (csv_data.length > 0) {
-            console.log('[eBay Import] First row keys:', Object.keys(csv_data[0]));
-            console.log('[eBay Import] FULL first row data:', JSON.stringify(csv_data[0]));
-            console.log('[eBay Import] First row sample values:', {
-                'Sales record number': csv_data[0]['Sales record number'],
-                'Order number': csv_data[0]['Order number'],
-                'Item title': csv_data[0]['Item title'],
-                'Total price': csv_data[0]['Total price'],
-                'Sold for': csv_data[0]['Sold for'],
-                'Paid on date': csv_data[0]['Paid on date'],
-                'Sale date': csv_data[0]['Sale date']
-            });
-            // Also log rows 2 and 3 to see if they're different
-            if (csv_data.length > 1) {
-                console.log('[eBay Import] Row 2 Item title:', csv_data[1]['Item title']);
-                console.log('[eBay Import] Row 2 Sales record:', csv_data[1]['Sales record number']);
+            const firstRow = csv_data[0];
+            const keys = Object.keys(firstRow);
+            console.log('[eBay Import] Number of columns:', keys.length);
+
+            // Log first 5 key-value pairs to see actual data
+            console.log('[eBay Import] First 5 columns with values:');
+            for (let k = 0; k < Math.min(5, keys.length); k++) {
+                const key = keys[k];
+                const value = firstRow[key];
+                console.log(`  "${key}" = "${value}" (type: ${typeof value})`);
             }
-            if (csv_data.length > 2) {
-                console.log('[eBay Import] Row 3 Item title:', csv_data[2]['Item title']);
-                console.log('[eBay Import] Row 3 Sales record:', csv_data[2]['Sales record number']);
+
+            // Try to find Sales record specifically
+            const salesRecordKey = keys.find(k => k.toLowerCase().includes('sales record'));
+            console.log('[eBay Import] Sales record key found:', salesRecordKey);
+            if (salesRecordKey) {
+                console.log('[eBay Import] Sales record value:', firstRow[salesRecordKey]);
             }
         }
 
@@ -12830,19 +12828,30 @@ app.post('/api/admin/ebay-import/sessions/:id/sales', requireAuth, requireDB, as
             const row = csv_data[i];
 
             try {
-                // Direct column mapping - eBay UK Export columns to our system fields
-                // Using exact column names from eBay export
-                const finalOrderNumber = row['Sales record number'];
-                const finalItemTitle = row['Item title'];
-                const rawSaleDate = row['Paid on date'] || row['Sale date'];
-                const rawSalePrice = row['Total price'];
-                const rawItemSubtotal = row['Sold for'];
-                const finalBuyerUsername = row['Buyer username'];
-                const buyerName = row['Buyer name'] || row['Post to name'];
-                const trackingNumber = row['Tracking number'];
-                const rawPostage = row['Postage and packaging'];
-                const rawEbayFees = row['eBay collected tax'];
-                const rawQuantity = row['Quantity'];
+                // Helper to find value by partial key match
+                const getVal = (searchTerms) => {
+                    const keys = Object.keys(row);
+                    for (const term of searchTerms) {
+                        const key = keys.find(k => k.toLowerCase().includes(term.toLowerCase()));
+                        if (key && row[key] !== undefined && row[key] !== null && row[key] !== '') {
+                            return row[key];
+                        }
+                    }
+                    return undefined;
+                };
+
+                // Find values using partial key matching
+                const finalOrderNumber = getVal(['sales record', 'order number']);
+                const finalItemTitle = getVal(['item title']);
+                const rawSaleDate = getVal(['paid on', 'sale date']);
+                const rawSalePrice = getVal(['total price']);
+                const rawItemSubtotal = getVal(['sold for']);
+                const finalBuyerUsername = getVal(['buyer username']);
+                const buyerName = getVal(['buyer name', 'post to name']);
+                const trackingNumber = getVal(['tracking number']);
+                const rawPostage = getVal(['postage and packaging']);
+                const rawEbayFees = getVal(['ebay collected tax']);
+                const rawQuantity = getVal(['quantity']);
 
                 // Parse values
                 const finalSaleDate = parseEbayDate(rawSaleDate);
