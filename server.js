@@ -5572,7 +5572,8 @@ app.put('/api/admin/purchases/:id', requireAuth, requireDB, async (req, res) => 
             tracking_number,
             serial_numbers,
             notes,
-            verified
+            verified,
+            refunded
         } = req.body;
 
         // Validation
@@ -5601,14 +5602,20 @@ app.put('/api/admin/purchases/:id', requireAuth, requireDB, async (req, res) => 
             serial_numbers: serial_numbers || [],
             notes: notes || '',
             verified: verified === true,
+            refunded: refunded === true,
             date_updated: new Date()
         };
 
-        // If being verified for the first time, set verified_date
-        if (verified === true) {
+        // If being verified or refunded for the first time, set the respective date
+        if (verified === true || refunded === true) {
             const existingPurchase = await db.collection('purchases').findOne({ _id: new ObjectId(id) });
-            if (existingPurchase && !existingPurchase.verified) {
-                updateData.verified_date = new Date();
+            if (existingPurchase) {
+                if (verified === true && !existingPurchase.verified) {
+                    updateData.verified_date = new Date();
+                }
+                if (refunded === true && !existingPurchase.refunded) {
+                    updateData.refunded_date = new Date();
+                }
             }
         }
 

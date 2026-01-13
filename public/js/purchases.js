@@ -217,14 +217,19 @@ function renderPurchases(purchases) {
             partValueDisplay = `<span style="font-weight: 600; color: #6c757d;">£${partValue.toFixed(2)}</span>`;
         }
         
-        // Verified row styling
-        const verifiedStyle = purchase.verified ? 'background-color: #d4edda;' : '';
+        // Row styling - grey for refunded, green for verified
+        let rowStyle = '';
+        if (purchase.refunded) {
+            rowStyle = 'background-color: #e9ecef;';
+        } else if (purchase.verified) {
+            rowStyle = 'background-color: #d4edda;';
+        }
         const verifiedIcon = purchase.verified
             ? '<span style="color: #28a745; font-size: 1.2rem; display: inline-block;" title="Verified">✓</span>'
             : '<span style="color: #ccc; font-size: 1rem; display: inline-block;" title="Not verified">—</span>';
 
         return `
-            <tr data-purchase-id="${escapeHtml(String(purchase._id || purchase.id))}" style="${verifiedStyle}">
+            <tr data-purchase-id="${escapeHtml(String(purchase._id || purchase.id))}" style="${rowStyle}">
                 <td>${platformBadge}</td>
                 <td>${escapeHtml(purchase.order_number)}</td>
                 <td>${escapeHtml(purchase.seller_name)}</td>
