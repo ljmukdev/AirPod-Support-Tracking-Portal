@@ -311,8 +311,11 @@ function applyFiltersAndRender() {
             return false;
         }
         
-        // Generation filter
-        if (generationFilter && product.generation !== generationFilter) {
+        // Generation filter (use startsWith for partial matching since generation can include extra text like "standard line")
+        if (generationFilter && product.generation && !product.generation.startsWith(generationFilter)) {
+            return false;
+        }
+        if (generationFilter && !product.generation) {
             return false;
         }
         
