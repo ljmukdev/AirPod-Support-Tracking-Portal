@@ -174,8 +174,15 @@ function renderPurchases(purchases) {
             'cable': 'Cable',
             'protective_case': 'Protective Case'
         };
-        
-        const itemsPurchased = purchase.items_purchased || [];
+
+        // Normalize items_purchased to handle both string array and object array formats
+        const rawItems = purchase.items_purchased || [];
+        const itemsPurchased = rawItems.map(item => {
+            if (typeof item === 'string') return item;
+            if (item && typeof item === 'object' && item.item_type) return item.item_type;
+            return null;
+        }).filter(Boolean);
+
         const itemsBadges = itemsPurchased.map(item => {
             const label = itemLabels[item] || item;
             return `<span style="display: inline-block; padding: 3px 6px; background-color: #6c757d; color: white; border-radius: 3px; font-size: 0.75rem; margin: 2px;">${escapeHtml(label)}</span>`;
@@ -439,8 +446,13 @@ function openEditPartsModal(purchaseId, event) {
     // Store the purchase ID
     document.getElementById('editPartsPurchaseId').value = purchaseId;
 
-    // Get current items purchased
-    const itemsPurchased = purchase.items_purchased || [];
+    // Get current items purchased - normalize to handle both string and object formats
+    const rawItems = purchase.items_purchased || [];
+    const itemsPurchased = rawItems.map(item => {
+        if (typeof item === 'string') return item;
+        if (item && typeof item === 'object' && item.item_type) return item.item_type;
+        return null;
+    }).filter(Boolean);
 
     // Reset all checkboxes and set based on current items
     const checkboxMap = {

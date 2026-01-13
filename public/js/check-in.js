@@ -141,7 +141,13 @@ function displayCheckInForm(purchase) {
         'protective_case': 'Protective Case'
     };
 
-    const items = purchase.items_purchased || [];
+    // Normalize items_purchased to handle both string array and object array formats
+    const rawItems = purchase.items_purchased || [];
+    const items = rawItems.map(item => {
+        if (typeof item === 'string') return item;
+        if (item && typeof item === 'object' && item.item_type) return item.item_type;
+        return null;
+    }).filter(Boolean);
     const quantity = purchase.quantity || 1;
 
     if (items.length === 0) {
@@ -357,8 +363,13 @@ async function submitCheckIn() {
         return;
     }
     
-    // Collect check-in data
-    const items = currentPurchase.items_purchased || [];
+    // Collect check-in data - normalize items_purchased to handle both formats
+    const rawItems = currentPurchase.items_purchased || [];
+    const items = rawItems.map(item => {
+        if (typeof item === 'string') return item;
+        if (item && typeof item === 'object' && item.item_type) return item.item_type;
+        return null;
+    }).filter(Boolean);
     const quantity = currentPurchase.quantity || 1;
     const checkInData = {
         purchase_id: currentPurchase._id,
