@@ -13154,6 +13154,11 @@ app.put('/api/admin/ebay-import/purchases/:id', requireAuth, requireDB, async (r
         delete updates.session_id; // Don't change session
         delete updates.raw_data; // Preserve original data
 
+        // Convert date strings to Date objects for proper MongoDB sorting
+        if (updates.purchase_date) {
+            updates.purchase_date = new Date(updates.purchase_date);
+        }
+
         updates.updated_at = new Date();
 
         const result = await db.collection('ebay_import_purchases').updateOne(
@@ -13185,6 +13190,11 @@ app.put('/api/admin/ebay-import/sales/:id', requireAuth, requireDB, async (req, 
         delete updates._id;
         delete updates.session_id;
         delete updates.raw_data;
+
+        // Convert date strings to Date objects for proper MongoDB sorting
+        if (updates.sale_date) {
+            updates.sale_date = new Date(updates.sale_date);
+        }
 
         updates.updated_at = new Date();
 
