@@ -12593,13 +12593,43 @@ app.post('/api/admin/ebay-import/sessions/:id/purchases', requireAuth, requireDB
             const row = csv_data[i];
 
             try {
-                const orderNumber = findValue(mapping.order_number, row);
-                const itemTitle = findValue(mapping.item_title, row);
-                const purchaseDate = parseEbayDate(findValue(mapping.purchase_date, row));
-                const purchasePrice = parseEbayPrice(findValue(mapping.purchase_price, row));
-                const postageCost = parseEbayPrice(findValue(mapping.postage_cost, row));
-                const sellerName = cleanUsername(findValue(mapping.seller_name, row));
-                const quantity = parseInt(findValue(mapping.quantity, row)) || 1;
+                // Helper to find value by partial key match (same as sales import)
+                const getVal = (searchTerms) => {
+                    const keys = Object.keys(row);
+                    for (const term of searchTerms) {
+                        const key = keys.find(k => normalizeKey(k).includes(term.toLowerCase()));
+                        if (key && row[key] !== undefined && row[key] !== null && row[key] !== '') {
+                            return row[key];
+                        }
+                    }
+                    return undefined;
+                };
+
+                // Find values using partial key matching for better column matching
+                const orderNumber = getVal(['order number', 'order id', 'item number', 'transaction id', 'ordernumber', 'itemid']);
+                const itemTitle = getVal(['item title', 'item name', 'title', 'description', 'product']);
+                const rawPurchaseDate = getVal(['order date', 'purchase date', 'date purchased', 'payment date', 'transaction date', 'date']);
+                const purchaseDate = parseEbayDate(rawPurchaseDate);
+
+                // Purchase price - try multiple column name patterns
+                const rawPurchasePrice = getVal(['order total', 'item total', 'total price', 'item price', 'price', 'subtotal', 'amount', 'total']);
+                const purchasePrice = parseEbayPrice(rawPurchasePrice);
+
+                const rawPostageCost = getVal(['postage', 'shipping', 'p&p', 'delivery']);
+                const postageCost = parseEbayPrice(rawPostageCost);
+                const sellerName = cleanUsername(getVal(['seller', 'sold by', 'merchant', 'seller name', 'seller user id', 'seller id']));
+                const quantity = parseInt(getVal(['quantity', 'qty', 'units', 'items'])) || 1;
+
+                // Debug logging for first 3 rows
+                if (i < 3) {
+                    console.log(`[eBay Import] Purchase row ${i + 1}:`, {
+                        order_number: orderNumber,
+                        item_title: itemTitle ? itemTitle.substring(0, 40) : null,
+                        raw_purchase_price: rawPurchasePrice,
+                        parsed_purchase_price: purchasePrice,
+                        columns_available: Object.keys(row)
+                    });
+                }
 
                 // Skip if no order number or item title
                 if (!orderNumber && !itemTitle) {
