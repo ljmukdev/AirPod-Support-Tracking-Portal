@@ -1663,7 +1663,8 @@ async function openViewProductModal(productId) {
         const response = await authenticatedFetch(`${API_BASE}/api/admin/product/${encodeURIComponent(String(productId))}`);
 
         if (response.ok) {
-            const product = await response.json();
+            const data = await response.json();
+            const product = data.product;
 
             // Display product info
             const partTypeMap = {
