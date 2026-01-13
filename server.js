@@ -5619,6 +5619,51 @@ app.put('/api/admin/purchases/:id', requireAuth, requireDB, async (req, res) => 
     }
 });
 
+// Update purchase parts only (Admin only)
+app.patch('/api/admin/purchases/:id/parts', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid purchase ID' });
+    }
+
+    try {
+        const { items_purchased } = req.body;
+
+        // Validation
+        if (!items_purchased || !Array.isArray(items_purchased) || items_purchased.length === 0) {
+            return res.status(400).json({ error: 'At least one item must be selected' });
+        }
+
+        // Validate item types
+        const validItems = ['case', 'left', 'right', 'box', 'ear_tips', 'cable', 'protective_case'];
+        const invalidItems = items_purchased.filter(item => !validItems.includes(item));
+        if (invalidItems.length > 0) {
+            return res.status(400).json({ error: 'Invalid item types: ' + invalidItems.join(', ') });
+        }
+
+        const result = await db.collection('purchases').updateOne(
+            { _id: new ObjectId(id) },
+            {
+                $set: {
+                    items_purchased,
+                    date_updated: new Date()
+                }
+            }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ error: 'Purchase not found' });
+        }
+
+        console.log('Purchase parts updated successfully, ID:', id);
+        res.json({ success: true, message: 'Parts updated successfully' });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // Confirm refund received and update balance sheet (Admin only)
 app.post('/api/admin/purchases/:id/confirm-refund', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;

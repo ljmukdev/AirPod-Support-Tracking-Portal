@@ -180,6 +180,9 @@ function renderPurchases(purchases) {
             const label = itemLabels[item] || item;
             return `<span style="display: inline-block; padding: 3px 6px; background-color: #6c757d; color: white; border-radius: 3px; font-size: 0.75rem; margin: 2px;">${escapeHtml(label)}</span>`;
         }).join('');
+
+        // Edit parts button
+        const editPartsBtn = `<button class="edit-parts-btn" onclick="openEditPartsModal('${escapeHtml(String(purchase._id || purchase.id))}', event)" title="Edit parts">Edit</button>`;
         
         // Generation display with connector type for Pro 2nd Gen or ANC type for 4th Gen
         let generationDisplay = escapeHtml(shortenProductName(purchase.generation));
@@ -213,7 +216,7 @@ function renderPurchases(purchases) {
                 <td>${escapeHtml(purchase.order_number)}</td>
                 <td>${escapeHtml(purchase.seller_name)}</td>
                 <td>${generationDisplay}</td>
-                <td style="line-height: 1.6;">${itemsBadges || '<span style="color: #999;">—</span>'}</td>
+                <td style="line-height: 1.6;">${itemsBadges || '<span style="color: #999;">—</span>'}${editPartsBtn}</td>
                 <td style="text-align: center;">${escapeHtml(String(purchase.quantity))}</td>
                 <td style="font-weight: 600; color: var(--accent-teal);">£${parseFloat(purchase.purchase_price).toFixed(2)}</td>
                 <td>${partValueDisplay}</td>
@@ -420,4 +423,99 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// Edit Parts Modal Functions
+function openEditPartsModal(purchaseId, event) {
+    event.stopPropagation();
+
+    // Find the purchase data
+    const purchase = allPurchases.find(p => (p._id || p.id) === purchaseId);
+    if (!purchase) {
+        console.error('[PURCHASES] Purchase not found:', purchaseId);
+        return;
+    }
+
+    // Store the purchase ID
+    document.getElementById('editPartsPurchaseId').value = purchaseId;
+
+    // Get current items purchased
+    const itemsPurchased = purchase.items_purchased || [];
+
+    // Reset all checkboxes and set based on current items
+    const checkboxMap = {
+        'case': 'partCase',
+        'left': 'partLeft',
+        'right': 'partRight',
+        'box': 'partBox',
+        'ear_tips': 'partEarTips',
+        'cable': 'partCable',
+        'protective_case': 'partProtectiveCase'
+    };
+
+    Object.entries(checkboxMap).forEach(([item, checkboxId]) => {
+        const checkbox = document.getElementById(checkboxId);
+        if (checkbox) {
+            checkbox.checked = itemsPurchased.includes(item);
+        }
+    });
+
+    // Show the modal
+    document.getElementById('editPartsModal').style.display = 'flex';
+}
+
+function closeEditPartsModal() {
+    document.getElementById('editPartsModal').style.display = 'none';
+}
+
+async function savePartsChanges() {
+    const purchaseId = document.getElementById('editPartsPurchaseId').value;
+    if (!purchaseId) {
+        alert('Error: No purchase selected');
+        return;
+    }
+
+    // Collect selected parts
+    const selectedParts = [];
+    const checkboxIds = ['partCase', 'partLeft', 'partRight', 'partBox', 'partEarTips', 'partCable', 'partProtectiveCase'];
+    const partValues = ['case', 'left', 'right', 'box', 'ear_tips', 'cable', 'protective_case'];
+
+    checkboxIds.forEach((checkboxId, index) => {
+        const checkbox = document.getElementById(checkboxId);
+        if (checkbox && checkbox.checked) {
+            selectedParts.push(partValues[index]);
+        }
+    });
+
+    if (selectedParts.length === 0) {
+        alert('Please select at least one part');
+        return;
+    }
+
+    try {
+        // Send update request to API
+        const response = await authenticatedFetch(`${window.API_BASE}/api/admin/purchases/${encodeURIComponent(purchaseId)}/parts`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({ items_purchased: selectedParts })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            // Close the modal
+            closeEditPartsModal();
+
+            // Reload purchases to show updated data
+            await loadPurchases();
+        } else {
+            alert(data.error || 'Failed to update parts');
+        }
+    } catch (error) {
+        console.error('[PURCHASES] Error updating parts:', error);
+        alert('Network error. Please try again.');
+    }
 }
