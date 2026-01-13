@@ -12890,7 +12890,7 @@ app.post('/api/admin/ebay-import/sessions/:id/sales', requireAuth, requireDB, as
 
                 // Find values using partial key matching
                 const finalOrderNumber = getVal(['sales record', 'order number']);
-                const finalItemTitle = getVal(['item title']);
+                const finalItemTitle = getVal(['item title', 'item name', 'title', 'description', 'product']);
                 const rawSaleDate = getVal(['paid on', 'sale date']);
                 const rawSalePrice = getVal(['total price']);
                 const rawItemSubtotal = getVal(['sold for']);
