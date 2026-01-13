@@ -163,10 +163,15 @@ async function loadStatusOptions() {
 async function initFilters() {
     filtersInitialized = true;
     
-    // Populate status filter dropdown
+    // Populate status filter dropdown (clear existing options first to avoid duplicates)
     const statusOptions = await loadStatusOptions();
     const statusFilter = document.getElementById('filterStatus');
     if (statusFilter) {
+        // Keep only the first placeholder option, remove any hardcoded options
+        while (statusFilter.options.length > 1) {
+            statusFilter.remove(1);
+        }
+        // Add options from API/settings
         statusOptions.forEach(option => {
             const optionEl = document.createElement('option');
             optionEl.value = option.value;
@@ -545,14 +550,16 @@ async function renderProducts(products) {
 }
 
 function updateCounts(filteredCount) {
-    const filteredCountEl = document.getElementById('filteredCount');
-    const totalCountEl = document.getElementById('totalCount');
-    
-    if (filteredCountEl) {
-        filteredCountEl.textContent = filteredCount;
-    }
-    if (totalCountEl) {
-        totalCountEl.textContent = allProductsData.length;
+    // Update the sidebar count display
+    const productsCountEl = document.getElementById('productsCount');
+
+    if (productsCountEl) {
+        const total = allProductsData.length;
+        if (filteredCount === total) {
+            productsCountEl.textContent = `${total} product${total !== 1 ? 's' : ''}`;
+        } else {
+            productsCountEl.textContent = `${filteredCount} of ${total} product${total !== 1 ? 's' : ''}`;
+        }
     }
 }
 
