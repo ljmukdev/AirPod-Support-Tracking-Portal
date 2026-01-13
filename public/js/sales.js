@@ -257,7 +257,7 @@ function displaySales(sales) {
     }
 
     if (!filtered || filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="12" class="table-loading">No sales found matching filters</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="13" class="table-loading">No sales found matching filters</td></tr>';
         if (mobileCards) {
             mobileCards.innerHTML = `
                 <div class="sale-card">
@@ -332,9 +332,19 @@ function displaySales(sales) {
             productSerialForCard = sale.product_serial || 'N/A';
         }
 
+        // Determine reconciliation status
+        // Green: has purchase data linked (reconciled)
+        // Orange: no purchase data linked (not reconciled)
+        const hasPurchaseData = !!sale.purchase_order_number;
+        const reconciliationColor = hasPurchaseData ? '#28a745' : '#f59e0b';
+        const reconciliationTitle = hasPurchaseData ? 'Reconciled - Purchase linked' : 'Not reconciled - No purchase linked';
+
         // Desktop table row
         tableRows += `
             <tr>
+                <td class="col-status" style="text-align: center;">
+                    <span style="display: inline-block; width: 12px; height: 12px; background: ${reconciliationColor}; border-radius: 50%;" title="${reconciliationTitle}"></span>
+                </td>
                 <td class="col-date">${saleDateShort}</td>
                 <td class="col-product">${productDisplay}</td>
                 <td class="col-platform">${sale.platform || 'N/A'}</td>
@@ -381,9 +391,12 @@ function displaySales(sales) {
         mobileCardsHtml += `
             <div class="sale-card">
                 <div class="sale-card-header">
-                    <div class="sale-card-product">
-                        <div class="sale-card-product-name">${productNameForCard}</div>
-                        <div class="sale-card-product-serial">${productSerialForCard}</div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="display: inline-block; width: 12px; height: 12px; background: ${reconciliationColor}; border-radius: 50%; flex-shrink: 0;" title="${reconciliationTitle}"></span>
+                        <div class="sale-card-product">
+                            <div class="sale-card-product-name">${productNameForCard}</div>
+                            <div class="sale-card-product-serial">${productSerialForCard}</div>
+                        </div>
                     </div>
                     <div class="sale-card-profit ${profitClass}">£${profit}</div>
                 </div>
