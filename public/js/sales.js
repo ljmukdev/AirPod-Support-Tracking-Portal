@@ -751,7 +751,8 @@ async function lookupProductByBarcode(barcode) {
             statusDiv.style.display = 'none';
 
             // Check if product is available for sale
-            if (product.sales_order_number || product.status === 'sold' || product.status === 'faulty') {
+            // Only check status, not sales_order_number - restocked products keep their historical order number
+            if (product.status === 'sold' || product.status === 'faulty') {
                 statusDiv.style.display = 'block';
                 statusDiv.style.backgroundColor = '#fef2f2';
                 statusDiv.style.color = '#dc2626';
