@@ -5546,11 +5546,11 @@ app.get('/api/admin/check-in/:id', requireAuth, requireDB, async (req, res) => {
 // Update purchase (Admin only)
 app.put('/api/admin/purchases/:id', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;
-    
+
     if (!ObjectId.isValid(id)) {
         return res.status(400).json({ error: 'Invalid purchase ID' });
     }
-    
+
     try {
         const {
             platform,
@@ -5571,7 +5571,8 @@ app.put('/api/admin/purchases/:id', requireAuth, requireDB, async (req, res) => 
             tracking_provider,
             tracking_number,
             serial_numbers,
-            notes
+            notes,
+            verified
         } = req.body;
 
         // Validation
@@ -5599,18 +5600,27 @@ app.put('/api/admin/purchases/:id', requireAuth, requireDB, async (req, res) => 
             tracking_number: tracking_number ? tracking_number.trim().toUpperCase() : null,
             serial_numbers: serial_numbers || [],
             notes: notes || '',
+            verified: verified === true,
             date_updated: new Date()
         };
-        
+
+        // If being verified for the first time, set verified_date
+        if (verified === true) {
+            const existingPurchase = await db.collection('purchases').findOne({ _id: new ObjectId(id) });
+            if (existingPurchase && !existingPurchase.verified) {
+                updateData.verified_date = new Date();
+            }
+        }
+
         const result = await db.collection('purchases').updateOne(
             { _id: new ObjectId(id) },
             { $set: updateData }
         );
-        
+
         if (result.matchedCount === 0) {
             return res.status(404).json({ error: 'Purchase not found' });
         }
-        
+
         console.log('Purchase updated successfully, ID:', id);
         res.json({ success: true, message: 'Purchase updated successfully' });
     } catch (err) {

@@ -537,14 +537,34 @@
                             <input type="file" id="photos" name="photos" accept="image/*" multiple>
                             <div id="photoPreview" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; margin-top: 15px;"></div>
                         </div>
+
+                        <!-- Verification Section (Full width) -->
+                        <div class="form-group form-group-full" id="verificationSection" style="background: #f8f9fa; padding: 20px; border-radius: 8px; border: 2px solid #ddd; margin-top: 20px;">
+                            <label style="display: flex; align-items: center; cursor: pointer; margin-bottom: 0;">
+                                <input type="checkbox" id="verified" name="verified" style="margin-right: 12px; width: 24px; height: 24px; cursor: pointer; accent-color: #28a745;">
+                                <span style="font-weight: 700; font-size: 1.1rem;">Mark as Verified</span>
+                            </label>
+                            <small style="color: #666; margin-top: 8px; display: block;">Check this box to confirm all details have been reviewed and are correct</small>
+                            <div id="verifiedDate" style="display: none; margin-top: 8px; color: #28a745; font-size: 0.9rem;"></div>
+                        </div>
                     </div>
 
                     <!-- Form Actions -->
-                    <div class="form-actions">
-                        <a href="purchases.html" class="button button-secondary">Cancel</a>
-                        <button type="submit" class="button" id="submitButton">
-                            Update Purchase
-                        </button>
+                    <div class="form-actions" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                        <div style="display: flex; gap: 10px;">
+                            <button type="button" class="button button-secondary" id="prevUnverifiedBtn" onclick="goToPrevUnverified()" style="display: none;">
+                                &larr; Prev Unverified
+                            </button>
+                            <a href="purchases.html" class="button button-secondary">Cancel</a>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button type="submit" class="button" id="submitButton">
+                                Update Purchase
+                            </button>
+                            <button type="button" class="button" id="nextUnverifiedBtn" onclick="goToNextUnverified()" style="display: none; background-color: #17a2b8;">
+                                Next Unverified &rarr;
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -613,22 +633,57 @@
                 document.getElementById('trackingNumber').value = purchase.tracking_number || '';
                 document.getElementById('serialNumbers').value = purchase.serial_numbers ? purchase.serial_numbers.join('\n') : '';
                 document.getElementById('notes').value = purchase.notes || '';
-                
+
                 // Check the appropriate item checkboxes
+                // Normalize items_purchased to handle both string and object formats (eBay imports use objects)
                 if (purchase.items_purchased && Array.isArray(purchase.items_purchased)) {
                     purchase.items_purchased.forEach(item => {
-                        const checkbox = document.querySelector(`input[name="items_purchased"][value="${item}"]`);
-                        if (checkbox) {
-                            checkbox.checked = true;
-                            // Trigger visual update
-                            const label = checkbox.closest('.checkbox-label');
-                            if (label) {
-                                label.style.backgroundColor = '#e8f4f8';
-                                label.style.borderColor = 'var(--accent-teal)';
+                        // Handle both string format ('case') and object format ({ item_type: 'case', quantity: 1 })
+                        const itemValue = typeof item === 'string' ? item : (item && item.item_type ? item.item_type : null);
+                        if (itemValue) {
+                            const checkbox = document.querySelector(`input[name="items_purchased"][value="${itemValue}"]`);
+                            if (checkbox) {
+                                checkbox.checked = true;
+                                // Trigger visual update
+                                const label = checkbox.closest('.checkbox-label');
+                                if (label) {
+                                    label.style.backgroundColor = '#e8f4f8';
+                                    label.style.borderColor = 'var(--accent-teal)';
+                                }
                             }
                         }
                     });
                 }
+
+                // Set verified checkbox and update section styling
+                const verifiedCheckbox = document.getElementById('verified');
+                const verificationSection = document.getElementById('verificationSection');
+                const verifiedDateDiv = document.getElementById('verifiedDate');
+
+                if (purchase.verified) {
+                    verifiedCheckbox.checked = true;
+                    verificationSection.style.backgroundColor = '#d4edda';
+                    verificationSection.style.borderColor = '#28a745';
+                    if (purchase.verified_date) {
+                        verifiedDateDiv.textContent = 'Verified on ' + new Date(purchase.verified_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                        verifiedDateDiv.style.display = 'block';
+                    }
+                }
+
+                // Add change handler for verified checkbox to update styling
+                verifiedCheckbox.addEventListener('change', function() {
+                    if (this.checked) {
+                        verificationSection.style.backgroundColor = '#d4edda';
+                        verificationSection.style.borderColor = '#28a745';
+                    } else {
+                        verificationSection.style.backgroundColor = '#f8f9fa';
+                        verificationSection.style.borderColor = '#ddd';
+                        verifiedDateDiv.style.display = 'none';
+                    }
+                });
+
+                // Load unverified purchases for navigation
+                loadUnverifiedPurchases();
             } catch (error) {
                 console.error('Error loading purchase:', error);
                 alert('Failed to load purchase data: ' + error.message);
@@ -791,7 +846,8 @@
                     tracking_provider: formData.get('trackingProvider') || null,
                     tracking_number: formData.get('trackingNumber') ? formData.get('trackingNumber').trim().toUpperCase() : null,
                     serial_numbers: formData.get('serialNumbers') ? formData.get('serialNumbers').split('\n').filter(s => s.trim()) : [],
-                    notes: formData.get('notes') || ''
+                    notes: formData.get('notes') || '',
+                    verified: document.getElementById('verified').checked
                 };
                 
                 const response = await authenticatedFetch(`${window.API_BASE}/api/admin/purchases/${encodeURIComponent(purchaseId)}`, {
@@ -919,7 +975,77 @@
         // Make functions globally available
         window.generateFeedback = generateFeedback;
         window.copyFeedback = copyFeedback;
-        
+
+        // Unverified purchases navigation
+        let unverifiedPurchases = [];
+        let currentPurchaseIndex = -1;
+
+        async function loadUnverifiedPurchases() {
+            try {
+                const response = await authenticatedFetch(`${window.API_BASE}/api/admin/purchases`);
+                if (!response.ok) return;
+
+                const data = await response.json();
+                const allPurchases = data.purchases || [];
+
+                // Sort by purchase_date descending (newest first)
+                allPurchases.sort((a, b) => new Date(b.purchase_date) - new Date(a.purchase_date));
+
+                // Filter unverified purchases
+                unverifiedPurchases = allPurchases.filter(p => !p.verified);
+
+                // Find current purchase index in unverified list
+                currentPurchaseIndex = unverifiedPurchases.findIndex(p => (p._id || p.id) === purchaseId);
+
+                // Show/hide navigation buttons based on position
+                const prevBtn = document.getElementById('prevUnverifiedBtn');
+                const nextBtn = document.getElementById('nextUnverifiedBtn');
+
+                // Show prev button if there are unverified items before current
+                if (currentPurchaseIndex > 0) {
+                    prevBtn.style.display = 'inline-block';
+                }
+
+                // Show next button if there are unverified items after current
+                // OR if current item is not in unverified list (meaning it's verified) and there are unverified items
+                if (currentPurchaseIndex < unverifiedPurchases.length - 1 && currentPurchaseIndex >= 0) {
+                    nextBtn.style.display = 'inline-block';
+                } else if (currentPurchaseIndex === -1 && unverifiedPurchases.length > 0) {
+                    // Current is verified, show next to go to first unverified
+                    nextBtn.style.display = 'inline-block';
+                    nextBtn.textContent = 'Next Unverified (' + unverifiedPurchases.length + ') →';
+                }
+
+                // Update button text with count
+                if (unverifiedPurchases.length > 0 && currentPurchaseIndex >= 0) {
+                    nextBtn.textContent = 'Next Unverified (' + (unverifiedPurchases.length - currentPurchaseIndex - 1) + ' remaining) →';
+                }
+            } catch (error) {
+                console.error('Error loading unverified purchases:', error);
+            }
+        }
+
+        function goToNextUnverified() {
+            if (currentPurchaseIndex === -1 && unverifiedPurchases.length > 0) {
+                // Current is verified, go to first unverified
+                const nextPurchase = unverifiedPurchases[0];
+                window.location.href = `edit-purchase.html?id=${encodeURIComponent(nextPurchase._id || nextPurchase.id)}`;
+            } else if (currentPurchaseIndex < unverifiedPurchases.length - 1) {
+                const nextPurchase = unverifiedPurchases[currentPurchaseIndex + 1];
+                window.location.href = `edit-purchase.html?id=${encodeURIComponent(nextPurchase._id || nextPurchase.id)}`;
+            }
+        }
+
+        function goToPrevUnverified() {
+            if (currentPurchaseIndex > 0) {
+                const prevPurchase = unverifiedPurchases[currentPurchaseIndex - 1];
+                window.location.href = `edit-purchase.html?id=${encodeURIComponent(prevPurchase._id || prevPurchase.id)}`;
+            }
+        }
+
+        window.goToNextUnverified = goToNextUnverified;
+        window.goToPrevUnverified = goToPrevUnverified;
+
         // Auto-generate feedback if URL has #feedback hash (coming from tasks)
         if (window.location.hash === '#feedback') {
             // Wait for page to fully load, then generate feedback
