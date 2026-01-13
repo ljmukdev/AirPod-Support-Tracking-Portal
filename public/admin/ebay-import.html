@@ -801,6 +801,23 @@
                         <label>Price</label>
                         <input type="number" step="0.01" id="editPrice" class="form-control">
                     </div>
+                    <div class="form-group" id="editPartsGroup" style="grid-column: span 2;">
+                        <label>Parts</label>
+                        <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px;">
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                <input type="checkbox" id="editPartLeft" value="left">
+                                <span>Left AirPod</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                <input type="checkbox" id="editPartRight" value="right">
+                                <span>Right AirPod</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                <input type="checkbox" id="editPartCase" value="case">
+                                <span>Case</span>
+                            </label>
+                        </div>
+                    </div>
                     <div class="form-group" id="editSellerGroup">
                         <label>Seller</label>
                         <input type="text" id="editSeller" class="form-control">
@@ -1659,6 +1676,13 @@
 
             document.getElementById('editSellerGroup').style.display = 'block';
             document.getElementById('editBuyerGroup').style.display = 'none';
+            document.getElementById('editPartsGroup').style.display = 'block';
+
+            // Populate parts checkboxes
+            const parts = purchase.detected_parts || [];
+            document.getElementById('editPartLeft').checked = parts.includes('left');
+            document.getElementById('editPartRight').checked = parts.includes('right');
+            document.getElementById('editPartCase').checked = parts.includes('case');
 
             document.getElementById('editRecordModal').classList.add('active');
         }
@@ -1679,6 +1703,7 @@
 
             document.getElementById('editSellerGroup').style.display = 'none';
             document.getElementById('editBuyerGroup').style.display = 'block';
+            document.getElementById('editPartsGroup').style.display = 'none';
 
             document.getElementById('editRecordModal').classList.add('active');
         }
@@ -1700,6 +1725,14 @@
                 updates.purchase_date = document.getElementById('editDate').value ? new Date(document.getElementById('editDate').value) : null;
                 updates.purchase_price = parseFloat(document.getElementById('editPrice').value) || 0;
                 updates.seller_name = document.getElementById('editSeller').value;
+
+                // Collect selected parts
+                const selectedParts = [];
+                if (document.getElementById('editPartLeft').checked) selectedParts.push('left');
+                if (document.getElementById('editPartRight').checked) selectedParts.push('right');
+                if (document.getElementById('editPartCase').checked) selectedParts.push('case');
+                updates.detected_parts = selectedParts;
+                updates.items_purchased = selectedParts.map(p => ({ item_type: p, quantity: 1 }));
             } else {
                 updates.sale_date = document.getElementById('editDate').value ? new Date(document.getElementById('editDate').value) : null;
                 updates.sale_price = parseFloat(document.getElementById('editPrice').value) || 0;
