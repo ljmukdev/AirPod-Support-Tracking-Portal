@@ -649,7 +649,6 @@
                             <table class="data-table" id="purchasesTable">
                                 <thead>
                                     <tr>
-                                        <th>Verified</th>
                                         <th>Order #</th>
                                         <th>Date</th>
                                         <th>Item</th>
@@ -662,7 +661,7 @@
                                     </tr>
                                 </thead>
                                 <tbody id="purchasesTableBody">
-                                    <tr><td colspan="10" style="text-align: center; padding: 24px; color: #6b7280;">No purchases uploaded yet</td></tr>
+                                    <tr><td colspan="9" style="text-align: center; padding: 24px; color: #6b7280;">No purchases uploaded yet</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -673,7 +672,6 @@
                             <table class="data-table" id="salesTable">
                                 <thead>
                                     <tr>
-                                        <th>Verified</th>
                                         <th>Order #</th>
                                         <th>Date</th>
                                         <th>Item</th>
@@ -686,7 +684,7 @@
                                     </tr>
                                 </thead>
                                 <tbody id="salesTableBody">
-                                    <tr><td colspan="10" style="text-align: center; padding: 24px; color: #6b7280;">No sales uploaded yet</td></tr>
+                                    <tr><td colspan="9" style="text-align: center; padding: 24px; color: #6b7280;">No sales uploaded yet</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -868,6 +866,17 @@
                         <label>Buyer</label>
                         <input type="text" id="editBuyer" class="form-control">
                     </div>
+                </div>
+
+                <!-- Verification Section -->
+                <div id="editVerificationSection" style="background: #f8f9fa; padding: 16px; border-radius: 8px; border: 2px solid #ddd; margin-top: 16px;">
+                    <label style="display: flex; align-items: center; cursor: pointer; margin-bottom: 0;">
+                        <input type="checkbox" id="editVerified" name="verified"
+                               style="margin-right: 12px; width: 20px; height: 20px; cursor: pointer; accent-color: #28a745;"
+                               onchange="updateVerificationSectionStyle(this.checked)">
+                        <span style="font-weight: 600; font-size: 1rem;">Mark as Verified</span>
+                    </label>
+                    <small style="color: #666; margin-top: 6px; display: block;">Check this box to confirm all details have been reviewed and are correct</small>
                 </div>
 
                 <div id="editValidationIssues" class="validation-issues"></div>
@@ -1608,18 +1617,12 @@
             const tbody = document.getElementById('purchasesTableBody');
 
             if (sessionData.purchases.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 24px; color: #6b7280;">No purchases uploaded yet</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 24px; color: #6b7280;">No purchases uploaded yet</td></tr>';
                 return;
             }
 
             tbody.innerHTML = sessionData.purchases.map(p => `
                 <tr class="${p.needs_review ? 'needs-review' : ''} ${p.verified ? 'verified-row' : ''}">
-                    <td>
-                        <input type="checkbox" class="verify-checkbox"
-                            ${p.verified ? 'checked' : ''}
-                            onchange="toggleVerified('purchase', '${p._id}', this.checked)"
-                            title="Mark as verified">
-                    </td>
                     <td>${p.order_number ? `<a href="https://www.ebay.co.uk/mye/myebay/purchase?page=1&q=${encodeURIComponent(p.order_number)}&mp=purchase-search-module-v2&type=v2&pg=purchase" target="_blank" rel="noopener noreferrer" style="color: #0ea5e9; text-decoration: none;">${escapeHtml(p.order_number)}</a>` : 'N/A'}</td>
                     <td>${p.purchase_date ? new Date(p.purchase_date).toLocaleDateString() : 'Unknown'}</td>
                     <td title="${escapeHtml(p.item_title || '')}">${truncate(p.item_title, 40)}</td>
@@ -1640,7 +1643,7 @@
             const tbody = document.getElementById('salesTableBody');
 
             if (sessionData.sales.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 24px; color: #6b7280;">No sales uploaded yet</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 24px; color: #6b7280;">No sales uploaded yet</td></tr>';
                 return;
             }
 
@@ -1651,12 +1654,6 @@
 
                 return `
                     <tr class="${s.needs_review ? 'needs-review' : ''} ${s.verified ? 'verified-row' : ''}">
-                        <td>
-                            <input type="checkbox" class="verify-checkbox"
-                                ${s.verified ? 'checked' : ''}
-                                onchange="toggleVerified('sale', '${s._id}', this.checked)"
-                                title="Mark as verified">
-                        </td>
                         <td>${s.order_number ? `<a href="https://www.ebay.co.uk/mye/myebay/purchase?page=1&q=${encodeURIComponent(s.order_number)}&mp=purchase-search-module-v2&type=v2&pg=purchase" target="_blank" rel="noopener noreferrer" style="color: #0ea5e9; text-decoration: none;">${escapeHtml(s.order_number)}</a>` : 'N/A'}</td>
                         <td>${s.sale_date ? new Date(s.sale_date).toLocaleDateString() : 'Unknown'}</td>
                         <td title="${escapeHtml(s.item_title || '')}">${truncate(s.item_title, 40)}</td>
@@ -1788,6 +1785,10 @@
             document.getElementById('editAccProtectiveCase').checked = itemTypes.includes('protective_case');
             document.getElementById('editAccOther').checked = itemTypes.includes('other');
 
+            // Populate verified checkbox
+            document.getElementById('editVerified').checked = purchase.verified || false;
+            updateVerificationSectionStyle(purchase.verified || false);
+
             document.getElementById('editRecordModal').classList.add('active');
         }
 
@@ -1810,7 +1811,23 @@
             document.getElementById('editPartsGroup').style.display = 'none';
             document.getElementById('editAccessoriesGroup').style.display = 'none';
 
+            // Populate verified checkbox
+            document.getElementById('editVerified').checked = sale.verified || false;
+            updateVerificationSectionStyle(sale.verified || false);
+
             document.getElementById('editRecordModal').classList.add('active');
+        }
+
+        // Update verification section styling based on checkbox state
+        function updateVerificationSectionStyle(verified) {
+            const section = document.getElementById('editVerificationSection');
+            if (verified) {
+                section.style.backgroundColor = '#d4edda';
+                section.style.borderColor = '#28a745';
+            } else {
+                section.style.backgroundColor = '#f8f9fa';
+                section.style.borderColor = '#ddd';
+            }
         }
 
         async function saveRecordEdit(event) {
@@ -1823,7 +1840,8 @@
                 order_number: document.getElementById('editOrderNumber').value,
                 item_title: document.getElementById('editItemTitle').value,
                 generation: document.getElementById('editGeneration').value,
-                needs_review: false
+                needs_review: false,
+                verified: document.getElementById('editVerified').checked
             };
 
             if (type === 'purchase') {
@@ -2028,56 +2046,6 @@
             return 'match-low';
         }
 
-        // Toggle verified status for purchase or sale
-        async function toggleVerified(type, id, verified) {
-            try {
-                const token = localStorage.getItem('accessToken');
-                const endpoint = type === 'purchase'
-                    ? `/api/admin/ebay-import/purchases/${id}`
-                    : `/api/admin/ebay-import/sales/${id}`;
-
-                const response = await fetch(endpoint, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ verified: verified })
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    // Update local data and re-render without full reload
-                    if (type === 'purchase') {
-                        const purchase = sessionData.purchases.find(p => p._id === id);
-                        if (purchase) purchase.verified = verified;
-                        renderPurchasesTable();
-                    } else {
-                        const sale = sessionData.sales.find(s => s._id === id);
-                        if (sale) sale.verified = verified;
-                        renderSalesTable();
-                    }
-                } else {
-                    alert('Error updating verified status: ' + data.error);
-                    // Revert checkbox state on error
-                    if (type === 'purchase') {
-                        renderPurchasesTable();
-                    } else {
-                        renderSalesTable();
-                    }
-                }
-            } catch (err) {
-                console.error('Error:', err);
-                alert('Error updating verified status');
-                // Revert on error
-                if (type === 'purchase') {
-                    renderPurchasesTable();
-                } else {
-                    renderSalesTable();
-                }
-            }
-        }
 
         // Get accessories display for button
         function getAccessoriesDisplay(purchase) {
