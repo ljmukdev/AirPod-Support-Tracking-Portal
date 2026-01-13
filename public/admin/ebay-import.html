@@ -906,6 +906,46 @@
         </div>
     </div>
 
+    <!-- Accessories Modal -->
+    <div class="modal" id="accessoriesModal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3>Accessories Included</h3>
+                <button class="modal-close" onclick="closeModal('accessoriesModal')">&times;</button>
+            </div>
+            <p class="help-text">Select the accessories that came with this purchase:</p>
+            <input type="hidden" id="accessoriesPurchaseId">
+
+            <div style="display: flex; flex-direction: column; gap: 12px; margin: 16px 0;">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 8px; background: #f9fafb; border-radius: 6px;">
+                    <input type="checkbox" id="accEarTips" value="ear_tips" style="width: 18px; height: 18px;">
+                    <span>Ear Tips</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 8px; background: #f9fafb; border-radius: 6px;">
+                    <input type="checkbox" id="accCable" value="cable" style="width: 18px; height: 18px;">
+                    <span>Charging Cable</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 8px; background: #f9fafb; border-radius: 6px;">
+                    <input type="checkbox" id="accBox" value="box" style="width: 18px; height: 18px;">
+                    <span>Original Box</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 8px; background: #f9fafb; border-radius: 6px;">
+                    <input type="checkbox" id="accProtectiveCase" value="protective_case" style="width: 18px; height: 18px;">
+                    <span>Protective Case</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 8px; background: #f9fafb; border-radius: 6px;">
+                    <input type="checkbox" id="accOther" value="other" style="width: 18px; height: 18px;">
+                    <span>Other Accessory</span>
+                </label>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('accessoriesModal')">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveAccessories()">Save</button>
+            </div>
+        </div>
+    </div>
+
     <!-- SheetJS library for Excel parsing -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 
@@ -1565,6 +1605,7 @@
                     <td><span class="status-badge status-${p.status}">${p.status}</span></td>
                     <td>
                         <button class="btn btn-sm btn-secondary" onclick="editPurchase('${p._id}')">Edit</button>
+                        <button class="btn btn-sm btn-secondary" onclick="openAccessoriesModal('${p._id}')" title="Accessories">${getAccessoriesDisplay(p)}</button>
                         <button class="btn btn-sm btn-secondary" onclick="deletePurchase('${p._id}')">Delete</button>
                     </td>
                 </tr>
@@ -1982,6 +2023,108 @@
                 } else {
                     renderSalesTable();
                 }
+            }
+        }
+
+        // Get accessories display for button
+        function getAccessoriesDisplay(purchase) {
+            const accessoryTypes = ['ear_tips', 'cable', 'box', 'protective_case', 'other'];
+            const items = purchase.items_purchased || purchase.detected_parts || [];
+
+            // Count accessories (excluding main parts)
+            let accessoryCount = 0;
+            if (Array.isArray(items)) {
+                items.forEach(item => {
+                    const itemType = typeof item === 'object' ? item.item_type : item;
+                    if (accessoryTypes.includes(itemType)) {
+                        accessoryCount++;
+                    }
+                });
+            }
+
+            if (accessoryCount === 0) {
+                return 'Acc';
+            }
+            return `Acc (${accessoryCount})`;
+        }
+
+        // Open accessories modal
+        function openAccessoriesModal(purchaseId) {
+            const purchase = sessionData.purchases.find(p => p._id === purchaseId);
+            if (!purchase) return;
+
+            document.getElementById('accessoriesPurchaseId').value = purchaseId;
+
+            // Get current items/accessories
+            const items = purchase.items_purchased || [];
+            const itemTypes = items.map(item => typeof item === 'object' ? item.item_type : item);
+
+            // Set checkbox states
+            document.getElementById('accEarTips').checked = itemTypes.includes('ear_tips');
+            document.getElementById('accCable').checked = itemTypes.includes('cable');
+            document.getElementById('accBox').checked = itemTypes.includes('box');
+            document.getElementById('accProtectiveCase').checked = itemTypes.includes('protective_case');
+            document.getElementById('accOther').checked = itemTypes.includes('other');
+
+            document.getElementById('accessoriesModal').classList.add('active');
+        }
+
+        // Save accessories
+        async function saveAccessories() {
+            const purchaseId = document.getElementById('accessoriesPurchaseId').value;
+            const purchase = sessionData.purchases.find(p => p._id === purchaseId);
+            if (!purchase) return;
+
+            // Get current main parts (left, right, case)
+            const currentItems = purchase.items_purchased || [];
+            const mainParts = currentItems.filter(item => {
+                const itemType = typeof item === 'object' ? item.item_type : item;
+                return ['left', 'right', 'case'].includes(itemType);
+            });
+
+            // Build new items list with main parts + selected accessories
+            const newItems = [...mainParts];
+
+            if (document.getElementById('accEarTips').checked) {
+                newItems.push({ item_type: 'ear_tips', quantity: 1 });
+            }
+            if (document.getElementById('accCable').checked) {
+                newItems.push({ item_type: 'cable', quantity: 1 });
+            }
+            if (document.getElementById('accBox').checked) {
+                newItems.push({ item_type: 'box', quantity: 1 });
+            }
+            if (document.getElementById('accProtectiveCase').checked) {
+                newItems.push({ item_type: 'protective_case', quantity: 1 });
+            }
+            if (document.getElementById('accOther').checked) {
+                newItems.push({ item_type: 'other', quantity: 1 });
+            }
+
+            try {
+                const token = localStorage.getItem('accessToken');
+                const response = await fetch(`/api/admin/ebay-import/purchases/${purchaseId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ items_purchased: newItems })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    closeModal('accessoriesModal');
+                    // Update local data and re-render
+                    purchase.items_purchased = newItems;
+                    renderPurchasesTable();
+                } else {
+                    alert('Error saving accessories: ' + data.error);
+                }
+            } catch (err) {
+                console.error('Error:', err);
+                alert('Error saving accessories');
             }
         }
     </script>
