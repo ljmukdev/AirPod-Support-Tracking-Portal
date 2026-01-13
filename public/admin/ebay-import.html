@@ -1555,7 +1555,7 @@
                             onchange="toggleVerified('purchase', '${p._id}', this.checked)"
                             title="Mark as verified">
                     </td>
-                    <td>${p.order_number ? `<a href="https://www.ebay.co.uk/mesh/ord/details?orderid=${encodeURIComponent(p.order_number)}" target="_blank" rel="noopener noreferrer" style="color: #0ea5e9; text-decoration: none;">${escapeHtml(p.order_number)}</a>` : 'N/A'}</td>
+                    <td>${p.order_number ? `<a href="https://www.ebay.co.uk/mye/myebay/purchase?page=1&q=${encodeURIComponent(p.order_number)}&mp=purchase-search-module-v2&type=v2&pg=purchase" target="_blank" rel="noopener noreferrer" style="color: #0ea5e9; text-decoration: none;">${escapeHtml(p.order_number)}</a>` : 'N/A'}</td>
                     <td>${p.purchase_date ? new Date(p.purchase_date).toLocaleDateString() : 'Unknown'}</td>
                     <td title="${escapeHtml(p.item_title || '')}">${truncate(p.item_title, 40)}</td>
                     <td>${escapeHtml(p.generation || 'Unknown')}</td>
@@ -1592,7 +1592,7 @@
                                 onchange="toggleVerified('sale', '${s._id}', this.checked)"
                                 title="Mark as verified">
                         </td>
-                        <td>${s.order_number ? `<a href="https://www.ebay.co.uk/mesh/ord/details?orderid=${encodeURIComponent(s.order_number)}" target="_blank" rel="noopener noreferrer" style="color: #0ea5e9; text-decoration: none;">${escapeHtml(s.order_number)}</a>` : 'N/A'}</td>
+                        <td>${s.order_number ? `<a href="https://www.ebay.co.uk/mye/myebay/purchase?page=1&q=${encodeURIComponent(s.order_number)}&mp=purchase-search-module-v2&type=v2&pg=purchase" target="_blank" rel="noopener noreferrer" style="color: #0ea5e9; text-decoration: none;">${escapeHtml(s.order_number)}</a>` : 'N/A'}</td>
                         <td>${s.sale_date ? new Date(s.sale_date).toLocaleDateString() : 'Unknown'}</td>
                         <td title="${escapeHtml(s.item_title || '')}">${truncate(s.item_title, 40)}</td>
                         <td>${escapeHtml(s.generation || 'Unknown')}</td>
