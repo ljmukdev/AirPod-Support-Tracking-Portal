@@ -353,7 +353,145 @@
 
     <!-- Sidebar Overlay for Mobile -->
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
-    
+
+    <!-- Edit Parts Modal -->
+    <div id="editPartsModal" class="modal" style="display: none;">
+        <div class="modal-overlay" onclick="closeEditPartsModal()"></div>
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2 class="modal-title">Edit Parts Available</h2>
+                <button class="modal-close" onclick="closeEditPartsModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editPartsPurchaseId">
+                <div class="parts-checkboxes" style="display: flex; flex-direction: column; gap: 12px;">
+                    <label class="checkbox-label" style="display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; background: #f8f9fa; cursor: pointer; transition: background 0.2s;">
+                        <input type="checkbox" id="partCase" value="case" style="width: 20px; height: 20px; accent-color: var(--accent-teal);">
+                        <span style="font-size: 1rem;">Case</span>
+                    </label>
+                    <label class="checkbox-label" style="display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; background: #f8f9fa; cursor: pointer; transition: background 0.2s;">
+                        <input type="checkbox" id="partLeft" value="left" style="width: 20px; height: 20px; accent-color: var(--accent-teal);">
+                        <span style="font-size: 1rem;">Left AirPod</span>
+                    </label>
+                    <label class="checkbox-label" style="display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; background: #f8f9fa; cursor: pointer; transition: background 0.2s;">
+                        <input type="checkbox" id="partRight" value="right" style="width: 20px; height: 20px; accent-color: var(--accent-teal);">
+                        <span style="font-size: 1rem;">Right AirPod</span>
+                    </label>
+                    <label class="checkbox-label" style="display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; background: #f8f9fa; cursor: pointer; transition: background 0.2s;">
+                        <input type="checkbox" id="partBox" value="box" style="width: 20px; height: 20px; accent-color: var(--accent-teal);">
+                        <span style="font-size: 1rem;">Box</span>
+                    </label>
+                    <label class="checkbox-label" style="display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; background: #f8f9fa; cursor: pointer; transition: background 0.2s;">
+                        <input type="checkbox" id="partEarTips" value="ear_tips" style="width: 20px; height: 20px; accent-color: var(--accent-teal);">
+                        <span style="font-size: 1rem;">Ear Tips</span>
+                    </label>
+                    <label class="checkbox-label" style="display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; background: #f8f9fa; cursor: pointer; transition: background 0.2s;">
+                        <input type="checkbox" id="partCable" value="cable" style="width: 20px; height: 20px; accent-color: var(--accent-teal);">
+                        <span style="font-size: 1rem;">Cable</span>
+                    </label>
+                    <label class="checkbox-label" style="display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; background: #f8f9fa; cursor: pointer; transition: background 0.2s;">
+                        <input type="checkbox" id="partProtectiveCase" value="protective_case" style="width: 20px; height: 20px; accent-color: var(--accent-teal);">
+                        <span style="font-size: 1rem;">Protective Case</span>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                <button type="button" class="btn-secondary" onclick="closeEditPartsModal()">Cancel</button>
+                <button type="button" class="btn-primary" onclick="savePartsChanges()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        /* Modal Styles */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+        }
+        .modal-content {
+            position: relative;
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: 0;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #666;
+            padding: 0;
+            line-height: 1;
+        }
+        .modal-close:hover {
+            color: #333;
+        }
+        .checkbox-label:hover {
+            background: #e9ecef !important;
+        }
+        .checkbox-label:has(input:checked) {
+            background: rgba(0, 128, 128, 0.1) !important;
+            border: 2px solid var(--accent-teal);
+        }
+        .btn-secondary {
+            padding: 10px 20px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: background 0.2s;
+        }
+        .btn-secondary:hover {
+            background: #f5f5f5;
+        }
+        .edit-parts-btn {
+            background: none;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            color: #666;
+            transition: all 0.2s;
+            margin-left: 8px;
+        }
+        .edit-parts-btn:hover {
+            background: var(--accent-teal);
+            color: white;
+            border-color: var(--accent-teal);
+        }
+    </style>
+
     <script src="../js/admin.js?v=1.0.6"></script>
     <script src="../js/main.js?v=1.0.0"></script>
     <script src="../js/purchases.js?v=1.1.0"></script>
