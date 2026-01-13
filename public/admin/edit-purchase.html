@@ -547,6 +547,16 @@
                             <small style="color: #666; margin-top: 8px; display: block;">Check this box to confirm all details have been reviewed and are correct</small>
                             <div id="verifiedDate" style="display: none; margin-top: 8px; color: #28a745; font-size: 0.9rem;"></div>
                         </div>
+
+                        <!-- Refunded Section (Full width) -->
+                        <div class="form-group form-group-full" id="refundedSection" style="background: #f8f9fa; padding: 20px; border-radius: 8px; border: 2px solid #ddd; margin-top: 20px;">
+                            <label style="display: flex; align-items: center; cursor: pointer; margin-bottom: 0;">
+                                <input type="checkbox" id="refunded" name="refunded" style="margin-right: 12px; width: 24px; height: 24px; cursor: pointer; accent-color: #6c757d;">
+                                <span style="font-weight: 700; font-size: 1.1rem;">Item Refunded</span>
+                            </label>
+                            <small style="color: #666; margin-top: 8px; display: block;">Check this box if the item has been refunded</small>
+                            <div id="refundedDate" style="display: none; margin-top: 8px; color: #6c757d; font-size: 0.9rem;"></div>
+                        </div>
                     </div>
 
                     <!-- Form Actions -->
@@ -679,6 +689,33 @@
                         verificationSection.style.backgroundColor = '#f8f9fa';
                         verificationSection.style.borderColor = '#ddd';
                         verifiedDateDiv.style.display = 'none';
+                    }
+                });
+
+                // Set refunded checkbox and update section styling
+                const refundedCheckbox = document.getElementById('refunded');
+                const refundedSection = document.getElementById('refundedSection');
+                const refundedDateDiv = document.getElementById('refundedDate');
+
+                if (purchase.refunded) {
+                    refundedCheckbox.checked = true;
+                    refundedSection.style.backgroundColor = '#e9ecef';
+                    refundedSection.style.borderColor = '#6c757d';
+                    if (purchase.refunded_date) {
+                        refundedDateDiv.textContent = 'Refunded on ' + new Date(purchase.refunded_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                        refundedDateDiv.style.display = 'block';
+                    }
+                }
+
+                // Add change handler for refunded checkbox to update styling
+                refundedCheckbox.addEventListener('change', function() {
+                    if (this.checked) {
+                        refundedSection.style.backgroundColor = '#e9ecef';
+                        refundedSection.style.borderColor = '#6c757d';
+                    } else {
+                        refundedSection.style.backgroundColor = '#f8f9fa';
+                        refundedSection.style.borderColor = '#ddd';
+                        refundedDateDiv.style.display = 'none';
                     }
                 });
 
@@ -847,7 +884,8 @@
                     tracking_number: formData.get('trackingNumber') ? formData.get('trackingNumber').trim().toUpperCase() : null,
                     serial_numbers: formData.get('serialNumbers') ? formData.get('serialNumbers').split('\n').filter(s => s.trim()) : [],
                     notes: formData.get('notes') || '',
-                    verified: document.getElementById('verified').checked
+                    verified: document.getElementById('verified').checked,
+                    refunded: document.getElementById('refunded').checked
                 };
                 
                 const response = await authenticatedFetch(`${window.API_BASE}/api/admin/purchases/${encodeURIComponent(purchaseId)}`, {
