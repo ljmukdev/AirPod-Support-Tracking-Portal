@@ -12523,7 +12523,16 @@ app.post('/api/admin/ebay-import/sessions/:id/purchases', requireAuth, requireDB
 
         // Log the first row to help debug column names
         if (csv_data.length > 0) {
-            console.log('[eBay Import] Purchases columns detected:', Object.keys(csv_data[0]));
+            const allCols = Object.keys(csv_data[0]);
+            console.log('[eBay Import] Purchases columns detected:', allCols);
+            // Log any columns that might be title-related
+            const titleCols = allCols.filter(c =>
+                /title|item|name|description|product|listing/i.test(c)
+            );
+            console.log('[eBay Import] Potential title columns:', titleCols);
+            if (titleCols.length > 0) {
+                console.log('[eBay Import] First row title values:', titleCols.map(c => ({ col: c, val: csv_data[0][c] })));
+            }
         }
 
         // Default column mapping - matches eBay UK purchase export format exactly
@@ -12594,20 +12603,33 @@ app.post('/api/admin/ebay-import/sessions/:id/purchases', requireAuth, requireDB
 
             try {
                 // Helper to find value by partial key match (same as sales import)
-                const getVal = (searchTerms) => {
+                // Returns { value, matchedKey, matchedTerm } for debugging
+                const getValWithDebug = (searchTerms) => {
                     const keys = Object.keys(row);
                     for (const term of searchTerms) {
                         const key = keys.find(k => normalizeKey(k).includes(term.toLowerCase()));
                         if (key && row[key] !== undefined && row[key] !== null && row[key] !== '') {
-                            return row[key];
+                            return { value: row[key], matchedKey: key, matchedTerm: term };
                         }
                     }
-                    return undefined;
+                    return { value: undefined, matchedKey: null, matchedTerm: null };
                 };
+                const getVal = (searchTerms) => getValWithDebug(searchTerms).value;
 
                 // Find values using partial key matching for better column matching
                 const orderNumber = getVal(['order number', 'order id', 'item number', 'transaction id', 'ordernumber', 'itemid']);
-                const itemTitle = getVal(['item title', 'item name', 'title', 'description', 'product']);
+                const titleSearch = getValWithDebug(['item title', 'itemtitle', 'item name', 'itemname', 'title', 'description', 'product', 'listing', 'item']);
+                const itemTitle = titleSearch.value;
+
+                // Debug: log title column matching for first row
+                if (i === 0) {
+                    console.log(`[eBay Import] Title column match:`, {
+                        matchedColumn: titleSearch.matchedKey,
+                        matchedSearchTerm: titleSearch.matchedTerm,
+                        value: itemTitle ? itemTitle.substring(0, 50) : null
+                    });
+                }
+
                 const rawPurchaseDate = getVal(['order date', 'purchase date', 'date purchased', 'payment date', 'transaction date', 'date']);
                 const purchaseDate = parseEbayDate(rawPurchaseDate);
 
@@ -12786,7 +12808,14 @@ app.post('/api/admin/ebay-import/sessions/:id/sales', requireAuth, requireDB, as
             const normalizedKeys = rawKeys.map(k => normalizeKeyForLog(k));
             console.log('[eBay Import] Sales raw columns:', rawKeys);
             console.log('[eBay Import] Sales normalized columns:', normalizedKeys);
-            console.log('[eBay Import] First row raw data:', JSON.stringify(csv_data[0], null, 2));
+            // Log any columns that might be title-related
+            const titleCols = rawKeys.filter(c =>
+                /title|item|name|description|product|listing/i.test(c)
+            );
+            console.log('[eBay Import] Sales potential title columns:', titleCols);
+            if (titleCols.length > 0) {
+                console.log('[eBay Import] Sales first row title values:', titleCols.map(c => ({ col: c, val: csv_data[0][c] })));
+            }
         }
 
         // Default column mapping for sales - matches eBay UK export format exactly
@@ -12858,21 +12887,32 @@ app.post('/api/admin/ebay-import/sessions/:id/sales', requireAuth, requireDB, as
             const row = csv_data[i];
 
             try {
-                // Helper to find value by partial key match
-                const getVal = (searchTerms) => {
+                // Helper to find value by partial key match with debug info
+                const getValWithDebug = (searchTerms) => {
                     const keys = Object.keys(row);
                     for (const term of searchTerms) {
                         const key = keys.find(k => k.toLowerCase().includes(term.toLowerCase()));
                         if (key && row[key] !== undefined && row[key] !== null && row[key] !== '') {
-                            return row[key];
+                            return { value: row[key], matchedKey: key, matchedTerm: term };
                         }
                     }
-                    return undefined;
+                    return { value: undefined, matchedKey: null, matchedTerm: null };
                 };
+                const getVal = (searchTerms) => getValWithDebug(searchTerms).value;
 
                 // Find values using partial key matching
                 const finalOrderNumber = getVal(['sales record', 'order number']);
-                const finalItemTitle = getVal(['item title', 'item name', 'title', 'description', 'product']);
+                const titleSearch = getValWithDebug(['item title', 'itemtitle', 'item name', 'itemname', 'title', 'description', 'product', 'listing', 'item']);
+                const finalItemTitle = titleSearch.value;
+
+                // Debug: log title column matching for first row
+                if (i === 0) {
+                    console.log(`[eBay Import] Sales title column match:`, {
+                        matchedColumn: titleSearch.matchedKey,
+                        matchedSearchTerm: titleSearch.matchedTerm,
+                        value: finalItemTitle ? String(finalItemTitle).substring(0, 50) : null
+                    });
+                }
                 const rawSaleDate = getVal(['paid on', 'sale date']);
                 const rawSalePrice = getVal(['total price']);
                 const rawItemSubtotal = getVal(['sold for']);
