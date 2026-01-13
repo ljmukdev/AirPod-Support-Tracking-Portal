@@ -1,14 +1,10 @@
 // Products Filter and Sort Handler
 
-// Use existing API_BASE if available, otherwise set it
-if (typeof window.API_BASE === 'undefined') {
-    window.API_BASE = '';
-}
-var API_BASE = window.API_BASE;
+// Use existing API_BASE from admin.js (don't redeclare)
+// API_BASE is already declared as const in admin.js
 
 // Store all products in memory
 let allProductsData = [];
-let statusOptionsCache = [];
 let filtersInitialized = false;
 
 // Universal search function
@@ -126,39 +122,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(initFilters, 100);
 });
 
-async function loadStatusOptions() {
-    if (statusOptionsCache.length > 0) {
-        return statusOptionsCache;
-    }
-    
-    try {
-        const response = await authenticatedFetch(`${API_BASE}/api/admin/settings`, {
-            credentials: 'include'
-        });
-        const data = await response.json();
-        
-        if (response.ok && data.settings && data.settings.product_status_options) {
-            statusOptionsCache = data.settings.product_status_options;
-        } else {
-            statusOptionsCache = [
-                { value: 'active', label: 'Active' },
-                { value: 'delivered_no_warranty', label: 'Delivered (No Warranty)' },
-                { value: 'returned', label: 'Returned' },
-                { value: 'pending', label: 'Pending' }
-            ];
-        }
-    } catch (error) {
-        console.error('Error loading status options:', error);
-        statusOptionsCache = [
-            { value: 'active', label: 'Active' },
-            { value: 'delivered_no_warranty', label: 'Delivered (No Warranty)' },
-            { value: 'returned', label: 'Returned' },
-            { value: 'pending', label: 'Pending' }
-        ];
-    }
-    
-    return statusOptionsCache;
-}
+// loadStatusOptions is defined in admin.js - no need to redeclare here
 
 async function initFilters() {
     filtersInitialized = true;
