@@ -850,8 +850,33 @@
                 photosHtml += '</div>';
             }
             
+            // Determine reconciliation status
+            const isReconciled = !!product.purchase_id;
+            const isSold = product.status === 'active' || product.status === 'sold';
+            const showReconciliationIndicator = isSold || isReconciled;
+
+            let reconciliationIndicator = '';
+            if (showReconciliationIndicator) {
+                if (isReconciled) {
+                    reconciliationIndicator = `
+                        <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; color: #28a745;" title="Reconciled - Purchase linked">
+                            <span style="width: 12px; height: 12px; background: #28a745; border-radius: 50%; display: inline-block;"></span>
+                            Reconciled
+                        </span>`;
+                } else {
+                    reconciliationIndicator = `
+                        <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; color: #f59e0b;" title="Not reconciled - No purchase linked">
+                            <span style="width: 12px; height: 12px; background: #f59e0b; border-radius: 50%; display: inline-block;"></span>
+                            Not Reconciled
+                        </span>`;
+                }
+            }
+
             container.innerHTML = `
-                <h2>📦 Product Information</h2>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h2 style="margin: 0;">📦 Product Information</h2>
+                    ${reconciliationIndicator}
+                </div>
                 <div class="details-grid">
                     <div class="detail-item">
                         <div class="detail-label">Serial Number</div>
