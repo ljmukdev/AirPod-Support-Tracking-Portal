@@ -68,7 +68,7 @@ async function loadPurchases() {
     } catch (error) {
         console.error('[PURCHASES] Error loading purchases:', error);
         document.getElementById('purchasesTable').innerHTML = 
-            '<tr><td colspan="11" style="text-align: center; padding: 20px; color: #dc3545;">Failed to load purchases: ' + error.message + '</td></tr>';
+            '<tr><td colspan="15" style="text-align: center; padding: 20px; color: #dc3545;">Failed to load purchases: ' + error.message + '</td></tr>';
     }
 }
 
@@ -76,7 +76,7 @@ function renderPurchases(purchases) {
     const tableBody = document.getElementById('purchasesTable');
 
     if (purchases.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="14" style="text-align: center; padding: 40px; color: #666;">No purchases found. <a href="add-purchase.html">Add your first purchase</a></td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="15" style="text-align: center; padding: 40px; color: #666;">No purchases found. <a href="add-purchase.html">Add your first purchase</a></td></tr>';
         return;
     }
     
@@ -217,8 +217,14 @@ function renderPurchases(purchases) {
             partValueDisplay = `<span style="font-weight: 600; color: #6c757d;">£${partValue.toFixed(2)}</span>`;
         }
         
+        // Verified row styling
+        const verifiedStyle = purchase.verified ? 'background-color: #d4edda;' : '';
+        const verifiedIcon = purchase.verified
+            ? '<span style="color: #28a745; font-size: 1.2rem; display: inline-block;" title="Verified">✓</span>'
+            : '<span style="color: #ccc; font-size: 1rem; display: inline-block;" title="Not verified">—</span>';
+
         return `
-            <tr data-purchase-id="${escapeHtml(String(purchase._id || purchase.id))}">
+            <tr data-purchase-id="${escapeHtml(String(purchase._id || purchase.id))}" style="${verifiedStyle}">
                 <td>${platformBadge}</td>
                 <td>${escapeHtml(purchase.order_number)}</td>
                 <td>${escapeHtml(purchase.seller_name)}</td>
@@ -232,6 +238,7 @@ function renderPurchases(purchases) {
                 <td>${trackingDisplay}</td>
                 <td>${formattedDate}</td>
                 <td style="text-align: center;">${feedbackIcon}</td>
+                <td style="text-align: center;">${verifiedIcon}</td>
                 <td>
                     <div class="action-buttons">
                         <button class="edit-button" onclick="editPurchase('${escapeHtml(String(purchase._id || purchase.id))}')">
