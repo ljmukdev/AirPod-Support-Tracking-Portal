@@ -835,23 +835,31 @@ async function loadStatusOptions() {
         if (response.ok && data.settings && data.settings.product_status_options) {
             statusOptionsCache = data.settings.product_status_options;
         } else {
-            // Use defaults
+            // Use defaults - include all common statuses
             statusOptionsCache = [
+                { value: 'in_stock', label: 'In Stock' },
                 { value: 'active', label: 'Active' },
+                { value: 'sold', label: 'Sold' },
+                { value: 'faulty', label: 'Faulty' },
+                { value: 'returned', label: 'Returned' },
+                { value: 'spares_repairs', label: 'Spares/Repairs' },
                 { value: 'item_in_dispute', label: 'Item in Dispute' },
                 { value: 'delivered_no_warranty', label: 'Delivered (No Warranty)' },
-                { value: 'returned', label: 'Returned' },
                 { value: 'pending', label: 'Pending' }
             ];
         }
     } catch (error) {
         console.error('Error loading status options:', error);
-        // Use defaults on error
+        // Use defaults on error - include all common statuses
         statusOptionsCache = [
+            { value: 'in_stock', label: 'In Stock' },
             { value: 'active', label: 'Active' },
+            { value: 'sold', label: 'Sold' },
+            { value: 'faulty', label: 'Faulty' },
+            { value: 'returned', label: 'Returned' },
+            { value: 'spares_repairs', label: 'Spares/Repairs' },
             { value: 'item_in_dispute', label: 'Item in Dispute' },
             { value: 'delivered_no_warranty', label: 'Delivered (No Warranty)' },
-            { value: 'returned', label: 'Returned' },
             { value: 'pending', label: 'Pending' }
         ];
     }
