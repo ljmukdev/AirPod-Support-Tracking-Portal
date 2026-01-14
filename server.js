@@ -7808,9 +7808,9 @@ app.post('/api/admin/test-email', requireAuth, requireDB, async (req, res) => {
 async function getValidStatuses() {
     // Check if db is available
     if (!db) {
-        return ['active', 'in_stock', 'returned', 'delivered_no_warranty', 'pending'];
+        return ['in_stock', 'active', 'sold', 'faulty', 'returned', 'spares_repairs', 'delivered_no_warranty', 'pending'];
     }
-    
+
     try {
         const settingsDoc = await db.collection('settings').findOne({ type: 'system' });
         if (settingsDoc && settingsDoc.settings && settingsDoc.settings.product_status_options) {
@@ -7819,8 +7819,8 @@ async function getValidStatuses() {
     } catch (err) {
         console.error('Error fetching valid statuses:', err);
     }
-    // Return defaults if settings not found
-    return ['active', 'returned', 'delivered_no_warranty', 'pending'];
+    // Return defaults if settings not found - include all common statuses
+    return ['in_stock', 'active', 'sold', 'faulty', 'returned', 'spares_repairs', 'delivered_no_warranty', 'pending'];
 }
 
 // Quick status update (Admin only) - for dashboard quick editing

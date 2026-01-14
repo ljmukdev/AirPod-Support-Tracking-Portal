@@ -7,11 +7,16 @@ if (typeof window.API_BASE === 'undefined') {
     window.API_BASE = '';
 }
 
-// Default status options
+// Default status options - include all common statuses
 const DEFAULT_STATUS_OPTIONS = [
+    { value: 'in_stock', label: 'In Stock' },
     { value: 'active', label: 'Active' },
-    { value: 'delivered_no_warranty', label: 'Delivered (No Warranty)' },
+    { value: 'sold', label: 'Sold' },
+    { value: 'faulty', label: 'Faulty' },
     { value: 'returned', label: 'Returned' },
+    { value: 'spares_repairs', label: 'Spares/Repairs' },
+    { value: 'item_in_dispute', label: 'Item in Dispute' },
+    { value: 'delivered_no_warranty', label: 'Delivered (No Warranty)' },
     { value: 'pending', label: 'Pending' }
 ];
 

@@ -341,12 +341,16 @@ async function loadStatusOptions() {
         console.error('Error loading status options:', error);
     }
 
-    // Default options
+    // Default options - include all common statuses
     window.statusOptionsCache = [
+        { value: 'in_stock', label: 'In Stock' },
         { value: 'active', label: 'Active' },
+        { value: 'sold', label: 'Sold' },
+        { value: 'faulty', label: 'Faulty' },
+        { value: 'returned', label: 'Returned' },
+        { value: 'spares_repairs', label: 'Spares/Repairs' },
         { value: 'item_in_dispute', label: 'Item in Dispute' },
         { value: 'delivered_no_warranty', label: 'Delivered (No Warranty)' },
-        { value: 'returned', label: 'Returned' },
         { value: 'pending', label: 'Pending' }
     ];
 
