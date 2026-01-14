@@ -3712,9 +3712,18 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
             const purchase = await db.collection('purchases').findOne({
                 _id: new ObjectId(checkIn.purchase_id)
             });
-            
+
             if (!purchase) continue;
-            
+
+            // Get products for this check-in
+            const workflowProducts = await db.collection('products').find({
+                $or: [
+                    { check_in_id: checkIn._id },
+                    { purchase_id: purchase._id.toString() }
+                ]
+            }).toArray();
+            const workflowProductIds = workflowProducts.map(p => p._id.toString());
+
             // Task 1: Follow-up (due after 48 hours)
             const followUpDue = new Date(emailSentDate.getTime() + (48 * 60 * 60 * 1000));
             const followUpIsOverdue = now > followUpDue;
@@ -3738,7 +3747,9 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                 issue_summary: checkIn.issues_detected ? checkIn.issues_detected.map(i => i.item_name).join(', ') : 'Issues detected',
                 completed: followUpCompleted,
                 completed_at: workflow.follow_up_sent_at || workflow.resolved_at,
-                saved_email_draft: checkIn.email_drafts?.workflow_follow_up || null
+                saved_email_draft: checkIn.email_drafts?.workflow_follow_up || null,
+                product_ids: workflowProductIds,
+                generation: purchase.generation
             });
 
             // Task 2: Open case (due after 72 hours)
@@ -3765,7 +3776,9 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                 issue_summary: checkIn.issues_detected ? checkIn.issues_detected.map(i => i.item_name).join(', ') : 'Issues detected',
                 completed: caseCompleted,
                 completed_at: workflow.case_opened_at || workflow.resolved_at,
-                saved_email_draft: checkIn.email_drafts?.workflow_case_open || null
+                saved_email_draft: checkIn.email_drafts?.workflow_case_open || null,
+                product_ids: workflowProductIds,
+                generation: purchase.generation
             });
         }
 
@@ -4027,6 +4040,15 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
             const isOverdue = daysSinceReady > 3;
             const dueSoon = daysSinceReady > 1 && daysSinceReady <= 3;
 
+            // Get all products for this purchase
+            const feedbackProducts = await db.collection('products').find({
+                $or: [
+                    { purchase_id: purchase._id.toString() },
+                    ...(checkIn ? [{ check_in_id: checkIn._id }] : [])
+                ]
+            }).toArray();
+            const feedbackProductIds = feedbackProducts.map(p => p._id.toString());
+
             tasks.push({
                 id: `feedback-${purchase._id.toString()}`,
                 purchase_id: purchase._id.toString(),
@@ -4043,7 +4065,8 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                 generation: purchase.generation,
                 items_purchased: purchase.items_purchased,
                 completed: false,
-                priority: isOverdue ? 'high' : (dueSoon ? 'medium' : 'normal')
+                priority: isOverdue ? 'high' : (dueSoon ? 'medium' : 'normal'),
+                product_ids: feedbackProductIds
             });
         }
         
@@ -4119,7 +4142,9 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                     serial_number: product.serial_number,
                     missing_items: missingItems,
                     completed: false,
-                    priority: isOverdue ? 'high' : (dueSoon ? 'medium' : 'normal')
+                    priority: isOverdue ? 'high' : (dueSoon ? 'medium' : 'normal'),
+                    generation: product.generation,
+                    part_type: product.part_type
                 });
             }
         }
@@ -4355,6 +4380,12 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                 description += ` Expected refund: £${purchase.return_tracking.expected_refund_amount.toFixed(2)}.`;
             }
 
+            // Get products for this purchase
+            const refundProducts = await db.collection('products').find({
+                purchase_id: purchase._id.toString()
+            }).toArray();
+            const refundProductIds = refundProducts.map(p => p._id.toString());
+
             tasks.push({
                 id: taskId,
                 purchase_id: purchase._id.toString(),
@@ -4369,7 +4400,9 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                 tracking_number: purchase.tracking_number || null,
                 tracking_provider: purchase.tracking_provider || null,
                 expected_refund: purchase.return_tracking.expected_refund_amount || null,
-                return_tracking: purchase.return_tracking
+                return_tracking: purchase.return_tracking,
+                product_ids: refundProductIds,
+                generation: purchase.generation
             });
         }
 
@@ -4403,6 +4436,12 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                 description += ` Expected refund: £${purchase.refund_pending.expected_refund_amount.toFixed(2)}.`;
             }
 
+            // Get products for this purchase
+            const pendingRefundProducts = await db.collection('products').find({
+                purchase_id: purchase._id.toString()
+            }).toArray();
+            const pendingRefundProductIds = pendingRefundProducts.map(p => p._id.toString());
+
             tasks.push({
                 id: taskId,
                 purchase_id: purchase._id.toString(),
@@ -4417,7 +4456,9 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                 tracking_number: purchase.tracking_number || null,
                 tracking_provider: purchase.tracking_provider || null,
                 expected_refund: purchase.refund_pending.expected_refund_amount || null,
-                refund_pending: purchase.refund_pending
+                refund_pending: purchase.refund_pending,
+                product_ids: pendingRefundProductIds,
+                generation: purchase.generation
             });
         }
 

@@ -385,16 +385,36 @@ function renderTaskCard(task) {
         `;
     }
     
+    // Build product link if applicable
+    const productLink = (() => {
+        // For product_missing_info tasks, link directly to that product
+        if (task.type === 'product_missing_info' && task.product_id) {
+            const partTypeMap = { 'left': 'Left AirPod', 'right': 'Right AirPod', 'case': 'Case' };
+            const partDisplay = partTypeMap[task.part_type] || task.part_type || '';
+            const productName = task.generation ? `${task.generation}${partDisplay ? ' - ' + partDisplay : ''}` : task.description;
+            return `<a href="products.html?highlight=${encodeURIComponent(task.product_id)}" class="product-link" title="View product details">${escapeHtml(productName)}</a>`;
+        }
+        // For tasks with product_ids array
+        if (task.product_ids && task.product_ids.length > 0) {
+            if (task.product_ids.length === 1) {
+                return `<a href="products.html?highlight=${encodeURIComponent(task.product_ids[0])}" class="product-link" title="View product details">${escapeHtml(task.generation || 'View Product')}</a>`;
+            } else {
+                return `<a href="products.html?purchase=${encodeURIComponent(task.purchase_id)}" class="product-link" title="View ${task.product_ids.length} products">${escapeHtml(task.generation || 'AirPods')} (${task.product_ids.length} items)</a>`;
+            }
+        }
+        return null;
+    })();
+
     return `
         <div class="task-card ${cardClass}">
             <div class="priority-dot ${priorityClass}" title="${priorityLabel}"></div>
-            
+
             <div class="task-title">${escapeHtml(task.title)}</div>
-            
+
             <div class="task-description">
-                ${escapeHtml(task.description)}
+                ${productLink ? productLink : escapeHtml(task.description)}
             </div>
-            
+
             <div class="task-meta" style="margin-top: 16px;">
                 <div class="task-meta-row">
                     <svg class="task-meta-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">

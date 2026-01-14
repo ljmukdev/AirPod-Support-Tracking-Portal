@@ -6,6 +6,19 @@
     <title>Products | LJM AirPod Support</title>
     <link rel="stylesheet" href="../css/styles.css?v=1.2.7">
     <link rel="stylesheet" href="../css/ios-mobile-optimizations.css">
+    <style>
+        /* Highlighted product animation for task links */
+        .highlighted-product {
+            animation: highlightPulse 1s ease-in-out 2;
+        }
+        @keyframes highlightPulse {
+            0%, 100% { background-color: #dbeafe; }
+            50% { background-color: #bfdbfe; }
+        }
+        tr.product-row:hover {
+            background-color: #f9fafb;
+        }
+    </style>
 
     <script>
         // Inline version display - fetches from API to always show current version
