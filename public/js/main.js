@@ -4,7 +4,7 @@
 if (typeof window.API_BASE === 'undefined') {
     window.API_BASE = '';
 }
-var API_BASE = window.API_BASE;
+// Use window.API_BASE directly instead of redeclaring to avoid conflicts with admin.js
 
 // Utility functions
 function showError(message) {
@@ -72,7 +72,7 @@ if (barcodeForm) {
         showSpinner();
         
         try {
-            const response = await fetch(`${API_BASE}/api/verify-barcode`, {
+            const response = await fetch(`${window.API_BASE}/api/verify-barcode`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -142,7 +142,7 @@ if (confirmationCheckbox && viewInstructionsButton) {
             partTypeElement.textContent = partTypeMap[partType] || 'replacement part';
         } else {
             // Fetch from API
-            fetch(`${API_BASE}/api/product-info/${securityBarcode}`)
+            fetch(`${window.API_BASE}/api/product-info/${securityBarcode}`)
                 .then(res => res.json())
                 .then(data => {
                     const partTypeMap = {
@@ -182,7 +182,7 @@ if (confirmationCheckbox && viewInstructionsButton) {
             
             try {
                 // Log confirmation
-                const response = await fetch(`${API_BASE}/api/confirm-understanding`, {
+                const response = await fetch(`${window.API_BASE}/api/confirm-understanding`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -242,6 +242,8 @@ function initSupportBubble() {
     bubbleButton.className = 'support-bubble';
     bubbleButton.type = 'button';
     bubbleButton.setAttribute('aria-label', 'Support or suggestions');
+    // Explicit inline styles to ensure correct positioning
+    bubbleButton.style.cssText = 'position:fixed !important;bottom:24px !important;right:24px !important;z-index:99999 !important;';
     bubbleButton.innerHTML = `
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M21 15C21 15.5304 20.7893 16.0391 20.4142 16.4142C20.0391 16.7893 19.5304 17 19 17H7L3 21V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -799,7 +801,7 @@ function initSupportBubble() {
         });
 
         try {
-            const response = await fetch(`${API_BASE}/api/support`, {
+            const response = await fetch(`${window.API_BASE}/api/support`, {
                 method: 'POST',
                 body: formData
             });
