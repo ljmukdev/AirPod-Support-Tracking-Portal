@@ -1983,35 +1983,66 @@ app.get('/api/admin/products', requireAuth, requireDB, async (req, res) => {
 // Lookup product by security barcode
 app.get('/api/admin/products/lookup-barcode', requireAuth, requireDB, async (req, res) => {
     const barcode = req.query.barcode?.trim().toUpperCase();
-    
+
     if (!barcode) {
         return res.status(400).json({ error: 'Barcode parameter is required' });
     }
-    
+
     console.log('[PRODUCTS] Looking up barcode:', barcode);
 
     try {
         // Search by both security barcode and serial number
-        const product = await db.collection('products').findOne({
-            $or: [
-                { security_barcode: barcode },
-                { serial_number: barcode }
-            ]
-        });
-        
+        // Use aggregation to prioritize in_stock products over sold/faulty ones
+        // This handles cases where duplicate serial numbers exist (e.g., product was sold,
+        // then re-checked-in creating a new in_stock entry)
+        const products = await db.collection('products').aggregate([
+            {
+                $match: {
+                    $or: [
+                        { security_barcode: barcode },
+                        { serial_number: barcode }
+                    ]
+                }
+            },
+            {
+                // Sort by status priority: in_stock/active first, then returned, then sold/faulty last
+                $addFields: {
+                    statusPriority: {
+                        $switch: {
+                            branches: [
+                                { case: { $eq: ['$status', 'in_stock'] }, then: 1 },
+                                { case: { $eq: ['$status', 'active'] }, then: 1 },
+                                { case: { $eq: ['$status', null] }, then: 1 },
+                                { case: { $not: ['$status'] }, then: 1 },
+                                { case: { $eq: ['$status', 'returned'] }, then: 2 },
+                                { case: { $eq: ['$status', 'faulty'] }, then: 3 },
+                                { case: { $eq: ['$status', 'sold'] }, then: 4 }
+                            ],
+                            default: 5
+                        }
+                    }
+                }
+            },
+            { $sort: { statusPriority: 1 } },
+            { $limit: 1 }
+        ]).toArray();
+
+        const product = products[0];
+
         if (!product) {
             console.log('[PRODUCTS] No product found with barcode or serial number:', barcode);
             return res.status(404).json({ error: 'Product not found' });
         }
 
-        console.log('[PRODUCTS] Found product:', product._id, 'via', product.security_barcode ? 'security barcode' : 'serial number');
-        
-        // Convert ObjectId to string
+        console.log('[PRODUCTS] Found product:', product._id, 'status:', product.status, 'via', product.security_barcode === barcode ? 'security barcode' : 'serial number');
+
+        // Convert ObjectId to string and remove the temporary statusPriority field
+        const { statusPriority, ...productWithoutPriority } = product;
         const productData = {
-            ...product,
+            ...productWithoutPriority,
             _id: product._id.toString()
         };
-        
+
         res.json({ product: productData });
     } catch (err) {
         console.error('Database error:', err);
@@ -2022,35 +2053,64 @@ app.get('/api/admin/products/lookup-barcode', requireAuth, requireDB, async (req
 // Search for product by serial number or security barcode
 app.get('/api/admin/products/search', requireAuth, requireDB, async (req, res) => {
     const query = req.query.q?.trim().toUpperCase();
-    
+
     if (!query) {
         return res.status(400).json({ error: 'Search query parameter (q) is required' });
     }
-    
+
     console.log('[PRODUCTS] Searching for product:', query);
-    
+
     try {
         // Search by serial number OR security barcode
-        const product = await db.collection('products').findOne({ 
-            $or: [
-                { serial_number: query },
-                { security_barcode: query }
-            ]
-        });
-        
+        // Use aggregation to prioritize in_stock products over sold/faulty ones
+        const products = await db.collection('products').aggregate([
+            {
+                $match: {
+                    $or: [
+                        { serial_number: query },
+                        { security_barcode: query }
+                    ]
+                }
+            },
+            {
+                // Sort by status priority: in_stock/active first, then returned, then sold/faulty last
+                $addFields: {
+                    statusPriority: {
+                        $switch: {
+                            branches: [
+                                { case: { $eq: ['$status', 'in_stock'] }, then: 1 },
+                                { case: { $eq: ['$status', 'active'] }, then: 1 },
+                                { case: { $eq: ['$status', null] }, then: 1 },
+                                { case: { $not: ['$status'] }, then: 1 },
+                                { case: { $eq: ['$status', 'returned'] }, then: 2 },
+                                { case: { $eq: ['$status', 'faulty'] }, then: 3 },
+                                { case: { $eq: ['$status', 'sold'] }, then: 4 }
+                            ],
+                            default: 5
+                        }
+                    }
+                }
+            },
+            { $sort: { statusPriority: 1 } },
+            { $limit: 1 }
+        ]).toArray();
+
+        const product = products[0];
+
         if (!product) {
             console.log('[PRODUCTS] No product found matching:', query);
             return res.status(404).json({ error: 'Product not found' });
         }
-        
-        console.log('[PRODUCTS] Found product:', product._id);
-        
-        // Convert ObjectId to string
+
+        console.log('[PRODUCTS] Found product:', product._id, 'status:', product.status);
+
+        // Convert ObjectId to string and remove the temporary statusPriority field
+        const { statusPriority, ...productWithoutPriority } = product;
         const productData = {
-            ...product,
+            ...productWithoutPriority,
             _id: product._id.toString()
         };
-        
+
         res.json({ product: productData });
     } catch (err) {
         console.error('Database error:', err);
@@ -2091,6 +2151,7 @@ app.put('/api/admin/product/:id', requireAuth, requireDB, (req, res, next) => {
     const sale_notes = req.body.sale_notes;
     const consumables = req.body.consumables;
     const skip_photos_security = req.body.skip_photos_security === 'true' || req.body.skip_photos_security === true;
+    const status = req.body.status;
 
     // If this is a sale update (has sales_order_number), allow it without full validation
     const isSaleUpdate = sales_order_number && !serial_number && !security_barcode && !part_type;
@@ -2191,6 +2252,14 @@ app.put('/api/admin/product/:id', requireAuth, requireDB, (req, res, next) => {
             updateData.notes = notes ? notes.trim() : null;
             updateData.ebay_order_number = ebay_order_number ? ebay_order_number.trim() : null;
             updateData.skip_photos_security = skip_photos_security;
+
+            // Update status if provided and valid
+            if (status) {
+                const validStatuses = ['in_stock', 'sold', 'faulty', 'returned', 'spares_repairs'];
+                if (validStatuses.includes(status)) {
+                    updateData.status = status;
+                }
+            }
         }
 
         // Add sale-specific fields
