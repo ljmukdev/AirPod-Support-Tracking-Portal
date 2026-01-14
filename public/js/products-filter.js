@@ -187,7 +187,99 @@ async function initFilters() {
     // Initial load - fetch products and render
     await fetchAndStoreProducts();
     applyFiltersAndRender();
+
+    // Handle URL parameters for highlighting or filtering
+    handleUrlParameters();
 }
+
+// Handle URL parameters for product highlighting and filtering
+function handleUrlParameters() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const highlightId = urlParams.get('highlight');
+    const purchaseId = urlParams.get('purchase');
+
+    if (highlightId) {
+        // Find and highlight the specific product
+        setTimeout(() => {
+            highlightProduct(highlightId);
+        }, 100);
+    }
+
+    if (purchaseId) {
+        // Filter products by purchase ID
+        filterByPurchase(purchaseId);
+    }
+}
+
+// Highlight a specific product and scroll to it
+function highlightProduct(productId) {
+    // Find the product row by data attribute or ID
+    const productRow = document.querySelector(`tr[data-product-id="${productId}"]`);
+
+    if (productRow) {
+        // Scroll to the product
+        productRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        // Add highlight effect
+        productRow.style.transition = 'background-color 0.3s ease';
+        productRow.style.backgroundColor = '#dbeafe';
+
+        // Add a subtle animation
+        productRow.classList.add('highlighted-product');
+
+        // Remove highlight after 3 seconds
+        setTimeout(() => {
+            productRow.style.backgroundColor = '';
+            productRow.classList.remove('highlighted-product');
+        }, 3000);
+    } else {
+        console.log('Product not found in table:', productId);
+    }
+}
+
+// Filter products by purchase ID
+function filterByPurchase(purchaseId) {
+    const filteredProducts = allProductsData.filter(product => product.purchase_id === purchaseId);
+
+    if (filteredProducts.length > 0 && typeof window.renderProductsTable === 'function') {
+        window.renderProductsTable(filteredProducts);
+
+        // Update UI to show filter is active
+        const filterInfo = document.createElement('div');
+        filterInfo.id = 'purchaseFilterInfo';
+        filterInfo.style.cssText = 'background: #eff6ff; border: 1px solid #3b82f6; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;';
+        filterInfo.innerHTML = `
+            <span style="color: #1e40af; font-weight: 500;">
+                Showing ${filteredProducts.length} product${filteredProducts.length !== 1 ? 's' : ''} from this purchase
+            </span>
+            <button onclick="clearPurchaseFilter()" style="background: #3b82f6; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.875rem;">
+                Show All Products
+            </button>
+        `;
+
+        const tableContainer = document.querySelector('.table-container') || document.querySelector('#productsTableBody')?.closest('.admin-content');
+        if (tableContainer && !document.getElementById('purchaseFilterInfo')) {
+            tableContainer.insertBefore(filterInfo, tableContainer.firstChild);
+        }
+    }
+}
+
+// Clear purchase filter and show all products
+window.clearPurchaseFilter = function() {
+    const filterInfo = document.getElementById('purchaseFilterInfo');
+    if (filterInfo) {
+        filterInfo.remove();
+    }
+
+    // Remove the URL parameter
+    const url = new URL(window.location.href);
+    url.searchParams.delete('purchase');
+    url.searchParams.delete('highlight');
+    window.history.replaceState({}, '', url);
+
+    // Re-apply filters and render all products
+    applyFiltersAndRender();
+};
 
 function debounce(func, wait) {
     let timeout;
