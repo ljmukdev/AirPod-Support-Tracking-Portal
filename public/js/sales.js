@@ -317,16 +317,17 @@ function displaySales(sales) {
             productDisplay = sale.products.map((p, idx) => `
                 <div style="${idx > 0 ? 'margin-top: 4px; padding-top: 4px; border-top: 1px dashed #e5e7eb;' : ''}">
                     <div style="font-weight: 600; font-size: 0.9rem;">${p.product_name || 'Unknown'}</div>
-                    <div style="font-size: 0.8rem; color: #666;">${p.product_serial || 'N/A'}</div>
+                    <div style="font-size: 0.8rem; color: #666;">${p.product_serial || 'N/A'}${p.security_barcode ? ` · ${p.security_barcode}` : ''}</div>
                 </div>
             `).join('');
             productNameForCard = `${sale.products.length} items`;
             productSerialForCard = sale.products.map(p => p.product_name || 'Unknown').join(', ');
         } else {
             // Single product
+            const securityDisplay = sale.security_barcode ? ` · ${sale.security_barcode}` : '';
             productDisplay = `
                 <div style="font-weight: 600;">${sale.product_name || 'Unknown Product'}</div>
-                <div style="font-size: 0.85rem; color: #666;">${sale.product_serial || 'N/A'}</div>
+                <div style="font-size: 0.85rem; color: #666;">${sale.product_serial || 'N/A'}${securityDisplay}</div>
             `;
             productNameForCard = sale.product_name || 'Unknown Product';
             productSerialForCard = sale.product_serial || 'N/A';
@@ -792,6 +793,7 @@ async function lookupProductByBarcode(barcode) {
             const displayName = product.product_name || product.product_type || getDisplayName(product.part_type, product.generation);
             const cost = product.purchase_price || 0;
             const serial = product.serial_number || 'N/A';
+            const securityBarcode = product.security_barcode || 'N/A';
             const condition = product.visual_condition || 'Unknown';
             const partType = product.part_type || 'Unknown';
 
@@ -800,6 +802,7 @@ async function lookupProductByBarcode(barcode) {
                 product_id: product._id,
                 product_name: displayName,
                 product_serial: serial,
+                security_barcode: securityBarcode,
                 product_cost: cost
             };
 
@@ -811,6 +814,8 @@ async function lookupProductByBarcode(barcode) {
                         <div style="display: grid; grid-template-columns: auto auto; gap: 4px 16px; font-size: 13px; color: #374151;">
                             <span style="color: #6b7280;">Serial:</span>
                             <span style="font-weight: 500;">${serial}</span>
+                            <span style="color: #6b7280;">Security:</span>
+                            <span style="font-weight: 500;">${securityBarcode}</span>
                             <span style="color: #6b7280;">Type:</span>
                             <span style="font-weight: 500; text-transform: capitalize;">${partType}</span>
                             <span style="color: #6b7280;">Condition:</span>
@@ -915,6 +920,7 @@ function displaySelectedProducts() {
                 <div style="font-weight: 600; color: #111; font-size: 14px;">${p.product_name}</div>
                 <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">
                     <span>Serial: ${p.product_serial}</span>
+                    ${p.security_barcode ? `<span style="margin-left: 12px;">Security: ${p.security_barcode}</span>` : ''}
                     <span style="margin-left: 12px; color: #059669; font-weight: 500;">£${(p.product_cost || 0).toFixed(2)}</span>
                 </div>
             </div>
@@ -1235,6 +1241,7 @@ async function openEditSaleModal(id) {
                 product_id: p.product_id?.$oid || p.product_id?.toString() || p.product_id,
                 product_name: p.product_name || 'Unknown',
                 product_serial: p.product_serial || 'N/A',
+                security_barcode: p.security_barcode || '',
                 product_cost: parseFloat(p.product_cost) || 0
             }));
         } else if (sale.product_id) {
@@ -1243,6 +1250,7 @@ async function openEditSaleModal(id) {
                 product_id: sale.product_id?.$oid || sale.product_id?.toString() || sale.product_id,
                 product_name: sale.product_name || 'Unknown',
                 product_serial: sale.product_serial || 'N/A',
+                security_barcode: sale.security_barcode || '',
                 product_cost: parseFloat(sale.product_cost) || 0
             }];
         }
