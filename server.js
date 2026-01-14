@@ -3939,6 +3939,18 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                         continue;
                     }
                 }
+
+                // Skip if an eBay case is open and refund not yet verified
+                // Case being open means we're waiting for eBay resolution - don't ask for feedback yet
+                const caseOpenedAt = checkInWithIssues.resolution_workflow?.case_opened_at;
+                if (caseOpenedAt) {
+                    const refundVerified = (purchase.return_tracking?.refund_verified) ||
+                                          (purchase.refund_pending?.refund_verified) ||
+                                          purchase.refund_verified;
+                    if (!refundVerified) {
+                        continue;
+                    }
+                }
             }
 
             // Skip feedback task if there's a pending refund (item was returned)
@@ -3955,6 +3967,17 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
             const checkIn = checkInWithIssues || await db.collection('check_ins').findOne({
                 purchase_id: purchase._id.toString()
             });
+
+            // Additional check: Skip if there's an open eBay case (even if not caught by main query)
+            // This handles cases where has_issues was cleared but case is still pending resolution
+            if (checkIn?.resolution_workflow?.case_opened_at) {
+                const refundVerified = (purchase.return_tracking?.refund_verified) ||
+                                      (purchase.refund_pending?.refund_verified) ||
+                                      purchase.refund_verified;
+                if (!refundVerified) {
+                    continue;
+                }
+            }
 
             if (checkIn?.split_into_products) {
                 // Find all products created from this check-in
