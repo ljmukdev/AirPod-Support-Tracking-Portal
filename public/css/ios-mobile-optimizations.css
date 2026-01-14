@@ -88,14 +88,9 @@
 
     /* Floating action buttons - keep above home indicator */
     .fab,
-    .floating-button,
-    .support-bubble {
-        /* Fallback for browsers that don't support max() */
-        bottom: 24px;
-        right: 24px;
-        /* Enhanced positioning with safe area support */
-        bottom: max(24px, calc(env(safe-area-inset-bottom) + 24px));
-        right: max(24px, calc(env(safe-area-inset-right) + 24px));
+    .floating-button {
+        bottom: max(20px, calc(env(safe-area-inset-bottom) + 20px));
+        right: max(20px, calc(env(safe-area-inset-right) + 20px));
     }
 }
 
