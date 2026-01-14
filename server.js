@@ -2151,6 +2151,7 @@ app.put('/api/admin/product/:id', requireAuth, requireDB, (req, res, next) => {
     const sale_notes = req.body.sale_notes;
     const consumables = req.body.consumables;
     const skip_photos_security = req.body.skip_photos_security === 'true' || req.body.skip_photos_security === true;
+    const status = req.body.status;
 
     // If this is a sale update (has sales_order_number), allow it without full validation
     const isSaleUpdate = sales_order_number && !serial_number && !security_barcode && !part_type;
@@ -2251,6 +2252,14 @@ app.put('/api/admin/product/:id', requireAuth, requireDB, (req, res, next) => {
             updateData.notes = notes ? notes.trim() : null;
             updateData.ebay_order_number = ebay_order_number ? ebay_order_number.trim() : null;
             updateData.skip_photos_security = skip_photos_security;
+
+            // Update status if provided and valid
+            if (status) {
+                const validStatuses = ['in_stock', 'sold', 'faulty', 'returned', 'spares_repairs'];
+                if (validStatuses.includes(status)) {
+                    updateData.status = status;
+                }
+            }
         }
 
         // Add sale-specific fields
