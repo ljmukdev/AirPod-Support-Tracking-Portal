@@ -4,7 +4,7 @@
 if (typeof window.API_BASE === 'undefined') {
     window.API_BASE = '';
 }
-var API_BASE = window.API_BASE;
+// Use window.API_BASE directly instead of redeclaring to avoid conflicts with admin.js
 
 // Utility functions
 function showError(message) {
@@ -72,7 +72,7 @@ if (barcodeForm) {
         showSpinner();
         
         try {
-            const response = await fetch(`${API_BASE}/api/verify-barcode`, {
+            const response = await fetch(`${window.API_BASE}/api/verify-barcode`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -142,7 +142,7 @@ if (confirmationCheckbox && viewInstructionsButton) {
             partTypeElement.textContent = partTypeMap[partType] || 'replacement part';
         } else {
             // Fetch from API
-            fetch(`${API_BASE}/api/product-info/${securityBarcode}`)
+            fetch(`${window.API_BASE}/api/product-info/${securityBarcode}`)
                 .then(res => res.json())
                 .then(data => {
                     const partTypeMap = {
@@ -182,7 +182,7 @@ if (confirmationCheckbox && viewInstructionsButton) {
             
             try {
                 // Log confirmation
-                const response = await fetch(`${API_BASE}/api/confirm-understanding`, {
+                const response = await fetch(`${window.API_BASE}/api/confirm-understanding`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -801,7 +801,7 @@ function initSupportBubble() {
         });
 
         try {
-            const response = await fetch(`${API_BASE}/api/support`, {
+            const response = await fetch(`${window.API_BASE}/api/support`, {
                 method: 'POST',
                 body: formData
             });
