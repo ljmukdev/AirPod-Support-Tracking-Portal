@@ -290,6 +290,8 @@ function initSupportBubble() {
                 </div>
                 <label for="supportEmail">Your Email (optional)</label>
                 <input type="email" id="supportEmail" name="supportEmail" placeholder="name@example.com">
+                <label for="supportTaskLink">Claude/AI Task Link (optional)</label>
+                <input type="url" id="supportTaskLink" name="taskLink" placeholder="https://claude.ai/...">
                 <button type="submit" class="button button-primary">Submit Request</button>
                 <div class="support-form-status" id="supportFormStatus" role="status" aria-live="polite"></div>
             </form>
@@ -793,6 +795,7 @@ function initSupportBubble() {
         formData.append('type', form.supportType.value);
         formData.append('message', message);
         formData.append('userEmail', form.supportEmail.value.trim() || '');
+        formData.append('taskLink', form.supportTaskLink.value.trim() || '');
         formData.append('page', window.location.pathname);
 
         // Add screenshots
