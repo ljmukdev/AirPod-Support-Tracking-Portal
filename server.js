@@ -10868,6 +10868,7 @@ async function buildSalesLedger(db) {
                 product_id: product._id,
                 product_name: product.product_name || product.generation || 'Unknown Product',
                 product_serial: product.serial_number || 'N/A',
+                security_barcode: product.security_barcode || '',
                 platform: product.sale_platform || 'Product Record',
                 order_number: product.sales_order_number || null,
                 purchase_order_number: product.ebay_order_number || null,  // Add purchase order number
@@ -10970,6 +10971,7 @@ app.post('/api/admin/sales', requireAuth, requireDB, async (req, res) => {
                 product_id: new ObjectId(p.product_id),
                 product_name: p.product_name || 'Unknown',
                 product_serial: p.product_serial || 'N/A',
+                security_barcode: p.security_barcode || '',
                 product_cost: parseFloat(p.product_cost) || 0
             }));
         } else if (product_id) {
@@ -10978,6 +10980,7 @@ app.post('/api/admin/sales', requireAuth, requireDB, async (req, res) => {
                 product_id: new ObjectId(product_id),
                 product_name: product_name || 'Unknown',
                 product_serial: product_serial || 'N/A',
+                security_barcode: security_barcode || '',
                 product_cost: parseFloat(product_cost) || 0
             }];
         }
@@ -10997,6 +11000,7 @@ app.post('/api/admin/sales', requireAuth, requireDB, async (req, res) => {
             product_id: saleProducts[0].product_id,
             product_name: saleProducts.length === 1 ? saleProducts[0].product_name : `${saleProducts.length} Products`,
             product_serial: saleProducts.length === 1 ? saleProducts[0].product_serial : saleProducts.map(p => p.product_serial).join(', '),
+            security_barcode: saleProducts.length === 1 ? saleProducts[0].security_barcode : saleProducts.map(p => p.security_barcode).filter(b => b).join(', '),
             product_cost: totalProductCost,
             products: saleProducts, // New field: array of all products
             platform: platform || 'Unknown',
