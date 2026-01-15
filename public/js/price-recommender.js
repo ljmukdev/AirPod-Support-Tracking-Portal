@@ -3,9 +3,9 @@
  * Handles all UI interactions for the AirPods price recommendation system
  */
 
-const API_BASE = '';
-let products = [];
-let settings = {};
+// API_BASE is already defined in admin.js, so we use it from there
+let priceRecProducts = [];
+let priceRecSettings = {};
 
 // ============================================================================
 // INITIALIZATION
@@ -187,7 +187,7 @@ async function loadSummary() {
         document.getElementById('statPurchases').textContent = summary.purchases_count;
         document.getElementById('statEbay').textContent = summary.ebay_data_count;
 
-        settings = summary.settings;
+        priceRecSettings = summary.settings;
     } catch (err) {
         console.error('Error loading summary:', err);
     }
@@ -196,7 +196,7 @@ async function loadSummary() {
 async function loadProducts() {
     try {
         const data = await apiCall('/products');
-        products = data.products || [];
+        priceRecProducts = data.products || [];
 
         // Populate product dropdowns
         const selects = ['evalSku', 'saleSku', 'purchaseSku', 'ebaySku'];
@@ -205,7 +205,7 @@ async function loadProducts() {
             if (select) {
                 const currentValue = select.value;
                 select.innerHTML = '<option value="">Select Product...</option>';
-                products.forEach(p => {
+                priceRecProducts.forEach(p => {
                     select.innerHTML += `<option value="${p.sku}">${p.name} (${p.sku})</option>`;
                 });
                 select.value = currentValue;
@@ -393,17 +393,17 @@ async function loadEbayTable() {
 async function loadSettings() {
     try {
         const data = await apiCall('/settings');
-        settings = data.settings;
+        priceRecSettings = data.settings;
 
-        document.getElementById('targetMargin').value = Math.round(settings.target_profit_margin * 100);
-        document.getElementById('daysLookback').value = settings.days_lookback;
-        document.getElementById('defaultShipping').value = settings.default_shipping_cost;
-        document.getElementById('salesWeight').value = Math.round(settings.sales_weight * 100);
-        document.getElementById('ebayWeight').value = Math.round(settings.ebay_weight * 100);
-        document.getElementById('purchaseWeight').value = Math.round(settings.purchase_weight * 100);
-        document.getElementById('excellentThreshold').value = Math.round(settings.excellent_threshold * 100);
-        document.getElementById('goodThreshold').value = Math.round(settings.good_threshold * 100);
-        document.getElementById('acceptableThreshold').value = Math.round(settings.acceptable_threshold * 100);
+        document.getElementById('targetMargin').value = Math.round(priceRecSettings.target_profit_margin * 100);
+        document.getElementById('daysLookback').value = priceRecSettings.days_lookback;
+        document.getElementById('defaultShipping').value = priceRecSettings.default_shipping_cost;
+        document.getElementById('salesWeight').value = Math.round(priceRecSettings.sales_weight * 100);
+        document.getElementById('ebayWeight').value = Math.round(priceRecSettings.ebay_weight * 100);
+        document.getElementById('purchaseWeight').value = Math.round(priceRecSettings.purchase_weight * 100);
+        document.getElementById('excellentThreshold').value = Math.round(priceRecSettings.excellent_threshold * 100);
+        document.getElementById('goodThreshold').value = Math.round(priceRecSettings.good_threshold * 100);
+        document.getElementById('acceptableThreshold').value = Math.round(priceRecSettings.acceptable_threshold * 100);
 
         updateWeightTotal();
     } catch (err) {
