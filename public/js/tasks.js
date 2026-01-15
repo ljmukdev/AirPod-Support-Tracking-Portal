@@ -490,8 +490,28 @@ function renderTaskCard(task) {
                             }
                             return `<span style="color: #8b5cf6;">${escapeHtml(task.return_tracking.tracking_number)}</span>`;
                         })()}
-                        ${task.return_tracking.delivered ? '<span style="color: #10b981; font-weight: 600; margin-left: 8px;">✓ Delivered</span>' : '<span style="color: #f59e0b; margin-left: 8px;">In Transit</span>'}
+                        ${(() => {
+                            if (task.return_tracking.delivered) {
+                                return '<span style="color: #10b981; font-weight: 600; margin-left: 8px;">✓ Delivered</span>';
+                            }
+                            const status = task.return_tracking.last_check_status;
+                            if (status === 'out_for_delivery') {
+                                return '<span style="color: #3b82f6; font-weight: 600; margin-left: 8px;">🚚 Out for Delivery</span>';
+                            }
+                            if (status === 'in_transit') {
+                                return '<span style="color: #f59e0b; margin-left: 8px;">📦 In Transit</span>';
+                            }
+                            return '<span style="color: #9ca3af; margin-left: 8px;">⏳ Checking...</span>';
+                        })()}
                     </div>
+                    ${task.return_tracking.last_checked ? `
+                        <div class="task-meta-row" style="font-size: 0.75rem; color: #9ca3af;">
+                            <svg class="task-meta-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width: 14px; height: 14px;">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            Last checked: ${new Date(task.return_tracking.last_checked).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                    ` : ''}
                 ` : ''}
             </div>
             
@@ -1537,6 +1557,9 @@ async function markReturnDelivered(purchaseId) {
 
 async function checkReturnTracking(purchaseId) {
     try {
+        // Show loading indicator
+        const statusText = 'Checking tracking status with carrier...';
+
         const response = await authenticatedFetch(`${window.API_BASE}/api/admin/purchases/${purchaseId}/check-return-tracking`, {
             method: 'POST',
             headers: {
@@ -1552,13 +1575,31 @@ async function checkReturnTracking(purchaseId) {
         const data = await response.json();
 
         if (data.success) {
+            const statusLabels = {
+                'delivered': 'Delivered',
+                'in_transit': 'In Transit',
+                'out_for_delivery': 'Out for Delivery',
+                'unknown': 'Status Unknown'
+            };
+
             let statusMessage = `Tracking: ${data.tracking_number}\n`;
-            statusMessage += `Provider: ${data.tracking_provider || 'Not specified'}\n`;
-            statusMessage += `Status: ${data.status.status}\n`;
+            statusMessage += `Carrier: ${data.status.carrier || data.tracking_provider || 'Not specified'}\n`;
+            statusMessage += `Status: ${statusLabels[data.status.status] || data.status.status}\n`;
             statusMessage += `Last checked: ${new Date(data.status.last_update).toLocaleString('en-GB')}`;
 
+            if (data.auto_marked_delivered) {
+                statusMessage += '\n\n✅ Return has been automatically marked as DELIVERED!';
+            }
+
+            if (data.status.events && data.status.events.length > 0) {
+                statusMessage += '\n\nRecent Events:';
+                data.status.events.slice(0, 3).forEach(event => {
+                    statusMessage += `\n- ${event.description || event.status}`;
+                });
+            }
+
             alert(`Return Tracking Status\n\n${statusMessage}`);
-            loadTasks(); // Reload to update last checked
+            loadTasks(); // Reload to update status
         }
     } catch (error) {
         console.error('[RETURN-TRACKING] Error:', error);

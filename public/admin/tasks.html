@@ -839,7 +839,7 @@
                 <!-- Info Box -->
                 <div style="background: #faf5ff; border: 1px solid #c4b5fd; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px;">
                     <p style="margin: 0; font-size: 0.9rem; color: #6b21a8;">
-                        Add the tracking details for an item you're returning to the seller. We'll create a follow-up task to check for delivery.
+                        Add the return tracking number and we'll <strong>automatically check the carrier</strong> for delivery status every 30 minutes. When delivered, we'll notify you!
                     </p>
                 </div>
 
@@ -870,14 +870,14 @@
                     <input type="text" id="returnTrackingNumberInput" required style="width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.95rem; text-transform: uppercase;" placeholder="e.g., AB123456789GB" oninput="this.value = this.value.toUpperCase()">
                 </div>
 
-                <!-- Expected Delivery -->
+                <!-- Expected Delivery (Optional) -->
                 <div style="margin-bottom: 20px;">
                     <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #111827;">
-                        Expected Delivery to Seller
+                        Expected Delivery <span style="color: #9ca3af; font-weight: 400;">(optional)</span>
                     </label>
                     <input type="date" id="returnExpectedDelivery" style="width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.95rem;">
                     <p style="margin: 6px 0 0 0; font-size: 0.85rem; color: #6b7280;">
-                        A follow-up task will be created 2 days after this date
+                        Not required - tracking is checked automatically via carrier APIs
                     </p>
                 </div>
 

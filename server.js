@@ -6287,34 +6287,39 @@ app.post('/api/admin/purchases/:id/check-return-tracking', requireAuth, requireD
         const trackingProvider = purchase.return_tracking.tracking_provider;
         const now = new Date();
 
-        // For now, we'll do a simple check - in a real implementation you'd call a tracking API
-        // This can be enhanced later with actual tracking API integration
-        let trackingStatus = {
-            checked: true,
-            status: 'in_transit',
-            delivered: false,
-            last_update: now
+        // Use the real tracking API to check status
+        const trackingResult = await checkTrackingStatus(trackingNumber, trackingProvider);
+
+        console.log(`[RETURN-TRACKING] Manual check for ${trackingNumber}: ${trackingResult.status}`);
+
+        // Update the purchase with tracking status
+        const updateData = {
+            'return_tracking.last_checked': now,
+            'return_tracking.last_check_status': trackingResult.status,
+            'return_tracking.last_check_result': trackingResult,
+            last_updated_at: now
         };
 
-        // Update the last checked timestamp
+        // If delivered, mark as delivered
+        if (trackingResult.delivered) {
+            updateData['return_tracking.delivered'] = true;
+            updateData['return_tracking.delivered_at'] = now;
+        }
+
         await db.collection('purchases').updateOne(
             { _id: new ObjectId(id) },
-            {
-                $set: {
-                    'return_tracking.last_checked': now,
-                    'return_tracking.last_check_status': trackingStatus.status,
-                    last_updated_at: now
-                }
-            }
+            { $set: updateData }
         );
-
-        console.log(`[RETURN-TRACKING] Checked tracking status for purchase ${id}: ${trackingStatus.status}`);
 
         res.json({
             success: true,
             tracking_number: trackingNumber,
             tracking_provider: trackingProvider,
-            status: trackingStatus
+            status: {
+                ...trackingResult,
+                last_update: now
+            },
+            auto_marked_delivered: trackingResult.delivered
         });
     } catch (err) {
         console.error('[RETURN-TRACKING] Error:', err);
@@ -16411,6 +16416,207 @@ app.use((err, req, res, next) => {
 // Checks return tracking status every 30 minutes and updates delivery status
 let returnTrackingCheckerInterval = null;
 
+// ============ FREE CARRIER TRACKING API INTEGRATION ============
+
+// Fetch tracking status from Royal Mail (free, no API key)
+async function fetchRoyalMailTracking(trackingNumber) {
+    try {
+        const response = await fetch(`https://www.royalmail.com/track-your-item/tracking-results/${encodeURIComponent(trackingNumber)}`, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+            }
+        });
+
+        if (!response.ok) {
+            return { success: false, error: 'Failed to fetch Royal Mail tracking' };
+        }
+
+        const html = await response.text();
+
+        // Check for delivered status in the HTML
+        const isDelivered = html.toLowerCase().includes('delivered') &&
+                           (html.toLowerCase().includes('your item has been delivered') ||
+                            html.toLowerCase().includes('item delivered'));
+
+        // Check for in transit
+        const isInTransit = html.toLowerCase().includes('in transit') ||
+                           html.toLowerCase().includes('on its way') ||
+                           html.toLowerCase().includes('at delivery office');
+
+        // Check for out for delivery
+        const isOutForDelivery = html.toLowerCase().includes('out for delivery') ||
+                                 html.toLowerCase().includes('with delivery courier');
+
+        let status = 'unknown';
+        if (isDelivered) status = 'delivered';
+        else if (isOutForDelivery) status = 'out_for_delivery';
+        else if (isInTransit) status = 'in_transit';
+
+        return {
+            success: true,
+            status: status,
+            delivered: isDelivered,
+            carrier: 'Royal Mail'
+        };
+    } catch (error) {
+        console.error('[TRACKING] Royal Mail fetch error:', error.message);
+        return { success: false, error: error.message };
+    }
+}
+
+// Fetch tracking status from Evri/Hermes (free, no API key)
+async function fetchEvriTracking(trackingNumber) {
+    try {
+        const response = await fetch(`https://www.evri.com/track/parcel/${encodeURIComponent(trackingNumber)}`, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+            }
+        });
+
+        if (!response.ok) {
+            return { success: false, error: 'Failed to fetch Evri tracking' };
+        }
+
+        const html = await response.text();
+
+        const isDelivered = html.toLowerCase().includes('delivered') &&
+                           (html.toLowerCase().includes('parcel delivered') ||
+                            html.toLowerCase().includes('successfully delivered'));
+
+        const isInTransit = html.toLowerCase().includes('in transit') ||
+                           html.toLowerCase().includes('on its way') ||
+                           html.toLowerCase().includes('at hub');
+
+        let status = 'unknown';
+        if (isDelivered) status = 'delivered';
+        else if (isInTransit) status = 'in_transit';
+
+        return {
+            success: true,
+            status: status,
+            delivered: isDelivered,
+            carrier: 'Evri'
+        };
+    } catch (error) {
+        console.error('[TRACKING] Evri fetch error:', error.message);
+        return { success: false, error: error.message };
+    }
+}
+
+// Fetch tracking from DPD UK (free, no API key)
+async function fetchDPDTracking(trackingNumber) {
+    try {
+        const response = await fetch(`https://www.dpd.co.uk/tracking/trackconsignment?reference=${encodeURIComponent(trackingNumber)}`, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+            }
+        });
+
+        if (!response.ok) {
+            return { success: false, error: 'Failed to fetch DPD tracking' };
+        }
+
+        const html = await response.text();
+
+        const isDelivered = html.toLowerCase().includes('delivered');
+        const isInTransit = html.toLowerCase().includes('in transit') ||
+                           html.toLowerCase().includes('out for delivery');
+
+        let status = 'unknown';
+        if (isDelivered) status = 'delivered';
+        else if (isInTransit) status = 'in_transit';
+
+        return {
+            success: true,
+            status: status,
+            delivered: isDelivered,
+            carrier: 'DPD'
+        };
+    } catch (error) {
+        console.error('[TRACKING] DPD fetch error:', error.message);
+        return { success: false, error: error.message };
+    }
+}
+
+// Use Track24 free API (supports many carriers, no API key required for basic lookups)
+async function fetchTrack24Tracking(trackingNumber, carrier) {
+    try {
+        // Track24 provides a free tracking endpoint
+        const response = await fetch(`https://track24.net/api/tracking?number=${encodeURIComponent(trackingNumber)}`, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            return { success: false, error: 'Track24 API unavailable' };
+        }
+
+        const data = await response.json();
+
+        if (data && data.data && data.data.track) {
+            const events = data.data.track.events || [];
+            const latestEvent = events[0];
+
+            const isDelivered = latestEvent &&
+                               (latestEvent.status === 'delivered' ||
+                                latestEvent.description?.toLowerCase().includes('delivered'));
+
+            return {
+                success: true,
+                status: isDelivered ? 'delivered' : 'in_transit',
+                delivered: isDelivered,
+                carrier: data.data.track.carrier || carrier,
+                events: events.slice(0, 5) // Last 5 events
+            };
+        }
+
+        return { success: false, error: 'No tracking data found' };
+    } catch (error) {
+        console.error('[TRACKING] Track24 fetch error:', error.message);
+        return { success: false, error: error.message };
+    }
+}
+
+// Main function to check tracking status for any carrier
+async function checkTrackingStatus(trackingNumber, trackingProvider) {
+    const provider = (trackingProvider || '').toLowerCase();
+
+    // Try carrier-specific API first
+    if (provider === 'royal_mail' || trackingNumber.match(/^[A-Z]{2}\d{9}GB$/i)) {
+        const result = await fetchRoyalMailTracking(trackingNumber);
+        if (result.success) return result;
+    }
+
+    if (provider === 'evri' || provider === 'hermes') {
+        const result = await fetchEvriTracking(trackingNumber);
+        if (result.success) return result;
+    }
+
+    if (provider === 'dpd') {
+        const result = await fetchDPDTracking(trackingNumber);
+        if (result.success) return result;
+    }
+
+    // Fall back to Track24 universal tracking
+    const track24Result = await fetchTrack24Tracking(trackingNumber, trackingProvider);
+    if (track24Result.success) return track24Result;
+
+    // If all else fails, return unknown status
+    return {
+        success: true,
+        status: 'unknown',
+        delivered: false,
+        carrier: trackingProvider || 'Unknown',
+        message: 'Unable to fetch tracking status automatically'
+    };
+}
+
+// Background checker that queries carrier APIs
 async function checkReturnTrackingStatus() {
     if (!db) {
         console.log('[RETURN-TRACKER] Database not connected, skipping check');
@@ -16428,42 +16634,39 @@ async function checkReturnTrackingStatus() {
             return; // No pending returns to check
         }
 
-        console.log(`[RETURN-TRACKER] Checking ${pendingReturns.length} pending return(s)...`);
+        console.log(`[RETURN-TRACKER] Checking ${pendingReturns.length} pending return(s) via carrier APIs...`);
         const now = new Date();
 
         for (const purchase of pendingReturns) {
             const returnTracking = purchase.return_tracking;
-            const expectedDelivery = returnTracking.expected_delivery ? new Date(returnTracking.expected_delivery) : null;
+            const trackingNumber = returnTracking.tracking_number;
+            const trackingProvider = returnTracking.tracking_provider;
 
-            // Check if expected delivery has passed (auto-mark for follow-up)
-            if (expectedDelivery && now > expectedDelivery) {
-                const daysPastDelivery = Math.floor((now - expectedDelivery) / (1000 * 60 * 60 * 24));
+            // Rate limit: wait 2 seconds between API calls to be respectful
+            await new Promise(resolve => setTimeout(resolve, 2000));
 
-                // If it's been more than 5 days past expected delivery and not manually marked,
-                // it likely was delivered - could add API integration here
-                if (daysPastDelivery > 5 && !returnTracking.last_check_status) {
-                    // Update status to indicate it needs manual verification
-                    await db.collection('purchases').updateOne(
-                        { _id: purchase._id },
-                        {
-                            $set: {
-                                'return_tracking.last_checked': now,
-                                'return_tracking.last_check_status': 'needs_verification'
-                            }
-                        }
-                    );
-                    console.log(`[RETURN-TRACKER] Return ${returnTracking.tracking_number} needs manual verification (${daysPastDelivery} days past expected)`);
-                }
+            // Check tracking status via carrier API
+            const trackingResult = await checkTrackingStatus(trackingNumber, trackingProvider);
+
+            console.log(`[RETURN-TRACKER] ${trackingNumber}: ${trackingResult.status} (delivered: ${trackingResult.delivered})`);
+
+            // Update the purchase with tracking status
+            const updateData = {
+                'return_tracking.last_checked': now,
+                'return_tracking.last_check_status': trackingResult.status,
+                'return_tracking.last_check_result': trackingResult
+            };
+
+            // If delivered, mark as delivered and set delivered date
+            if (trackingResult.delivered) {
+                updateData['return_tracking.delivered'] = true;
+                updateData['return_tracking.delivered_at'] = now;
+                console.log(`[RETURN-TRACKER] ✅ Return ${trackingNumber} marked as DELIVERED!`);
             }
 
-            // Update last checked timestamp
             await db.collection('purchases').updateOne(
                 { _id: purchase._id },
-                {
-                    $set: {
-                        'return_tracking.last_checked': now
-                    }
-                }
+                { $set: updateData }
             );
         }
 
