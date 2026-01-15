@@ -15010,106 +15010,112 @@ const AIRPODS_GENERATIONS = [
     'AirPods Max'
 ];
 
-// GET price snapshot - calculates max bid for each generation based on last 5 sales
+// GET price snapshot - calculates max bid for FULL SETS based on purchase→sale tracking
 app.get('/api/admin/price-snapshot', requireAuth, requireDB, async (req, res) => {
     try {
         const minProfit = parseFloat(req.query.min_profit) || 10; // Default £10 minimum profit
-        const salesCount = parseInt(req.query.sales_count) || 5; // Last 5 sales by default
+        const purchaseCount = parseInt(req.query.sales_count) || 5; // Last 5 purchases by default
 
-        // Get all unique generations from products that have been sold (any part type)
-        const generations = await db.collection('products').distinct('generation', {
-            status: 'sold'
-        });
+        // Find completed FULL SET purchases (items_purchased includes left, right, case)
+        // that have been split and sold
+        const fullSetPurchases = await db.collection('purchases').find({
+            status: 'completed',
+            items_purchased: { $all: ['left', 'right', 'case'] }
+        }).sort({ purchase_date: -1 }).toArray();
+
+        // Group by generation
+        const purchasesByGeneration = {};
+        for (const purchase of fullSetPurchases) {
+            if (!purchase.generation) continue;
+            if (!purchasesByGeneration[purchase.generation]) {
+                purchasesByGeneration[purchase.generation] = [];
+            }
+            purchasesByGeneration[purchase.generation].push(purchase);
+        }
 
         const snapshot = [];
 
-        for (const generation of generations) {
-            if (!generation) continue;
+        for (const [generation, purchases] of Object.entries(purchasesByGeneration)) {
+            // Take only last N purchases
+            const recentPurchases = purchases.slice(0, purchaseCount);
+            if (recentPurchases.length === 0) continue;
 
-            // Find the last N sales that include products of this generation
-            const salesWithGeneration = await db.collection('sales').aggregate([
-                // Unwind products array to match individual products
-                { $unwind: '$products' },
-                // Lookup product details
-                {
-                    $lookup: {
-                        from: 'products',
-                        localField: 'products.product_id',
-                        foreignField: '_id',
-                        as: 'product_details'
-                    }
-                },
-                { $unwind: '$product_details' },
-                // Filter for this generation
-                {
-                    $match: {
-                        'product_details.generation': generation
-                    }
-                },
-                // Sort by sale date descending
-                { $sort: { sale_date: -1 } },
-                // Limit to last N sales
-                { $limit: salesCount },
-                // Project the fields we need
-                {
-                    $project: {
-                        sale_date: 1,
-                        sale_price: 1,
-                        platform: 1,
-                        transaction_fees: 1,
-                        postage_label_cost: 1,
-                        ad_fee_general: 1,
-                        consumables: 1,
-                        consumables_cost: 1,
-                        product_cost: '$products.product_cost',
-                        generation: '$product_details.generation',
-                        part_type: '$product_details.part_type'
-                    }
-                }
-            ]).toArray();
-
-            if (salesWithGeneration.length === 0) continue;
-
-            // Calculate averages
-            let totalSalePrice = 0;
+            let totalRevenue = 0;
             let totalFees = 0;
             let totalConsumables = 0;
-            let totalProductCost = 0;
+            let purchasesWithSales = 0;
 
-            for (const sale of salesWithGeneration) {
-                totalSalePrice += sale.sale_price || 0;
-                totalFees += (sale.transaction_fees || 0) + (sale.postage_label_cost || 0) + (sale.ad_fee_general || 0);
-                totalConsumables += sale.consumables_cost || 0;
-                totalProductCost += sale.product_cost || 0;
+            for (const purchase of recentPurchases) {
+                // Find all products from this purchase
+                const products = await db.collection('products').find({
+                    purchase_id: purchase._id.toString()
+                }).toArray();
+
+                if (products.length === 0) continue;
+
+                // Find all sales containing these products
+                const productIds = products.map(p => p._id);
+                const sales = await db.collection('sales').find({
+                    'products.product_id': { $in: productIds }
+                }).toArray();
+
+                if (sales.length === 0) continue;
+
+                // Calculate total revenue and fees from selling this purchase's products
+                let purchaseRevenue = 0;
+                let purchaseFees = 0;
+                let purchaseConsumables = 0;
+
+                for (const sale of sales) {
+                    // Only count revenue from products that came from this purchase
+                    const saleProductsFromPurchase = sale.products.filter(sp =>
+                        productIds.some(pid => pid.toString() === sp.product_id?.toString())
+                    );
+
+                    if (saleProductsFromPurchase.length > 0) {
+                        // Proportional revenue based on how many products in this sale came from our purchase
+                        const proportion = saleProductsFromPurchase.length / sale.products.length;
+                        purchaseRevenue += (sale.sale_price || 0) * proportion;
+                        purchaseFees += ((sale.transaction_fees || 0) + (sale.postage_label_cost || 0) + (sale.ad_fee_general || 0)) * proportion;
+                        purchaseConsumables += (sale.consumables_cost || 0) * proportion;
+                    }
+                }
+
+                if (purchaseRevenue > 0) {
+                    totalRevenue += purchaseRevenue;
+                    totalFees += purchaseFees;
+                    totalConsumables += purchaseConsumables;
+                    purchasesWithSales++;
+                }
             }
 
-            const count = salesWithGeneration.length;
-            const avgSalePrice = totalSalePrice / count;
-            const avgFees = totalFees / count;
-            const avgConsumables = totalConsumables / count;
-            const avgProductCost = totalProductCost / count;
+            if (purchasesWithSales === 0) continue;
 
-            // Calculate net revenue and max bid
-            const avgNetRevenue = avgSalePrice - avgFees - avgConsumables;
+            // Calculate averages per full set
+            const avgRevenue = totalRevenue / purchasesWithSales;
+            const avgFees = totalFees / purchasesWithSales;
+            const avgConsumables = totalConsumables / purchasesWithSales;
+
+            // Net revenue and max bid
+            const avgNetRevenue = avgRevenue - avgFees - avgConsumables;
             const maxBid = avgNetRevenue - minProfit;
 
-            // Get most recent sale date
-            const lastSaleDate = salesWithGeneration[0]?.sale_date;
+            // Get most recent purchase date
+            const lastPurchaseDate = recentPurchases[0]?.purchase_date;
 
             snapshot.push({
                 generation,
-                sales_analyzed: count,
-                last_sale_date: lastSaleDate,
-                avg_sale_price: Math.round(avgSalePrice * 100) / 100,
+                purchases_analyzed: purchasesWithSales,
+                last_purchase_date: lastPurchaseDate,
+                avg_sale_revenue: Math.round(avgRevenue * 100) / 100,
                 avg_fees: Math.round(avgFees * 100) / 100,
                 avg_consumables: Math.round(avgConsumables * 100) / 100,
-                avg_product_cost: Math.round(avgProductCost * 100) / 100,
                 avg_net_revenue: Math.round(avgNetRevenue * 100) / 100,
                 max_bid: Math.round(maxBid * 100) / 100,
                 min_profit: minProfit,
                 // Breakdown for transparency
                 breakdown: {
-                    sale_price: Math.round(avgSalePrice * 100) / 100,
+                    sale_revenue: Math.round(avgRevenue * 100) / 100,
                     minus_fees: Math.round(avgFees * 100) / 100,
                     minus_consumables: Math.round(avgConsumables * 100) / 100,
                     equals_net: Math.round(avgNetRevenue * 100) / 100,
@@ -15126,7 +15132,8 @@ app.get('/api/admin/price-snapshot', requireAuth, requireDB, async (req, res) =>
             success: true,
             generated_at: new Date(),
             min_profit_target: minProfit,
-            sales_per_product: salesCount,
+            purchases_per_generation: purchaseCount,
+            full_sets_only: true,
             snapshot
         });
     } catch (err) {

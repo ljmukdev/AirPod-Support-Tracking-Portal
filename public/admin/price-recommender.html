@@ -239,7 +239,7 @@
         <div class="admin-content">
             <div class="snapshot-controls">
                 <label>Min Profit: £<input type="number" id="minProfit" value="10" min="0" step="1"></label>
-                <label>Last <input type="number" id="salesCount" value="5" min="1" max="50"> sales</label>
+                <label>Last <input type="number" id="salesCount" value="5" min="1" max="50"> full sets</label>
                 <button class="btn btn-primary" id="refreshBtn" onclick="loadSnapshot()">Refresh</button>
             </div>
 
@@ -289,7 +289,7 @@
                 const data = await response.json();
 
                 if (!data.snapshot || data.snapshot.length === 0) {
-                    content.innerHTML = '<div class="no-data"><p>No sales data found.</p><p style="font-size:0.9rem">Record some sales to see max bid recommendations.</p></div>';
+                    content.innerHTML = '<div class="no-data"><p>No full set purchase data found.</p><p style="font-size:0.9rem">Complete some full set purchases (left+right+case) and sell them to see max bid recommendations.</p></div>';
                     return;
                 }
 
@@ -297,19 +297,19 @@
                     <div class="snapshot-card">
                         <div class="snapshot-card-header">
                             <span class="generation-name">${item.generation}</span>
-                            <span class="sales-count">${item.sales_analyzed} sales</span>
+                            <span class="sales-count">${item.purchases_analyzed} sets</span>
                         </div>
                         <div class="max-bid">£${item.max_bid.toFixed(2)}</div>
                         <div class="max-bid-label">Max bid for £${minProfit} profit</div>
                         <div class="breakdown">
-                            <div class="breakdown-row"><span>Avg Sale</span><span>£${item.avg_sale_price.toFixed(2)}</span></div>
+                            <div class="breakdown-row"><span>Avg Revenue</span><span>£${item.avg_sale_revenue.toFixed(2)}</span></div>
                             <div class="breakdown-row"><span>Fees</span><span class="minus">-£${item.avg_fees.toFixed(2)}</span></div>
                             <div class="breakdown-row"><span>Consumables</span><span class="minus">-£${item.avg_consumables.toFixed(2)}</span></div>
                             <div class="breakdown-row highlight"><span>Net</span><span>£${item.avg_net_revenue.toFixed(2)}</span></div>
                             <div class="breakdown-row"><span>Profit</span><span class="minus">-£${item.min_profit.toFixed(2)}</span></div>
                             <div class="breakdown-row highlight"><span>Max Bid</span><span style="color:#0d9488">£${item.max_bid.toFixed(2)}</span></div>
                         </div>
-                        ${item.last_sale_date ? `<div class="last-sale">Last: ${new Date(item.last_sale_date).toLocaleDateString()}</div>` : ''}
+                        ${item.last_purchase_date ? `<div class="last-sale">Last: ${new Date(item.last_purchase_date).toLocaleDateString()}</div>` : ''}
                     </div>
                 `).join('') + '</div>';
 
