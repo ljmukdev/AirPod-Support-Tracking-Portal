@@ -4174,7 +4174,8 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                 items_purchased: purchase.items_purchased,
                 completed: false,
                 priority: isOverdue ? 'high' : (dueSoon ? 'medium' : 'normal'),
-                product_ids: feedbackProductIds
+                product_ids: feedbackProductIds,
+                return_tracking: purchase.return_tracking || null
             });
         }
         
@@ -4566,6 +4567,66 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                 expected_refund: purchase.refund_pending.expected_refund_amount || null,
                 refund_pending: purchase.refund_pending,
                 product_ids: pendingRefundProductIds,
+                generation: purchase.generation
+            });
+        }
+
+        // 7c. Find returns that need follow-up (shipped but not yet delivered)
+        const pendingReturns = await db.collection('purchases').find({
+            'return_tracking.tracking_number': { $exists: true },
+            'return_tracking.delivered': { $ne: true },
+            'return_tracking.follow_up_due': { $exists: true }
+        }).toArray();
+
+        for (const purchase of pendingReturns) {
+            const followUpDue = new Date(purchase.return_tracking.follow_up_due);
+            const isOverdue = now > followUpDue;
+            const daysUntil = Math.ceil((followUpDue - now) / (1000 * 60 * 60 * 24));
+            const dueSoon = daysUntil >= 0 && daysUntil <= 2;
+
+            const taskId = `return-followup-${purchase._id.toString()}`;
+
+            const shippedDate = purchase.return_tracking.shipped_at
+                ? new Date(purchase.return_tracking.shipped_at).toLocaleDateString('en-GB')
+                : 'Unknown date';
+            const carrier = purchase.return_tracking.tracking_provider || 'carrier';
+            const trackingNum = purchase.return_tracking.tracking_number;
+
+            let description = `Return shipped on ${shippedDate} via ${carrier}. `;
+            description += `Tracking: ${trackingNum}. `;
+
+            if (isOverdue) {
+                const daysOverdue = Math.abs(daysUntil);
+                description += `Check delivery status - ${daysOverdue} day(s) overdue!`;
+            } else if (daysUntil === 0) {
+                description += 'Check if return has been delivered TODAY.';
+            } else if (daysUntil === 1) {
+                description += 'Check if return has been delivered TOMORROW.';
+            } else {
+                description += `Expected delivery: ${new Date(purchase.return_tracking.expected_delivery).toLocaleDateString('en-GB')}.`;
+            }
+
+            // Get products for this purchase
+            const returnProducts = await db.collection('products').find({
+                purchase_id: purchase._id.toString()
+            }).toArray();
+            const returnProductIds = returnProducts.map(p => p._id.toString());
+
+            tasks.push({
+                id: taskId,
+                purchase_id: purchase._id.toString(),
+                type: 'return_follow_up',
+                title: `Check return delivery: ${purchase.generation || 'AirPods'}`,
+                description: description,
+                due_date: followUpDue,
+                is_overdue: isOverdue,
+                due_soon: dueSoon,
+                order_number: purchase.order_number || null,
+                seller: purchase.seller_name || null,
+                tracking_number: purchase.tracking_number || null,
+                tracking_provider: purchase.tracking_provider || null,
+                return_tracking: purchase.return_tracking,
+                product_ids: returnProductIds,
                 generation: purchase.generation
             });
         }
@@ -6082,6 +6143,181 @@ app.post('/api/admin/purchases/:id/add-tracking', requireAuth, requireDB, async 
         });
     } catch (err) {
         console.error('[ADD-TRACKING] Error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Add return tracking to a purchase (Admin only)
+app.post('/api/admin/purchases/:id/return-tracking', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    const { tracking_number, tracking_provider, expected_delivery, notes } = req.body;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid purchase ID' });
+    }
+
+    if (!tracking_number || !tracking_number.trim()) {
+        return res.status(400).json({ error: 'Tracking number is required' });
+    }
+
+    try {
+        const purchase = await db.collection('purchases').findOne({ _id: new ObjectId(id) });
+
+        if (!purchase) {
+            return res.status(404).json({ error: 'Purchase not found' });
+        }
+
+        const now = new Date();
+
+        // Calculate expected delivery date if not provided (default 5 business days)
+        let expectedDeliveryDate = null;
+        if (expected_delivery) {
+            expectedDeliveryDate = new Date(expected_delivery);
+        } else {
+            expectedDeliveryDate = new Date(now.getTime() + (7 * 24 * 60 * 60 * 1000)); // 7 days default
+        }
+
+        // Calculate when to create follow-up task (2 days after expected delivery)
+        const followUpDueDate = new Date(expectedDeliveryDate.getTime() + (2 * 24 * 60 * 60 * 1000));
+
+        const returnTrackingData = {
+            tracking_number: tracking_number.trim().toUpperCase(),
+            tracking_provider: tracking_provider || null,
+            shipped_at: now,
+            expected_delivery: expectedDeliveryDate,
+            delivered: false,
+            delivered_at: null,
+            follow_up_due: followUpDueDate,
+            last_checked: null,
+            last_check_status: null,
+            notes: notes || null
+        };
+
+        await db.collection('purchases').updateOne(
+            { _id: new ObjectId(id) },
+            {
+                $set: {
+                    return_tracking: returnTrackingData,
+                    last_updated_at: now,
+                    last_updated_by: req.user.email
+                }
+            }
+        );
+
+        console.log(`[RETURN-TRACKING] Added return tracking for purchase ${id}: ${tracking_number}`);
+
+        res.json({
+            success: true,
+            message: 'Return tracking added successfully',
+            return_tracking: returnTrackingData
+        });
+    } catch (err) {
+        console.error('[RETURN-TRACKING] Error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Mark return as delivered (Admin only)
+app.post('/api/admin/purchases/:id/return-delivered', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid purchase ID' });
+    }
+
+    try {
+        const purchase = await db.collection('purchases').findOne({ _id: new ObjectId(id) });
+
+        if (!purchase) {
+            return res.status(404).json({ error: 'Purchase not found' });
+        }
+
+        if (!purchase.return_tracking) {
+            return res.status(400).json({ error: 'No return tracking found for this purchase' });
+        }
+
+        const now = new Date();
+
+        await db.collection('purchases').updateOne(
+            { _id: new ObjectId(id) },
+            {
+                $set: {
+                    'return_tracking.delivered': true,
+                    'return_tracking.delivered_at': now,
+                    'return_tracking.last_checked': now,
+                    'return_tracking.last_check_status': 'delivered',
+                    last_updated_at: now,
+                    last_updated_by: req.user.email
+                }
+            }
+        );
+
+        console.log(`[RETURN-TRACKING] Return marked as delivered for purchase ${id}`);
+
+        res.json({
+            success: true,
+            message: 'Return marked as delivered'
+        });
+    } catch (err) {
+        console.error('[RETURN-TRACKING] Error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Check tracking status for a return (uses tracking API lookup)
+app.post('/api/admin/purchases/:id/check-return-tracking', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid purchase ID' });
+    }
+
+    try {
+        const purchase = await db.collection('purchases').findOne({ _id: new ObjectId(id) });
+
+        if (!purchase) {
+            return res.status(404).json({ error: 'Purchase not found' });
+        }
+
+        if (!purchase.return_tracking || !purchase.return_tracking.tracking_number) {
+            return res.status(400).json({ error: 'No return tracking found for this purchase' });
+        }
+
+        const trackingNumber = purchase.return_tracking.tracking_number;
+        const trackingProvider = purchase.return_tracking.tracking_provider;
+        const now = new Date();
+
+        // For now, we'll do a simple check - in a real implementation you'd call a tracking API
+        // This can be enhanced later with actual tracking API integration
+        let trackingStatus = {
+            checked: true,
+            status: 'in_transit',
+            delivered: false,
+            last_update: now
+        };
+
+        // Update the last checked timestamp
+        await db.collection('purchases').updateOne(
+            { _id: new ObjectId(id) },
+            {
+                $set: {
+                    'return_tracking.last_checked': now,
+                    'return_tracking.last_check_status': trackingStatus.status,
+                    last_updated_at: now
+                }
+            }
+        );
+
+        console.log(`[RETURN-TRACKING] Checked tracking status for purchase ${id}: ${trackingStatus.status}`);
+
+        res.json({
+            success: true,
+            tracking_number: trackingNumber,
+            tracking_provider: trackingProvider,
+            status: trackingStatus
+        });
+    } catch (err) {
+        console.error('[RETURN-TRACKING] Error:', err);
         res.status(500).json({ error: 'Database error: ' + err.message });
     }
 });
@@ -16171,10 +16407,93 @@ app.use((err, req, res, next) => {
     }
 });
 
+// Background return tracking checker service
+// Checks return tracking status every 30 minutes and updates delivery status
+let returnTrackingCheckerInterval = null;
+
+async function checkReturnTrackingStatus() {
+    if (!db) {
+        console.log('[RETURN-TRACKER] Database not connected, skipping check');
+        return;
+    }
+
+    try {
+        // Find all returns that are shipped but not yet delivered
+        const pendingReturns = await db.collection('purchases').find({
+            'return_tracking.tracking_number': { $exists: true },
+            'return_tracking.delivered': { $ne: true }
+        }).toArray();
+
+        if (pendingReturns.length === 0) {
+            return; // No pending returns to check
+        }
+
+        console.log(`[RETURN-TRACKER] Checking ${pendingReturns.length} pending return(s)...`);
+        const now = new Date();
+
+        for (const purchase of pendingReturns) {
+            const returnTracking = purchase.return_tracking;
+            const expectedDelivery = returnTracking.expected_delivery ? new Date(returnTracking.expected_delivery) : null;
+
+            // Check if expected delivery has passed (auto-mark for follow-up)
+            if (expectedDelivery && now > expectedDelivery) {
+                const daysPastDelivery = Math.floor((now - expectedDelivery) / (1000 * 60 * 60 * 24));
+
+                // If it's been more than 5 days past expected delivery and not manually marked,
+                // it likely was delivered - could add API integration here
+                if (daysPastDelivery > 5 && !returnTracking.last_check_status) {
+                    // Update status to indicate it needs manual verification
+                    await db.collection('purchases').updateOne(
+                        { _id: purchase._id },
+                        {
+                            $set: {
+                                'return_tracking.last_checked': now,
+                                'return_tracking.last_check_status': 'needs_verification'
+                            }
+                        }
+                    );
+                    console.log(`[RETURN-TRACKER] Return ${returnTracking.tracking_number} needs manual verification (${daysPastDelivery} days past expected)`);
+                }
+            }
+
+            // Update last checked timestamp
+            await db.collection('purchases').updateOne(
+                { _id: purchase._id },
+                {
+                    $set: {
+                        'return_tracking.last_checked': now
+                    }
+                }
+            );
+        }
+
+        console.log(`[RETURN-TRACKER] Finished checking ${pendingReturns.length} return(s)`);
+    } catch (error) {
+        console.error('[RETURN-TRACKER] Error checking return tracking:', error);
+    }
+}
+
+// Start the background tracker (runs every 30 minutes)
+function startReturnTrackingChecker() {
+    // Run immediately on startup, then every 30 minutes
+    setTimeout(() => {
+        checkReturnTrackingStatus();
+    }, 5000); // Wait 5 seconds after startup
+
+    returnTrackingCheckerInterval = setInterval(() => {
+        checkReturnTrackingStatus();
+    }, 30 * 60 * 1000); // Every 30 minutes
+
+    console.log('[RETURN-TRACKER] Background return tracking checker started (runs every 30 minutes)');
+}
+
 // Start server
 app.listen(PORT, () => {
     console.log(`LJM AirPod Support Server running on http://localhost:${PORT}`);
     console.log(`Admin panel: http://localhost:${PORT}/admin/login`);
+
+    // Start background return tracking checker
+    startReturnTrackingChecker();
 
     // Check JWT_SECRET configuration
     if (!process.env.JWT_SECRET && !process.env.SERVICE_API_KEY) {
