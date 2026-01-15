@@ -12,18 +12,13 @@ let settings = {};
 // ============================================================================
 
 document.addEventListener('DOMContentLoaded', async function() {
-    // Initialize tabs
+    // Initialize tabs first (synchronous - should always work)
     initTabs();
 
     // Initialize weight calculation
     initWeightCalculation();
 
-    // Load initial data
-    await loadSummary();
-    await loadProducts();
-    await loadRecommendations();
-
-    // Set up event listeners
+    // Set up event listeners (synchronous)
     setupEventListeners();
 
     // Set default date to today for forms
@@ -31,6 +26,25 @@ document.addEventListener('DOMContentLoaded', async function() {
     document.querySelectorAll('input[type="date"]').forEach(input => {
         input.value = today;
     });
+
+    // Load initial data (async - may fail but shouldn't break the page)
+    try {
+        await loadSummary();
+    } catch (err) {
+        console.error('Failed to load summary:', err);
+    }
+
+    try {
+        await loadProducts();
+    } catch (err) {
+        console.error('Failed to load products:', err);
+    }
+
+    try {
+        await loadRecommendations();
+    } catch (err) {
+        console.error('Failed to load recommendations:', err);
+    }
 });
 
 // ============================================================================
@@ -113,6 +127,11 @@ function setupEventListeners() {
 // ============================================================================
 
 async function apiCall(endpoint, options = {}) {
+    // Check if authenticatedFetch is available (from admin.js)
+    if (typeof authenticatedFetch !== 'function') {
+        throw new Error('Authentication not ready. Please refresh the page.');
+    }
+
     try {
         const response = await authenticatedFetch(`${API_BASE}/api/admin/price-recommender${endpoint}`, {
             ...options,
