@@ -2,957 +2,291 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Price Recommender | LJM Admin</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Price Snapshot | LJM Admin</title>
     <link rel="stylesheet" href="../css/styles.css?v=1.2.7">
-    <link rel="stylesheet" href="../css/ios-mobile-optimizations.css">
     <style>
-        .price-eval-card {
-            background: white;
-            border-radius: 12px;
-            padding: 24px;
-            margin-bottom: 24px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        .snapshot-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
         }
-        .price-eval-form {
+        .snapshot-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        .snapshot-header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        .snapshot-controls {
             display: flex;
             gap: 12px;
-            align-items: flex-end;
+            align-items: center;
             flex-wrap: wrap;
         }
-        .price-eval-form .form-group {
-            margin-bottom: 0;
-            flex: 1;
-            min-width: 150px;
-        }
-        .price-eval-result {
-            margin-top: 20px;
-            padding: 20px;
-            border-radius: 10px;
-            display: none;
-        }
-        .price-eval-result.excellent { background: #d1fae5; border: 2px solid #10b981; }
-        .price-eval-result.good { background: #dbeafe; border: 2px solid #3b82f6; }
-        .price-eval-result.acceptable { background: #fef3c7; border: 2px solid #f59e0b; }
-        .price-eval-result.avoid { background: #fee2e2; border: 2px solid #ef4444; }
-        .price-eval-rating {
-            font-size: 1.5rem;
-            font-weight: 700;
-            margin-bottom: 12px;
-        }
-        .price-eval-details {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 16px;
-        }
-        .price-eval-stat {
-            text-align: center;
-        }
-        .price-eval-stat-value {
-            font-size: 1.25rem;
-            font-weight: 600;
-        }
-        .price-eval-stat-label {
-            font-size: 0.85rem;
+        .snapshot-controls label {
+            font-size: 0.9rem;
             color: #666;
         }
-        .recommendations-grid {
+        .snapshot-controls input {
+            width: 80px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+        }
+        .refresh-btn {
+            background: #0d9488;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .refresh-btn:hover {
+            background: #0f766e;
+        }
+        .refresh-btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+        .snapshot-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
             gap: 16px;
         }
-        .rec-card {
+        .snapshot-card {
             background: white;
-            border-radius: 10px;
+            border-radius: 12px;
             padding: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         }
-        .rec-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
-        }
-        .rec-card-header {
+        .snapshot-card-header {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: 12px;
-        }
-        .rec-card-name {
-            font-weight: 600;
-            font-size: 1.1rem;
-        }
-        .rec-card-sku {
-            font-size: 0.85rem;
-            color: #888;
-            background: #f3f4f6;
-            padding: 2px 8px;
-            border-radius: 4px;
-        }
-        .rec-card-price {
-            font-size: 1.75rem;
-            font-weight: 700;
-            color: var(--accent-teal, #0d9488);
-            margin: 12px 0;
-        }
-        .rec-card-ranges {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            font-size: 0.85rem;
-        }
-        .rec-range {
-            padding: 6px 10px;
-            border-radius: 6px;
-            text-align: center;
-        }
-        .rec-range.excellent { background: #d1fae5; color: #065f46; }
-        .rec-range.good { background: #dbeafe; color: #1e40af; }
-        .rec-range.acceptable { background: #fef3c7; color: #92400e; }
-        .rec-range.avoid { background: #fee2e2; color: #991b1b; }
-        .rec-card-data {
-            margin-top: 12px;
-            padding-top: 12px;
-            border-top: 1px solid #eee;
-            font-size: 0.85rem;
-            color: #666;
-        }
-        .data-sources {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
-        .data-source {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-        .data-count {
-            background: #f3f4f6;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-weight: 500;
-        }
-        .tabs {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-        .tab-btn {
-            padding: 10px 20px;
-            border: none;
-            background: #f3f4f6;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 500;
-            transition: all 0.2s;
-        }
-        .tab-btn:hover {
-            background: #e5e7eb;
-        }
-        .tab-btn.active {
-            background: var(--accent-teal, #0d9488);
-            color: white;
-        }
-        .tab-content {
-            display: none;
-        }
-        .tab-content.active {
-            display: block;
-        }
-        .stats-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 16px;
-            margin-bottom: 24px;
-        }
-        .stat-card {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            text-align: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-        }
-        .stat-card-value {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--accent-teal, #0d9488);
-        }
-        .stat-card-label {
-            font-size: 0.9rem;
-            color: #666;
-            margin-top: 4px;
-        }
-        .data-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.9rem;
-        }
-        .data-table th, .data-table td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #eee;
-        }
-        .data-table th {
-            background: #f9fafb;
-            font-weight: 600;
-        }
-        .data-table tr:hover {
-            background: #f9fafb;
-        }
-        .form-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
-        }
-        .modal {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.4);
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-        }
-        .modal.active {
-            display: flex;
-        }
-        .modal-content {
-            background: white;
-            padding: 24px;
-            border-radius: 12px;
-            max-width: 500px;
-            width: 90%;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-        .modal-title {
-            font-size: 1.25rem;
-            font-weight: 600;
-        }
-        .modal-close {
-            background: none;
-            border: none;
-            font-size: 1.5rem;
-            cursor: pointer;
-            color: #666;
-        }
-        .action-btn {
-            padding: 8px 16px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 500;
-            transition: all 0.2s;
-        }
-        .action-btn-primary {
-            background: var(--accent-teal, #0d9488);
-            color: white;
-        }
-        .action-btn-primary:hover {
-            background: #0f766e;
-        }
-        .action-btn-secondary {
-            background: #f3f4f6;
-            color: #374151;
-        }
-        .action-btn-secondary:hover {
-            background: #e5e7eb;
-        }
-        .action-btn-danger {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-        .action-btn-danger:hover {
-            background: #fecaca;
-        }
-        .btn-group {
-            display: flex;
-            gap: 8px;
-        }
-        .empty-state {
-            text-align: center;
-            padding: 48px 24px;
-            color: #666;
-        }
-        .empty-state-icon {
-            font-size: 3rem;
             margin-bottom: 16px;
         }
-        .settings-section {
-            background: white;
-            border-radius: 12px;
-            padding: 24px;
-            margin-bottom: 24px;
-        }
-        .settings-section h3 {
-            margin-top: 0;
-            margin-bottom: 20px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid #eee;
-        }
-        .weight-indicator {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-top: 8px;
-        }
-        .weight-bar {
-            flex: 1;
-            height: 8px;
-            background: #e5e7eb;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-        .weight-fill {
-            height: 100%;
-            background: var(--accent-teal, #0d9488);
-            transition: width 0.3s;
-        }
-        .weight-total {
+        .generation-name {
             font-weight: 600;
-            min-width: 60px;
-            text-align: right;
+            font-size: 1.1rem;
+            color: #1f2937;
+        }
+        .sales-count {
+            font-size: 0.8rem;
+            color: #6b7280;
+            background: #f3f4f6;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        .max-bid {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #0d9488;
+            margin: 12px 0;
+        }
+        .max-bid-label {
+            font-size: 0.85rem;
+            color: #6b7280;
+            margin-bottom: 16px;
+        }
+        .breakdown {
+            border-top: 1px solid #e5e7eb;
+            padding-top: 16px;
+            font-size: 0.9rem;
+        }
+        .breakdown-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            color: #4b5563;
+        }
+        .breakdown-row.highlight {
+            font-weight: 600;
+            color: #1f2937;
+            border-top: 1px solid #e5e7eb;
+            margin-top: 8px;
+            padding-top: 8px;
+        }
+        .breakdown-row .minus {
+            color: #ef4444;
+        }
+        .last-sale {
+            font-size: 0.8rem;
+            color: #9ca3af;
+            margin-top: 12px;
+        }
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: #6b7280;
+        }
+        .error {
+            text-align: center;
+            padding: 60px;
+            color: #ef4444;
+        }
+        .no-data {
+            text-align: center;
+            padding: 60px;
+            color: #6b7280;
+        }
+        .timestamp {
+            text-align: center;
+            color: #9ca3af;
+            font-size: 0.85rem;
+            margin-top: 24px;
+        }
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: #6b7280;
+            text-decoration: none;
+            font-size: 0.9rem;
+            margin-bottom: 16px;
+        }
+        .back-link:hover {
+            color: #0d9488;
         }
     </style>
 </head>
-<body class="admin-panel">
-    <!-- Sidebar Navigation -->
-    <aside class="admin-sidebar">
-        <div class="sidebar-header">
-            <div class="sidebar-logo">
-                <div class="logo-circle">
-                    <span class="logo-text">LJM</span>
-                </div>
-                <div>
-                    <div class="sidebar-logo-text">LJM Admin</div>
-                    <div class="sidebar-subtitle">Dashboard</div>
-                </div>
+<body style="background: #f9fafb; min-height: 100vh;">
+    <div class="snapshot-container">
+        <a href="dashboard.html" class="back-link">
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                <path d="M15 10H5M5 10L10 5M5 10L10 15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Back to Dashboard
+        </a>
+
+        <div class="snapshot-header">
+            <h1>Max Bid Calculator</h1>
+            <div class="snapshot-controls">
+                <label>Min Profit: £<input type="number" id="minProfit" value="10" min="0" step="1"></label>
+                <label>Last <input type="number" id="salesCount" value="5" min="1" max="20"> sales</label>
+                <button class="refresh-btn" id="refreshBtn" onclick="loadSnapshot()">Refresh</button>
             </div>
         </div>
 
-        <nav class="sidebar-nav">
-            <div class="nav-section">
-                <ul class="nav-menu">
-                    <!-- Dashboard - Standalone -->
-                    <li class="nav-item">
-                        <a href="dashboard.html" class="nav-link" data-page="dashboard">
-                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M3 10L9 4L9 10L17 10M3 10L3 16M3 10L17 10M17 10L17 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                            <span>Dashboard</span>
-                        </a>
-                    </li>
-
-                    <!-- Inventory Category -->
-                    <li class="nav-item has-submenu">
-                        <a href="#" class="nav-link" data-page="inventory" onclick="event.preventDefault(); toggleSubmenu(this.parentElement);">
-                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M3 5L10 2L17 5M3 5L3 15L10 18M3 5L10 8M17 5L17 15L10 18M17 5L10 8M10 8L10 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                            <span>Inventory</span>
-                        </a>
-                        <ul class="nav-submenu">
-                            <li class="nav-item">
-                                <a href="products.html" class="nav-link" data-page="products">
-                                    <span>Products</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="parts.html" class="nav-link" data-page="parts">
-                                    <span>Manage Parts</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="purchases.html" class="nav-link" data-page="purchases">
-                                    <span>Purchases</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="check-in.html" class="nav-link" data-page="check-in">
-                                    <span>Check-In</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="consumables.html" class="nav-link" data-page="consumables">
-                                    <span>Consumables</span>
-                                </a>
-                            </li>
-                        </ul>
-                    </li>
-
-                    <!-- Sales Category -->
-                    <li class="nav-item has-submenu">
-                        <a href="#" class="nav-link" data-page="sales-category" onclick="event.preventDefault(); toggleSubmenu(this.parentElement);">
-                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M12 2L5 9L2 12L5 15L8 12L15 5M14 7L17 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                                <circle cx="14.5" cy="5.5" r="1.5" fill="currentColor"/>
-                            </svg>
-                            <span>Sales</span>
-                        </a>
-                        <ul class="nav-submenu">
-                            <li class="nav-item">
-                                <a href="sales.html" class="nav-link" data-page="sales">
-                                    <span>Sales Orders</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="addon-sales.html" class="nav-link" data-page="addon-sales">
-                                    <span>Add-On Sales</span>
-                                </a>
-                            </li>
-                        </ul>
-                    </li>
-
-                    <!-- Price Recommender - Standalone -->
-                    <li class="nav-item">
-                        <a href="price-recommender.html" class="nav-link active" data-page="price-recommender">
-                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M10 2V18M6 6L10 2L14 6M6 14L10 18L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                                <path d="M2 10H18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                            </svg>
-                            <span>Price Recommender</span>
-                        </a>
-                    </li>
-
-                    <!-- Tasks - Standalone -->
-                    <li class="nav-item">
-                        <a href="tasks.html" class="nav-link" data-page="tasks">
-                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M9 5H7C5.89543 5 5 5.89543 5 7V15C5 16.1046 5.89543 17 7 17H13C14.1046 17 15 16.1046 15 15V7C15 5.89543 14.1046 5 13 5H11M9 5C9 3.89543 9.89543 3 11 3H9C7.89543 3 7 3.89543 7 5M9 5C9 6.10457 9.89543 7 11 7H9C7.89543 7 7 6.10457 7 5M8 10H12M8 13H12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                            <span>Tasks</span>
-                        </a>
-                    </li>
-
-                    <!-- Analytics - Standalone -->
-                    <li class="nav-item">
-                        <a href="analytics.html" class="nav-link" data-page="analytics">
-                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M3 16L3 12M7 16L7 8M11 16L11 10M15 16L15 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                            <span>Analytics</span>
-                        </a>
-                    </li>
-                </ul>
-            </div>
-        </nav>
-
-        <div class="sidebar-footer">
-            <button class="sidebar-footer-link sidebar-logout" id="logoutButton">
-                <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M13 15L17 10L13 5M17 10H7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M7 3H4C3.44772 3 3 3.44772 3 4V16C3 16.5523 3.44772 17 4 17H7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                <span>Logout</span>
-            </button>
+        <div id="snapshotContent">
+            <div class="loading">Loading...</div>
         </div>
-    </aside>
 
-    <!-- Main Content Area -->
-    <div class="admin-main">
-        <!-- Top Utility Bar -->
-        <header class="admin-topbar">
-            <div class="topbar-left">
-                <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M3 5H17M3 10H17M3 15H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                    </svg>
-                </button>
-                <h1 style="margin: 0; font-size: 1.25rem; font-weight: 600;">AirPods Price Recommender</h1>
-            </div>
-            <div class="topbar-right">
-                <div class="topbar-user">
-                    <span class="topbar-user-name">Admin</span>
-                </div>
-            </div>
-        </header>
-
-        <!-- Page Content -->
-        <div class="admin-content">
-            <!-- Quick Price Evaluation -->
-            <div class="price-eval-card">
-                <h2 style="margin-top: 0; margin-bottom: 16px;">Quick Price Check</h2>
-                <form class="price-eval-form" id="priceEvalForm">
-                    <div class="form-group">
-                        <label for="evalSku">Product</label>
-                        <select id="evalSku" required>
-                            <option value="">Select Product...</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="evalPrice">Proposed Price ($)</label>
-                        <input type="number" id="evalPrice" step="0.01" min="0" placeholder="e.g. 85.00" required>
-                    </div>
-                    <button type="submit" class="action-btn action-btn-primary">Evaluate Price</button>
-                </form>
-                <div class="price-eval-result" id="evalResult">
-                    <div class="price-eval-rating" id="evalRating"></div>
-                    <div class="price-eval-details" id="evalDetails"></div>
-                </div>
-            </div>
-
-            <!-- Stats Row -->
-            <div class="stats-row" id="statsRow">
-                <div class="stat-card">
-                    <div class="stat-card-value" id="statProducts">-</div>
-                    <div class="stat-card-label">Products</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-card-value" id="statSales">-</div>
-                    <div class="stat-card-label">Sales Records</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-card-value" id="statPurchases">-</div>
-                    <div class="stat-card-label">Purchase Records</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-card-value" id="statEbay">-</div>
-                    <div class="stat-card-label">eBay Data Points</div>
-                </div>
-            </div>
-
-            <!-- Tabs -->
-            <div class="tabs">
-                <button class="tab-btn active" data-tab="recommendations">Recommendations</button>
-                <button class="tab-btn" data-tab="products">Products</button>
-                <button class="tab-btn" data-tab="sales">Sales History</button>
-                <button class="tab-btn" data-tab="purchases">Purchase History</button>
-                <button class="tab-btn" data-tab="ebay">eBay Data</button>
-                <button class="tab-btn" data-tab="settings">Settings</button>
-            </div>
-
-            <!-- Tab: Recommendations -->
-            <div class="tab-content active" id="tab-recommendations">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h2 style="margin: 0;">Price Recommendations</h2>
-                    <button class="action-btn action-btn-primary" id="refreshAllRecs">Recalculate All</button>
-                </div>
-                <div class="recommendations-grid" id="recommendationsGrid">
-                    <div class="empty-state">
-                        <div class="empty-state-icon">&#128202;</div>
-                        <p>Loading recommendations...</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Tab: Products -->
-            <div class="tab-content" id="tab-products">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h2 style="margin: 0;">Product Catalog</h2>
-                    <div class="btn-group">
-                        <button class="action-btn action-btn-secondary" id="initProducts">Initialize Defaults</button>
-                        <button class="action-btn action-btn-primary" id="addProduct">Add Product</button>
-                    </div>
-                </div>
-                <div class="products-table-wrapper">
-                    <table class="data-table" id="productsTable">
-                        <thead>
-                            <tr>
-                                <th>SKU</th>
-                                <th>Name</th>
-                                <th>Generation</th>
-                                <th>Variant</th>
-                                <th>MSRP</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="productsBody">
-                            <tr><td colspan="7" style="text-align: center;">Loading...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Tab: Sales History -->
-            <div class="tab-content" id="tab-sales">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h2 style="margin: 0;">Sales History</h2>
-                    <button class="action-btn action-btn-primary" id="addSale">Add Sale</button>
-                </div>
-                <div class="products-table-wrapper">
-                    <table class="data-table" id="salesTable">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>SKU</th>
-                                <th>Sold Price</th>
-                                <th>Platform</th>
-                                <th>Condition</th>
-                                <th>Fees</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="salesBody">
-                            <tr><td colspan="7" style="text-align: center;">Loading...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Tab: Purchase History -->
-            <div class="tab-content" id="tab-purchases">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h2 style="margin: 0;">Purchase History</h2>
-                    <button class="action-btn action-btn-primary" id="addPurchase">Add Purchase</button>
-                </div>
-                <div class="products-table-wrapper">
-                    <table class="data-table" id="purchasesTable">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>SKU</th>
-                                <th>Price</th>
-                                <th>Supplier</th>
-                                <th>Condition</th>
-                                <th>Shipping</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="purchasesBody">
-                            <tr><td colspan="7" style="text-align: center;">Loading...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Tab: eBay Data -->
-            <div class="tab-content" id="tab-ebay">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h2 style="margin: 0;">eBay Market Data</h2>
-                    <button class="action-btn action-btn-primary" id="addEbayData">Add Entry</button>
-                </div>
-                <div class="products-table-wrapper">
-                    <table class="data-table" id="ebayTable">
-                        <thead>
-                            <tr>
-                                <th>Sold Date</th>
-                                <th>SKU</th>
-                                <th>Sold Price</th>
-                                <th>Condition</th>
-                                <th>Title</th>
-                                <th>Source</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="ebayBody">
-                            <tr><td colspan="7" style="text-align: center;">Loading...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Tab: Settings -->
-            <div class="tab-content" id="tab-settings">
-                <div class="settings-section">
-                    <h3>Recommendation Settings</h3>
-                    <form id="settingsForm">
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="targetMargin">Target Profit Margin (%)</label>
-                                <input type="number" id="targetMargin" step="1" min="0" max="100">
-                            </div>
-                            <div class="form-group">
-                                <label for="daysLookback">Days Lookback</label>
-                                <input type="number" id="daysLookback" step="1" min="7" max="365">
-                            </div>
-                            <div class="form-group">
-                                <label for="defaultShipping">Default Shipping Cost ($)</label>
-                                <input type="number" id="defaultShipping" step="0.01" min="0">
-                            </div>
-                        </div>
-                        <h4 style="margin-top: 24px;">Data Source Weights</h4>
-                        <p style="color: #666; font-size: 0.9rem; margin-bottom: 16px;">Weights must total 100%</p>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="salesWeight">Sales Weight (%)</label>
-                                <input type="number" id="salesWeight" step="1" min="0" max="100" class="weight-input">
-                            </div>
-                            <div class="form-group">
-                                <label for="ebayWeight">eBay Weight (%)</label>
-                                <input type="number" id="ebayWeight" step="1" min="0" max="100" class="weight-input">
-                            </div>
-                            <div class="form-group">
-                                <label for="purchaseWeight">Purchase Weight (%)</label>
-                                <input type="number" id="purchaseWeight" step="1" min="0" max="100" class="weight-input">
-                            </div>
-                        </div>
-                        <div class="weight-indicator">
-                            <span>Total:</span>
-                            <div class="weight-bar">
-                                <div class="weight-fill" id="weightFill" style="width: 100%"></div>
-                            </div>
-                            <span class="weight-total" id="weightTotal">100%</span>
-                        </div>
-                        <h4 style="margin-top: 24px;">Price Range Thresholds</h4>
-                        <p style="color: #666; font-size: 0.9rem; margin-bottom: 16px;">Percent of max recommended price</p>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="excellentThreshold">Excellent (up to %)</label>
-                                <input type="number" id="excellentThreshold" step="1" min="0" max="100">
-                            </div>
-                            <div class="form-group">
-                                <label for="goodThreshold">Good (up to %)</label>
-                                <input type="number" id="goodThreshold" step="1" min="0" max="100">
-                            </div>
-                            <div class="form-group">
-                                <label for="acceptableThreshold">Acceptable (up to %)</label>
-                                <input type="number" id="acceptableThreshold" step="1" min="0" max="100">
-                            </div>
-                        </div>
-                        <div style="margin-top: 24px; display: flex; gap: 12px;">
-                            <button type="submit" class="action-btn action-btn-primary">Save Settings</button>
-                            <button type="button" class="action-btn action-btn-secondary" id="resetSettings">Reset to Defaults</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
+        <div class="timestamp" id="timestamp"></div>
     </div>
-
-    <!-- Add/Edit Product Modal -->
-    <div class="modal" id="productModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <span class="modal-title" id="productModalTitle">Add Product</span>
-                <button class="modal-close" onclick="closeModal('productModal')">&times;</button>
-            </div>
-            <form id="productForm">
-                <input type="hidden" id="productEditSku">
-                <div class="form-group">
-                    <label for="productSku">SKU</label>
-                    <input type="text" id="productSku" required placeholder="e.g. APP2-USBC">
-                </div>
-                <div class="form-group">
-                    <label for="productName">Name</label>
-                    <input type="text" id="productName" required placeholder="e.g. AirPods Pro 2 (USB-C)">
-                </div>
-                <div class="form-group">
-                    <label for="productGeneration">Generation</label>
-                    <input type="text" id="productGeneration" required placeholder="e.g. AirPods Pro 2">
-                </div>
-                <div class="form-group">
-                    <label for="productVariant">Variant</label>
-                    <input type="text" id="productVariant" placeholder="e.g. USB-C">
-                </div>
-                <div class="form-group">
-                    <label for="productMsrp">MSRP ($)</label>
-                    <input type="number" id="productMsrp" step="0.01" min="0" required>
-                </div>
-                <div style="display: flex; gap: 12px; justify-content: flex-end;">
-                    <button type="button" class="action-btn action-btn-secondary" onclick="closeModal('productModal')">Cancel</button>
-                    <button type="submit" class="action-btn action-btn-primary">Save</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Add Sale Modal -->
-    <div class="modal" id="saleModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <span class="modal-title">Add Sale</span>
-                <button class="modal-close" onclick="closeModal('saleModal')">&times;</button>
-            </div>
-            <form id="saleForm">
-                <div class="form-group">
-                    <label for="saleSku">Product</label>
-                    <select id="saleSku" required></select>
-                </div>
-                <div class="form-group">
-                    <label for="salePrice">Sold Price ($)</label>
-                    <input type="number" id="salePrice" step="0.01" min="0" required>
-                </div>
-                <div class="form-group">
-                    <label for="saleDate">Sale Date</label>
-                    <input type="date" id="saleDate" required>
-                </div>
-                <div class="form-group">
-                    <label for="salePlatform">Platform</label>
-                    <select id="salePlatform" required>
-                        <option value="ebay">eBay</option>
-                        <option value="stockx">StockX</option>
-                        <option value="mercari">Mercari</option>
-                        <option value="facebook">Facebook Marketplace</option>
-                        <option value="offerup">OfferUp</option>
-                        <option value="craigslist">Craigslist</option>
-                        <option value="direct">Direct Sale</option>
-                        <option value="other">Other</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="saleCondition">Condition</label>
-                    <select id="saleCondition">
-                        <option value="new">New</option>
-                        <option value="like_new">Like New</option>
-                        <option value="used" selected>Used</option>
-                        <option value="refurbished">Refurbished</option>
-                    </select>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="saleFees">Transaction Fees ($)</label>
-                        <input type="number" id="saleFees" step="0.01" min="0">
-                    </div>
-                    <div class="form-group">
-                        <label for="saleShipping">Shipping Cost ($)</label>
-                        <input type="number" id="saleShipping" step="0.01" min="0">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label for="saleNotes">Notes</label>
-                    <textarea id="saleNotes" rows="2"></textarea>
-                </div>
-                <div style="display: flex; gap: 12px; justify-content: flex-end;">
-                    <button type="button" class="action-btn action-btn-secondary" onclick="closeModal('saleModal')">Cancel</button>
-                    <button type="submit" class="action-btn action-btn-primary">Add Sale</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Add Purchase Modal -->
-    <div class="modal" id="purchaseModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <span class="modal-title">Add Purchase</span>
-                <button class="modal-close" onclick="closeModal('purchaseModal')">&times;</button>
-            </div>
-            <form id="purchaseForm">
-                <div class="form-group">
-                    <label for="purchaseSku">Product</label>
-                    <select id="purchaseSku" required></select>
-                </div>
-                <div class="form-group">
-                    <label for="purchasePrice">Purchase Price ($)</label>
-                    <input type="number" id="purchasePrice" step="0.01" min="0" required>
-                </div>
-                <div class="form-group">
-                    <label for="purchaseDate">Purchase Date</label>
-                    <input type="date" id="purchaseDate" required>
-                </div>
-                <div class="form-group">
-                    <label for="purchaseSupplier">Supplier</label>
-                    <input type="text" id="purchaseSupplier" placeholder="e.g. eBay, Facebook, etc.">
-                </div>
-                <div class="form-group">
-                    <label for="purchaseCondition">Condition</label>
-                    <select id="purchaseCondition">
-                        <option value="new">New</option>
-                        <option value="like_new">Like New</option>
-                        <option value="used" selected>Used</option>
-                        <option value="for_parts">For Parts</option>
-                    </select>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="purchaseShipping">Shipping Cost ($)</label>
-                        <input type="number" id="purchaseShipping" step="0.01" min="0">
-                    </div>
-                    <div class="form-group">
-                        <label for="purchaseQty">Quantity</label>
-                        <input type="number" id="purchaseQty" min="1" value="1">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label for="purchaseNotes">Notes</label>
-                    <textarea id="purchaseNotes" rows="2"></textarea>
-                </div>
-                <div style="display: flex; gap: 12px; justify-content: flex-end;">
-                    <button type="button" class="action-btn action-btn-secondary" onclick="closeModal('purchaseModal')">Cancel</button>
-                    <button type="submit" class="action-btn action-btn-primary">Add Purchase</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Add eBay Data Modal -->
-    <div class="modal" id="ebayModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <span class="modal-title">Add eBay Market Data</span>
-                <button class="modal-close" onclick="closeModal('ebayModal')">&times;</button>
-            </div>
-            <form id="ebayForm">
-                <div class="form-group">
-                    <label for="ebaySku">Product</label>
-                    <select id="ebaySku" required></select>
-                </div>
-                <div class="form-group">
-                    <label for="ebayPrice">Sold Price ($)</label>
-                    <input type="number" id="ebayPrice" step="0.01" min="0" required>
-                </div>
-                <div class="form-group">
-                    <label for="ebayDate">Sold Date</label>
-                    <input type="date" id="ebayDate" required>
-                </div>
-                <div class="form-group">
-                    <label for="ebayCondition">Condition</label>
-                    <select id="ebayCondition">
-                        <option value="new">New</option>
-                        <option value="like_new">Like New</option>
-                        <option value="used" selected>Used</option>
-                        <option value="refurbished">Refurbished</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="ebayTitle">Listing Title</label>
-                    <input type="text" id="ebayTitle" placeholder="Optional - eBay listing title">
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="ebayItemId">eBay Item ID</label>
-                        <input type="text" id="ebayItemId" placeholder="Optional">
-                    </div>
-                    <div class="form-group">
-                        <label for="ebayShipping">Shipping ($)</label>
-                        <input type="number" id="ebayShipping" step="0.01" min="0">
-                    </div>
-                </div>
-                <div style="display: flex; gap: 12px; justify-content: flex-end;">
-                    <button type="button" class="action-btn action-btn-secondary" onclick="closeModal('ebayModal')">Cancel</button>
-                    <button type="submit" class="action-btn action-btn-primary">Add Entry</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Sidebar Overlay for Mobile -->
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
     <script src="../js/admin.js?v=1.0.6"></script>
-    <script src="../js/price-recommender.js?v=1.0.0"></script>
     <script>
-        // Sidebar toggle functionality
-        (function() {
-            const sidebarToggle = document.getElementById('sidebarToggle');
-            const sidebar = document.querySelector('.admin-sidebar');
-            const overlay = document.getElementById('sidebarOverlay');
+        async function loadSnapshot() {
+            const content = document.getElementById('snapshotContent');
+            const refreshBtn = document.getElementById('refreshBtn');
+            const minProfitEl = document.getElementById('minProfit');
+            const salesCountEl = document.getElementById('salesCount');
 
-            if (sidebarToggle && sidebar) {
-                sidebarToggle.addEventListener('click', function() {
-                    sidebar.classList.toggle('sidebar-open');
-                    if (overlay) {
-                        overlay.classList.toggle('active');
-                    }
-                });
+            // Check elements exist
+            if (!content) {
+                console.error('snapshotContent element not found');
+                return;
+            }
 
-                if (overlay) {
-                    overlay.addEventListener('click', function() {
-                        sidebar.classList.remove('sidebar-open');
-                        overlay.classList.remove('active');
-                    });
+            const minProfit = minProfitEl ? minProfitEl.value : 10;
+            const salesCount = salesCountEl ? salesCountEl.value : 5;
+
+            content.innerHTML = '<div class="loading">Loading...</div>';
+            if (refreshBtn) {
+                refreshBtn.disabled = true;
+                refreshBtn.textContent = 'Loading...';
+            }
+
+            try {
+                // Check if authenticatedFetch is available
+                if (typeof authenticatedFetch !== 'function') {
+                    throw new Error('Please refresh the page - authentication not ready');
+                }
+
+                const response = await authenticatedFetch(
+                    `/api/admin/price-snapshot?min_profit=${minProfit}&sales_count=${salesCount}`
+                );
+
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    throw new Error(errData.error || 'Failed to load snapshot');
+                }
+
+                const data = await response.json();
+
+                if (!data.snapshot || data.snapshot.length === 0) {
+                    content.innerHTML = `
+                        <div class="no-data">
+                            <p>No sales data found for Full Set products.</p>
+                            <p style="font-size: 0.9rem;">Make sure you have sold Full Set items recorded in the system.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                content.innerHTML = '<div class="snapshot-grid">' + data.snapshot.map(item => `
+                    <div class="snapshot-card">
+                        <div class="snapshot-card-header">
+                            <span class="generation-name">${item.generation}</span>
+                            <span class="sales-count">${item.sales_analyzed} sales</span>
+                        </div>
+                        <div class="max-bid">£${item.max_bid.toFixed(2)}</div>
+                        <div class="max-bid-label">Maximum bid to make £${minProfit} profit</div>
+                        <div class="breakdown">
+                            <div class="breakdown-row">
+                                <span>Avg Sale Price</span>
+                                <span>£${item.avg_sale_price.toFixed(2)}</span>
+                            </div>
+                            <div class="breakdown-row">
+                                <span>Avg Fees</span>
+                                <span class="minus">-£${item.avg_fees.toFixed(2)}</span>
+                            </div>
+                            <div class="breakdown-row">
+                                <span>Avg Consumables</span>
+                                <span class="minus">-£${item.avg_consumables.toFixed(2)}</span>
+                            </div>
+                            <div class="breakdown-row highlight">
+                                <span>Net Revenue</span>
+                                <span>£${item.avg_net_revenue.toFixed(2)}</span>
+                            </div>
+                            <div class="breakdown-row">
+                                <span>Min Profit Target</span>
+                                <span class="minus">-£${item.min_profit.toFixed(2)}</span>
+                            </div>
+                            <div class="breakdown-row highlight">
+                                <span>Max Bid</span>
+                                <span style="color: #0d9488;">£${item.max_bid.toFixed(2)}</span>
+                            </div>
+                        </div>
+                        ${item.last_sale_date ? `<div class="last-sale">Last sale: ${new Date(item.last_sale_date).toLocaleDateString()}</div>` : ''}
+                    </div>
+                `).join('') + '</div>';
+
+                document.getElementById('timestamp').textContent =
+                    'Generated: ' + new Date(data.generated_at).toLocaleString();
+
+            } catch (err) {
+                content.innerHTML = `<div class="error">Error: ${err.message}</div>`;
+            } finally {
+                if (refreshBtn) {
+                    refreshBtn.disabled = false;
+                    refreshBtn.textContent = 'Refresh';
                 }
             }
-        })();
+        }
+
+        // Load on page ready - wait a bit for admin.js to initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Small delay to ensure authenticatedFetch is available
+            setTimeout(loadSnapshot, 100);
+        });
     </script>
 </body>
 </html>
