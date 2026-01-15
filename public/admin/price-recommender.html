@@ -186,20 +186,37 @@
         async function loadSnapshot() {
             const content = document.getElementById('snapshotContent');
             const refreshBtn = document.getElementById('refreshBtn');
-            const minProfit = document.getElementById('minProfit').value || 10;
-            const salesCount = document.getElementById('salesCount').value || 5;
+            const minProfitEl = document.getElementById('minProfit');
+            const salesCountEl = document.getElementById('salesCount');
+
+            // Check elements exist
+            if (!content) {
+                console.error('snapshotContent element not found');
+                return;
+            }
+
+            const minProfit = minProfitEl ? minProfitEl.value : 10;
+            const salesCount = salesCountEl ? salesCountEl.value : 5;
 
             content.innerHTML = '<div class="loading">Loading...</div>';
-            refreshBtn.disabled = true;
-            refreshBtn.textContent = 'Loading...';
+            if (refreshBtn) {
+                refreshBtn.disabled = true;
+                refreshBtn.textContent = 'Loading...';
+            }
 
             try {
+                // Check if authenticatedFetch is available
+                if (typeof authenticatedFetch !== 'function') {
+                    throw new Error('Please refresh the page - authentication not ready');
+                }
+
                 const response = await authenticatedFetch(
                     `/api/admin/price-snapshot?min_profit=${minProfit}&sales_count=${salesCount}`
                 );
 
                 if (!response.ok) {
-                    throw new Error('Failed to load snapshot');
+                    const errData = await response.json().catch(() => ({}));
+                    throw new Error(errData.error || 'Failed to load snapshot');
                 }
 
                 const data = await response.json();
@@ -258,13 +275,18 @@
             } catch (err) {
                 content.innerHTML = `<div class="error">Error: ${err.message}</div>`;
             } finally {
-                refreshBtn.disabled = false;
-                refreshBtn.textContent = 'Refresh';
+                if (refreshBtn) {
+                    refreshBtn.disabled = false;
+                    refreshBtn.textContent = 'Refresh';
+                }
             }
         }
 
-        // Load on page ready
-        document.addEventListener('DOMContentLoaded', loadSnapshot);
+        // Load on page ready - wait a bit for admin.js to initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Small delay to ensure authenticatedFetch is available
+            setTimeout(loadSnapshot, 100);
+        });
     </script>
 </body>
 </html>
