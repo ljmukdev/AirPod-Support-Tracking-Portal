@@ -1167,6 +1167,45 @@ async function initializeDatabase() {
             }
         }
 
+        // Create indexes for price recommender collections
+        try {
+            // price_products - AirPods product catalog
+            await db.collection('price_products').createIndex({ sku: 1 }, { unique: true });
+            await db.collection('price_products').createIndex({ generation: 1 });
+            await db.collection('price_products').createIndex({ variant: 1 });
+            await db.collection('price_products').createIndex({ active: 1 });
+
+            // price_sales - Historical sales data
+            await db.collection('price_sales').createIndex({ sku: 1, sale_date: -1 });
+            await db.collection('price_sales').createIndex({ sale_date: -1 });
+            await db.collection('price_sales').createIndex({ platform: 1 });
+            await db.collection('price_sales').createIndex({ condition: 1 });
+
+            // price_purchases - Historical purchase data
+            await db.collection('price_purchases').createIndex({ sku: 1, purchase_date: -1 });
+            await db.collection('price_purchases').createIndex({ purchase_date: -1 });
+            await db.collection('price_purchases').createIndex({ supplier: 1 });
+
+            // ebay_market_data - Cached eBay sold listings
+            await db.collection('ebay_market_data').createIndex({ sku: 1, sold_date: -1 });
+            await db.collection('ebay_market_data').createIndex({ sold_date: -1 });
+            await db.collection('ebay_market_data').createIndex({ fetched_at: -1 });
+            await db.collection('ebay_market_data').createIndex({ condition: 1 });
+
+            // price_recommendations - Calculated price recommendations
+            await db.collection('price_recommendations').createIndex({ sku: 1 }, { unique: true });
+            await db.collection('price_recommendations').createIndex({ calculated_at: -1 });
+
+            // price_settings - Configuration settings
+            await db.collection('price_settings').createIndex({ key: 1 }, { unique: true });
+
+            console.log('  - Price recommender indexes created');
+        } catch (err) {
+            if (!err.message.includes('already exists') && !err.message.includes('E11000')) {
+                console.error('Warning: Could not create price recommender indexes:', err.message);
+            }
+        }
+
         console.log('Database indexes created');
 
         // Check if parts collection is empty and populate
@@ -14955,6 +14994,1108 @@ app.get('/api/health', async (req, res) => {
     const httpStatus = health.warranty_registration.ready ? 200 : 503;
     res.status(httpStatus).json(health);
 });
+
+// ============================================================================
+// PRICE RECOMMENDER API ENDPOINTS
+// ============================================================================
+
+// Default AirPods product catalog
+const DEFAULT_AIRPODS_PRODUCTS = [
+    { sku: 'APP2-USBC', name: 'AirPods Pro 2 (USB-C)', generation: 'AirPods Pro 2', variant: 'USB-C', msrp: 249.00 },
+    { sku: 'APP2-LIGHTNING', name: 'AirPods Pro 2 (Lightning)', generation: 'AirPods Pro 2', variant: 'Lightning', msrp: 249.00 },
+    { sku: 'APP1', name: 'AirPods Pro 1', generation: 'AirPods Pro 1', variant: 'Standard', msrp: 249.00 },
+    { sku: 'AP3', name: 'AirPods 3rd Gen', generation: 'AirPods 3', variant: 'Standard', msrp: 179.00 },
+    { sku: 'AP2', name: 'AirPods 2nd Gen', generation: 'AirPods 2', variant: 'Standard', msrp: 129.00 },
+    { sku: 'AP4-STD', name: 'AirPods 4 (Standard)', generation: 'AirPods 4', variant: 'Standard', msrp: 129.00 },
+    { sku: 'AP4-ANC', name: 'AirPods 4 (ANC)', generation: 'AirPods 4', variant: 'ANC', msrp: 179.00 },
+    { sku: 'APM-SILVER', name: 'AirPods Max (Silver)', generation: 'AirPods Max', variant: 'Silver', msrp: 549.00 },
+    { sku: 'APM-SPACEGRAY', name: 'AirPods Max (Space Gray)', generation: 'AirPods Max', variant: 'Space Gray', msrp: 549.00 },
+    { sku: 'APM-PINK', name: 'AirPods Max (Pink)', generation: 'AirPods Max', variant: 'Pink', msrp: 549.00 },
+    { sku: 'APM-GREEN', name: 'AirPods Max (Green)', generation: 'AirPods Max', variant: 'Green', msrp: 549.00 },
+    { sku: 'APM-SKYBLUE', name: 'AirPods Max (Sky Blue)', generation: 'AirPods Max', variant: 'Sky Blue', msrp: 549.00 },
+    { sku: 'APM-MIDNIGHT', name: 'AirPods Max (Midnight)', generation: 'AirPods Max', variant: 'Midnight', msrp: 549.00 },
+    { sku: 'APM-STARLIGHT', name: 'AirPods Max (Starlight)', generation: 'AirPods Max', variant: 'Starlight', msrp: 549.00 },
+    { sku: 'APM-BLUE', name: 'AirPods Max (Blue)', generation: 'AirPods Max', variant: 'Blue', msrp: 549.00 },
+    { sku: 'APM-PURPLE', name: 'AirPods Max (Purple)', generation: 'AirPods Max', variant: 'Purple', msrp: 549.00 },
+    { sku: 'APM-ORANGE', name: 'AirPods Max (Orange)', generation: 'AirPods Max', variant: 'Orange', msrp: 549.00 }
+];
+
+// Platform fee rates
+const PLATFORM_FEES = {
+    'ebay': 0.13,
+    'stockx': 0.10,
+    'mercari': 0.10,
+    'facebook': 0.05,
+    'offerup': 0.0,
+    'craigslist': 0.0,
+    'direct': 0.0,
+    'other': 0.10
+};
+
+// Default recommendation settings
+const DEFAULT_PRICE_SETTINGS = {
+    target_profit_margin: 0.15,
+    sales_weight: 0.35,
+    ebay_weight: 0.50,
+    purchase_weight: 0.15,
+    default_shipping_cost: 8.00,
+    excellent_threshold: 0.85,
+    good_threshold: 0.95,
+    acceptable_threshold: 1.00,
+    days_lookback: 90
+};
+
+// Helper function to get price settings
+async function getPriceSettings() {
+    const settings = await db.collection('price_settings').findOne({ key: 'main' });
+    return settings ? settings.value : DEFAULT_PRICE_SETTINGS;
+}
+
+// Helper function to calculate recommendation for a SKU
+async function calculateRecommendation(sku, settings = null) {
+    if (!settings) {
+        settings = await getPriceSettings();
+    }
+
+    const product = await db.collection('price_products').findOne({ sku });
+    if (!product) {
+        return null;
+    }
+
+    const lookbackDate = new Date();
+    lookbackDate.setDate(lookbackDate.getDate() - settings.days_lookback);
+
+    // Get historical sales data
+    const salesData = await db.collection('price_sales')
+        .find({ sku, sale_date: { $gte: lookbackDate } })
+        .sort({ sale_date: -1 })
+        .toArray();
+
+    // Get eBay market data
+    const ebayData = await db.collection('ebay_market_data')
+        .find({ sku, sold_date: { $gte: lookbackDate } })
+        .sort({ sold_date: -1 })
+        .toArray();
+
+    // Get purchase history
+    const purchaseData = await db.collection('price_purchases')
+        .find({ sku, purchase_date: { $gte: lookbackDate } })
+        .sort({ purchase_date: -1 })
+        .toArray();
+
+    // Calculate averages
+    let salesAvg = 0, salesCount = 0;
+    let salesNetAvg = 0;
+    if (salesData.length > 0) {
+        salesCount = salesData.length;
+        const salesSum = salesData.reduce((sum, s) => sum + (s.sold_price || 0), 0);
+        salesAvg = salesSum / salesCount;
+
+        // Calculate net after fees
+        const salesNetSum = salesData.reduce((sum, s) => {
+            const fees = s.transaction_fees || (s.sold_price * (PLATFORM_FEES[s.platform] || 0.10));
+            const shipping = s.shipping_cost || settings.default_shipping_cost;
+            return sum + (s.sold_price - fees - shipping);
+        }, 0);
+        salesNetAvg = salesNetSum / salesCount;
+    }
+
+    let ebayAvg = 0, ebayCount = 0;
+    let ebayNetAvg = 0;
+    if (ebayData.length > 0) {
+        ebayCount = ebayData.length;
+        const ebaySum = ebayData.reduce((sum, e) => sum + (e.sold_price || 0), 0);
+        ebayAvg = ebaySum / ebayCount;
+
+        // Calculate net after eBay fees (~13%) and shipping
+        const ebayNetSum = ebayData.reduce((sum, e) => {
+            const fees = e.sold_price * PLATFORM_FEES['ebay'];
+            const shipping = e.shipping_cost || settings.default_shipping_cost;
+            return sum + (e.sold_price - fees - shipping);
+        }, 0);
+        ebayNetAvg = ebayNetSum / ebayCount;
+    }
+
+    let purchaseAvg = 0, purchaseCount = 0;
+    if (purchaseData.length > 0) {
+        purchaseCount = purchaseData.length;
+        const purchaseSum = purchaseData.reduce((sum, p) => sum + (p.purchase_price || 0) + (p.shipping_cost || 0), 0);
+        purchaseAvg = purchaseSum / purchaseCount;
+    }
+
+    // Calculate weighted average net price
+    let weightedNetPrice = 0;
+    let totalWeight = 0;
+
+    if (salesCount > 0) {
+        weightedNetPrice += salesNetAvg * settings.sales_weight;
+        totalWeight += settings.sales_weight;
+    }
+
+    if (ebayCount > 0) {
+        weightedNetPrice += ebayNetAvg * settings.ebay_weight;
+        totalWeight += settings.ebay_weight;
+    }
+
+    if (purchaseCount > 0) {
+        // Use purchase as a reference for cost basis
+        weightedNetPrice += purchaseAvg * (1 + settings.target_profit_margin) * settings.purchase_weight;
+        totalWeight += settings.purchase_weight;
+    }
+
+    // Normalize if we have data
+    if (totalWeight > 0) {
+        weightedNetPrice = weightedNetPrice / totalWeight;
+    } else {
+        // Fallback to MSRP-based calculation
+        weightedNetPrice = product.msrp * 0.5;
+    }
+
+    // Calculate max purchase price (what you should pay to achieve target margin)
+    const maxPurchasePrice = weightedNetPrice / (1 + settings.target_profit_margin);
+
+    // Calculate price ranges
+    const excellentPrice = maxPurchasePrice * settings.excellent_threshold;
+    const goodPrice = maxPurchasePrice * settings.good_threshold;
+    const acceptablePrice = maxPurchasePrice * settings.acceptable_threshold;
+
+    return {
+        sku,
+        product_name: product.name,
+        generation: product.generation,
+        variant: product.variant,
+        msrp: product.msrp,
+        max_purchase_price: Math.round(maxPurchasePrice * 100) / 100,
+        price_ranges: {
+            excellent: { max: Math.round(excellentPrice * 100) / 100, label: 'Excellent Deal' },
+            good: { min: Math.round(excellentPrice * 100) / 100, max: Math.round(goodPrice * 100) / 100, label: 'Good Deal' },
+            acceptable: { min: Math.round(goodPrice * 100) / 100, max: Math.round(acceptablePrice * 100) / 100, label: 'Acceptable' },
+            avoid: { min: Math.round(acceptablePrice * 100) / 100, label: 'Avoid' }
+        },
+        data_sources: {
+            sales: { count: salesCount, avg_price: Math.round(salesAvg * 100) / 100, avg_net: Math.round(salesNetAvg * 100) / 100 },
+            ebay: { count: ebayCount, avg_price: Math.round(ebayAvg * 100) / 100, avg_net: Math.round(ebayNetAvg * 100) / 100 },
+            purchases: { count: purchaseCount, avg_cost: Math.round(purchaseAvg * 100) / 100 }
+        },
+        weighted_net_price: Math.round(weightedNetPrice * 100) / 100,
+        target_profit_margin: settings.target_profit_margin,
+        calculated_at: new Date()
+    };
+}
+
+// Initialize default products if collection is empty
+app.post('/api/admin/price-recommender/init', requireAuth, requireDB, async (req, res) => {
+    try {
+        const count = await db.collection('price_products').countDocuments();
+        if (count > 0) {
+            return res.json({ success: true, message: 'Products already initialized', count });
+        }
+
+        const products = DEFAULT_AIRPODS_PRODUCTS.map(p => ({
+            ...p,
+            active: true,
+            created_at: new Date(),
+            updated_at: new Date()
+        }));
+
+        await db.collection('price_products').insertMany(products);
+
+        // Also initialize settings
+        await db.collection('price_settings').updateOne(
+            { key: 'main' },
+            { $set: { key: 'main', value: DEFAULT_PRICE_SETTINGS, updated_at: new Date() } },
+            { upsert: true }
+        );
+
+        res.json({ success: true, message: 'Initialized default products and settings', count: products.length });
+    } catch (err) {
+        console.error('Error initializing price products:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// ============================================================================
+// PRICE PRODUCTS (Catalog) ENDPOINTS
+// ============================================================================
+
+// GET all products
+app.get('/api/admin/price-recommender/products', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { generation, active } = req.query;
+        const query = {};
+
+        if (generation) query.generation = generation;
+        if (active !== undefined) query.active = active === 'true';
+
+        const products = await db.collection('price_products')
+            .find(query)
+            .sort({ generation: 1, variant: 1 })
+            .toArray();
+
+        res.json({ success: true, products, count: products.length });
+    } catch (err) {
+        console.error('Error fetching price products:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// GET single product
+app.get('/api/admin/price-recommender/products/:sku', requireAuth, requireDB, async (req, res) => {
+    try {
+        const product = await db.collection('price_products').findOne({ sku: req.params.sku });
+        if (!product) {
+            return res.status(404).json({ error: 'Product not found' });
+        }
+        res.json({ success: true, product });
+    } catch (err) {
+        console.error('Error fetching price product:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// POST create product
+app.post('/api/admin/price-recommender/products', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { sku, name, generation, variant, msrp } = req.body;
+
+        if (!sku || !name || !generation || !msrp) {
+            return res.status(400).json({ error: 'Missing required fields: sku, name, generation, msrp' });
+        }
+
+        const existing = await db.collection('price_products').findOne({ sku });
+        if (existing) {
+            return res.status(409).json({ error: 'Product with this SKU already exists' });
+        }
+
+        const product = {
+            sku: sku.toUpperCase(),
+            name,
+            generation,
+            variant: variant || 'Standard',
+            msrp: parseFloat(msrp),
+            active: true,
+            created_at: new Date(),
+            updated_at: new Date()
+        };
+
+        const result = await db.collection('price_products').insertOne(product);
+        res.json({ success: true, message: 'Product created', id: result.insertedId, product });
+    } catch (err) {
+        console.error('Error creating price product:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// PUT update product
+app.put('/api/admin/price-recommender/products/:sku', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { name, generation, variant, msrp, active } = req.body;
+        const updates = { updated_at: new Date() };
+
+        if (name !== undefined) updates.name = name;
+        if (generation !== undefined) updates.generation = generation;
+        if (variant !== undefined) updates.variant = variant;
+        if (msrp !== undefined) updates.msrp = parseFloat(msrp);
+        if (active !== undefined) updates.active = active;
+
+        const result = await db.collection('price_products').updateOne(
+            { sku: req.params.sku },
+            { $set: updates }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ error: 'Product not found' });
+        }
+
+        res.json({ success: true, message: 'Product updated' });
+    } catch (err) {
+        console.error('Error updating price product:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// DELETE product
+app.delete('/api/admin/price-recommender/products/:sku', requireAuth, requireDB, async (req, res) => {
+    try {
+        const result = await db.collection('price_products').deleteOne({ sku: req.params.sku });
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ error: 'Product not found' });
+        }
+        res.json({ success: true, message: 'Product deleted' });
+    } catch (err) {
+        console.error('Error deleting price product:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// ============================================================================
+// PRICE SALES (Historical Sales) ENDPOINTS
+// ============================================================================
+
+// GET all sales
+app.get('/api/admin/price-recommender/sales', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { sku, platform, condition, limit = 100, offset = 0 } = req.query;
+        const query = {};
+
+        if (sku) query.sku = sku;
+        if (platform) query.platform = platform;
+        if (condition) query.condition = condition;
+
+        const sales = await db.collection('price_sales')
+            .find(query)
+            .sort({ sale_date: -1 })
+            .skip(parseInt(offset))
+            .limit(parseInt(limit))
+            .toArray();
+
+        const total = await db.collection('price_sales').countDocuments(query);
+
+        res.json({ success: true, sales, total, limit: parseInt(limit), offset: parseInt(offset) });
+    } catch (err) {
+        console.error('Error fetching price sales:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// GET single sale
+app.get('/api/admin/price-recommender/sales/:id', requireAuth, requireDB, async (req, res) => {
+    try {
+        const sale = await db.collection('price_sales').findOne({ _id: new ObjectId(req.params.id) });
+        if (!sale) {
+            return res.status(404).json({ error: 'Sale not found' });
+        }
+        res.json({ success: true, sale });
+    } catch (err) {
+        console.error('Error fetching price sale:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// POST create sale
+app.post('/api/admin/price-recommender/sales', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { sku, sold_price, sale_date, platform, condition, transaction_fees, shipping_cost, notes } = req.body;
+
+        if (!sku || !sold_price || !sale_date || !platform) {
+            return res.status(400).json({ error: 'Missing required fields: sku, sold_price, sale_date, platform' });
+        }
+
+        const sale = {
+            sku: sku.toUpperCase(),
+            sold_price: parseFloat(sold_price),
+            sale_date: new Date(sale_date),
+            platform: platform.toLowerCase(),
+            condition: condition || 'used',
+            transaction_fees: transaction_fees ? parseFloat(transaction_fees) : null,
+            shipping_cost: shipping_cost ? parseFloat(shipping_cost) : null,
+            notes: notes || '',
+            created_at: new Date(),
+            created_by: req.user?.username || 'admin'
+        };
+
+        const result = await db.collection('price_sales').insertOne(sale);
+        res.json({ success: true, message: 'Sale recorded', id: result.insertedId });
+    } catch (err) {
+        console.error('Error creating price sale:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// POST bulk import sales
+app.post('/api/admin/price-recommender/sales/bulk', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { sales } = req.body;
+
+        if (!Array.isArray(sales) || sales.length === 0) {
+            return res.status(400).json({ error: 'sales must be a non-empty array' });
+        }
+
+        const processedSales = sales.map(s => ({
+            sku: s.sku.toUpperCase(),
+            sold_price: parseFloat(s.sold_price),
+            sale_date: new Date(s.sale_date),
+            platform: s.platform.toLowerCase(),
+            condition: s.condition || 'used',
+            transaction_fees: s.transaction_fees ? parseFloat(s.transaction_fees) : null,
+            shipping_cost: s.shipping_cost ? parseFloat(s.shipping_cost) : null,
+            notes: s.notes || '',
+            created_at: new Date(),
+            created_by: req.user?.username || 'admin'
+        }));
+
+        const result = await db.collection('price_sales').insertMany(processedSales);
+        res.json({ success: true, message: `Imported ${result.insertedCount} sales`, count: result.insertedCount });
+    } catch (err) {
+        console.error('Error bulk importing sales:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// PUT update sale
+app.put('/api/admin/price-recommender/sales/:id', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { sold_price, sale_date, platform, condition, transaction_fees, shipping_cost, notes } = req.body;
+        const updates = {};
+
+        if (sold_price !== undefined) updates.sold_price = parseFloat(sold_price);
+        if (sale_date !== undefined) updates.sale_date = new Date(sale_date);
+        if (platform !== undefined) updates.platform = platform.toLowerCase();
+        if (condition !== undefined) updates.condition = condition;
+        if (transaction_fees !== undefined) updates.transaction_fees = parseFloat(transaction_fees);
+        if (shipping_cost !== undefined) updates.shipping_cost = parseFloat(shipping_cost);
+        if (notes !== undefined) updates.notes = notes;
+
+        const result = await db.collection('price_sales').updateOne(
+            { _id: new ObjectId(req.params.id) },
+            { $set: updates }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ error: 'Sale not found' });
+        }
+
+        res.json({ success: true, message: 'Sale updated' });
+    } catch (err) {
+        console.error('Error updating price sale:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// DELETE sale
+app.delete('/api/admin/price-recommender/sales/:id', requireAuth, requireDB, async (req, res) => {
+    try {
+        const result = await db.collection('price_sales').deleteOne({ _id: new ObjectId(req.params.id) });
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ error: 'Sale not found' });
+        }
+        res.json({ success: true, message: 'Sale deleted' });
+    } catch (err) {
+        console.error('Error deleting price sale:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// ============================================================================
+// PRICE PURCHASES (Historical Purchases) ENDPOINTS
+// ============================================================================
+
+// GET all purchases
+app.get('/api/admin/price-recommender/purchases', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { sku, supplier, limit = 100, offset = 0 } = req.query;
+        const query = {};
+
+        if (sku) query.sku = sku;
+        if (supplier) query.supplier = new RegExp(supplier, 'i');
+
+        const purchases = await db.collection('price_purchases')
+            .find(query)
+            .sort({ purchase_date: -1 })
+            .skip(parseInt(offset))
+            .limit(parseInt(limit))
+            .toArray();
+
+        const total = await db.collection('price_purchases').countDocuments(query);
+
+        res.json({ success: true, purchases, total, limit: parseInt(limit), offset: parseInt(offset) });
+    } catch (err) {
+        console.error('Error fetching price purchases:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// GET single purchase
+app.get('/api/admin/price-recommender/purchases/:id', requireAuth, requireDB, async (req, res) => {
+    try {
+        const purchase = await db.collection('price_purchases').findOne({ _id: new ObjectId(req.params.id) });
+        if (!purchase) {
+            return res.status(404).json({ error: 'Purchase not found' });
+        }
+        res.json({ success: true, purchase });
+    } catch (err) {
+        console.error('Error fetching price purchase:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// POST create purchase
+app.post('/api/admin/price-recommender/purchases', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { sku, purchase_price, purchase_date, supplier, condition, shipping_cost, quantity, notes } = req.body;
+
+        if (!sku || !purchase_price || !purchase_date) {
+            return res.status(400).json({ error: 'Missing required fields: sku, purchase_price, purchase_date' });
+        }
+
+        const purchase = {
+            sku: sku.toUpperCase(),
+            purchase_price: parseFloat(purchase_price),
+            purchase_date: new Date(purchase_date),
+            supplier: supplier || 'Unknown',
+            condition: condition || 'used',
+            shipping_cost: shipping_cost ? parseFloat(shipping_cost) : 0,
+            quantity: quantity ? parseInt(quantity) : 1,
+            notes: notes || '',
+            created_at: new Date(),
+            created_by: req.user?.username || 'admin'
+        };
+
+        const result = await db.collection('price_purchases').insertOne(purchase);
+        res.json({ success: true, message: 'Purchase recorded', id: result.insertedId });
+    } catch (err) {
+        console.error('Error creating price purchase:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// POST bulk import purchases
+app.post('/api/admin/price-recommender/purchases/bulk', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { purchases } = req.body;
+
+        if (!Array.isArray(purchases) || purchases.length === 0) {
+            return res.status(400).json({ error: 'purchases must be a non-empty array' });
+        }
+
+        const processedPurchases = purchases.map(p => ({
+            sku: p.sku.toUpperCase(),
+            purchase_price: parseFloat(p.purchase_price),
+            purchase_date: new Date(p.purchase_date),
+            supplier: p.supplier || 'Unknown',
+            condition: p.condition || 'used',
+            shipping_cost: p.shipping_cost ? parseFloat(p.shipping_cost) : 0,
+            quantity: p.quantity ? parseInt(p.quantity) : 1,
+            notes: p.notes || '',
+            created_at: new Date(),
+            created_by: req.user?.username || 'admin'
+        }));
+
+        const result = await db.collection('price_purchases').insertMany(processedPurchases);
+        res.json({ success: true, message: `Imported ${result.insertedCount} purchases`, count: result.insertedCount });
+    } catch (err) {
+        console.error('Error bulk importing purchases:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// PUT update purchase
+app.put('/api/admin/price-recommender/purchases/:id', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { purchase_price, purchase_date, supplier, condition, shipping_cost, quantity, notes } = req.body;
+        const updates = {};
+
+        if (purchase_price !== undefined) updates.purchase_price = parseFloat(purchase_price);
+        if (purchase_date !== undefined) updates.purchase_date = new Date(purchase_date);
+        if (supplier !== undefined) updates.supplier = supplier;
+        if (condition !== undefined) updates.condition = condition;
+        if (shipping_cost !== undefined) updates.shipping_cost = parseFloat(shipping_cost);
+        if (quantity !== undefined) updates.quantity = parseInt(quantity);
+        if (notes !== undefined) updates.notes = notes;
+
+        const result = await db.collection('price_purchases').updateOne(
+            { _id: new ObjectId(req.params.id) },
+            { $set: updates }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ error: 'Purchase not found' });
+        }
+
+        res.json({ success: true, message: 'Purchase updated' });
+    } catch (err) {
+        console.error('Error updating price purchase:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// DELETE purchase
+app.delete('/api/admin/price-recommender/purchases/:id', requireAuth, requireDB, async (req, res) => {
+    try {
+        const result = await db.collection('price_purchases').deleteOne({ _id: new ObjectId(req.params.id) });
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ error: 'Purchase not found' });
+        }
+        res.json({ success: true, message: 'Purchase deleted' });
+    } catch (err) {
+        console.error('Error deleting price purchase:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// ============================================================================
+// EBAY MARKET DATA ENDPOINTS
+// ============================================================================
+
+// GET eBay market data
+app.get('/api/admin/price-recommender/ebay-market-data', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { sku, condition, limit = 100, offset = 0 } = req.query;
+        const query = {};
+
+        if (sku) query.sku = sku;
+        if (condition) query.condition = condition;
+
+        const data = await db.collection('ebay_market_data')
+            .find(query)
+            .sort({ sold_date: -1 })
+            .skip(parseInt(offset))
+            .limit(parseInt(limit))
+            .toArray();
+
+        const total = await db.collection('ebay_market_data').countDocuments(query);
+
+        res.json({ success: true, data, total, limit: parseInt(limit), offset: parseInt(offset) });
+    } catch (err) {
+        console.error('Error fetching eBay market data:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// GET eBay market data stats
+app.get('/api/admin/price-recommender/ebay-market-data/stats', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { sku, days = 90 } = req.query;
+        const lookbackDate = new Date();
+        lookbackDate.setDate(lookbackDate.getDate() - parseInt(days));
+
+        const matchStage = { sold_date: { $gte: lookbackDate } };
+        if (sku) matchStage.sku = sku;
+
+        const stats = await db.collection('ebay_market_data').aggregate([
+            { $match: matchStage },
+            {
+                $group: {
+                    _id: '$sku',
+                    count: { $sum: 1 },
+                    avg_price: { $avg: '$sold_price' },
+                    min_price: { $min: '$sold_price' },
+                    max_price: { $max: '$sold_price' },
+                    latest_date: { $max: '$sold_date' }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ]).toArray();
+
+        res.json({ success: true, stats, days: parseInt(days) });
+    } catch (err) {
+        console.error('Error fetching eBay market stats:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// POST add manual eBay market data entry
+app.post('/api/admin/price-recommender/ebay-market-data', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { sku, sold_price, sold_date, condition, listing_title, item_id, shipping_cost } = req.body;
+
+        if (!sku || !sold_price || !sold_date) {
+            return res.status(400).json({ error: 'Missing required fields: sku, sold_price, sold_date' });
+        }
+
+        const entry = {
+            sku: sku.toUpperCase(),
+            sold_price: parseFloat(sold_price),
+            sold_date: new Date(sold_date),
+            condition: condition || 'used',
+            listing_title: listing_title || '',
+            item_id: item_id || null,
+            shipping_cost: shipping_cost ? parseFloat(shipping_cost) : null,
+            source: 'manual',
+            fetched_at: new Date(),
+            created_by: req.user?.username || 'admin'
+        };
+
+        const result = await db.collection('ebay_market_data').insertOne(entry);
+        res.json({ success: true, message: 'eBay market data entry added', id: result.insertedId });
+    } catch (err) {
+        console.error('Error adding eBay market data:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// POST bulk import eBay market data
+app.post('/api/admin/price-recommender/ebay-market-data/bulk', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { entries } = req.body;
+
+        if (!Array.isArray(entries) || entries.length === 0) {
+            return res.status(400).json({ error: 'entries must be a non-empty array' });
+        }
+
+        const processedEntries = entries.map(e => ({
+            sku: e.sku.toUpperCase(),
+            sold_price: parseFloat(e.sold_price),
+            sold_date: new Date(e.sold_date),
+            condition: e.condition || 'used',
+            listing_title: e.listing_title || '',
+            item_id: e.item_id || null,
+            shipping_cost: e.shipping_cost ? parseFloat(e.shipping_cost) : null,
+            source: 'manual_bulk',
+            fetched_at: new Date(),
+            created_by: req.user?.username || 'admin'
+        }));
+
+        const result = await db.collection('ebay_market_data').insertMany(processedEntries);
+        res.json({ success: true, message: `Imported ${result.insertedCount} entries`, count: result.insertedCount });
+    } catch (err) {
+        console.error('Error bulk importing eBay market data:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// DELETE eBay market data entry
+app.delete('/api/admin/price-recommender/ebay-market-data/:id', requireAuth, requireDB, async (req, res) => {
+    try {
+        const result = await db.collection('ebay_market_data').deleteOne({ _id: new ObjectId(req.params.id) });
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ error: 'Entry not found' });
+        }
+        res.json({ success: true, message: 'Entry deleted' });
+    } catch (err) {
+        console.error('Error deleting eBay market data:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// DELETE all eBay market data for a SKU
+app.delete('/api/admin/price-recommender/ebay-market-data/sku/:sku', requireAuth, requireDB, async (req, res) => {
+    try {
+        const result = await db.collection('ebay_market_data').deleteMany({ sku: req.params.sku.toUpperCase() });
+        res.json({ success: true, message: `Deleted ${result.deletedCount} entries for SKU ${req.params.sku}` });
+    } catch (err) {
+        console.error('Error deleting eBay market data:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// ============================================================================
+// PRICE RECOMMENDATIONS ENDPOINTS
+// ============================================================================
+
+// GET all recommendations (cached)
+app.get('/api/admin/price-recommender/recommendations', requireAuth, requireDB, async (req, res) => {
+    try {
+        const recommendations = await db.collection('price_recommendations')
+            .find({})
+            .sort({ sku: 1 })
+            .toArray();
+
+        res.json({ success: true, recommendations, count: recommendations.length });
+    } catch (err) {
+        console.error('Error fetching recommendations:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// GET recommendation for a specific SKU (cached or fresh)
+app.get('/api/admin/price-recommender/recommendations/:sku', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { refresh } = req.query;
+        const sku = req.params.sku.toUpperCase();
+
+        if (refresh === 'true') {
+            const recommendation = await calculateRecommendation(sku);
+            if (!recommendation) {
+                return res.status(404).json({ error: 'Product not found' });
+            }
+
+            // Cache the recommendation
+            await db.collection('price_recommendations').updateOne(
+                { sku },
+                { $set: recommendation },
+                { upsert: true }
+            );
+
+            return res.json({ success: true, recommendation, source: 'fresh' });
+        }
+
+        // Try to get cached recommendation
+        let recommendation = await db.collection('price_recommendations').findOne({ sku });
+
+        if (!recommendation) {
+            // Calculate fresh if no cache
+            recommendation = await calculateRecommendation(sku);
+            if (!recommendation) {
+                return res.status(404).json({ error: 'Product not found' });
+            }
+
+            // Cache it
+            await db.collection('price_recommendations').updateOne(
+                { sku },
+                { $set: recommendation },
+                { upsert: true }
+            );
+
+            return res.json({ success: true, recommendation, source: 'fresh' });
+        }
+
+        res.json({ success: true, recommendation, source: 'cached' });
+    } catch (err) {
+        console.error('Error fetching recommendation:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// POST calculate fresh recommendations for all products
+app.post('/api/admin/price-recommender/recommendations/calculate-all', requireAuth, requireDB, async (req, res) => {
+    try {
+        const products = await db.collection('price_products').find({ active: true }).toArray();
+        const settings = await getPriceSettings();
+        const results = [];
+
+        for (const product of products) {
+            const recommendation = await calculateRecommendation(product.sku, settings);
+            if (recommendation) {
+                await db.collection('price_recommendations').updateOne(
+                    { sku: product.sku },
+                    { $set: recommendation },
+                    { upsert: true }
+                );
+                results.push({ sku: product.sku, max_purchase_price: recommendation.max_purchase_price });
+            }
+        }
+
+        res.json({
+            success: true,
+            message: `Calculated recommendations for ${results.length} products`,
+            results
+        });
+    } catch (err) {
+        console.error('Error calculating all recommendations:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// ============================================================================
+// PRICE EVALUATION ENDPOINT
+// ============================================================================
+
+// POST evaluate a proposed purchase price
+app.post('/api/admin/price-recommender/evaluate', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { sku, proposed_price } = req.body;
+
+        if (!sku || proposed_price === undefined) {
+            return res.status(400).json({ error: 'Missing required fields: sku, proposed_price' });
+        }
+
+        const price = parseFloat(proposed_price);
+        const skuUpper = sku.toUpperCase();
+
+        // Get or calculate recommendation
+        let recommendation = await db.collection('price_recommendations').findOne({ sku: skuUpper });
+
+        if (!recommendation) {
+            recommendation = await calculateRecommendation(skuUpper);
+            if (!recommendation) {
+                return res.status(404).json({ error: 'Product not found' });
+            }
+            // Cache it
+            await db.collection('price_recommendations').updateOne(
+                { sku: skuUpper },
+                { $set: recommendation },
+                { upsert: true }
+            );
+        }
+
+        const maxPrice = recommendation.max_purchase_price;
+        const ranges = recommendation.price_ranges;
+
+        let evaluation, rating, color;
+        const percentOfMax = (price / maxPrice) * 100;
+
+        if (price <= ranges.excellent.max) {
+            evaluation = 'excellent';
+            rating = 'Excellent Deal!';
+            color = '#10b981'; // green
+        } else if (price <= ranges.good.max) {
+            evaluation = 'good';
+            rating = 'Good Deal';
+            color = '#3b82f6'; // blue
+        } else if (price <= ranges.acceptable.max) {
+            evaluation = 'acceptable';
+            rating = 'Acceptable';
+            color = '#f59e0b'; // amber
+        } else {
+            evaluation = 'avoid';
+            rating = 'Avoid - Too Expensive';
+            color = '#ef4444'; // red
+        }
+
+        // Calculate potential profit/loss
+        const settings = await getPriceSettings();
+        const estimatedSalePrice = recommendation.weighted_net_price * (1 + settings.target_profit_margin);
+        const estimatedProfit = recommendation.weighted_net_price - price;
+        const profitMargin = price > 0 ? (estimatedProfit / price) * 100 : 0;
+
+        res.json({
+            success: true,
+            evaluation: {
+                sku: skuUpper,
+                product_name: recommendation.product_name,
+                proposed_price: price,
+                max_purchase_price: maxPrice,
+                percent_of_max: Math.round(percentOfMax * 10) / 10,
+                rating: evaluation,
+                rating_label: rating,
+                color,
+                price_ranges: ranges,
+                financials: {
+                    estimated_net_revenue: Math.round(recommendation.weighted_net_price * 100) / 100,
+                    estimated_profit: Math.round(estimatedProfit * 100) / 100,
+                    profit_margin_percent: Math.round(profitMargin * 10) / 10
+                },
+                recommendation_age: recommendation.calculated_at,
+                data_points: recommendation.data_sources
+            }
+        });
+    } catch (err) {
+        console.error('Error evaluating price:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// ============================================================================
+// PRICE SETTINGS ENDPOINTS
+// ============================================================================
+
+// GET settings
+app.get('/api/admin/price-recommender/settings', requireAuth, requireDB, async (req, res) => {
+    try {
+        const settings = await getPriceSettings();
+        res.json({ success: true, settings, defaults: DEFAULT_PRICE_SETTINGS });
+    } catch (err) {
+        console.error('Error fetching price settings:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// PUT update settings
+app.put('/api/admin/price-recommender/settings', requireAuth, requireDB, async (req, res) => {
+    try {
+        const {
+            target_profit_margin,
+            sales_weight,
+            ebay_weight,
+            purchase_weight,
+            default_shipping_cost,
+            excellent_threshold,
+            good_threshold,
+            acceptable_threshold,
+            days_lookback
+        } = req.body;
+
+        const currentSettings = await getPriceSettings();
+        const updates = { ...currentSettings };
+
+        if (target_profit_margin !== undefined) updates.target_profit_margin = parseFloat(target_profit_margin);
+        if (sales_weight !== undefined) updates.sales_weight = parseFloat(sales_weight);
+        if (ebay_weight !== undefined) updates.ebay_weight = parseFloat(ebay_weight);
+        if (purchase_weight !== undefined) updates.purchase_weight = parseFloat(purchase_weight);
+        if (default_shipping_cost !== undefined) updates.default_shipping_cost = parseFloat(default_shipping_cost);
+        if (excellent_threshold !== undefined) updates.excellent_threshold = parseFloat(excellent_threshold);
+        if (good_threshold !== undefined) updates.good_threshold = parseFloat(good_threshold);
+        if (acceptable_threshold !== undefined) updates.acceptable_threshold = parseFloat(acceptable_threshold);
+        if (days_lookback !== undefined) updates.days_lookback = parseInt(days_lookback);
+
+        // Validate weights sum to ~1.0
+        const totalWeight = updates.sales_weight + updates.ebay_weight + updates.purchase_weight;
+        if (totalWeight < 0.99 || totalWeight > 1.01) {
+            return res.status(400).json({
+                error: `Weights must sum to 1.0 (currently ${totalWeight.toFixed(2)})`,
+                current_weights: {
+                    sales: updates.sales_weight,
+                    ebay: updates.ebay_weight,
+                    purchase: updates.purchase_weight,
+                    total: totalWeight
+                }
+            });
+        }
+
+        await db.collection('price_settings').updateOne(
+            { key: 'main' },
+            { $set: { key: 'main', value: updates, updated_at: new Date() } },
+            { upsert: true }
+        );
+
+        res.json({ success: true, message: 'Settings updated', settings: updates });
+    } catch (err) {
+        console.error('Error updating price settings:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// POST reset settings to defaults
+app.post('/api/admin/price-recommender/settings/reset', requireAuth, requireDB, async (req, res) => {
+    try {
+        await db.collection('price_settings').updateOne(
+            { key: 'main' },
+            { $set: { key: 'main', value: DEFAULT_PRICE_SETTINGS, updated_at: new Date() } },
+            { upsert: true }
+        );
+
+        res.json({ success: true, message: 'Settings reset to defaults', settings: DEFAULT_PRICE_SETTINGS });
+    } catch (err) {
+        console.error('Error resetting price settings:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// ============================================================================
+// PRICE RECOMMENDER SUMMARY/DASHBOARD ENDPOINT
+// ============================================================================
+
+// GET summary/dashboard data
+app.get('/api/admin/price-recommender/summary', requireAuth, requireDB, async (req, res) => {
+    try {
+        const [
+            productsCount,
+            salesCount,
+            purchasesCount,
+            ebayCount,
+            recentSales,
+            recentPurchases
+        ] = await Promise.all([
+            db.collection('price_products').countDocuments({ active: true }),
+            db.collection('price_sales').countDocuments(),
+            db.collection('price_purchases').countDocuments(),
+            db.collection('ebay_market_data').countDocuments(),
+            db.collection('price_sales').find().sort({ sale_date: -1 }).limit(5).toArray(),
+            db.collection('price_purchases').find().sort({ purchase_date: -1 }).limit(5).toArray()
+        ]);
+
+        // Get recommendations with good data coverage
+        const recommendations = await db.collection('price_recommendations')
+            .find({})
+            .sort({ 'data_sources.ebay.count': -1 })
+            .limit(10)
+            .toArray();
+
+        const settings = await getPriceSettings();
+
+        res.json({
+            success: true,
+            summary: {
+                products_count: productsCount,
+                sales_count: salesCount,
+                purchases_count: purchasesCount,
+                ebay_data_count: ebayCount,
+                recent_sales: recentSales,
+                recent_purchases: recentPurchases,
+                top_recommendations: recommendations,
+                settings
+            }
+        });
+    } catch (err) {
+        console.error('Error fetching price recommender summary:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// ============================================================================
+// END PRICE RECOMMENDER API ENDPOINTS
+// ============================================================================
 
 // Catch all route - serve index.html for SPA-like behavior
 app.get('*', (req, res) => {
