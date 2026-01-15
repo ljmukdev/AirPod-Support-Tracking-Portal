@@ -3,15 +3,17 @@
  * Handles all UI interactions for the AirPods price recommendation system
  */
 
-const API_BASE = '';
-let products = [];
-let settings = {};
+// API_BASE is already defined in admin.js, so we use it from there
+let priceRecProducts = [];
+let priceRecSettings = {};
 
 // ============================================================================
 // INITIALIZATION
 // ============================================================================
 
 document.addEventListener('DOMContentLoaded', async function() {
+    console.log('Price Recommender: DOMContentLoaded fired');
+
     // Initialize tabs first (synchronous - should always work)
     initTabs();
 
@@ -52,9 +54,14 @@ document.addEventListener('DOMContentLoaded', async function() {
 // ============================================================================
 
 function initTabs() {
-    document.querySelectorAll('.tab-btn').forEach(btn => {
+    console.log('Price Recommender: Initializing tabs...');
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    console.log('Price Recommender: Found', tabBtns.length, 'tab buttons');
+
+    tabBtns.forEach(btn => {
         btn.addEventListener('click', function() {
             const tab = this.dataset.tab;
+            console.log('Tab clicked:', tab);
 
             // Update active tab button
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -98,28 +105,40 @@ async function loadTabData(tab) {
 // ============================================================================
 
 function setupEventListeners() {
+    // Helper to safely add event listener
+    function addListener(id, event, handler) {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener(event, handler);
+        } else {
+            console.warn(`Element #${id} not found`);
+        }
+    }
+
     // Price evaluation form
-    document.getElementById('priceEvalForm').addEventListener('submit', handlePriceEval);
+    addListener('priceEvalForm', 'submit', handlePriceEval);
 
     // Refresh all recommendations
-    document.getElementById('refreshAllRecs').addEventListener('click', refreshAllRecommendations);
+    addListener('refreshAllRecs', 'click', refreshAllRecommendations);
 
     // Initialize products
-    document.getElementById('initProducts').addEventListener('click', initializeProducts);
+    addListener('initProducts', 'click', initializeProducts);
 
     // Add buttons
-    document.getElementById('addProduct').addEventListener('click', () => openModal('productModal'));
-    document.getElementById('addSale').addEventListener('click', () => openModal('saleModal'));
-    document.getElementById('addPurchase').addEventListener('click', () => openModal('purchaseModal'));
-    document.getElementById('addEbayData').addEventListener('click', () => openModal('ebayModal'));
+    addListener('addProduct', 'click', () => openModal('productModal'));
+    addListener('addSale', 'click', () => openModal('saleModal'));
+    addListener('addPurchase', 'click', () => openModal('purchaseModal'));
+    addListener('addEbayData', 'click', () => openModal('ebayModal'));
 
     // Forms
-    document.getElementById('productForm').addEventListener('submit', handleProductSubmit);
-    document.getElementById('saleForm').addEventListener('submit', handleSaleSubmit);
-    document.getElementById('purchaseForm').addEventListener('submit', handlePurchaseSubmit);
-    document.getElementById('ebayForm').addEventListener('submit', handleEbaySubmit);
-    document.getElementById('settingsForm').addEventListener('submit', handleSettingsSubmit);
-    document.getElementById('resetSettings').addEventListener('click', resetSettings);
+    addListener('productForm', 'submit', handleProductSubmit);
+    addListener('saleForm', 'submit', handleSaleSubmit);
+    addListener('purchaseForm', 'submit', handlePurchaseSubmit);
+    addListener('ebayForm', 'submit', handleEbaySubmit);
+    addListener('settingsForm', 'submit', handleSettingsSubmit);
+    addListener('resetSettings', 'click', resetSettings);
+
+    console.log('Price Recommender: Event listeners initialized');
 }
 
 // ============================================================================
@@ -168,7 +187,7 @@ async function loadSummary() {
         document.getElementById('statPurchases').textContent = summary.purchases_count;
         document.getElementById('statEbay').textContent = summary.ebay_data_count;
 
-        settings = summary.settings;
+        priceRecSettings = summary.settings;
     } catch (err) {
         console.error('Error loading summary:', err);
     }
@@ -177,7 +196,7 @@ async function loadSummary() {
 async function loadProducts() {
     try {
         const data = await apiCall('/products');
-        products = data.products || [];
+        priceRecProducts = data.products || [];
 
         // Populate product dropdowns
         const selects = ['evalSku', 'saleSku', 'purchaseSku', 'ebaySku'];
@@ -186,7 +205,7 @@ async function loadProducts() {
             if (select) {
                 const currentValue = select.value;
                 select.innerHTML = '<option value="">Select Product...</option>';
-                products.forEach(p => {
+                priceRecProducts.forEach(p => {
                     select.innerHTML += `<option value="${p.sku}">${p.name} (${p.sku})</option>`;
                 });
                 select.value = currentValue;
@@ -374,17 +393,17 @@ async function loadEbayTable() {
 async function loadSettings() {
     try {
         const data = await apiCall('/settings');
-        settings = data.settings;
+        priceRecSettings = data.settings;
 
-        document.getElementById('targetMargin').value = Math.round(settings.target_profit_margin * 100);
-        document.getElementById('daysLookback').value = settings.days_lookback;
-        document.getElementById('defaultShipping').value = settings.default_shipping_cost;
-        document.getElementById('salesWeight').value = Math.round(settings.sales_weight * 100);
-        document.getElementById('ebayWeight').value = Math.round(settings.ebay_weight * 100);
-        document.getElementById('purchaseWeight').value = Math.round(settings.purchase_weight * 100);
-        document.getElementById('excellentThreshold').value = Math.round(settings.excellent_threshold * 100);
-        document.getElementById('goodThreshold').value = Math.round(settings.good_threshold * 100);
-        document.getElementById('acceptableThreshold').value = Math.round(settings.acceptable_threshold * 100);
+        document.getElementById('targetMargin').value = Math.round(priceRecSettings.target_profit_margin * 100);
+        document.getElementById('daysLookback').value = priceRecSettings.days_lookback;
+        document.getElementById('defaultShipping').value = priceRecSettings.default_shipping_cost;
+        document.getElementById('salesWeight').value = Math.round(priceRecSettings.sales_weight * 100);
+        document.getElementById('ebayWeight').value = Math.round(priceRecSettings.ebay_weight * 100);
+        document.getElementById('purchaseWeight').value = Math.round(priceRecSettings.purchase_weight * 100);
+        document.getElementById('excellentThreshold').value = Math.round(priceRecSettings.excellent_threshold * 100);
+        document.getElementById('goodThreshold').value = Math.round(priceRecSettings.good_threshold * 100);
+        document.getElementById('acceptableThreshold').value = Math.round(priceRecSettings.acceptable_threshold * 100);
 
         updateWeightTotal();
     } catch (err) {
