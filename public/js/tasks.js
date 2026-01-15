@@ -150,6 +150,7 @@ function filterOneTaskPerSeller(tasks) {
         'delivery_chase_followup': 2,
         'workflow_follow_up': 3,
         'workflow_case_open': 4,
+        'return_follow_up': 4.5,
         'leave_feedback': 5,
         'check_in_ready_to_split': 6,
         'refund_verification': 7,
@@ -330,10 +331,23 @@ function renderTaskCard(task) {
             </button>
         `;
     } else if (task.type === 'leave_feedback') {
+        const hasReturnTracking = task.return_tracking && task.return_tracking.tracking_number;
+        const returnDelivered = hasReturnTracking && task.return_tracking.delivered;
+
         actionButtons = `
             <button onclick="leaveFeedback('${task.purchase_id}')" class="button" style="padding: 10px 16px; font-size: 0.9rem;">
                 Leave Feedback
             </button>
+            ${!hasReturnTracking ? `
+                <button onclick="openReturnTrackingModal('${task.purchase_id}')" class="button" style="padding: 10px 16px; font-size: 0.9rem; background: #8b5cf6;">
+                    📦 Add Return
+                </button>
+            ` : ''}
+            ${hasReturnTracking && !returnDelivered ? `
+                <button onclick="markReturnDelivered('${task.purchase_id}')" class="button" style="padding: 10px 16px; font-size: 0.9rem; background: #10b981;">
+                    ✓ Return Delivered
+                </button>
+            ` : ''}
         `;
     } else if (task.type === 'consumable_reorder') {
         actionButtons = `
@@ -378,6 +392,18 @@ function renderTaskCard(task) {
         actionButtons = `
             <button onclick="openAddTrackingModal('${task.purchase_id}')" class="button" style="padding: 10px 16px; font-size: 0.9rem; background: #3b82f6;">
                 Add Tracking
+            </button>
+            <button onclick="viewPurchase('${task.purchase_id}')" class="button button-secondary" style="padding: 10px 16px; font-size: 0.9rem;">
+                View Purchase
+            </button>
+        `;
+    } else if (task.type === 'return_follow_up') {
+        actionButtons = `
+            <button onclick="checkReturnTracking('${task.purchase_id}')" class="button" style="padding: 10px 16px; font-size: 0.9rem; background: #3b82f6;">
+                Check Status
+            </button>
+            <button onclick="markReturnDelivered('${task.purchase_id}')" class="button" style="padding: 10px 16px; font-size: 0.9rem; background: #10b981;">
+                ✓ Mark Delivered
             </button>
             <button onclick="viewPurchase('${task.purchase_id}')" class="button button-secondary" style="padding: 10px 16px; font-size: 0.9rem;">
                 View Purchase
@@ -450,6 +476,21 @@ function renderTaskCard(task) {
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                         </svg>
                         <strong>Order:</strong> <a href="https://www.ebay.co.uk/mye/myebay/purchase?page=1&q=${encodeURIComponent(task.order_number)}&mp=purchase-search-module-v2&type=v2&pg=purchase" target="_blank" class="order-link" title="View purchase on eBay">${escapeHtml(task.order_number)}</a>
+                    </div>
+                ` : ''}
+                ${task.return_tracking && task.return_tracking.tracking_number ? `
+                    <div class="task-meta-row" style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #e5e7eb;">
+                        <svg class="task-meta-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: #8b5cf6;">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
+                        </svg>
+                        <strong style="color: #8b5cf6;">Return:</strong> ${(() => {
+                            const returnTrackingUrl = getTrackingUrl(task.return_tracking.tracking_provider, task.return_tracking.tracking_number);
+                            if (returnTrackingUrl) {
+                                return `<a href="${returnTrackingUrl}" target="_blank" rel="noopener noreferrer" style="color: #8b5cf6; text-decoration: underline;" title="Track return">${escapeHtml(task.return_tracking.tracking_number)}</a>`;
+                            }
+                            return `<span style="color: #8b5cf6;">${escapeHtml(task.return_tracking.tracking_number)}</span>`;
+                        })()}
+                        ${task.return_tracking.delivered ? '<span style="color: #10b981; font-weight: 600; margin-left: 8px;">✓ Delivered</span>' : '<span style="color: #f59e0b; margin-left: 8px;">In Transit</span>'}
                     </div>
                 ` : ''}
             </div>
@@ -1377,4 +1418,150 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // Close return tracking modal when clicking outside
+    const returnTrackingModal = document.getElementById('returnTrackingModal');
+    if (returnTrackingModal) {
+        returnTrackingModal.addEventListener('click', function(e) {
+            if (e.target === returnTrackingModal) {
+                closeReturnTrackingModal();
+            }
+        });
+    }
 });
+
+// ============ Return Tracking Functions ============
+
+let currentReturnTrackingPurchaseId = null;
+
+function openReturnTrackingModal(purchaseId) {
+    currentReturnTrackingPurchaseId = purchaseId;
+
+    // Reset form fields
+    document.getElementById('returnTrackingProvider').value = '';
+    document.getElementById('returnTrackingNumberInput').value = '';
+    document.getElementById('returnTrackingNotes').value = '';
+
+    // Set default expected delivery to 7 days from now
+    const defaultDate = new Date();
+    defaultDate.setDate(defaultDate.getDate() + 7);
+    document.getElementById('returnExpectedDelivery').value = defaultDate.toISOString().split('T')[0];
+
+    // Show modal
+    document.getElementById('returnTrackingModal').style.display = 'flex';
+}
+
+function closeReturnTrackingModal() {
+    document.getElementById('returnTrackingModal').style.display = 'none';
+    currentReturnTrackingPurchaseId = null;
+}
+
+async function submitReturnTracking() {
+    const trackingProvider = document.getElementById('returnTrackingProvider').value;
+    const trackingNumber = document.getElementById('returnTrackingNumberInput').value.trim();
+    const expectedDelivery = document.getElementById('returnExpectedDelivery').value;
+    const notes = document.getElementById('returnTrackingNotes').value.trim();
+
+    if (!trackingNumber) {
+        alert('Please enter a tracking number');
+        return;
+    }
+
+    const button = document.getElementById('confirmReturnTrackingButton');
+    const originalText = button.textContent;
+    button.disabled = true;
+    button.textContent = 'Adding...';
+
+    try {
+        const response = await authenticatedFetch(`${window.API_BASE}/api/admin/purchases/${currentReturnTrackingPurchaseId}/return-tracking`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                tracking_number: trackingNumber,
+                tracking_provider: trackingProvider || null,
+                expected_delivery: expectedDelivery || null,
+                notes: notes || null
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to add return tracking');
+        }
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('✅ Return tracking added!\n\nA follow-up task will be created to check delivery status.');
+            closeReturnTrackingModal();
+            loadTasks(); // Reload tasks
+        } else {
+            throw new Error(data.error || 'Failed to add return tracking');
+        }
+    } catch (error) {
+        console.error('[RETURN-TRACKING] Error:', error);
+        alert('Error: ' + error.message);
+    } finally {
+        button.disabled = false;
+        button.textContent = originalText;
+    }
+}
+
+async function markReturnDelivered(purchaseId) {
+    if (!confirm('Mark this return as delivered?\n\nThis confirms the seller has received the returned item.')) {
+        return;
+    }
+
+    try {
+        const response = await authenticatedFetch(`${window.API_BASE}/api/admin/purchases/${purchaseId}/return-delivered`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to mark return as delivered');
+        }
+
+        alert('✅ Return marked as delivered!');
+        loadTasks(); // Reload tasks
+    } catch (error) {
+        console.error('[RETURN-TRACKING] Error:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+async function checkReturnTracking(purchaseId) {
+    try {
+        const response = await authenticatedFetch(`${window.API_BASE}/api/admin/purchases/${purchaseId}/check-return-tracking`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to check return tracking');
+        }
+
+        const data = await response.json();
+
+        if (data.success) {
+            let statusMessage = `Tracking: ${data.tracking_number}\n`;
+            statusMessage += `Provider: ${data.tracking_provider || 'Not specified'}\n`;
+            statusMessage += `Status: ${data.status.status}\n`;
+            statusMessage += `Last checked: ${new Date(data.status.last_update).toLocaleString('en-GB')}`;
+
+            alert(`Return Tracking Status\n\n${statusMessage}`);
+            loadTasks(); // Reload to update last checked
+        }
+    } catch (error) {
+        console.error('[RETURN-TRACKING] Error:', error);
+        alert('Error: ' + error.message);
+    }
+}
