@@ -97,7 +97,8 @@
                 const token = localStorage.getItem('accessToken');
                 if (token && !window.location.search.includes('error')) {
                     console.log('Token found in localStorage, redirecting to dashboard');
-                    window.location.href = '/admin/dashboard';
+                    // Include token in query param so server middleware can verify it
+                    window.location.href = '/admin/dashboard?token=' + encodeURIComponent(token);
                 }
             }, 100);
         })();
