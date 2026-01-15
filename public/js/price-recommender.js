@@ -12,6 +12,8 @@ let settings = {};
 // ============================================================================
 
 document.addEventListener('DOMContentLoaded', async function() {
+    console.log('Price Recommender: DOMContentLoaded fired');
+
     // Initialize tabs first (synchronous - should always work)
     initTabs();
 
@@ -52,9 +54,14 @@ document.addEventListener('DOMContentLoaded', async function() {
 // ============================================================================
 
 function initTabs() {
-    document.querySelectorAll('.tab-btn').forEach(btn => {
+    console.log('Price Recommender: Initializing tabs...');
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    console.log('Price Recommender: Found', tabBtns.length, 'tab buttons');
+
+    tabBtns.forEach(btn => {
         btn.addEventListener('click', function() {
             const tab = this.dataset.tab;
+            console.log('Tab clicked:', tab);
 
             // Update active tab button
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -98,28 +105,40 @@ async function loadTabData(tab) {
 // ============================================================================
 
 function setupEventListeners() {
+    // Helper to safely add event listener
+    function addListener(id, event, handler) {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener(event, handler);
+        } else {
+            console.warn(`Element #${id} not found`);
+        }
+    }
+
     // Price evaluation form
-    document.getElementById('priceEvalForm').addEventListener('submit', handlePriceEval);
+    addListener('priceEvalForm', 'submit', handlePriceEval);
 
     // Refresh all recommendations
-    document.getElementById('refreshAllRecs').addEventListener('click', refreshAllRecommendations);
+    addListener('refreshAllRecs', 'click', refreshAllRecommendations);
 
     // Initialize products
-    document.getElementById('initProducts').addEventListener('click', initializeProducts);
+    addListener('initProducts', 'click', initializeProducts);
 
     // Add buttons
-    document.getElementById('addProduct').addEventListener('click', () => openModal('productModal'));
-    document.getElementById('addSale').addEventListener('click', () => openModal('saleModal'));
-    document.getElementById('addPurchase').addEventListener('click', () => openModal('purchaseModal'));
-    document.getElementById('addEbayData').addEventListener('click', () => openModal('ebayModal'));
+    addListener('addProduct', 'click', () => openModal('productModal'));
+    addListener('addSale', 'click', () => openModal('saleModal'));
+    addListener('addPurchase', 'click', () => openModal('purchaseModal'));
+    addListener('addEbayData', 'click', () => openModal('ebayModal'));
 
     // Forms
-    document.getElementById('productForm').addEventListener('submit', handleProductSubmit);
-    document.getElementById('saleForm').addEventListener('submit', handleSaleSubmit);
-    document.getElementById('purchaseForm').addEventListener('submit', handlePurchaseSubmit);
-    document.getElementById('ebayForm').addEventListener('submit', handleEbaySubmit);
-    document.getElementById('settingsForm').addEventListener('submit', handleSettingsSubmit);
-    document.getElementById('resetSettings').addEventListener('click', resetSettings);
+    addListener('productForm', 'submit', handleProductSubmit);
+    addListener('saleForm', 'submit', handleSaleSubmit);
+    addListener('purchaseForm', 'submit', handlePurchaseSubmit);
+    addListener('ebayForm', 'submit', handleEbaySubmit);
+    addListener('settingsForm', 'submit', handleSettingsSubmit);
+    addListener('resetSettings', 'click', resetSettings);
+
+    console.log('Price Recommender: Event listeners initialized');
 }
 
 // ============================================================================
