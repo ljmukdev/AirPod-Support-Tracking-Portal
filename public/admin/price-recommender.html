@@ -2,184 +2,256 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Price Snapshot | LJM Admin</title>
     <link rel="stylesheet" href="../css/styles.css?v=1.2.7">
+    <link rel="stylesheet" href="../css/ios-mobile-optimizations.css">
     <style>
-        .snapshot-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        .snapshot-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 24px;
-            flex-wrap: wrap;
-            gap: 16px;
-        }
-        .snapshot-header h1 {
-            margin: 0;
-            font-size: 1.5rem;
-        }
         .snapshot-controls {
             display: flex;
-            gap: 12px;
+            gap: 16px;
             align-items: center;
             flex-wrap: wrap;
+            margin-bottom: 24px;
+            padding: 16px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
         .snapshot-controls label {
             font-size: 0.9rem;
-            color: #666;
+            color: #374151;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         .snapshot-controls input {
-            width: 80px;
-            padding: 8px;
-            border: 1px solid #ddd;
+            width: 70px;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
             border-radius: 6px;
-        }
-        .refresh-btn {
-            background: #0d9488;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 500;
-        }
-        .refresh-btn:hover {
-            background: #0f766e;
-        }
-        .refresh-btn:disabled {
-            background: #9ca3af;
-            cursor: not-allowed;
+            font-size: 0.9rem;
         }
         .snapshot-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
             gap: 16px;
         }
         .snapshot-card {
             background: white;
             border-radius: 12px;
             padding: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
         .snapshot-card-header {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
         }
         .generation-name {
             font-weight: 600;
-            font-size: 1.1rem;
+            font-size: 1rem;
             color: #1f2937;
         }
         .sales-count {
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             color: #6b7280;
             background: #f3f4f6;
             padding: 4px 8px;
             border-radius: 4px;
         }
         .max-bid {
-            font-size: 2.5rem;
+            font-size: 2rem;
             font-weight: 700;
             color: #0d9488;
-            margin: 12px 0;
+            margin: 8px 0;
         }
         .max-bid-label {
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             color: #6b7280;
             margin-bottom: 16px;
         }
         .breakdown {
             border-top: 1px solid #e5e7eb;
-            padding-top: 16px;
-            font-size: 0.9rem;
+            padding-top: 12px;
+            font-size: 0.85rem;
         }
         .breakdown-row {
             display: flex;
             justify-content: space-between;
-            padding: 4px 0;
+            padding: 3px 0;
             color: #4b5563;
         }
         .breakdown-row.highlight {
             font-weight: 600;
             color: #1f2937;
             border-top: 1px solid #e5e7eb;
-            margin-top: 8px;
-            padding-top: 8px;
+            margin-top: 6px;
+            padding-top: 6px;
         }
-        .breakdown-row .minus {
-            color: #ef4444;
-        }
+        .breakdown-row .minus { color: #ef4444; }
         .last-sale {
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             color: #9ca3af;
-            margin-top: 12px;
+            margin-top: 10px;
         }
-        .loading {
+        .loading, .error, .no-data {
             text-align: center;
-            padding: 60px;
+            padding: 60px 20px;
             color: #6b7280;
         }
-        .error {
-            text-align: center;
-            padding: 60px;
-            color: #ef4444;
-        }
-        .no-data {
-            text-align: center;
-            padding: 60px;
-            color: #6b7280;
-        }
+        .error { color: #ef4444; }
         .timestamp {
             text-align: center;
             color: #9ca3af;
-            font-size: 0.85rem;
-            margin-top: 24px;
-        }
-        .back-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            color: #6b7280;
-            text-decoration: none;
-            font-size: 0.9rem;
-            margin-bottom: 16px;
-        }
-        .back-link:hover {
-            color: #0d9488;
+            font-size: 0.8rem;
+            margin-top: 20px;
         }
     </style>
 </head>
-<body style="background: #f9fafb; min-height: 100vh;">
-    <div class="snapshot-container">
-        <a href="dashboard.html" class="back-link">
-            <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-                <path d="M15 10H5M5 10L10 5M5 10L10 15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            Back to Dashboard
-        </a>
-
-        <div class="snapshot-header">
-            <h1>Max Bid Calculator</h1>
-            <div class="snapshot-controls">
-                <label>Min Profit: £<input type="number" id="minProfit" value="10" min="0" step="1"></label>
-                <label>Last <input type="number" id="salesCount" value="5" min="1" max="20"> sales</label>
-                <button class="refresh-btn" id="refreshBtn" onclick="loadSnapshot()">Refresh</button>
+<body class="admin-panel">
+    <!-- Sidebar Navigation -->
+    <aside class="admin-sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <div class="logo-circle">
+                    <span class="logo-text">LJM</span>
+                </div>
+                <div>
+                    <div class="sidebar-logo-text">LJM Admin</div>
+                    <div class="sidebar-subtitle">Dashboard</div>
+                </div>
             </div>
         </div>
 
-        <div id="snapshotContent">
-            <div class="loading">Loading...</div>
-        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-section">
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="dashboard.html" class="nav-link" data-page="dashboard">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 10L9 4L9 10L17 10M3 10L3 16M3 10L17 10M17 10L17 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li class="nav-item has-submenu">
+                        <a href="#" class="nav-link" data-page="inventory" onclick="event.preventDefault(); toggleSubmenu(this.parentElement);">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 5L10 2L17 5M3 5L3 15L10 18M3 5L10 8M17 5L17 15L10 18M17 5L10 8M10 8L10 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Inventory</span>
+                        </a>
+                        <ul class="nav-submenu">
+                            <li class="nav-item"><a href="products.html" class="nav-link"><span>Products</span></a></li>
+                            <li class="nav-item"><a href="parts.html" class="nav-link"><span>Manage Parts</span></a></li>
+                            <li class="nav-item"><a href="purchases.html" class="nav-link"><span>Purchases</span></a></li>
+                            <li class="nav-item"><a href="check-in.html" class="nav-link"><span>Check-In</span></a></li>
+                            <li class="nav-item"><a href="consumables.html" class="nav-link"><span>Consumables</span></a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item has-submenu">
+                        <a href="#" class="nav-link" data-page="sales-category" onclick="event.preventDefault(); toggleSubmenu(this.parentElement);">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 2L5 9L2 12L5 15L8 12L15 5M14 7L17 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <circle cx="14.5" cy="5.5" r="1.5" fill="currentColor"/>
+                            </svg>
+                            <span>Sales</span>
+                        </a>
+                        <ul class="nav-submenu">
+                            <li class="nav-item"><a href="sales.html" class="nav-link"><span>Sales Orders</span></a></li>
+                            <li class="nav-item"><a href="addon-sales.html" class="nav-link"><span>Add-On Sales</span></a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item">
+                        <a href="tasks.html" class="nav-link" data-page="tasks">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M9 5H7C5.89543 5 5 5.89543 5 7V15C5 16.1046 5.89543 17 7 17H13C14.1046 17 15 16.1046 15 15V7C15 5.89543 14.1046 5 13 5H11M9 5C9 3.89543 9.89543 3 11 3H9C7.89543 3 7 3.89543 7 5M9 5C9 6.10457 9.89543 7 11 7H9C7.89543 7 7 6.10457 7 5M8 10H12M8 13H12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Tasks</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="analytics.html" class="nav-link" data-page="analytics">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 16L3 12M7 16L7 8M11 16L11 10M15 16L15 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Analytics</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="price-recommender.html" class="nav-link active" data-page="price-recommender">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M10 2C10 2 10 5 10 7M10 7C8 7 6 8 6 10C6 12 8 13 10 13C12 13 14 12 14 10C14 8 12 7 10 7ZM10 13V18M6 18H14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Price Snapshot</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="ebay-import.html" class="nav-link" data-page="ebay-import">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M10 3V13M10 13L6 9M10 13L14 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M3 17H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                            <span>eBay Import</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
 
-        <div class="timestamp" id="timestamp"></div>
+        <div class="sidebar-footer">
+            <a href="downloads.html" class="sidebar-footer-link">
+                <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M10 3V13M10 13L6 9M10 13L14 9M3 17H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>Downloads</span>
+            </a>
+            <button class="sidebar-footer-link sidebar-logout" id="logoutButton">
+                <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M13 15L17 10L13 5M17 10H7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M7 3H4C3.44772 3 3 3.44772 3 4V16C3 16.5523 3.44772 17 4 17H7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>Logout</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="admin-main">
+        <header class="admin-topbar">
+            <div class="topbar-left">
+                <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 5H17M3 10H17M3 15H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                </button>
+                <h1 class="page-title">Max Bid Calculator</h1>
+            </div>
+            <div class="topbar-right">
+                <div class="topbar-user">
+                    <span class="topbar-user-name">Admin</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="admin-content">
+            <div class="snapshot-controls">
+                <label>Min Profit: £<input type="number" id="minProfit" value="10" min="0" step="1"></label>
+                <label>Last <input type="number" id="salesCount" value="5" min="1" max="50"> sales</label>
+                <button class="btn btn-primary" id="refreshBtn" onclick="loadSnapshot()">Refresh</button>
+            </div>
+
+            <div id="snapshotContent">
+                <div class="loading">Loading...</div>
+            </div>
+
+            <div class="timestamp" id="timestamp"></div>
+        </div>
     </div>
+
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
     <script src="../js/admin.js?v=1.0.6"></script>
     <script>
@@ -189,11 +261,7 @@
             const minProfitEl = document.getElementById('minProfit');
             const salesCountEl = document.getElementById('salesCount');
 
-            // Check elements exist
-            if (!content) {
-                console.error('snapshotContent element not found');
-                return;
-            }
+            if (!content) return;
 
             const minProfit = minProfitEl ? minProfitEl.value : 10;
             const salesCount = salesCountEl ? salesCountEl.value : 5;
@@ -205,9 +273,8 @@
             }
 
             try {
-                // Check if authenticatedFetch is available
                 if (typeof authenticatedFetch !== 'function') {
-                    throw new Error('Please refresh the page - authentication not ready');
+                    throw new Error('Please refresh the page');
                 }
 
                 const response = await authenticatedFetch(
@@ -216,18 +283,13 @@
 
                 if (!response.ok) {
                     const errData = await response.json().catch(() => ({}));
-                    throw new Error(errData.error || 'Failed to load snapshot');
+                    throw new Error(errData.error || 'Failed to load');
                 }
 
                 const data = await response.json();
 
                 if (!data.snapshot || data.snapshot.length === 0) {
-                    content.innerHTML = `
-                        <div class="no-data">
-                            <p>No sales data found for Full Set products.</p>
-                            <p style="font-size: 0.9rem;">Make sure you have sold Full Set items recorded in the system.</p>
-                        </div>
-                    `;
+                    content.innerHTML = '<div class="no-data"><p>No sales data found.</p><p style="font-size:0.9rem">Record some sales to see max bid recommendations.</p></div>';
                     return;
                 }
 
@@ -238,39 +300,20 @@
                             <span class="sales-count">${item.sales_analyzed} sales</span>
                         </div>
                         <div class="max-bid">£${item.max_bid.toFixed(2)}</div>
-                        <div class="max-bid-label">Maximum bid to make £${minProfit} profit</div>
+                        <div class="max-bid-label">Max bid for £${minProfit} profit</div>
                         <div class="breakdown">
-                            <div class="breakdown-row">
-                                <span>Avg Sale Price</span>
-                                <span>£${item.avg_sale_price.toFixed(2)}</span>
-                            </div>
-                            <div class="breakdown-row">
-                                <span>Avg Fees</span>
-                                <span class="minus">-£${item.avg_fees.toFixed(2)}</span>
-                            </div>
-                            <div class="breakdown-row">
-                                <span>Avg Consumables</span>
-                                <span class="minus">-£${item.avg_consumables.toFixed(2)}</span>
-                            </div>
-                            <div class="breakdown-row highlight">
-                                <span>Net Revenue</span>
-                                <span>£${item.avg_net_revenue.toFixed(2)}</span>
-                            </div>
-                            <div class="breakdown-row">
-                                <span>Min Profit Target</span>
-                                <span class="minus">-£${item.min_profit.toFixed(2)}</span>
-                            </div>
-                            <div class="breakdown-row highlight">
-                                <span>Max Bid</span>
-                                <span style="color: #0d9488;">£${item.max_bid.toFixed(2)}</span>
-                            </div>
+                            <div class="breakdown-row"><span>Avg Sale</span><span>£${item.avg_sale_price.toFixed(2)}</span></div>
+                            <div class="breakdown-row"><span>Fees</span><span class="minus">-£${item.avg_fees.toFixed(2)}</span></div>
+                            <div class="breakdown-row"><span>Consumables</span><span class="minus">-£${item.avg_consumables.toFixed(2)}</span></div>
+                            <div class="breakdown-row highlight"><span>Net</span><span>£${item.avg_net_revenue.toFixed(2)}</span></div>
+                            <div class="breakdown-row"><span>Profit</span><span class="minus">-£${item.min_profit.toFixed(2)}</span></div>
+                            <div class="breakdown-row highlight"><span>Max Bid</span><span style="color:#0d9488">£${item.max_bid.toFixed(2)}</span></div>
                         </div>
-                        ${item.last_sale_date ? `<div class="last-sale">Last sale: ${new Date(item.last_sale_date).toLocaleDateString()}</div>` : ''}
+                        ${item.last_sale_date ? `<div class="last-sale">Last: ${new Date(item.last_sale_date).toLocaleDateString()}</div>` : ''}
                     </div>
                 `).join('') + '</div>';
 
-                document.getElementById('timestamp').textContent =
-                    'Generated: ' + new Date(data.generated_at).toLocaleString();
+                document.getElementById('timestamp').textContent = 'Generated: ' + new Date(data.generated_at).toLocaleString();
 
             } catch (err) {
                 content.innerHTML = `<div class="error">Error: ${err.message}</div>`;
@@ -282,10 +325,8 @@
             }
         }
 
-        // Load on page ready - wait a bit for admin.js to initialize
         document.addEventListener('DOMContentLoaded', function() {
-            // Small delay to ensure authenticatedFetch is available
-            setTimeout(loadSnapshot, 100);
+            setTimeout(loadSnapshot, 200);
         });
     </script>
 </body>
