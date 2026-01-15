@@ -15252,10 +15252,9 @@ app.get('/api/admin/price-snapshot', requireAuth, requireDB, async (req, res) =>
         const minProfit = parseFloat(req.query.min_profit) || 10; // Default £10 minimum profit
         const salesCount = parseInt(req.query.sales_count) || 5; // Last 5 sales by default
 
-        // Get all unique generations from products that have been sold
+        // Get all unique generations from products that have been sold (any part type)
         const generations = await db.collection('products').distinct('generation', {
-            status: 'sold',
-            part_type: 'Full Set'
+            status: 'sold'
         });
 
         const snapshot = [];
@@ -15263,7 +15262,7 @@ app.get('/api/admin/price-snapshot', requireAuth, requireDB, async (req, res) =>
         for (const generation of generations) {
             if (!generation) continue;
 
-            // Find the last N sales that include products of this generation (Full Sets only)
+            // Find the last N sales that include products of this generation
             const salesWithGeneration = await db.collection('sales').aggregate([
                 // Unwind products array to match individual products
                 { $unwind: '$products' },
@@ -15277,11 +15276,10 @@ app.get('/api/admin/price-snapshot', requireAuth, requireDB, async (req, res) =>
                     }
                 },
                 { $unwind: '$product_details' },
-                // Filter for this generation and Full Sets
+                // Filter for this generation
                 {
                     $match: {
-                        'product_details.generation': generation,
-                        'product_details.part_type': 'Full Set'
+                        'product_details.generation': generation
                     }
                 },
                 // Sort by sale date descending
@@ -15300,7 +15298,8 @@ app.get('/api/admin/price-snapshot', requireAuth, requireDB, async (req, res) =>
                         consumables: 1,
                         consumables_cost: 1,
                         product_cost: '$products.product_cost',
-                        generation: '$product_details.generation'
+                        generation: '$product_details.generation',
+                        part_type: '$product_details.part_type'
                     }
                 }
             ]).toArray();
