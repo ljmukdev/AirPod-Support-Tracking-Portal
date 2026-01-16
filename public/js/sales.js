@@ -2019,17 +2019,35 @@ async function handleRecalculateCosts() {
         if (response.ok && data.success) {
             // Build result message
             let message = `Cost sync complete!\n\n`;
-            message += `Sales checked: ${data.results.total_sales_checked}\n`;
-            message += `Sales updated: ${data.results.sales_updated}\n`;
-            message += `Sales unchanged: ${data.results.sales_unchanged}`;
+
+            // Show product updates (from refunded purchases)
+            message += `PRODUCTS:\n`;
+            message += `  Checked: ${data.results.products_checked || 0}\n`;
+            message += `  Updated: ${data.results.products_updated || 0}\n`;
+
+            if (data.results.product_updates && data.results.product_updates.length > 0) {
+                message += `\n  Product changes:`;
+                data.results.product_updates.slice(0, 5).forEach(update => {
+                    message += `\n  • ${update.purchase_order}: £${update.old_price.toFixed(2)} → £${update.new_price.toFixed(2)}`;
+                });
+                if (data.results.product_updates.length > 5) {
+                    message += `\n  ... and ${data.results.product_updates.length - 5} more`;
+                }
+            }
+
+            // Show sales updates
+            message += `\n\nSALES:\n`;
+            message += `  Checked: ${data.results.total_sales_checked}\n`;
+            message += `  Updated: ${data.results.sales_updated}\n`;
+            message += `  Unchanged: ${data.results.sales_unchanged}`;
 
             if (data.results.updates && data.results.updates.length > 0) {
-                message += `\n\nUpdated sales:`;
-                data.results.updates.slice(0, 10).forEach(update => {
-                    message += `\n• ${update.order_number || update.sale_id}: £${update.old_product_cost.toFixed(2)} → £${update.new_product_cost.toFixed(2)}`;
+                message += `\n\n  Sales changes:`;
+                data.results.updates.slice(0, 5).forEach(update => {
+                    message += `\n  • ${update.order_number || update.sale_id}: £${update.old_product_cost.toFixed(2)} → £${update.new_product_cost.toFixed(2)}`;
                 });
-                if (data.results.updates.length > 10) {
-                    message += `\n... and ${data.results.updates.length - 10} more`;
+                if (data.results.updates.length > 5) {
+                    message += `\n  ... and ${data.results.updates.length - 5} more`;
                 }
             }
 
