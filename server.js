@@ -5984,6 +5984,8 @@ app.post('/api/admin/purchases/:id/confirm-refund', requireAuth, requireDB, asyn
         }).toArray();
 
         let productsUpdated = 0;
+        const updatedProductIds = []; // Track product IDs for sales update
+
         for (const checkIn of checkIns) {
             const products = await db.collection('products').find({
                 check_in_id: checkIn._id
@@ -6000,13 +6002,89 @@ app.post('/api/admin/purchases/:id/confirm-refund', requireAuth, requireDB, asyn
                             { _id: product._id },
                             { $set: { purchase_price: newProductPrice } }
                         );
+                        updatedProductIds.push({
+                            id: product._id,
+                            oldPrice: product.purchase_price,
+                            newPrice: newProductPrice
+                        });
                         productsUpdated++;
                     }
                 }
             }
         }
 
+        // Update standalone sales records that reference any of these products
+        let salesUpdated = 0;
+        if (updatedProductIds.length > 0) {
+            const productIdList = updatedProductIds.map(p => p.id);
+
+            // Find all sales that reference these products
+            const affectedSales = await db.collection('sales').find({
+                $or: [
+                    { product_id: { $in: productIdList } },
+                    { 'products.product_id': { $in: productIdList } }
+                ]
+            }).toArray();
+
+            for (const sale of affectedSales) {
+                let newTotalProductCost = 0;
+                let updatedProducts = [];
+
+                if (sale.products && sale.products.length > 0) {
+                    // Multi-product sale - update each product's cost
+                    for (const saleProduct of sale.products) {
+                        const updatedProduct = updatedProductIds.find(
+                            p => p.id.toString() === saleProduct.product_id.toString()
+                        );
+                        if (updatedProduct) {
+                            updatedProducts.push({
+                                ...saleProduct,
+                                product_cost: updatedProduct.newPrice
+                            });
+                            newTotalProductCost += updatedProduct.newPrice;
+                        } else {
+                            updatedProducts.push(saleProduct);
+                            newTotalProductCost += saleProduct.product_cost || 0;
+                        }
+                    }
+                } else {
+                    // Single-product sale (legacy format)
+                    const updatedProduct = updatedProductIds.find(
+                        p => p.id.toString() === sale.product_id.toString()
+                    );
+                    if (updatedProduct) {
+                        newTotalProductCost = updatedProduct.newPrice;
+                    } else {
+                        newTotalProductCost = sale.product_cost || 0;
+                    }
+                }
+
+                // Calculate new total_cost and profit
+                const consumablesCost = sale.consumables_cost || 0;
+                const newTotalCost = newTotalProductCost + consumablesCost;
+                const newProfit = (sale.sale_price || 0) - newTotalCost;
+
+                // Update the sale record
+                const saleUpdateFields = {
+                    product_cost: newTotalProductCost,
+                    total_cost: newTotalCost,
+                    profit: newProfit
+                };
+
+                if (updatedProducts.length > 0) {
+                    saleUpdateFields.products = updatedProducts;
+                }
+
+                await db.collection('sales').updateOne(
+                    { _id: sale._id },
+                    { $set: saleUpdateFields }
+                );
+                salesUpdated++;
+            }
+        }
+
         console.log(`[REFUND] Confirmed refund of £${refundValue} for purchase ${id}`);
+        console.log(`[REFUND] Updated ${salesUpdated} sales records with new product costs`);
         console.log(`[REFUND] Updated ${productsUpdated} product prices`);
         console.log(`[REFUND] Purchase cost updated from £${originalCost} to £${newCost}`);
 
@@ -6016,7 +6094,8 @@ app.post('/api/admin/purchases/:id/confirm-refund', requireAuth, requireDB, asyn
             refund_amount: refundValue,
             original_cost: originalCost,
             new_cost: newCost,
-            products_updated: productsUpdated
+            products_updated: productsUpdated,
+            sales_updated: salesUpdated
         });
     } catch (err) {
         console.error('[REFUND] Error:', err);
