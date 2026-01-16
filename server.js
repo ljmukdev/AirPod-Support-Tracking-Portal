@@ -4310,7 +4310,8 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
 
             // Skip if resolution was a return (items being sent back, no need to split)
             const resolutionType = checkIn.resolution_workflow?.resolution_type || '';
-            if (resolutionType.toLowerCase().includes('return')) {
+            const hasReturnTracking = checkIn.resolution_workflow?.return_tracking;
+            if (resolutionType.toLowerCase().includes('return') || hasReturnTracking) {
                 continue; // Items are being returned, don't show split task
             }
 
