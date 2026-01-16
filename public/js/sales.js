@@ -53,7 +53,10 @@ function setupDateDefault() {
 function setupEventListeners() {
     // Add Sale Button
     document.getElementById('addSaleBtn')?.addEventListener('click', openAddSaleModal);
-    
+
+    // Recalculate Costs Button
+    document.getElementById('recalculateCostsBtn')?.addEventListener('click', handleRecalculateCosts);
+
     // Manage Templates Button
     document.getElementById('manageTemplatesBtn')?.addEventListener('click', openTemplatesModal);
     
@@ -1964,6 +1967,79 @@ async function deleteSale(id) {
     } catch (error) {
         console.error('Error deleting sale:', error);
         alert(`Error deleting sale: ${error.message || 'Unknown error'}`);
+    }
+}
+
+// ===== COST RECALCULATION =====
+
+async function handleRecalculateCosts() {
+    const btn = document.getElementById('recalculateCostsBtn');
+
+    // Confirm with user
+    if (!confirm('This will sync all sales costs with current product prices.\n\nThis is useful after refunds have been processed to ensure sales records reflect the correct costs.\n\nDo you want to continue?')) {
+        return;
+    }
+
+    // Disable button and show loading state
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" class="spin">
+                <path d="M8 2V4M8 12V14M4 8H2M14 8H12M5.17 5.17L3.76 3.76M12.24 12.24L10.83 10.83M5.17 10.83L3.76 12.24M12.24 3.76L10.83 5.17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            Syncing...
+        `;
+    }
+
+    try {
+        const response = await authenticatedFetch(`${API_BASE}/api/admin/sales/recalculate-costs`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            // Build result message
+            let message = `Cost sync complete!\n\n`;
+            message += `Sales checked: ${data.results.total_sales_checked}\n`;
+            message += `Sales updated: ${data.results.sales_updated}\n`;
+            message += `Sales unchanged: ${data.results.sales_unchanged}`;
+
+            if (data.results.updates && data.results.updates.length > 0) {
+                message += `\n\nUpdated sales:`;
+                data.results.updates.slice(0, 10).forEach(update => {
+                    message += `\n• ${update.order_number || update.sale_id}: £${update.old_product_cost.toFixed(2)} → £${update.new_product_cost.toFixed(2)}`;
+                });
+                if (data.results.updates.length > 10) {
+                    message += `\n... and ${data.results.updates.length - 10} more`;
+                }
+            }
+
+            alert(message);
+
+            // Reload sales to show updated values
+            loadSales();
+            loadSummary();
+        } else {
+            alert(`Failed to recalculate costs: ${data.error || 'Unknown error'}`);
+        }
+    } catch (error) {
+        console.error('Error recalculating costs:', error);
+        alert(`Error recalculating costs: ${error.message || 'Unknown error'}`);
+    } finally {
+        // Restore button state
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M2 8C2 4.68629 4.68629 2 8 2C10.0503 2 11.8574 3.00442 12.9554 4.54404M14 8C14 11.3137 11.3137 14 8 14C5.94972 14 4.14265 12.9956 3.04464 11.456M12.9554 4.54404L13.5 2.5M12.9554 4.54404L10.9 5M3.04464 11.456L2.5 13.5M3.04464 11.456L5.1 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Sync Costs
+            `;
+        }
     }
 }
 
