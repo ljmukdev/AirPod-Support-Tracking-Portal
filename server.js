@@ -11296,15 +11296,79 @@ app.post('/api/admin/sales/recalculate-costs', requireAuth, requireDB, async (re
     try {
         console.log('[SALES-RECALC] Starting sales cost recalculation...');
 
-        // Get all standalone sales records
-        const sales = await db.collection('sales').find({}).toArray();
-
         const results = {
-            total_sales_checked: sales.length,
+            products_checked: 0,
+            products_updated: 0,
+            product_updates: [],
+            total_sales_checked: 0,
             sales_updated: 0,
             sales_unchanged: 0,
             updates: []
         };
+
+        // STEP 1: First sync product prices from their purchase records
+        // Find all refunded purchases
+        console.log('[SALES-RECALC] Step 1: Syncing product prices from refunded purchases...');
+        const refundedPurchases = await db.collection('purchases').find({
+            $or: [
+                { status: 'refunded' },
+                { refund_received: { $gt: 0 } },
+                { refund_amount: { $gt: 0 } }
+            ]
+        }).toArray();
+
+        console.log(`[SALES-RECALC] Found ${refundedPurchases.length} refunded purchases`);
+
+        for (const purchase of refundedPurchases) {
+            // Find check_ins for this purchase
+            const checkIns = await db.collection('check_ins').find({
+                purchase_id: purchase._id,
+                split_into_products: true
+            }).toArray();
+
+            for (const checkIn of checkIns) {
+                // Find products from this check_in
+                const products = await db.collection('products').find({
+                    check_in_id: checkIn._id
+                }).toArray();
+
+                if (products.length > 0) {
+                    // Calculate correct per-product cost from purchase's total_price_paid
+                    const purchaseTotalCost = parseFloat(purchase.total_price_paid) || 0;
+                    const correctPerProductCost = purchaseTotalCost / products.length;
+
+                    for (const product of products) {
+                        results.products_checked++;
+                        const currentPrice = parseFloat(product.purchase_price) || 0;
+
+                        // Check if product price differs from what it should be
+                        if (Math.abs(currentPrice - correctPerProductCost) > 0.001) {
+                            await db.collection('products').updateOne(
+                                { _id: product._id },
+                                { $set: { purchase_price: correctPerProductCost } }
+                            );
+
+                            results.products_updated++;
+                            results.product_updates.push({
+                                product_id: product._id.toString(),
+                                purchase_order: purchase.order_number,
+                                old_price: currentPrice,
+                                new_price: correctPerProductCost
+                            });
+
+                            console.log(`[SALES-RECALC] Updated product ${product._id}: £${currentPrice.toFixed(2)} -> £${correctPerProductCost.toFixed(2)} (purchase ${purchase.order_number})`);
+                        }
+                    }
+                }
+            }
+        }
+
+        console.log(`[SALES-RECALC] Step 1 complete: Updated ${results.products_updated} of ${results.products_checked} products`);
+
+        // STEP 2: Now sync sales costs from (now-corrected) product prices
+        console.log('[SALES-RECALC] Step 2: Syncing sales costs from product prices...');
+        const sales = await db.collection('sales').find({}).toArray();
+        results.total_sales_checked = sales.length;
 
         for (const sale of sales) {
             let newTotalProductCost = 0;
@@ -11422,11 +11486,12 @@ app.post('/api/admin/sales/recalculate-costs', requireAuth, requireDB, async (re
             }
         }
 
-        console.log(`[SALES-RECALC] Completed. Updated ${results.sales_updated} of ${results.total_sales_checked} sales.`);
+        console.log(`[SALES-RECALC] Step 2 complete: Updated ${results.sales_updated} of ${results.total_sales_checked} sales`);
+        console.log(`[SALES-RECALC] All done!`);
 
         res.json({
             success: true,
-            message: `Recalculated costs for ${results.sales_updated} sales`,
+            message: `Synced ${results.products_updated} products and ${results.sales_updated} sales`,
             results
         });
     } catch (err) {
