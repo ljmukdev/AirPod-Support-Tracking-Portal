@@ -5984,6 +5984,8 @@ app.post('/api/admin/purchases/:id/confirm-refund', requireAuth, requireDB, asyn
         }).toArray();
 
         let productsUpdated = 0;
+        const updatedProductIds = []; // Track product IDs for sales update
+
         for (const checkIn of checkIns) {
             const products = await db.collection('products').find({
                 check_in_id: checkIn._id
@@ -6000,13 +6002,89 @@ app.post('/api/admin/purchases/:id/confirm-refund', requireAuth, requireDB, asyn
                             { _id: product._id },
                             { $set: { purchase_price: newProductPrice } }
                         );
+                        updatedProductIds.push({
+                            id: product._id,
+                            oldPrice: product.purchase_price,
+                            newPrice: newProductPrice
+                        });
                         productsUpdated++;
                     }
                 }
             }
         }
 
+        // Update standalone sales records that reference any of these products
+        let salesUpdated = 0;
+        if (updatedProductIds.length > 0) {
+            const productIdList = updatedProductIds.map(p => p.id);
+
+            // Find all sales that reference these products
+            const affectedSales = await db.collection('sales').find({
+                $or: [
+                    { product_id: { $in: productIdList } },
+                    { 'products.product_id': { $in: productIdList } }
+                ]
+            }).toArray();
+
+            for (const sale of affectedSales) {
+                let newTotalProductCost = 0;
+                let updatedProducts = [];
+
+                if (sale.products && sale.products.length > 0) {
+                    // Multi-product sale - update each product's cost
+                    for (const saleProduct of sale.products) {
+                        const updatedProduct = updatedProductIds.find(
+                            p => p.id.toString() === saleProduct.product_id.toString()
+                        );
+                        if (updatedProduct) {
+                            updatedProducts.push({
+                                ...saleProduct,
+                                product_cost: updatedProduct.newPrice
+                            });
+                            newTotalProductCost += updatedProduct.newPrice;
+                        } else {
+                            updatedProducts.push(saleProduct);
+                            newTotalProductCost += saleProduct.product_cost || 0;
+                        }
+                    }
+                } else {
+                    // Single-product sale (legacy format)
+                    const updatedProduct = updatedProductIds.find(
+                        p => p.id.toString() === sale.product_id.toString()
+                    );
+                    if (updatedProduct) {
+                        newTotalProductCost = updatedProduct.newPrice;
+                    } else {
+                        newTotalProductCost = sale.product_cost || 0;
+                    }
+                }
+
+                // Calculate new total_cost and profit
+                const consumablesCost = sale.consumables_cost || 0;
+                const newTotalCost = newTotalProductCost + consumablesCost;
+                const newProfit = (sale.sale_price || 0) - newTotalCost;
+
+                // Update the sale record
+                const saleUpdateFields = {
+                    product_cost: newTotalProductCost,
+                    total_cost: newTotalCost,
+                    profit: newProfit
+                };
+
+                if (updatedProducts.length > 0) {
+                    saleUpdateFields.products = updatedProducts;
+                }
+
+                await db.collection('sales').updateOne(
+                    { _id: sale._id },
+                    { $set: saleUpdateFields }
+                );
+                salesUpdated++;
+            }
+        }
+
         console.log(`[REFUND] Confirmed refund of £${refundValue} for purchase ${id}`);
+        console.log(`[REFUND] Updated ${salesUpdated} sales records with new product costs`);
         console.log(`[REFUND] Updated ${productsUpdated} product prices`);
         console.log(`[REFUND] Purchase cost updated from £${originalCost} to £${newCost}`);
 
@@ -6016,7 +6094,8 @@ app.post('/api/admin/purchases/:id/confirm-refund', requireAuth, requireDB, asyn
             refund_amount: refundValue,
             original_cost: originalCost,
             new_cost: newCost,
-            products_updated: productsUpdated
+            products_updated: productsUpdated,
+            sales_updated: salesUpdated
         });
     } catch (err) {
         console.error('[REFUND] Error:', err);
@@ -11208,6 +11287,150 @@ app.get('/api/admin/sales/summary', requireAuth, requireDB, async (req, res) => 
         res.json(summary);
     } catch (err) {
         console.error('Error fetching sales summary:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Recalculate sales costs from current product prices (fixes historical refund mismatches)
+app.post('/api/admin/sales/recalculate-costs', requireAuth, requireDB, async (req, res) => {
+    try {
+        console.log('[SALES-RECALC] Starting sales cost recalculation...');
+
+        // Get all standalone sales records
+        const sales = await db.collection('sales').find({}).toArray();
+
+        const results = {
+            total_sales_checked: sales.length,
+            sales_updated: 0,
+            sales_unchanged: 0,
+            updates: []
+        };
+
+        for (const sale of sales) {
+            let newTotalProductCost = 0;
+            let updatedProducts = [];
+            let needsUpdate = false;
+            let productDetails = [];
+
+            if (sale.products && sale.products.length > 0) {
+                // Multi-product sale - check each product's current price
+                for (const saleProduct of sale.products) {
+                    const currentProduct = await db.collection('products').findOne({
+                        _id: saleProduct.product_id
+                    });
+
+                    if (currentProduct && currentProduct.purchase_price !== undefined) {
+                        const currentPrice = parseFloat(currentProduct.purchase_price) || 0;
+                        const storedPrice = parseFloat(saleProduct.product_cost) || 0;
+
+                        if (Math.abs(currentPrice - storedPrice) > 0.001) {
+                            needsUpdate = true;
+                            productDetails.push({
+                                product_id: saleProduct.product_id.toString(),
+                                name: saleProduct.product_name || currentProduct.name,
+                                old_cost: storedPrice,
+                                new_cost: currentPrice
+                            });
+                        }
+
+                        updatedProducts.push({
+                            ...saleProduct,
+                            product_cost: currentPrice
+                        });
+                        newTotalProductCost += currentPrice;
+                    } else {
+                        // Product not found or no price, keep original
+                        updatedProducts.push(saleProduct);
+                        newTotalProductCost += parseFloat(saleProduct.product_cost) || 0;
+                    }
+                }
+            } else if (sale.product_id) {
+                // Single-product sale (legacy format)
+                const currentProduct = await db.collection('products').findOne({
+                    _id: sale.product_id
+                });
+
+                if (currentProduct && currentProduct.purchase_price !== undefined) {
+                    const currentPrice = parseFloat(currentProduct.purchase_price) || 0;
+                    const storedPrice = parseFloat(sale.product_cost) || 0;
+
+                    if (Math.abs(currentPrice - storedPrice) > 0.001) {
+                        needsUpdate = true;
+                        productDetails.push({
+                            product_id: sale.product_id.toString(),
+                            name: sale.product_name || currentProduct.name,
+                            old_cost: storedPrice,
+                            new_cost: currentPrice
+                        });
+                    }
+                    newTotalProductCost = currentPrice;
+                } else {
+                    newTotalProductCost = parseFloat(sale.product_cost) || 0;
+                }
+            }
+
+            if (needsUpdate) {
+                // Calculate new total_cost and profit
+                const consumablesCost = parseFloat(sale.consumables_cost) || 0;
+                const transactionFees = parseFloat(sale.transaction_fees) || 0;
+                const postageLabelCost = parseFloat(sale.postage_label_cost) || 0;
+                const adFeeGeneral = parseFloat(sale.ad_fee_general) || 0;
+
+                const newTotalCost = newTotalProductCost + consumablesCost + transactionFees + postageLabelCost + adFeeGeneral;
+                const salePrice = parseFloat(sale.sale_price) || 0;
+                const newProfit = salePrice - newTotalCost;
+
+                const oldProductCost = parseFloat(sale.product_cost) || 0;
+                const oldTotalCost = parseFloat(sale.total_cost) || 0;
+                const oldProfit = parseFloat(sale.profit) || 0;
+
+                // Build update
+                const saleUpdateFields = {
+                    product_cost: newTotalProductCost,
+                    total_cost: newTotalCost,
+                    profit: newProfit,
+                    cost_recalculated_at: new Date(),
+                    cost_recalculated_by: req.user.email
+                };
+
+                if (updatedProducts.length > 0) {
+                    saleUpdateFields.products = updatedProducts;
+                }
+
+                await db.collection('sales').updateOne(
+                    { _id: sale._id },
+                    { $set: saleUpdateFields }
+                );
+
+                results.sales_updated++;
+                results.updates.push({
+                    sale_id: sale._id.toString(),
+                    order_number: sale.order_number,
+                    product_name: sale.product_name,
+                    old_product_cost: oldProductCost,
+                    new_product_cost: newTotalProductCost,
+                    old_total_cost: oldTotalCost,
+                    new_total_cost: newTotalCost,
+                    old_profit: oldProfit,
+                    new_profit: newProfit,
+                    product_details: productDetails
+                });
+
+                console.log(`[SALES-RECALC] Updated sale ${sale.order_number}: product_cost £${oldProductCost.toFixed(2)} -> £${newTotalProductCost.toFixed(2)}`);
+            } else {
+                results.sales_unchanged++;
+            }
+        }
+
+        console.log(`[SALES-RECALC] Completed. Updated ${results.sales_updated} of ${results.total_sales_checked} sales.`);
+
+        res.json({
+            success: true,
+            message: `Recalculated costs for ${results.sales_updated} sales`,
+            results
+        });
+    } catch (err) {
+        console.error('[SALES-RECALC] Error:', err);
         res.status(500).json({ error: 'Database error: ' + err.message });
     }
 });
