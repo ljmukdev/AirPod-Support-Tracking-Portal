@@ -5,17 +5,19 @@ const checkInId = urlParams.get('id');
 let checkInData = null;
 let purchaseData = null;
 let emailTemplate = null;
+let availableGenerations = [];
 
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
     console.log('[CHECK-IN-DETAIL] Loading check-in:', checkInId);
-    
+
     if (!checkInId) {
         showError('No check-in ID provided');
         return;
     }
-    
+
     loadCheckInDetails();
+    loadAvailableGenerations();
     
     // Sidebar toggle
     document.getElementById('sidebarToggle').addEventListener('click', function() {
@@ -32,13 +34,13 @@ document.addEventListener('DOMContentLoaded', function() {
 async function loadCheckInDetails() {
     try {
         const response = await authenticatedFetch(`${window.API_BASE}/api/admin/check-in/${checkInId}`);
-        
+
         if (!response.ok) {
             throw new Error('Failed to load check-in details');
         }
-        
+
         const data = await response.json();
-        
+
         if (data.success) {
             checkInData = data.check_in;
             purchaseData = data.purchase;
@@ -50,6 +52,19 @@ async function loadCheckInDetails() {
     } catch (error) {
         console.error('[CHECK-IN-DETAIL] Error:', error);
         showError('Error loading check-in details: ' + error.message);
+    }
+}
+
+async function loadAvailableGenerations() {
+    try {
+        const response = await authenticatedFetch(`${window.API_BASE}/api/admin/generations`);
+        if (response.ok) {
+            const data = await response.json();
+            availableGenerations = data.generations || [];
+            console.log('[CHECK-IN-DETAIL] Loaded generations:', availableGenerations);
+        }
+    } catch (error) {
+        console.error('[CHECK-IN-DETAIL] Error loading generations:', error);
     }
 }
 
@@ -340,46 +355,83 @@ function displaySplitSection() {
     // Build item selection list
     const itemsListHtml = splittableItems.map((item, index) => {
         const itemName = getItemDisplayName(item.item_type);
-        
+
         // Match issues by BOTH item_type AND set_number (for multi-set check-ins)
-        const hasItemIssues = checkInData.issues_detected && checkInData.issues_detected.some(i => 
-            i.item_type === item.item_type && 
+        const hasItemIssues = checkInData.issues_detected && checkInData.issues_detected.some(i =>
+            i.item_type === item.item_type &&
             (i.set_number || null) === (item.set_number || null)
         );
-        const itemIssues = hasItemIssues 
-            ? checkInData.issues_detected.find(i => 
-                i.item_type === item.item_type && 
+        const itemIssues = hasItemIssues
+            ? checkInData.issues_detected.find(i =>
+                i.item_type === item.item_type &&
                 (i.set_number || null) === (item.set_number || null)
-              ).issues 
+              ).issues
             : [];
-        
+
         let issuesBadges = '';
         let defaultChecked = true; // Check by default
-        
+
         if (itemIssues.length > 0) {
             issuesBadges = '<div style="margin-top: 5px;">';
             itemIssues.forEach(issue => {
-                const badgeClass = issue.severity === 'critical' ? 'issue-critical' : 
+                const badgeClass = issue.severity === 'critical' ? 'issue-critical' :
                                   issue.severity === 'high' ? 'issue-high' : 'issue-medium';
                 issuesBadges += `<span class="issue-badge ${badgeClass}">${escapeHtml(issue.description)}</span>`;
             });
             issuesBadges += '</div>';
-            
+
             // Don't check items with critical issues by default
             if (itemIssues.some(i => i.severity === 'critical')) {
                 defaultChecked = false;
             }
         }
-        
-        const serialInfo = item.serial_number 
+
+        const serialInfo = item.serial_number
             ? `<span style="color: #666; font-size: 0.9rem;">SN: ${escapeHtml(item.serial_number)}</span>`
             : `<span style="color: #9ca3af; font-size: 0.85rem; font-style: italic;">No serial number</span>`;
-        
+
+        // Default values from purchase or existing item overrides
+        const defaultGeneration = item.generation || purchaseData.generation || '';
+        const defaultConnector = item.connector_type || purchaseData.connector_type || '';
+
+        // Build generation options
+        const generationOptions = availableGenerations.map(gen =>
+            `<option value="${escapeHtml(gen)}" ${gen === defaultGeneration ? 'selected' : ''}>${escapeHtml(gen)}</option>`
+        ).join('');
+
+        // Only show generation/connector selectors for AirPod parts (case, left, right)
+        const isAirPodPart = ['case', 'left', 'right'].includes(item.item_type);
+
+        const generationSelectorHtml = isAirPodPart ? `
+            <div class="item-generation-selector" style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #e5e7eb;">
+                <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+                    <div style="flex: 1; min-width: 180px;">
+                        <label style="font-size: 0.75rem; color: #6b7280; font-weight: 600; display: block; margin-bottom: 4px;">Generation</label>
+                        <select class="item-generation-select" data-item-type="${item.item_type}" style="width: 100%; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 0.85rem; background: white;">
+                            <option value="">-- Select Generation --</option>
+                            ${generationOptions}
+                        </select>
+                    </div>
+                    <div style="flex: 1; min-width: 140px;">
+                        <label style="font-size: 0.75rem; color: #6b7280; font-weight: 600; display: block; margin-bottom: 4px;">Connector Type</label>
+                        <select class="item-connector-select" data-item-type="${item.item_type}" style="width: 100%; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 0.85rem; background: white;">
+                            <option value="">-- Auto --</option>
+                            <option value="Lightning" ${defaultConnector === 'Lightning' ? 'selected' : ''}>Lightning</option>
+                            <option value="USB-C" ${defaultConnector === 'USB-C' ? 'selected' : ''}>USB-C</option>
+                        </select>
+                    </div>
+                </div>
+                <p style="font-size: 0.75rem; color: #9ca3af; margin: 6px 0 0 0; font-style: italic;">
+                    Override if this item is from a different generation than the purchase
+                </p>
+            </div>
+        ` : '';
+
         return `
             <div class="item-select-card">
-                <label class="item-select-label">
-                    <input type="checkbox" class="item-select-checkbox" data-item-type="${item.item_type}" ${defaultChecked ? 'checked' : ''}>
-                    <div class="item-select-info">
+                <label class="item-select-label" style="align-items: flex-start;">
+                    <input type="checkbox" class="item-select-checkbox" data-item-type="${item.item_type}" ${defaultChecked ? 'checked' : ''} style="margin-top: 4px;">
+                    <div class="item-select-info" style="flex: 1;">
                         <div class="item-select-header">
                             <strong>${itemName}</strong>
                             ${serialInfo}
@@ -389,6 +441,7 @@ function displaySplitSection() {
                             ${item.audible_condition ? ` | Audible: ${formatCondition(item.audible_condition, false)}` : ''}
                         </div>
                         ${issuesBadges}
+                        ${generationSelectorHtml}
                     </div>
                 </label>
             </div>
@@ -469,26 +522,42 @@ async function splitIntoProducts() {
     // Get selected items
     const selectedItems = Array.from(document.querySelectorAll('.item-select-checkbox:checked'))
         .map(cb => cb.dataset.itemType);
-    
+
     if (selectedItems.length === 0) {
         alert('Please select at least one item to add to products.');
         return;
     }
-    
-    const confirmMsg = selectedItems.length === 1 
+
+    // Collect generation/connector overrides for each selected item
+    const itemOverrides = {};
+    selectedItems.forEach(itemType => {
+        const generationSelect = document.querySelector(`.item-generation-select[data-item-type="${itemType}"]`);
+        const connectorSelect = document.querySelector(`.item-connector-select[data-item-type="${itemType}"]`);
+
+        if (generationSelect || connectorSelect) {
+            itemOverrides[itemType] = {
+                generation: generationSelect ? generationSelect.value : null,
+                connector_type: connectorSelect ? connectorSelect.value : null
+            };
+        }
+    });
+
+    console.log('[SPLIT] Item overrides:', itemOverrides);
+
+    const confirmMsg = selectedItems.length === 1
         ? `Are you sure you want to add 1 item to products?\n\nThis cannot be undone.`
         : `Are you sure you want to add ${selectedItems.length} items to products?\n\nThis cannot be undone.`;
-    
+
     if (!confirm(confirmMsg)) {
         return;
     }
-    
+
     const button = document.getElementById('splitButton');
     const buttonText = document.getElementById('splitButtonText');
     const originalText = buttonText.textContent;
     button.disabled = true;
     buttonText.textContent = 'Adding to Products...';
-    
+
     try {
         const response = await authenticatedFetch(`${window.API_BASE}/api/admin/check-in/${checkInId}/split`, {
             method: 'POST',
@@ -496,7 +565,8 @@ async function splitIntoProducts() {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                selected_items: selectedItems
+                selected_items: selectedItems,
+                item_overrides: itemOverrides
             })
         });
         

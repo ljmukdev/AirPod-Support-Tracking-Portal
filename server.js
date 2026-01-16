@@ -4736,15 +4736,18 @@ app.delete('/api/admin/check-in/:id', requireAuth, requireDB, async (req, res) =
 // Split check-in into products (Admin only)
 app.post('/api/admin/check-in/:id/split', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;
-    const { selected_items } = req.body;
-    
+    const { selected_items, item_overrides } = req.body;
+
     if (!ObjectId.isValid(id)) {
         return res.status(400).json({ error: 'Invalid check-in ID' });
     }
-    
+
     if (!selected_items || !Array.isArray(selected_items) || selected_items.length === 0) {
         return res.status(400).json({ error: 'No items selected to split' });
     }
+
+    // item_overrides is an optional object: { item_type: { generation, connector_type } }
+    const overrides = item_overrides || {};
     
     try {
         // Load check-in
@@ -4801,15 +4804,16 @@ app.post('/api/admin/check-in/:id/split', requireAuth, requireDB, async (req, re
         console.log(`[SPLIT] Price calculation: Total=${purchase.purchase_price}, Valuable items=${valuableItemCount}, Price per item=${pricePerValuableItem}`);
         
         for (const item of itemsToSplit) {
-            // Use item-level generation/connector_type if set (allows per-item overrides), otherwise fall back to purchase values
-            const itemGeneration = item.generation || purchase.generation || 'Unknown';
-            const itemConnectorType = item.connector_type || purchase.connector_type || null;
+            // Check for frontend overrides first, then item-level, then fall back to purchase values
+            const itemOverride = overrides[item.item_type] || {};
+            const itemGeneration = itemOverride.generation || item.generation || purchase.generation || 'Unknown';
+            const itemConnectorType = itemOverride.connector_type || item.connector_type || purchase.connector_type || null;
             const itemAncType = item.anc_type || purchase.anc_type || null;
 
             const productName = `AirPods ${itemGeneration} - ${getItemDisplayName(item.item_type)}`;
 
-            console.log(`[SPLIT] Creating product for: ${item.item_type}, generation: "${itemGeneration}" (item: "${item.generation}", purchase: "${purchase.generation}")`);
-            console.log(`[SPLIT] Connector type: "${itemConnectorType}" (item: "${item.connector_type}", purchase: "${purchase.connector_type}")`);
+            console.log(`[SPLIT] Creating product for: ${item.item_type}, generation: "${itemGeneration}" (override: "${itemOverride.generation}", item: "${item.generation}", purchase: "${purchase.generation}")`);
+            console.log(`[SPLIT] Connector type: "${itemConnectorType}" (override: "${itemOverride.connector_type}", item: "${item.connector_type}", purchase: "${purchase.connector_type}")`);
 
             // Get part number from database using item-level values
             let partNumber = null;
