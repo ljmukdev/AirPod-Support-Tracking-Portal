@@ -1973,12 +1973,16 @@ async function deleteSale(id) {
 // ===== COST RECALCULATION =====
 
 async function handleRecalculateCosts() {
+    console.log('[SYNC-COSTS] Button clicked');
     const btn = document.getElementById('recalculateCostsBtn');
 
     // Confirm with user
     if (!confirm('This will sync all sales costs with current product prices.\n\nThis is useful after refunds have been processed to ensure sales records reflect the correct costs.\n\nDo you want to continue?')) {
+        console.log('[SYNC-COSTS] User cancelled');
         return;
     }
+
+    console.log('[SYNC-COSTS] User confirmed, starting sync...');
 
     // Disable button and show loading state
     if (btn) {
@@ -1992,14 +1996,25 @@ async function handleRecalculateCosts() {
     }
 
     try {
-        const response = await authenticatedFetch(`${API_BASE}/api/admin/sales/recalculate-costs`, {
+        // Check if authenticatedFetch is available
+        const fetchFn = window.authenticatedFetch || authenticatedFetch;
+        if (!fetchFn) {
+            throw new Error('authenticatedFetch not available - please refresh the page');
+        }
+
+        console.log('[SYNC-COSTS] Making request to:', `${API_BASE}/api/admin/sales/recalculate-costs`);
+
+        const response = await fetchFn(`${API_BASE}/api/admin/sales/recalculate-costs`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             }
         });
 
+        console.log('[SYNC-COSTS] Response status:', response.status);
+
         const data = await response.json();
+        console.log('[SYNC-COSTS] Response data:', data);
 
         if (response.ok && data.success) {
             // Build result message
@@ -2027,7 +2042,7 @@ async function handleRecalculateCosts() {
             alert(`Failed to recalculate costs: ${data.error || 'Unknown error'}`);
         }
     } catch (error) {
-        console.error('Error recalculating costs:', error);
+        console.error('[SYNC-COSTS] Error:', error);
         alert(`Error recalculating costs: ${error.message || 'Unknown error'}`);
     } finally {
         // Restore button state
