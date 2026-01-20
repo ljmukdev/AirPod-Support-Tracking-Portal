@@ -406,21 +406,21 @@
 
                 <div class="sale-form">
                     <p style="color: #666; margin-bottom: 20px;">
-                        Enter the serial number or security barcode of the product that was sold, then provide the sale details.
+                        Search for the product that was sold using any identifier, then provide the sale details.
                     </p>
 
                     <form id="saleForm">
                         <div class="form-group">
                             <label for="searchProduct">Search Product *</label>
                             <p style="font-size: 0.85rem; color: #666; margin-bottom: 10px;">
-                                Enter serial number or security barcode to find the product
+                                Enter serial number, security barcode, order number, or tracking number
                             </p>
                             <input
                                 type="text"
                                 id="searchProduct"
                                 name="searchProduct"
                                 required
-                                placeholder="Enter serial number or security barcode"
+                                placeholder="Enter any product identifier..."
                                 autocomplete="off"
                             >
                             <button type="button" class="button" id="searchButton" style="margin-top: 10px;">
@@ -884,27 +884,54 @@
             const searchValue = document.getElementById('searchProduct').value.trim();
 
             if (!searchValue) {
-                showError('Please enter a serial number or security barcode');
+                showError('Please enter a serial number, security barcode, or order number');
                 return;
             }
 
             showSpinner();
             hideMessages();
 
-            // Search for product
-            authenticatedFetch('/api/admin/products/search?q=' + encodeURIComponent(searchValue))
+            // Use universal search to find products by any identifier
+            authenticatedFetch('/api/admin/universal-search?q=' + encodeURIComponent(searchValue))
                 .then(response => response.json())
                 .then(data => {
                     hideSpinner();
 
-                    if (data.product) {
-                        selectedProduct = data.product;
-                        displayProduct(data.product);
-                        document.getElementById('productInfo').classList.add('show');
-                        document.getElementById('saleFields').style.display = 'block';
-                        document.getElementById('formActions').style.display = 'flex';
+                    if (data.products && data.products.length > 0) {
+                        // Find the best product to show (prioritize in_stock)
+                        const inStockProduct = data.products.find(p => p.status === 'in_stock');
+                        const product = inStockProduct || data.products[0];
+
+                        // Fetch full product details
+                        return authenticatedFetch('/api/admin/products/search?q=' + encodeURIComponent(product.security_barcode || product.serial_number))
+                            .then(resp => resp.json())
+                            .then(fullData => {
+                                if (fullData.product) {
+                                    selectedProduct = fullData.product;
+                                    displayProduct(fullData.product);
+                                } else {
+                                    // Use the summary data if full details aren't available
+                                    selectedProduct = {
+                                        _id: product.id,
+                                        serial_number: product.serial_number,
+                                        security_barcode: product.security_barcode,
+                                        part_type: product.part_type,
+                                        status: product.status,
+                                        purchase_price: product.purchase_price
+                                    };
+                                    displayProduct(selectedProduct);
+                                }
+                                document.getElementById('productInfo').classList.add('show');
+                                document.getElementById('saleFields').style.display = 'block';
+                                document.getElementById('formActions').style.display = 'flex';
+
+                                // Show info if multiple products found
+                                if (data.products.length > 1) {
+                                    showInfo(`Found ${data.products.length} products. Showing ${product.status === 'in_stock' ? 'in-stock' : 'first'} result.`);
+                                }
+                            });
                     } else {
-                        showError('Product not found. Please check the serial number or security barcode.');
+                        showError('Product not found. Please check your search term.');
                         document.getElementById('productInfo').classList.remove('show');
                         document.getElementById('saleFields').style.display = 'none';
                         document.getElementById('formActions').style.display = 'none';
@@ -915,6 +942,22 @@
                     console.error('Search error:', error);
                     showError('Failed to search for product. Please try again.');
                 });
+        }
+
+        function showInfo(message) {
+            const infoEl = document.getElementById('infoMessage');
+            if (infoEl) {
+                infoEl.textContent = message;
+                infoEl.style.display = 'block';
+            } else {
+                // Create info element if it doesn't exist
+                const container = document.getElementById('productInfo');
+                const info = document.createElement('div');
+                info.id = 'infoMessage';
+                info.style.cssText = 'padding: 10px; background: #d1ecf1; color: #0c5460; border-radius: 4px; margin-bottom: 10px;';
+                info.textContent = message;
+                container.parentNode.insertBefore(info, container);
+            }
         }
 
         function displayProduct(product) {

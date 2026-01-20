@@ -506,25 +506,15 @@
         <div class="admin-content">
             <div class="search-container">
             <div class="search-form">
-                <h2>🔍 Search for Product</h2>
-                <p style="color: #666; margin-bottom: 20px;">Search by Serial Number, eBay Order Number, or Security Barcode</p>
-                
+                <h2>🔍 Universal Search</h2>
+                <p style="color: #666; margin-bottom: 20px;">Search by any identifier: Serial Number, Security Barcode, Purchase Order, Sale Order, or Tracking Number</p>
+
                 <form id="searchForm">
                     <div class="form-group">
-                        <label for="serialNumber">Serial Number</label>
-                        <input type="text" id="serialNumber" name="serial_number" placeholder="Enter serial number">
+                        <label for="universalSearch">Search</label>
+                        <input type="text" id="universalSearch" name="q" placeholder="Enter any order number, serial, barcode, or tracking number" autofocus>
                     </div>
-                    
-                    <div class="form-group">
-                        <label for="ebayOrderNumber">eBay Order Number</label>
-                        <input type="text" id="ebayOrderNumber" name="ebay_order_number" placeholder="Enter eBay order number">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="securityBarcode">Security Barcode</label>
-                        <input type="text" id="securityBarcode" name="security_barcode" placeholder="Enter security barcode">
-                    </div>
-                    
+
                     <button type="submit" class="search-button" id="searchButton">Search</button>
                 </form>
             </div>
@@ -537,6 +527,11 @@
             </div>
 
             <div class="results-container" id="resultsContainer">
+                <div id="searchSummary" style="margin-bottom: 20px; padding: 15px; background: #e3f2fd; border-radius: 8px; display: none;">
+                    <h3 style="margin: 0 0 10px 0; color: #1565c0;">Search Results</h3>
+                    <div id="summaryContent"></div>
+                </div>
+                <div id="salesResults" style="display: none; margin-bottom: 20px;"></div>
                 <div class="purchase-details" id="purchaseDetails" style="display: none;"></div>
                 <div class="product-details" id="productDetails"></div>
                 <div class="warranty-details" id="warrantyDetails"></div>
@@ -766,34 +761,31 @@
             checkAuth();
         }
         
-        // Search form handler
+        // Search form handler - Universal Search
         document.getElementById('searchForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
-            const serialNumber = document.getElementById('serialNumber').value.trim();
-            const ebayOrderNumber = document.getElementById('ebayOrderNumber').value.trim();
-            const securityBarcode = document.getElementById('securityBarcode').value.trim();
-            
-            if (!serialNumber && !ebayOrderNumber && !securityBarcode) {
-                showError('Please enter at least one search criteria');
+
+            const searchQuery = document.getElementById('universalSearch').value.trim();
+
+            if (!searchQuery) {
+                showError('Please enter a search term');
                 return;
             }
-            
+
             // Hide previous results
             document.getElementById('resultsContainer').style.display = 'none';
             document.getElementById('notFoundMessage').style.display = 'none';
             document.getElementById('errorMessage').style.display = 'none';
             document.getElementById('loadingMessage').style.display = 'block';
-            
-            // Build query string
-            const params = new URLSearchParams();
-            if (serialNumber) params.append('serial_number', serialNumber);
-            if (ebayOrderNumber) params.append('ebay_order_number', ebayOrderNumber);
-            if (securityBarcode) params.append('security_barcode', securityBarcode);
-            
+            document.getElementById('searchSummary').style.display = 'none';
+            document.getElementById('salesResults').style.display = 'none';
+            document.getElementById('purchaseDetails').style.display = 'none';
+            document.getElementById('productDetails').innerHTML = '';
+            document.getElementById('warrantyDetails').innerHTML = '';
+
             try {
                 const apiBase = window.API_BASE || '';
-                const response = await authenticatedFetch(`${apiBase}/api/admin/search-product?${params.toString()}`, {
+                const response = await authenticatedFetch(`${apiBase}/api/admin/universal-search?q=${encodeURIComponent(searchQuery)}`, {
                     credentials: 'include'
                 });
 
@@ -803,37 +795,330 @@
 
                 if (!response.ok) {
                     if (response.status === 401) {
-                        // Redirect to login if unauthorized
                         window.location.href = 'login.html';
                         return;
                     }
-                    if (response.status === 404) {
-                        document.getElementById('notFoundMessage').style.display = 'block';
-                    } else {
-                        showError(data.error || 'An error occurred while searching');
-                    }
+                    showError(data.error || 'An error occurred while searching');
                     return;
                 }
-                
-                // Display results
-                // Check if this is a purchase result (no product found but purchase exists)
-                if (data.purchase && !data.product) {
-                    displayPurchase(data.purchase, data.linked_products || []);
-                    document.getElementById('productDetails').innerHTML = '';
-                    document.getElementById('warrantyDetails').innerHTML = '';
-                } else {
-                    document.getElementById('purchaseDetails').style.display = 'none';
-                    displayProduct(data.product);
-                    displayWarranty(data.warranty);
+
+                // Check if any results were found
+                if (data.summary.total_results === 0) {
+                    document.getElementById('notFoundMessage').style.display = 'block';
+                    return;
                 }
+
+                // Store results for reference
+                window.universalSearchResults = data;
+
+                // Display summary
+                displaySearchSummary(data);
+
+                // Display all results
+                displayUniversalResults(data);
+
                 document.getElementById('resultsContainer').style.display = 'block';
-                
+
             } catch (error) {
                 document.getElementById('loadingMessage').style.display = 'none';
                 showError('Network error. Please try again.');
                 console.error('Search error:', error);
             }
         });
+
+        // Check for URL parameters on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const securityBarcode = urlParams.get('security_barcode');
+            const q = urlParams.get('q');
+            const searchTerm = securityBarcode || q;
+
+            if (searchTerm) {
+                document.getElementById('universalSearch').value = searchTerm;
+                document.getElementById('searchForm').dispatchEvent(new Event('submit'));
+            }
+        });
+
+        function displaySearchSummary(data) {
+            const summary = data.summary;
+            const summaryHtml = `
+                <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                    ${summary.products_found > 0 ? `<span style="padding: 5px 12px; background: #4caf50; color: white; border-radius: 20px; font-size: 0.9rem;">${summary.products_found} Product${summary.products_found !== 1 ? 's' : ''}</span>` : ''}
+                    ${summary.purchases_found > 0 ? `<span style="padding: 5px 12px; background: #2196f3; color: white; border-radius: 20px; font-size: 0.9rem;">${summary.purchases_found} Purchase${summary.purchases_found !== 1 ? 's' : ''}</span>` : ''}
+                    ${summary.sales_found > 0 ? `<span style="padding: 5px 12px; background: #9c27b0; color: white; border-radius: 20px; font-size: 0.9rem;">${summary.sales_found} Sale${summary.sales_found !== 1 ? 's' : ''}</span>` : ''}
+                    ${summary.warranties_found > 0 ? `<span style="padding: 5px 12px; background: #ff9800; color: white; border-radius: 20px; font-size: 0.9rem;">${summary.warranties_found} Warrant${summary.warranties_found !== 1 ? 'ies' : 'y'}</span>` : ''}
+                    ${summary.connections_found > 0 ? `<span style="padding: 5px 12px; background: #607d8b; color: white; border-radius: 20px; font-size: 0.9rem;">${summary.connections_found} Connection${summary.connections_found !== 1 ? 's' : ''}</span>` : ''}
+                </div>
+            `;
+            document.getElementById('summaryContent').innerHTML = summaryHtml;
+            document.getElementById('searchSummary').style.display = 'block';
+        }
+
+        function displayUniversalResults(data) {
+            // Display Sales first (if any)
+            if (data.sales && data.sales.length > 0) {
+                displaySales(data.sales);
+            }
+
+            // Display Purchases
+            if (data.purchases && data.purchases.length > 0) {
+                // Find linked products for each purchase
+                const purchaseWithProducts = data.purchases.map(purchase => {
+                    const linkedProducts = data.products.filter(p => p.purchase_id === purchase.id);
+                    return { ...purchase, linked_products: linkedProducts };
+                });
+                displayPurchases(purchaseWithProducts);
+            }
+
+            // Display Products (show the first one in detail view if exists)
+            if (data.products && data.products.length > 0) {
+                // Find the primary product (first in_stock, or first one)
+                const primaryProduct = data.products.find(p => p.status === 'in_stock') || data.products[0];
+                displayProductFromUniversal(primaryProduct, data);
+
+                // Show other products as a list if more than one
+                if (data.products.length > 1) {
+                    displayAdditionalProducts(data.products.filter(p => p.id !== primaryProduct.id));
+                }
+            }
+
+            // Display Warranties
+            if (data.warranties && data.warranties.length > 0) {
+                displayWarranties(data.warranties);
+            }
+        }
+
+        function displaySales(sales) {
+            const container = document.getElementById('salesResults');
+            const formatDate = (date) => date ? new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A';
+
+            let html = '<div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px;">';
+            html += '<h2 style="margin-top: 0; color: #9c27b0; border-bottom: 2px solid #9c27b0; padding-bottom: 10px;">💰 Sales Orders</h2>';
+
+            for (const sale of sales) {
+                html += `
+                    <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #9c27b0;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <h3 style="margin: 0; color: #333;">Order: ${sale.order_number || 'N/A'}</h3>
+                            <span style="padding: 4px 12px; background: #9c27b0; color: white; border-radius: 4px; font-size: 0.85rem;">${sale.platform || 'Unknown'}</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
+                            <div><strong>Date:</strong> ${formatDate(sale.sale_date)}</div>
+                            <div><strong>Total:</strong> £${parseFloat(sale.sale_price || 0).toFixed(2)}</div>
+                            <div><strong>Profit:</strong> <span style="color: ${sale.profit >= 0 ? '#4caf50' : '#f44336'};">£${parseFloat(sale.profit || 0).toFixed(2)}</span></div>
+                            <div><strong>Products:</strong> ${sale.product_count || 1}</div>
+                            ${sale.outward_tracking_number ? `<div><strong>Tracking:</strong> ${sale.outward_tracking_number}</div>` : ''}
+                        </div>
+                        ${sale.products && sale.products.length > 0 ? `
+                            <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd;">
+                                <strong>Products in this sale:</strong>
+                                <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 5px;">
+                                    ${sale.products.map(p => `<span style="padding: 3px 8px; background: #e1bee7; color: #7b1fa2; border-radius: 4px; font-size: 0.85rem;">${p.security_barcode || p.product_serial || 'Unknown'}</span>`).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+
+            html += '</div>';
+            container.innerHTML = html;
+            container.style.display = 'block';
+        }
+
+        function displayPurchases(purchases) {
+            const container = document.getElementById('purchaseDetails');
+            const formatDate = (date) => date ? new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A';
+
+            let html = '<div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">';
+            html += '<h2 style="margin-top: 0; color: #2196f3; border-bottom: 2px solid #2196f3; padding-bottom: 10px;">🛒 Purchase Orders</h2>';
+
+            for (const purchase of purchases) {
+                const statusColors = {
+                    'paid': '#17a2b8', 'awaiting_despatch': '#ffc107', 'awaiting_delivery': '#fd7e14',
+                    'delivered': '#28a745', 'awaiting_return': '#6c757d', 'returned': '#dc3545', 'refunded': '#343a40'
+                };
+                const statusColor = statusColors[purchase.status] || '#6c757d';
+
+                html += `
+                    <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #2196f3;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <h3 style="margin: 0; color: #333;">Order: ${purchase.order_number || 'N/A'}</h3>
+                            <div style="display: flex; gap: 8px;">
+                                <span style="padding: 4px 12px; background: ${statusColor}; color: white; border-radius: 4px; font-size: 0.85rem;">${purchase.status || 'Unknown'}</span>
+                                <a href="edit-purchase.html?id=${purchase.id}" style="padding: 4px 12px; background: #17a2b8; color: white; border-radius: 4px; font-size: 0.85rem; text-decoration: none;">Edit</a>
+                            </div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
+                            <div><strong>Platform:</strong> ${purchase.platform || 'N/A'}</div>
+                            <div><strong>Seller:</strong> ${purchase.seller_name || 'N/A'}</div>
+                            <div><strong>Date:</strong> ${formatDate(purchase.purchase_date)}</div>
+                            <div><strong>Price:</strong> £${parseFloat(purchase.purchase_price || 0).toFixed(2)}</div>
+                            <div><strong>Generation:</strong> ${purchase.generation || 'N/A'}</div>
+                            ${purchase.tracking_number ? `<div><strong>Tracking:</strong> ${purchase.tracking_number}</div>` : ''}
+                        </div>
+                        ${purchase.linked_products && purchase.linked_products.length > 0 ? `
+                            <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd;">
+                                <strong>Linked Products (${purchase.linked_products.length}):</strong>
+                                <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 5px;">
+                                    ${purchase.linked_products.map(p => `<span style="padding: 3px 8px; background: #bbdefb; color: #1565c0; border-radius: 4px; font-size: 0.85rem;">${p.security_barcode || p.serial_number || 'Unknown'} (${p.status})</span>`).join('')}
+                                </div>
+                            </div>
+                        ` : `
+                            <div style="margin-top: 10px; padding: 10px; background: #fff3cd; border-radius: 4px;">
+                                <strong>No products checked in yet.</strong> <a href="check-in.html" style="color: #856404;">Go to Check-In</a>
+                            </div>
+                        `}
+                    </div>
+                `;
+            }
+
+            html += '</div>';
+            container.innerHTML = html;
+            container.style.display = 'block';
+        }
+
+        async function displayProductFromUniversal(product, searchData) {
+            // Fetch full product details
+            try {
+                const apiBase = window.API_BASE || '';
+                const response = await authenticatedFetch(`${apiBase}/api/admin/search-product?security_barcode=${encodeURIComponent(product.security_barcode || '')}&serial_number=${encodeURIComponent(product.serial_number || '')}`, {
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.product) {
+                        displayProduct(data.product);
+                        if (data.warranty) {
+                            displayWarranty(data.warranty);
+                        }
+                        return;
+                    }
+                }
+            } catch (err) {
+                console.log('Could not fetch full product details, showing summary view');
+            }
+
+            // Fallback: show summary from universal search
+            displayProductSummary(product, searchData);
+        }
+
+        function displayProductSummary(product, searchData) {
+            const container = document.getElementById('productDetails');
+            const formatDate = (date) => date ? new Date(date).toLocaleString() : 'N/A';
+
+            const statusColors = {
+                'in_stock': '#28a745', 'sold': '#6c757d', 'active': '#007bff',
+                'returned': '#ffc107', 'faulty': '#dc3545', 'spares_repairs': '#17a2b8'
+            };
+            const statusColor = statusColors[product.status] || '#6c757d';
+
+            container.innerHTML = `
+                <h2 style="border-bottom: 2px solid #4caf50; padding-bottom: 10px;">📦 Product Details</h2>
+                <div class="details-grid">
+                    <div class="detail-item">
+                        <div class="detail-label">Serial Number</div>
+                        <div class="detail-value">${product.serial_number || 'N/A'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Security Barcode</div>
+                        <div class="detail-value">${product.security_barcode || 'N/A'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Status</div>
+                        <div class="detail-value">
+                            <span style="padding: 4px 10px; background: ${statusColor}; color: white; border-radius: 4px; font-size: 0.85rem;">${product.status || 'Unknown'}</span>
+                        </div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Part Type</div>
+                        <div class="detail-value">${product.part_type || 'N/A'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Generation</div>
+                        <div class="detail-value">${product.generation || 'N/A'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Date Added</div>
+                        <div class="detail-value">${formatDate(product.date_added)}</div>
+                    </div>
+                    ${product.ebay_order_number ? `
+                    <div class="detail-item">
+                        <div class="detail-label">eBay Order</div>
+                        <div class="detail-value">${product.ebay_order_number}</div>
+                    </div>
+                    ` : ''}
+                    ${product.sales_order_number ? `
+                    <div class="detail-item">
+                        <div class="detail-label">Sales Order</div>
+                        <div class="detail-value">${product.sales_order_number}</div>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+
+            window.currentProductId = product.id;
+            window.currentProduct = product;
+        }
+
+        function displayAdditionalProducts(products) {
+            if (products.length === 0) return;
+
+            const container = document.getElementById('productDetails');
+            const existingContent = container.innerHTML;
+
+            let html = `
+                <div style="margin-top: 20px; padding: 15px; background: #e8f5e9; border-radius: 8px; border-left: 4px solid #4caf50;">
+                    <strong>📦 Other Related Products (${products.length})</strong>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-top: 10px;">
+            `;
+
+            for (const p of products) {
+                const statusColors = { 'in_stock': '#28a745', 'sold': '#6c757d', 'active': '#007bff', 'returned': '#ffc107', 'faulty': '#dc3545' };
+                html += `
+                    <div style="background: white; padding: 10px; border-radius: 6px; border: 1px solid #c8e6c9;">
+                        <div style="font-weight: 600; color: #2e7d32;">${p.security_barcode || p.serial_number || 'Unknown'}</div>
+                        <div style="font-size: 0.85rem; color: #666;">${p.part_type || 'N/A'} - ${p.generation || 'N/A'}</div>
+                        <span style="display: inline-block; margin-top: 5px; padding: 2px 8px; background: ${statusColors[p.status] || '#6c757d'}; color: white; border-radius: 4px; font-size: 0.75rem;">${p.status || 'Unknown'}</span>
+                    </div>
+                `;
+            }
+
+            html += '</div></div>';
+            container.innerHTML = existingContent + html;
+        }
+
+        function displayWarranties(warranties) {
+            const container = document.getElementById('warrantyDetails');
+            const formatDate = (date) => date ? new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A';
+
+            let html = '<h2 style="border-bottom: 2px solid #ff9800; padding-bottom: 10px;">🛡️ Warranties</h2>';
+
+            for (const warranty of warranties) {
+                const isExpired = warranty.standard_warranty_end && new Date(warranty.standard_warranty_end) < new Date();
+                const statusColor = isExpired ? '#f44336' : '#4caf50';
+
+                html += `
+                    <div style="background: #fff8e1; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #ff9800;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <h3 style="margin: 0; color: #333;">Warranty: ${warranty.warranty_id || 'N/A'}</h3>
+                            <span style="padding: 4px 12px; background: ${statusColor}; color: white; border-radius: 4px; font-size: 0.85rem;">${isExpired ? 'Expired' : (warranty.status || 'Active')}</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                            <div><strong>Security Barcode:</strong> ${warranty.security_barcode || 'N/A'}</div>
+                            <div><strong>Customer:</strong> ${warranty.customer_name || 'N/A'}</div>
+                            <div><strong>Email:</strong> ${warranty.customer_email || 'N/A'}</div>
+                            <div><strong>Registered:</strong> ${formatDate(warranty.registration_date)}</div>
+                            <div><strong>Standard Warranty Ends:</strong> ${formatDate(warranty.standard_warranty_end)}</div>
+                            ${warranty.extended_warranty && warranty.extended_warranty !== 'none' ? `<div><strong>Extended:</strong> ${warranty.extended_warranty} (until ${formatDate(warranty.extended_warranty_end)})</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = html;
+        }
         
         function showError(message) {
             const errorEl = document.getElementById('errorMessage');
