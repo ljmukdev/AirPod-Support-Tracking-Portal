@@ -44,45 +44,87 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 async function searchByTracking() {
-    const trackingNumber = document.getElementById('trackingNumberInput').value.trim().toUpperCase();
+    const searchQuery = document.getElementById('trackingNumberInput').value.trim().toUpperCase();
     const errorBanner = document.getElementById('errorBanner');
     const successBanner = document.getElementById('successBanner');
-    
+
     // Hide previous messages
     errorBanner.style.display = 'none';
     successBanner.style.display = 'none';
-    
-    if (!trackingNumber) {
-        errorBanner.textContent = 'Please enter a tracking number';
+
+    if (!searchQuery) {
+        errorBanner.textContent = 'Please enter a tracking number, order number, or product identifier';
         errorBanner.style.display = 'block';
         return;
     }
-    
+
     try {
-        const response = await authenticatedFetch(`${window.API_BASE}/api/admin/purchases/by-tracking/${encodeURIComponent(trackingNumber)}`);
-        
+        // Use universal search to find by any identifier
+        const response = await authenticatedFetch(`${window.API_BASE}/api/admin/universal-search?q=${encodeURIComponent(searchQuery)}`);
+
         if (!response.ok) {
-            if (response.status === 404) {
-                throw new Error('No purchase found with this tracking number');
-            }
-            throw new Error('Failed to search for purchase');
+            throw new Error('Failed to search');
         }
-        
+
         const data = await response.json();
-        currentPurchase = data.purchase;
-        
-        console.log('[CHECK-IN] Purchase found:', currentPurchase);
-        
-        // Display purchase details and check-in form
-        displayPurchaseDetails(currentPurchase);
-        displayCheckInForm(currentPurchase);
-        
-        // Show the form
-        document.getElementById('checkInForm').style.display = 'block';
-        
-        // Scroll to form
-        document.getElementById('checkInForm').scrollIntoView({ behavior: 'smooth' });
-        
+
+        // Check if any purchases were found
+        if (data.purchases && data.purchases.length > 0) {
+            // Use the first purchase found
+            const purchaseSummary = data.purchases[0];
+
+            // Fetch full purchase details
+            const purchaseResponse = await authenticatedFetch(`${window.API_BASE}/api/admin/purchases/${purchaseSummary.id}`);
+            if (!purchaseResponse.ok) {
+                throw new Error('Failed to fetch purchase details');
+            }
+            const purchaseData = await purchaseResponse.json();
+            currentPurchase = purchaseData.purchase;
+
+            console.log('[CHECK-IN] Purchase found via universal search:', currentPurchase);
+
+            // Show info if multiple purchases found
+            if (data.purchases.length > 1) {
+                successBanner.textContent = `Found ${data.purchases.length} purchases. Showing first result.`;
+                successBanner.style.display = 'block';
+            }
+
+            // Display purchase details and check-in form
+            displayPurchaseDetails(currentPurchase);
+            displayCheckInForm(currentPurchase);
+
+            // Show the form
+            document.getElementById('checkInForm').style.display = 'block';
+
+            // Scroll to form
+            document.getElementById('checkInForm').scrollIntoView({ behavior: 'smooth' });
+        } else {
+            // No purchases found - try the old tracking-specific endpoint as fallback
+            const trackingResponse = await authenticatedFetch(`${window.API_BASE}/api/admin/purchases/by-tracking/${encodeURIComponent(searchQuery)}`);
+
+            if (!trackingResponse.ok) {
+                if (trackingResponse.status === 404) {
+                    throw new Error('No purchase found. Try searching by tracking number, order number, or product serial/barcode.');
+                }
+                throw new Error('Failed to search for purchase');
+            }
+
+            const trackingData = await trackingResponse.json();
+            currentPurchase = trackingData.purchase;
+
+            console.log('[CHECK-IN] Purchase found via tracking:', currentPurchase);
+
+            // Display purchase details and check-in form
+            displayPurchaseDetails(currentPurchase);
+            displayCheckInForm(currentPurchase);
+
+            // Show the form
+            document.getElementById('checkInForm').style.display = 'block';
+
+            // Scroll to form
+            document.getElementById('checkInForm').scrollIntoView({ behavior: 'smooth' });
+        }
+
     } catch (error) {
         console.error('[CHECK-IN] Error:', error);
         errorBanner.textContent = error.message || 'An error occurred while searching';

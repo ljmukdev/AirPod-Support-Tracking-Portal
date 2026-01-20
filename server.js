@@ -1039,7 +1039,29 @@ async function initializeDatabase() {
         );
         console.log('✅ Created security_barcode partial unique index');
         await db.collection('products').createIndex({ date_added: -1 });
-        
+
+        // Create indexes for universal search
+        try {
+            await db.collection('products').createIndex({ serial_number: 1 });
+            await db.collection('products').createIndex({ ebay_order_number: 1 });
+            await db.collection('products').createIndex({ sales_order_number: 1 });
+            await db.collection('products').createIndex({ purchase_id: 1 });
+
+            await db.collection('purchases').createIndex({ order_number: 1 });
+            await db.collection('purchases').createIndex({ tracking_number: 1 });
+
+            await db.collection('sales').createIndex({ order_number: 1 });
+            await db.collection('sales').createIndex({ outward_tracking_number: 1 });
+            await db.collection('sales').createIndex({ 'products.product_serial': 1 });
+            await db.collection('sales').createIndex({ 'products.security_barcode': 1 });
+
+            console.log('✅ Created universal search indexes');
+        } catch (err) {
+            if (!err.message.includes('already exists') && !err.message.includes('E11000')) {
+                console.error('Warning: Could not create universal search indexes:', err.message);
+            }
+        }
+
         // Create indexes for airpod_parts collection
         await db.collection('airpod_parts').createIndex({ generation: 1, part_name: 1 }, { unique: true });
         await db.collection('airpod_parts').createIndex({ generation: 1, display_order: 1 });
@@ -10467,6 +10489,332 @@ app.get('/api/admin/search-product', requireAuth, requireDB, async (req, res) =>
         });
     } catch (err) {
         console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Universal Search - Search across all entities (serial, security, purchase order, sale order)
+app.get('/api/admin/universal-search', requireAuth, requireDB, async (req, res) => {
+    try {
+        const query = req.query.q?.trim();
+
+        if (!query) {
+            return res.status(400).json({ error: 'Search query parameter (q) is required' });
+        }
+
+        console.log('🔍 Universal search for:', query);
+
+        const queryUpper = query.toUpperCase();
+        const results = {
+            products: [],
+            purchases: [],
+            sales: [],
+            warranties: [],
+            connections: []
+        };
+
+        // Build barcode query for flexible matching (handles hyphen variations)
+        const barcodeQuery = createSecurityBarcodeQuery(query);
+
+        // 1. Search Products - by serial, security barcode, ebay order, or sales order
+        const productQuery = {
+            $or: [
+                { serial_number: queryUpper },
+                { serial_number: query },
+                { ebay_order_number: query },
+                { ebay_order_number: queryUpper },
+                { sales_order_number: query },
+                { sales_order_number: queryUpper }
+            ]
+        };
+
+        // Add barcode query conditions
+        if (barcodeQuery && barcodeQuery.$or) {
+            productQuery.$or.push(...barcodeQuery.$or);
+        } else if (barcodeQuery) {
+            productQuery.$or.push(barcodeQuery);
+        }
+
+        const products = await db.collection('products').find(productQuery).toArray();
+
+        // 2. Search Purchases - by order number or tracking number
+        const purchases = await db.collection('purchases').find({
+            $or: [
+                { order_number: query },
+                { order_number: queryUpper },
+                { tracking_number: query },
+                { tracking_number: queryUpper }
+            ]
+        }).toArray();
+
+        // 3. Search Sales - by order number or tracking number
+        const sales = await db.collection('sales').find({
+            $or: [
+                { order_number: query },
+                { order_number: queryUpper },
+                { outward_tracking_number: query },
+                { outward_tracking_number: queryUpper },
+                // Also search within products array
+                { 'products.product_serial': queryUpper },
+                { 'products.security_barcode': queryUpper }
+            ]
+        }).toArray();
+
+        // 4. Search Warranties - by security barcode or warranty ID
+        let warranties = [];
+        if (barcodeQuery) {
+            warranties = await db.collection('warranties').find({
+                $or: [
+                    barcodeQuery,
+                    { warranty_id: query },
+                    { warranty_id: queryUpper }
+                ]
+            }).toArray();
+        } else {
+            warranties = await db.collection('warranties').find({
+                $or: [
+                    { security_barcode: queryUpper },
+                    { warranty_id: query },
+                    { warranty_id: queryUpper }
+                ]
+            }).toArray();
+        }
+
+        // Collect all unique IDs for connection lookups
+        const productIds = new Set(products.map(p => p._id.toString()));
+        const purchaseIds = new Set(purchases.map(p => p._id.toString()));
+        const saleIds = new Set(sales.map(s => s._id.toString()));
+        const securityBarcodes = new Set();
+        const salesOrderNumbers = new Set();
+        const purchaseOrderNumbers = new Set();
+
+        // Extract identifiers from found products
+        for (const product of products) {
+            if (product.security_barcode) securityBarcodes.add(product.security_barcode);
+            if (product.sales_order_number) salesOrderNumbers.add(product.sales_order_number);
+            if (product.purchase_id) purchaseIds.add(product.purchase_id);
+            if (product.ebay_order_number) purchaseOrderNumbers.add(product.ebay_order_number);
+        }
+
+        // Extract from found purchases
+        for (const purchase of purchases) {
+            if (purchase.order_number) purchaseOrderNumbers.add(purchase.order_number);
+        }
+
+        // Extract from found sales
+        for (const sale of sales) {
+            if (sale.order_number) salesOrderNumbers.add(sale.order_number);
+            if (sale.products) {
+                for (const p of sale.products) {
+                    if (p.product_id) productIds.add(p.product_id.toString());
+                    if (p.security_barcode) securityBarcodes.add(p.security_barcode);
+                }
+            }
+        }
+
+        // Fetch connected entities
+        // Connected products (from sales and purchases)
+        if (salesOrderNumbers.size > 0 || purchaseIds.size > 0) {
+            const connectedProductQuery = { $or: [] };
+            if (salesOrderNumbers.size > 0) {
+                connectedProductQuery.$or.push({ sales_order_number: { $in: Array.from(salesOrderNumbers) } });
+            }
+            if (purchaseIds.size > 0) {
+                connectedProductQuery.$or.push({ purchase_id: { $in: Array.from(purchaseIds) } });
+            }
+            const connectedProducts = await db.collection('products').find(connectedProductQuery).toArray();
+            for (const p of connectedProducts) {
+                if (!productIds.has(p._id.toString())) {
+                    products.push(p);
+                    productIds.add(p._id.toString());
+                    if (p.security_barcode) securityBarcodes.add(p.security_barcode);
+                }
+            }
+        }
+
+        // Connected purchases (from products)
+        if (purchaseOrderNumbers.size > 0 || purchaseIds.size > 0) {
+            const connectedPurchaseQuery = { $or: [] };
+            if (purchaseOrderNumbers.size > 0) {
+                connectedPurchaseQuery.$or.push({ order_number: { $in: Array.from(purchaseOrderNumbers) } });
+            }
+            if (purchaseIds.size > 0) {
+                const purchaseObjectIds = Array.from(purchaseIds).map(id => {
+                    try { return new ObjectId(id); } catch { return null; }
+                }).filter(id => id !== null);
+                if (purchaseObjectIds.length > 0) {
+                    connectedPurchaseQuery.$or.push({ _id: { $in: purchaseObjectIds } });
+                }
+            }
+            if (connectedPurchaseQuery.$or.length > 0) {
+                const connectedPurchases = await db.collection('purchases').find(connectedPurchaseQuery).toArray();
+                for (const p of connectedPurchases) {
+                    if (!purchaseIds.has(p._id.toString())) {
+                        purchases.push(p);
+                        purchaseIds.add(p._id.toString());
+                    }
+                }
+            }
+        }
+
+        // Connected sales (from products)
+        if (salesOrderNumbers.size > 0) {
+            const connectedSales = await db.collection('sales').find({
+                order_number: { $in: Array.from(salesOrderNumbers) }
+            }).toArray();
+            for (const s of connectedSales) {
+                if (!saleIds.has(s._id.toString())) {
+                    sales.push(s);
+                    saleIds.add(s._id.toString());
+                }
+            }
+        }
+
+        // Connected warranties (from products)
+        if (securityBarcodes.size > 0) {
+            const warrantyQueries = Array.from(securityBarcodes).map(barcode => {
+                const q = createSecurityBarcodeQuery(barcode);
+                return q || { security_barcode: barcode };
+            });
+            const connectedWarranties = await db.collection('warranties').find({
+                $or: warrantyQueries
+            }).toArray();
+            const existingWarrantyIds = new Set(warranties.map(w => w._id.toString()));
+            for (const w of connectedWarranties) {
+                if (!existingWarrantyIds.has(w._id.toString())) {
+                    warranties.push(w);
+                }
+            }
+        }
+
+        // Format results
+        results.products = products.map(p => ({
+            id: p._id.toString(),
+            type: 'product',
+            serial_number: p.serial_number,
+            security_barcode: p.security_barcode,
+            part_type: p.part_type,
+            generation: p.generation,
+            status: p.status || 'in_stock',
+            ebay_order_number: p.ebay_order_number,
+            sales_order_number: p.sales_order_number,
+            purchase_id: p.purchase_id,
+            date_added: p.date_added,
+            purchase_price: p.purchase_price
+        }));
+
+        results.purchases = purchases.map(p => ({
+            id: p._id.toString(),
+            type: 'purchase',
+            order_number: p.order_number,
+            platform: p.platform,
+            seller_name: p.seller_name,
+            purchase_date: p.purchase_date,
+            generation: p.generation,
+            status: p.status,
+            purchase_price: p.purchase_price,
+            tracking_number: p.tracking_number,
+            items_purchased: p.items_purchased,
+            quantity: p.quantity,
+            checked_in: p.checked_in || false
+        }));
+
+        results.sales = sales.map(s => ({
+            id: s._id.toString(),
+            type: 'sale',
+            order_number: s.order_number,
+            platform: s.platform,
+            sale_date: s.sale_date,
+            sale_price: s.sale_price || s.order_total,
+            profit: s.profit,
+            product_count: s.products ? s.products.length : 1,
+            products: s.products ? s.products.map(p => ({
+                product_id: p.product_id?.toString(),
+                product_serial: p.product_serial,
+                security_barcode: p.security_barcode
+            })) : [],
+            outward_tracking_number: s.outward_tracking_number
+        }));
+
+        results.warranties = warranties.map(w => ({
+            id: w._id.toString(),
+            type: 'warranty',
+            warranty_id: w.warranty_id,
+            security_barcode: w.security_barcode,
+            customer_name: w.customer_name,
+            customer_email: w.customer_email,
+            registration_date: w.registration_date,
+            standard_warranty_end: w.standard_warranty_end,
+            extended_warranty: w.extended_warranty,
+            extended_warranty_end: w.extended_warranty_end,
+            status: w.status || 'active'
+        }));
+
+        // Build connections map showing relationships
+        const connections = [];
+
+        for (const product of results.products) {
+            // Product -> Purchase connection
+            if (product.purchase_id) {
+                const linkedPurchase = results.purchases.find(p => p.id === product.purchase_id);
+                if (linkedPurchase) {
+                    connections.push({
+                        from: { type: 'product', id: product.id, label: product.security_barcode || product.serial_number },
+                        to: { type: 'purchase', id: linkedPurchase.id, label: linkedPurchase.order_number },
+                        relationship: 'purchased_from'
+                    });
+                }
+            }
+
+            // Product -> Sale connection
+            if (product.sales_order_number) {
+                const linkedSale = results.sales.find(s => s.order_number === product.sales_order_number);
+                if (linkedSale) {
+                    connections.push({
+                        from: { type: 'product', id: product.id, label: product.security_barcode || product.serial_number },
+                        to: { type: 'sale', id: linkedSale.id, label: linkedSale.order_number },
+                        relationship: 'sold_in'
+                    });
+                }
+            }
+
+            // Product -> Warranty connection
+            if (product.security_barcode) {
+                const linkedWarranty = results.warranties.find(w =>
+                    normalizeSecurityBarcode(w.security_barcode) === normalizeSecurityBarcode(product.security_barcode)
+                );
+                if (linkedWarranty) {
+                    connections.push({
+                        from: { type: 'product', id: product.id, label: product.security_barcode },
+                        to: { type: 'warranty', id: linkedWarranty.id, label: linkedWarranty.warranty_id },
+                        relationship: 'has_warranty'
+                    });
+                }
+            }
+        }
+
+        results.connections = connections;
+
+        // Summary stats
+        results.summary = {
+            total_results: results.products.length + results.purchases.length + results.sales.length + results.warranties.length,
+            products_found: results.products.length,
+            purchases_found: results.purchases.length,
+            sales_found: results.sales.length,
+            warranties_found: results.warranties.length,
+            connections_found: connections.length
+        };
+
+        console.log(`✅ Universal search complete: ${results.summary.total_results} results, ${connections.length} connections`);
+
+        res.json({
+            success: true,
+            query: query,
+            ...results
+        });
+
+    } catch (err) {
+        console.error('Universal search error:', err);
         res.status(500).json({ error: 'Database error: ' + err.message });
     }
 });
