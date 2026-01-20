@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Stock | LJM AirPod Support</title>
+    <title>Reports | LJM AirPod Support</title>
     <link rel="stylesheet" href="../css/styles.css?v=1.2.7">
     <link rel="stylesheet" href="../css/ios-mobile-optimizations.css">
 
@@ -34,7 +34,7 @@
                     el.title = 'Version 1.2.5 (Revision 031)';
                 }
             }
-            
+
             // Fetch version from API
             fetch(API_BASE + '/api/version')
                 .then(function(res) { return res.json(); })
@@ -45,7 +45,7 @@
                     console.log('Version fetch failed, using default');
                     showVersion(null);
                 });
-            
+
             // Also show immediately with default
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', function() { showVersion(null); });
@@ -54,6 +54,140 @@
             }
         })();
     </script>
+    <style>
+        .reports-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        .report-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .report-card h2 {
+            margin: 0 0 0.5rem 0;
+            font-size: 1.25rem;
+            color: #1a1a2e;
+        }
+        .report-card p {
+            color: #666;
+            margin: 0 0 1rem 0;
+            font-size: 0.9rem;
+        }
+        .report-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: flex-end;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+        .report-controls .form-group {
+            margin: 0;
+        }
+        .report-controls label {
+            display: block;
+            font-size: 0.8rem;
+            color: #666;
+            margin-bottom: 0.25rem;
+        }
+        .report-controls select,
+        .report-controls input {
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        .report-summary {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 1rem;
+        }
+        .summary-item {
+            text-align: center;
+        }
+        .summary-label {
+            font-size: 0.75rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .summary-value {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1a1a2e;
+        }
+        .summary-value.positive { color: #28a745; }
+        .summary-value.negative { color: #dc3545; }
+        .report-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .btn-download {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.6rem 1rem;
+            background: #4361ee;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .btn-download:hover {
+            background: #3651d4;
+        }
+        .btn-refresh {
+            padding: 0.6rem 1rem;
+            background: #f8f9fa;
+            color: #333;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+        .btn-refresh:hover {
+            background: #e9ecef;
+        }
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+        .stock-breakdown {
+            margin-top: 1rem;
+        }
+        .stock-breakdown h4 {
+            margin: 0 0 0.5rem 0;
+            font-size: 0.9rem;
+            color: #333;
+        }
+        .stock-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .stock-list li {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.4rem 0;
+            border-bottom: 1px solid #eee;
+            font-size: 0.85rem;
+        }
+        .stock-list li:last-child {
+            border-bottom: none;
+        }
+    </style>
 </head>
 <body class="admin-panel">
     <!-- Sidebar Navigation -->
@@ -69,8 +203,8 @@
                 </div>
             </div>
         </div>
-        
-                <nav class="sidebar-nav">
+
+        <nav class="sidebar-nav">
             <div class="nav-section">
                 <ul class="nav-menu">
                     <!-- Dashboard - Standalone -->
@@ -219,7 +353,7 @@
 
                     <!-- Reports - Standalone -->
                     <li class="nav-item">
-                        <a href="reports.html" class="nav-link" data-page="reports">
+                        <a href="reports.html" class="nav-link active" data-page="reports">
                             <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M4 2H12L16 6V18H4V2Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                                 <path d="M12 2V6H16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -269,7 +403,7 @@
                 </ul>
             </div>
         </nav>
-        
+
         <div class="sidebar-footer">
             <a href="downloads.html" class="sidebar-footer-link" data-page="downloads">
                 <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -287,7 +421,7 @@
             </button>
         </div>
     </aside>
-    
+
     <!-- Main Content Area -->
     <div class="admin-main">
         <!-- Top Utility Bar -->
@@ -299,10 +433,10 @@
                     </svg>
                 </button>
                 <form class="topbar-search-form" onsubmit="return handleUniversalSearch(event)">
-                    <input 
-                        type="text" 
+                    <input
+                        type="text"
                         id="universalSearchInput"
-                        class="topbar-search-input" 
+                        class="topbar-search-input"
                         placeholder="Search serial, security, eBay order..."
                         autocomplete="off"
                     >
@@ -327,288 +461,263 @@
                 </div>
             </div>
         </header>
-        
+
         <!-- Page Content -->
         <div class="admin-content">
-            <!-- Stock Header -->
+            <!-- Reports Header -->
             <div class="products-header">
-                <h1 class="products-title">Stock (In Inventory)</h1>
-                <div class="products-header-actions">
-                    <div class="search-box">
-                        <input
-                            type="text"
-                            id="headerSearch"
-                            class="search-input"
-                            placeholder="Search serial / barcode"
-                            autocomplete="off"
-                        >
-                    </div>
-                    <a href="add-product.html" class="btn-primary">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M8 3V13M3 8H13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                        </svg>
-                        Add Product
-                    </a>
-                </div>
+                <h1 class="products-title">Reports</h1>
             </div>
 
-            <!-- Products Layout -->
-            <div class="products-layout">
-                <!-- Left Sidebar: Filters -->
-                <aside class="products-sidebar">
-                    <div class="sidebar-section">
-                        <h3 class="sidebar-heading">Search</h3>
-                        <input
-                            type="text"
-                            id="filterSearch"
-                            class="sidebar-input"
-                            placeholder="Serial / Barcode"
-                            autocomplete="off"
-                        >
+            <!-- Reports Grid -->
+            <div class="reports-grid">
+                <!-- Sales P&L Report -->
+                <div class="report-card">
+                    <h2>Sales P&L Report</h2>
+                    <p>Profit and loss summary for recent sales including revenue, costs, and expenses breakdown.</p>
+
+                    <div class="report-controls">
+                        <div class="form-group">
+                            <label for="plDays">Time Period</label>
+                            <select id="plDays">
+                                <option value="7">Last 7 days</option>
+                                <option value="14">Last 14 days</option>
+                                <option value="30" selected>Last 30 days</option>
+                                <option value="60">Last 60 days</option>
+                                <option value="90">Last 90 days</option>
+                                <option value="180">Last 6 months</option>
+                                <option value="365">Last year</option>
+                            </select>
+                        </div>
+                        <button class="btn-refresh" onclick="loadSalesPLReport()">Refresh</button>
                     </div>
 
-                    <div class="sidebar-section">
-                        <h3 class="sidebar-heading">Sort</h3>
-                        <select id="filterSort" class="sidebar-select">
-                            <option value="date_desc">Date Added (Newest)</option>
-                            <option value="date_asc">Date Added (Oldest)</option>
-                            <option value="serial_asc">Serial Number (A-Z)</option>
-                            <option value="serial_desc">Serial Number (Z-A)</option>
-                            <option value="warranty_desc">Warranty (Expiring Soon)</option>
-                        </select>
+                    <div id="salesPLSummary" class="report-summary">
+                        <div class="loading">Loading...</div>
                     </div>
 
-                    <div class="sidebar-section">
-                        <h3 class="sidebar-heading">Product</h3>
-                        <select id="filterGeneration" class="sidebar-select">
-                            <option value="">Generation</option>
-                            <option value="AirPods (1st Gen)">1st Gen</option>
-                            <option value="AirPods (2nd Gen)">2nd Gen</option>
-                            <option value="AirPods (3rd Gen)">3rd Gen</option>
-                            <option value="AirPods (4th Gen)">4th Gen</option>
-                            <option value="AirPods Pro (1st Gen)">Pro (1st Gen)</option>
-                            <option value="AirPods Pro (2nd Gen)">Pro (2nd Gen)</option>
-                        </select>
-                        <select id="filterPartType" class="sidebar-select">
-                            <option value="">Part Type</option>
-                            <option value="left">Left AirPod</option>
-                            <option value="right">Right AirPod</option>
-                            <option value="case">Case</option>
-                        </select>
+                    <div class="report-actions">
+                        <a id="downloadPLBtn" href="#" class="btn-download">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M8 10L8 2M8 10L5 7M8 10L11 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M2 12L14 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                            Download Text Report
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Stock Levels Report -->
+                <div class="report-card">
+                    <h2>Stock Levels Report</h2>
+                    <p>Current inventory levels with purchase prices, grouped by product generation.</p>
+
+                    <div class="report-controls">
+                        <button class="btn-refresh" onclick="loadStockLevelsReport()">Refresh</button>
                     </div>
 
-                    <div class="sidebar-section">
-                        <h3 class="sidebar-heading">Status</h3>
-                        <select id="filterStatus" class="sidebar-select">
-                            <option value="">Status</option>
-                            <option value="active">Active</option>
-                            <option value="delivered_no_warranty">Delivered (No Warranty)</option>
-                            <option value="returned">Returned</option>
-                            <option value="pending">Pending</option>
-                        </select>
-                        <select id="filterWarranty" class="sidebar-select">
-                            <option value="">Warranty</option>
-                            <option value="active">Active</option>
-                            <option value="none">No Warranty</option>
-                            <option value="expired">Expired</option>
-                            <option value="paid">Paid</option>
-                        </select>
-                        <select id="filterTracking" class="sidebar-select">
-                            <option value="">Tracking Status</option>
-                            <option value="tracked">Has Tracking</option>
-                            <option value="not_tracked">No Tracking</option>
-                        </select>
+                    <div id="stockLevelsSummary" class="report-summary">
+                        <div class="loading">Loading...</div>
                     </div>
 
-                    <button id="clearFilters" class="sidebar-btn">Clear filters</button>
+                    <div id="stockBreakdown" class="stock-breakdown"></div>
 
-                    <div class="sidebar-count">
-                        <span id="productsCount">0 products</span>
+                    <div class="report-actions">
+                        <a id="downloadStockBtn" href="/api/admin/reports/stock-levels/download" class="btn-download">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M8 10L8 2M8 10L5 7M8 10L11 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M2 12L14 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                            Download Text Report
+                        </a>
                     </div>
-                </aside>
-
-                <!-- Main Content: Products Table -->
-                <main class="products-main">
-                    <div class="products-table-wrapper">
-                        <table class="products-table">
-                            <thead>
-                                <tr>
-                                    <th>Serial Number</th>
-                                    <th>Security Number</th>
-                                    <th>Product Name</th>
-                                    <th>Part Number</th>
-                                    <th>Product Type</th>
-                                    <th>Order Number</th>
-                                    <th>Photos Uploaded</th>
-                                    <th>Date Added</th>
-                                    <th>Tracking Status</th>
-                                    <th>Status</th>
-                                    <th>Warranty Status</th>
-                                    <th>Warranty Days Remaining</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody id="productsTable">
-                                <tr>
-                                    <td colspan="13" class="table-loading">Loading products...</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </main>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Tracking Modal -->
-    <div id="trackingModal" class="modal" style="display: none;">
-        <div class="modal-content" style="max-width: 600px;">
-            <div class="modal-header">
-                <h2>Add Tracking Number</h2>
-                <span class="modal-close" id="closeTrackingModal">&times;</span>
-            </div>
-            <div class="modal-body" id="trackingModalBody">
-                <div id="trackingProductInfo" style="margin-bottom: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 8px;">
-                    <p><strong>Loading product details...</strong></p>
-                </div>
-                
-                <div class="form-group">
-                    <label for="trackingNumber">Tracking Number</label>
-                    <p style="font-size: 0.85rem; color: #666; margin-bottom: 10px;">
-                        You can type, paste (Ctrl+V / Cmd+V), or scan a shipping tracking number
-                    </p>
-                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                        <input 
-                            type="text" 
-                            id="trackingNumber" 
-                            name="trackingNumber" 
-                            placeholder="Paste or enter tracking number here"
-                            style="flex: 1; padding: 12px; font-size: 1rem; text-transform: uppercase;"
-                            autocomplete="off"
-                            oninput="this.value = this.value.toUpperCase()"
-                        >
-                        <button type="button" class="button button-secondary" id="scanTrackingBarcode" style="min-width: 120px;">
-                            📷 Scan
-                        </button>
-                    </div>
-                    <div id="trackingBarcodeScanner" style="display: none; margin-top: 15px;">
-                        <video id="trackingBarcodeVideo" width="100%" style="border-radius: 8px; display: none; max-width: 100%;"></video>
-                        <canvas id="trackingBarcodeCanvas" style="display: none;"></canvas>
-                        <button type="button" class="button button-secondary" id="stopTrackingScan" style="margin-top: 10px;">
-                            Stop Scanning
-                        </button>
-                    </div>
-                </div>
-                
-                <div id="trackingCurrentInfo" style="margin-top: 20px; padding: 15px; background-color: #e8f4f8; border-radius: 8px; display: none;">
-                    <p style="margin: 0; color: #666;"><strong>Current Tracking:</strong> <span id="currentTrackingNumber"></span></p>
-                    <p style="margin: 5px 0 0 0; color: #666; font-size: 0.9rem;">Added: <span id="currentTrackingDate"></span></p>
-                </div>
-                
-                <div id="trackingError" class="error-message" style="display: none; margin-top: 15px;"></div>
-                <div id="trackingSuccess" class="success-message" style="display: none; margin-top: 15px;"></div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="button button-secondary" id="cancelTracking">
-                    Cancel
-                </button>
-                <button type="button" class="button" id="saveTracking">
-                    Save Tracking
-                </button>
-            </div>
-        </div>
-    </div>
+    <script src="../js/global.js"></script>
+    <script>
+        const API_BASE = window.API_BASE || '';
 
-    <script src="../js/admin.js?v=1.2.5.032"></script>
-    <script src="../js/main.js?v=1.0.0"></script>
-    <script src="../js/products-filter.js?v=1.3.0"></script>
-    <script src="../js/products-render.js?v=1.2.5.032"></script>
-    <script src="../js/version.js?v=1.2.5.032"></script>
-    <script>
-        // Quick search handler
-        function handleQuickSearch(event) {
-            const form = event.target;
-            const input = form.querySelector('input[name="security_barcode"]');
-            const value = input.value.trim();
-            
-            if (!value) {
-                event.preventDefault();
-                // If empty, go to search page without query
-                window.location.href = 'search-product.html';
-                return false;
+        // Helper function for authenticated fetch
+        async function authenticatedFetch(url, options = {}) {
+            const token = localStorage.getItem('adminToken');
+            if (!token) {
+                window.location.href = '/admin/login.html';
+                return;
             }
-            
-            // Let form submit naturally with query parameter
-            return true;
-        }
-    </script>
-    
-    <!-- Sidebar Overlay for Mobile -->
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
-    
-    <script>
-        // Sidebar toggle functionality
-        (function() {
-            const sidebarToggle = document.getElementById('sidebarToggle');
-            const sidebar = document.querySelector('.admin-sidebar');
-            const overlay = document.getElementById('sidebarOverlay');
-            
-            if (sidebarToggle && sidebar) {
-                sidebarToggle.addEventListener('click', function() {
-                    sidebar.classList.toggle('sidebar-open');
-                    if (overlay) {
-                        overlay.classList.toggle('active');
-                    }
-                });
-                
-                if (overlay) {
-                    overlay.addEventListener('click', function() {
-                        sidebar.classList.remove('sidebar-open');
-                        overlay.classList.remove('active');
-                    });
-                }
-            }
-            
-            // Set active nav item based on current page
-            const currentPage = window.location.pathname.split('/').pop() || 'dashboard.html';
-            const navLinks = document.querySelectorAll('.nav-link, .sidebar-footer-link');
-            navLinks.forEach(link => {
-                const href = link.getAttribute('href');
-                if (href && (href === currentPage || currentPage.includes(href.replace('.html', '')))) {
-                    link.classList.add('active');
-                }
-            });
-        })();
-    </script>
-    <script>
-        // Filter to show only stock items (status is in_stock or not sold/faulty)
-        (function() {
-            // Override the loadProducts function to filter stock only
-            const originalFetch = window.authenticatedFetch;
-            window.authenticatedFetch = function(url, options) {
-                return originalFetch(url, options).then(response => {
-                    if (url.includes('/api/admin/products')) {
-                        return response.clone().json().then(data => {
-                            if (data.products) {
-                                // Filter to only show products that are in stock (not sold or faulty)
-                                // Use status field instead of sales_order_number to support restocked items
-                                data.products = data.products.filter(product =>
-                                    product.status !== 'sold' && product.status !== 'faulty'
-                                );
-                                data.total = data.products.length;
-                            }
-                            // Return a new response with filtered data
-                            return new Response(JSON.stringify(data), {
-                                status: response.status,
-                                statusText: response.statusText,
-                                headers: response.headers
-                            });
-                        });
-                    }
-                    return response;
-                });
+
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+                ...options.headers
             };
-        })();
+
+            const response = await fetch(url, { ...options, headers });
+
+            if (response.status === 401) {
+                localStorage.removeItem('adminToken');
+                window.location.href = '/admin/login.html';
+                return;
+            }
+
+            return response;
+        }
+
+        // Format currency
+        function formatCurrency(amount) {
+            return '£' + (parseFloat(amount) || 0).toFixed(2);
+        }
+
+        // Load Sales P&L Report
+        async function loadSalesPLReport() {
+            const days = document.getElementById('plDays').value;
+            const summaryEl = document.getElementById('salesPLSummary');
+            const downloadBtn = document.getElementById('downloadPLBtn');
+
+            summaryEl.innerHTML = '<div class="loading">Loading...</div>';
+
+            try {
+                const response = await authenticatedFetch(`${API_BASE}/api/admin/reports/sales-pl?days=${days}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    const s = data.report.summary;
+                    const profitClass = s.net_profit >= 0 ? 'positive' : 'negative';
+
+                    summaryEl.innerHTML = `
+                        <div class="summary-grid">
+                            <div class="summary-item">
+                                <div class="summary-label">Sales</div>
+                                <div class="summary-value">${s.sale_count}</div>
+                            </div>
+                            <div class="summary-item">
+                                <div class="summary-label">Revenue</div>
+                                <div class="summary-value">${formatCurrency(s.total_revenue)}</div>
+                            </div>
+                            <div class="summary-item">
+                                <div class="summary-label">COGS</div>
+                                <div class="summary-value">${formatCurrency(s.total_product_cost)}</div>
+                            </div>
+                            <div class="summary-item">
+                                <div class="summary-label">Gross Profit</div>
+                                <div class="summary-value">${formatCurrency(s.gross_profit)}</div>
+                            </div>
+                            <div class="summary-item">
+                                <div class="summary-label">Expenses</div>
+                                <div class="summary-value">${formatCurrency(s.expenses.total)}</div>
+                            </div>
+                            <div class="summary-item">
+                                <div class="summary-label">Net Profit</div>
+                                <div class="summary-value ${profitClass}">${formatCurrency(s.net_profit)}</div>
+                            </div>
+                            <div class="summary-item">
+                                <div class="summary-label">Margin</div>
+                                <div class="summary-value ${profitClass}">${s.profit_margin.toFixed(1)}%</div>
+                            </div>
+                        </div>
+                    `;
+
+                    // Update download link
+                    downloadBtn.href = `${API_BASE}/api/admin/reports/sales-pl/download?days=${days}`;
+                } else {
+                    summaryEl.innerHTML = '<div class="loading">Error loading report</div>';
+                }
+            } catch (err) {
+                console.error('Error loading sales P&L report:', err);
+                summaryEl.innerHTML = '<div class="loading">Error loading report</div>';
+            }
+        }
+
+        // Load Stock Levels Report
+        async function loadStockLevelsReport() {
+            const summaryEl = document.getElementById('stockLevelsSummary');
+            const breakdownEl = document.getElementById('stockBreakdown');
+
+            summaryEl.innerHTML = '<div class="loading">Loading...</div>';
+            breakdownEl.innerHTML = '';
+
+            try {
+                const response = await authenticatedFetch(`${API_BASE}/api/admin/reports/stock-levels`);
+                const data = await response.json();
+
+                if (data.success) {
+                    const s = data.report.summary;
+
+                    summaryEl.innerHTML = `
+                        <div class="summary-grid">
+                            <div class="summary-item">
+                                <div class="summary-label">Total Items</div>
+                                <div class="summary-value">${s.total_items}</div>
+                            </div>
+                            <div class="summary-item">
+                                <div class="summary-label">Total Value</div>
+                                <div class="summary-value">${formatCurrency(s.total_value)}</div>
+                            </div>
+                            <div class="summary-item">
+                                <div class="summary-label">Avg Cost</div>
+                                <div class="summary-value">${formatCurrency(s.average_cost)}</div>
+                            </div>
+                        </div>
+                    `;
+
+                    // Build breakdown by generation
+                    const byGen = data.report.by_generation;
+                    const generations = Object.keys(byGen).sort();
+
+                    if (generations.length > 0) {
+                        let breakdownHtml = '<h4>By Generation</h4><ul class="stock-list">';
+                        generations.forEach(gen => {
+                            const g = byGen[gen];
+                            breakdownHtml += `<li><span>${gen}</span><span>${g.count} items (${formatCurrency(g.total_value)})</span></li>`;
+                        });
+                        breakdownHtml += '</ul>';
+                        breakdownEl.innerHTML = breakdownHtml;
+                    }
+                } else {
+                    summaryEl.innerHTML = '<div class="loading">Error loading report</div>';
+                }
+            } catch (err) {
+                console.error('Error loading stock levels report:', err);
+                summaryEl.innerHTML = '<div class="loading">Error loading report</div>';
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSalesPLReport();
+            loadStockLevelsReport();
+
+            // Update P&L report when period changes
+            document.getElementById('plDays').addEventListener('change', loadSalesPLReport);
+        });
+
+        // Sidebar toggle
+        document.getElementById('sidebarToggle')?.addEventListener('click', function() {
+            document.querySelector('.admin-sidebar').classList.toggle('collapsed');
+        });
+
+        // Logout
+        document.getElementById('logoutButton')?.addEventListener('click', function() {
+            localStorage.removeItem('adminToken');
+            window.location.href = '/admin/login.html';
+        });
+
+        // Submenu toggle
+        function toggleSubmenu(element) {
+            element.classList.toggle('open');
+        }
+
+        // Universal search
+        function handleUniversalSearch(event) {
+            event.preventDefault();
+            const searchValue = document.getElementById('universalSearchInput').value.trim();
+            if (searchValue) {
+                window.location.href = `/admin/search-product.html?search=${encodeURIComponent(searchValue)}`;
+            }
+            return false;
+        }
     </script>
 </body>
 </html>
