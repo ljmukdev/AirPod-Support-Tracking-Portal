@@ -536,34 +536,10 @@
         </div>
     </div>
 
-    <script src="../js/global.js"></script>
+    <script src="../js/admin.js?v=1.2.5.031"></script>
+    <script src="../js/version.js?v=1.2.5.031"></script>
     <script>
         const API_BASE = window.API_BASE || '';
-
-        // Helper function for authenticated fetch
-        async function authenticatedFetch(url, options = {}) {
-            const token = localStorage.getItem('adminToken');
-            if (!token) {
-                window.location.href = '/admin/login.html';
-                return;
-            }
-
-            const headers = {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`,
-                ...options.headers
-            };
-
-            const response = await fetch(url, { ...options, headers });
-
-            if (response.status === 401) {
-                localStorage.removeItem('adminToken');
-                window.location.href = '/admin/login.html';
-                return;
-            }
-
-            return response;
-        }
 
         // Format currency
         function formatCurrency(amount) {
