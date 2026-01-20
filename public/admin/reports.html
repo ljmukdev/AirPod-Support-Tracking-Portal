@@ -580,6 +580,7 @@
 
             try {
                 const response = await authenticatedFetch(`${API_BASE}/api/admin/reports/sales-pl?days=${days}`);
+                if (!response) return; // Redirecting to login
                 const data = await response.json();
 
                 if (data.success) {
@@ -640,6 +641,7 @@
 
             try {
                 const response = await authenticatedFetch(`${API_BASE}/api/admin/reports/stock-levels`);
+                if (!response) return; // Redirecting to login
                 const data = await response.json();
 
                 if (data.success) {
