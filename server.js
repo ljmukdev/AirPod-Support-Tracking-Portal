@@ -16188,6 +16188,391 @@ app.get('/api/admin/price-snapshot/fees-by-platform', requireAuth, requireDB, as
 // END PRICE SNAPSHOT
 // ============================================================================
 
+// ============================================================================
+// STOCK TAKE MANAGEMENT
+// ============================================================================
+
+// GET all stock takes
+app.get('/api/admin/stock-takes', requireAuth, requireDB, async (req, res) => {
+    try {
+        const stockTakes = await db.collection('stock_takes')
+            .find({})
+            .sort({ created_at: -1 })
+            .toArray();
+
+        res.json({ success: true, stock_takes: stockTakes });
+    } catch (err) {
+        console.error('Error fetching stock takes:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// GET single stock take by ID
+app.get('/api/admin/stock-take/:id', requireAuth, requireDB, async (req, res) => {
+    try {
+        const stockTake = await db.collection('stock_takes').findOne({
+            _id: new ObjectId(req.params.id)
+        });
+
+        if (!stockTake) {
+            return res.status(404).json({ error: 'Stock take not found' });
+        }
+
+        res.json({ success: true, stock_take: stockTake });
+    } catch (err) {
+        console.error('Error fetching stock take:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// POST start a new stock take
+app.post('/api/admin/stock-take/start', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { name, notes } = req.body;
+
+        // Check for any in-progress stock takes
+        const existingInProgress = await db.collection('stock_takes').findOne({
+            status: 'in_progress'
+        });
+
+        if (existingInProgress) {
+            return res.status(400).json({
+                error: 'There is already a stock take in progress. Please complete or cancel it first.',
+                existing_id: existingInProgress._id
+            });
+        }
+
+        const stockTake = {
+            name: name || `Stock Take ${new Date().toLocaleDateString('en-GB')}`,
+            notes: notes || '',
+            status: 'in_progress',
+            created_at: new Date(),
+            created_by: req.user?.email || 'unknown',
+            scanned_items: [],
+            completed_at: null,
+            report: null
+        };
+
+        const result = await db.collection('stock_takes').insertOne(stockTake);
+        stockTake._id = result.insertedId;
+
+        res.json({ success: true, stock_take: stockTake });
+    } catch (err) {
+        console.error('Error starting stock take:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// POST scan an item for stock take
+app.post('/api/admin/stock-take/:id/scan', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { security_barcode } = req.body;
+
+        if (!security_barcode) {
+            return res.status(400).json({ error: 'Security barcode is required' });
+        }
+
+        const stockTakeId = new ObjectId(req.params.id);
+        const stockTake = await db.collection('stock_takes').findOne({ _id: stockTakeId });
+
+        if (!stockTake) {
+            return res.status(404).json({ error: 'Stock take not found' });
+        }
+
+        if (stockTake.status !== 'in_progress') {
+            return res.status(400).json({ error: 'Stock take is not in progress' });
+        }
+
+        // Normalize the barcode (uppercase, trim)
+        const normalizedBarcode = security_barcode.toString().trim().toUpperCase();
+
+        // Check if already scanned in this stock take
+        const alreadyScanned = stockTake.scanned_items?.find(
+            item => item.security_barcode === normalizedBarcode
+        );
+
+        if (alreadyScanned) {
+            return res.status(400).json({
+                error: 'This item has already been scanned in this stock take',
+                scanned_at: alreadyScanned.scanned_at,
+                product: alreadyScanned
+            });
+        }
+
+        // Look up the product in the database
+        const product = await db.collection('products').findOne({
+            security_barcode: normalizedBarcode
+        });
+
+        const scannedItem = {
+            security_barcode: normalizedBarcode,
+            scanned_at: new Date(),
+            found_in_database: !!product,
+            product_id: product?._id || null,
+            product_name: product?.product_name || null,
+            generation: product?.generation || null,
+            part_type: product?.part_type || null,
+            status: product?.status || null
+        };
+
+        // Add to scanned items
+        await db.collection('stock_takes').updateOne(
+            { _id: stockTakeId },
+            { $push: { scanned_items: scannedItem } }
+        );
+
+        res.json({
+            success: true,
+            scanned_item: scannedItem,
+            total_scanned: (stockTake.scanned_items?.length || 0) + 1
+        });
+    } catch (err) {
+        console.error('Error scanning item:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// DELETE remove a scanned item from stock take
+app.delete('/api/admin/stock-take/:id/scan/:barcode', requireAuth, requireDB, async (req, res) => {
+    try {
+        const stockTakeId = new ObjectId(req.params.id);
+        const barcode = req.params.barcode.toUpperCase();
+
+        const stockTake = await db.collection('stock_takes').findOne({ _id: stockTakeId });
+
+        if (!stockTake) {
+            return res.status(404).json({ error: 'Stock take not found' });
+        }
+
+        if (stockTake.status !== 'in_progress') {
+            return res.status(400).json({ error: 'Stock take is not in progress' });
+        }
+
+        await db.collection('stock_takes').updateOne(
+            { _id: stockTakeId },
+            { $pull: { scanned_items: { security_barcode: barcode } } }
+        );
+
+        res.json({ success: true, message: 'Item removed from stock take' });
+    } catch (err) {
+        console.error('Error removing scanned item:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// POST complete stock take and generate report
+app.post('/api/admin/stock-take/:id/complete', requireAuth, requireDB, async (req, res) => {
+    try {
+        const stockTakeId = new ObjectId(req.params.id);
+        const stockTake = await db.collection('stock_takes').findOne({ _id: stockTakeId });
+
+        if (!stockTake) {
+            return res.status(404).json({ error: 'Stock take not found' });
+        }
+
+        if (stockTake.status !== 'in_progress') {
+            return res.status(400).json({ error: 'Stock take is not in progress' });
+        }
+
+        // Get all products that should be in stock
+        const inStockProducts = await db.collection('products').find({
+            status: { $in: ['in_stock', 'active'] },
+            security_barcode: { $exists: true, $ne: '' }
+        }).toArray();
+
+        const scannedBarcodes = new Set(
+            stockTake.scanned_items?.map(item => item.security_barcode) || []
+        );
+
+        // Find missing items (in database but not scanned)
+        const missingItems = inStockProducts.filter(
+            product => !scannedBarcodes.has(product.security_barcode)
+        ).map(product => ({
+            _id: product._id,
+            security_barcode: product.security_barcode,
+            product_name: product.product_name,
+            generation: product.generation,
+            part_type: product.part_type,
+            status: product.status
+        }));
+
+        // Find unknown items (scanned but not in database or not in_stock)
+        const unknownItems = stockTake.scanned_items?.filter(
+            item => !item.found_in_database
+        ) || [];
+
+        // Find items that were scanned but have wrong status (not in_stock)
+        const wrongStatusItems = stockTake.scanned_items?.filter(
+            item => item.found_in_database && item.status && !['in_stock', 'active'].includes(item.status)
+        ) || [];
+
+        // Calculate statistics
+        const totalScanned = stockTake.scanned_items?.length || 0;
+        const expectedInStock = inStockProducts.length;
+        const foundItems = stockTake.scanned_items?.filter(
+            item => item.found_in_database && ['in_stock', 'active'].includes(item.status)
+        ).length || 0;
+
+        // Accuracy: correctly found items / expected items
+        const accuracy = expectedInStock > 0
+            ? Math.round((foundItems / expectedInStock) * 10000) / 100
+            : 100;
+
+        const report = {
+            generated_at: new Date(),
+            summary: {
+                total_scanned: totalScanned,
+                expected_in_stock: expectedInStock,
+                found_items: foundItems,
+                missing_items_count: missingItems.length,
+                unknown_items_count: unknownItems.length,
+                wrong_status_count: wrongStatusItems.length,
+                accuracy_percentage: accuracy
+            },
+            missing_items: missingItems,
+            unknown_items: unknownItems,
+            wrong_status_items: wrongStatusItems
+        };
+
+        // Update stock take with report
+        await db.collection('stock_takes').updateOne(
+            { _id: stockTakeId },
+            {
+                $set: {
+                    status: 'completed',
+                    completed_at: new Date(),
+                    report: report
+                }
+            }
+        );
+
+        res.json({
+            success: true,
+            report: report
+        });
+    } catch (err) {
+        console.error('Error completing stock take:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// DELETE cancel/delete a stock take
+app.delete('/api/admin/stock-take/:id', requireAuth, requireDB, async (req, res) => {
+    try {
+        const stockTakeId = new ObjectId(req.params.id);
+
+        const result = await db.collection('stock_takes').deleteOne({ _id: stockTakeId });
+
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ error: 'Stock take not found' });
+        }
+
+        res.json({ success: true, message: 'Stock take deleted' });
+    } catch (err) {
+        console.error('Error deleting stock take:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// GET stock take report download
+app.get('/api/admin/stock-take/:id/report/download', requireAuth, requireDB, async (req, res) => {
+    try {
+        const stockTake = await db.collection('stock_takes').findOne({
+            _id: new ObjectId(req.params.id)
+        });
+
+        if (!stockTake) {
+            return res.status(404).json({ error: 'Stock take not found' });
+        }
+
+        if (!stockTake.report) {
+            return res.status(400).json({ error: 'Stock take has no report. Please complete the stock take first.' });
+        }
+
+        const report = stockTake.report;
+        const lines = [];
+
+        lines.push('='.repeat(60));
+        lines.push('STOCK TAKE REPORT');
+        lines.push('='.repeat(60));
+        lines.push('');
+        lines.push(`Stock Take: ${stockTake.name}`);
+        lines.push(`Started: ${new Date(stockTake.created_at).toLocaleString('en-GB')}`);
+        lines.push(`Completed: ${new Date(stockTake.completed_at).toLocaleString('en-GB')}`);
+        lines.push(`Performed by: ${stockTake.created_by}`);
+        if (stockTake.notes) {
+            lines.push(`Notes: ${stockTake.notes}`);
+        }
+        lines.push('');
+        lines.push('-'.repeat(60));
+        lines.push('SUMMARY');
+        lines.push('-'.repeat(60));
+        lines.push(`Total Items Scanned: ${report.summary.total_scanned}`);
+        lines.push(`Expected In Stock: ${report.summary.expected_in_stock}`);
+        lines.push(`Items Found & Verified: ${report.summary.found_items}`);
+        lines.push(`Missing Items: ${report.summary.missing_items_count}`);
+        lines.push(`Unknown Barcodes: ${report.summary.unknown_items_count}`);
+        lines.push(`Wrong Status Items: ${report.summary.wrong_status_count}`);
+        lines.push(`Accuracy: ${report.summary.accuracy_percentage}%`);
+        lines.push('');
+
+        if (report.missing_items.length > 0) {
+            lines.push('-'.repeat(60));
+            lines.push('MISSING ITEMS (In system but not scanned)');
+            lines.push('-'.repeat(60));
+            report.missing_items.forEach((item, i) => {
+                lines.push(`${i + 1}. ${item.security_barcode}`);
+                lines.push(`   Product: ${item.product_name || 'N/A'}`);
+                lines.push(`   Generation: ${item.generation || 'N/A'}`);
+                lines.push(`   Part Type: ${item.part_type || 'N/A'}`);
+                lines.push(`   Status: ${item.status || 'N/A'}`);
+                lines.push('');
+            });
+        }
+
+        if (report.unknown_items.length > 0) {
+            lines.push('-'.repeat(60));
+            lines.push('UNKNOWN ITEMS (Scanned but not in system)');
+            lines.push('-'.repeat(60));
+            report.unknown_items.forEach((item, i) => {
+                lines.push(`${i + 1}. ${item.security_barcode}`);
+                lines.push(`   Scanned at: ${new Date(item.scanned_at).toLocaleString('en-GB')}`);
+                lines.push('');
+            });
+        }
+
+        if (report.wrong_status_items.length > 0) {
+            lines.push('-'.repeat(60));
+            lines.push('WRONG STATUS ITEMS (Scanned but status is not "in_stock")');
+            lines.push('-'.repeat(60));
+            report.wrong_status_items.forEach((item, i) => {
+                lines.push(`${i + 1}. ${item.security_barcode}`);
+                lines.push(`   Product: ${item.product_name || 'N/A'}`);
+                lines.push(`   Current Status: ${item.status || 'N/A'}`);
+                lines.push('');
+            });
+        }
+
+        lines.push('='.repeat(60));
+        lines.push(`Report generated: ${new Date(report.generated_at).toLocaleString('en-GB')}`);
+        lines.push('='.repeat(60));
+
+        const content = lines.join('\n');
+        const filename = `stock-take-report-${stockTake.name.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.txt`;
+
+        res.setHeader('Content-Type', 'text/plain');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.send(content);
+    } catch (err) {
+        console.error('Error downloading report:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// ============================================================================
+// END STOCK TAKE MANAGEMENT
+// ============================================================================
+
 // Catch all route - serve index.html for SPA-like behavior
 app.get('*', (req, res) => {
     if (req.path.startsWith('/api') || req.path.startsWith('/admin')) {
