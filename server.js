@@ -16567,6 +16567,186 @@ app.get('/api/admin/stock-take/:id/report/download', requireAuth, requireDB, asy
     }
 });
 
+// PUT update discrepancy resolution status and notes
+app.put('/api/admin/stock-take/:id/discrepancy', requireAuth, requireDB, async (req, res) => {
+    try {
+        const stockTakeId = new ObjectId(req.params.id);
+        const { security_barcode, resolution_status, notes, discrepancy_type } = req.body;
+
+        if (!security_barcode) {
+            return res.status(400).json({ error: 'Security barcode is required' });
+        }
+
+        const stockTake = await db.collection('stock_takes').findOne({ _id: stockTakeId });
+
+        if (!stockTake) {
+            return res.status(404).json({ error: 'Stock take not found' });
+        }
+
+        if (!stockTake.report) {
+            return res.status(400).json({ error: 'Stock take has no report yet' });
+        }
+
+        // Initialize discrepancy_resolutions if it doesn't exist
+        const resolutions = stockTake.discrepancy_resolutions || {};
+
+        resolutions[security_barcode] = {
+            resolution_status: resolution_status || 'pending',
+            notes: notes || '',
+            discrepancy_type: discrepancy_type || 'unknown',
+            updated_at: new Date(),
+            updated_by: req.user?.email || 'unknown'
+        };
+
+        await db.collection('stock_takes').updateOne(
+            { _id: stockTakeId },
+            { $set: { discrepancy_resolutions: resolutions } }
+        );
+
+        res.json({ success: true, resolution: resolutions[security_barcode] });
+    } catch (err) {
+        console.error('Error updating discrepancy:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// GET discrepancy resolutions for a stock take
+app.get('/api/admin/stock-take/:id/discrepancies', requireAuth, requireDB, async (req, res) => {
+    try {
+        const stockTake = await db.collection('stock_takes').findOne({
+            _id: new ObjectId(req.params.id)
+        });
+
+        if (!stockTake) {
+            return res.status(404).json({ error: 'Stock take not found' });
+        }
+
+        res.json({
+            success: true,
+            discrepancy_resolutions: stockTake.discrepancy_resolutions || {},
+            report: stockTake.report
+        });
+    } catch (err) {
+        console.error('Error fetching discrepancies:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// PUT quick update product status from stock take
+app.put('/api/admin/stock-take/update-product-status', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { product_id, security_barcode, new_status, reason } = req.body;
+
+        if (!new_status) {
+            return res.status(400).json({ error: 'New status is required' });
+        }
+
+        const validStatuses = ['in_stock', 'sold', 'spares_repairs', 'faulty', 'returned', 'missing', 'written_off'];
+        if (!validStatuses.includes(new_status)) {
+            return res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
+        }
+
+        let product;
+        if (product_id) {
+            product = await db.collection('products').findOne({ _id: new ObjectId(product_id) });
+        } else if (security_barcode) {
+            product = await db.collection('products').findOne({
+                security_barcode: security_barcode.toUpperCase()
+            });
+        }
+
+        if (!product) {
+            return res.status(404).json({ error: 'Product not found' });
+        }
+
+        const previousStatus = product.status;
+
+        // Update the product status
+        await db.collection('products').updateOne(
+            { _id: product._id },
+            {
+                $set: {
+                    status: new_status,
+                    status_updated_at: new Date(),
+                    status_updated_by: req.user?.email || 'unknown'
+                },
+                $push: {
+                    status_history: {
+                        from_status: previousStatus,
+                        to_status: new_status,
+                        reason: reason || 'Updated from stock take',
+                        changed_at: new Date(),
+                        changed_by: req.user?.email || 'unknown'
+                    }
+                }
+            }
+        );
+
+        res.json({
+            success: true,
+            product_id: product._id,
+            security_barcode: product.security_barcode,
+            previous_status: previousStatus,
+            new_status: new_status
+        });
+    } catch (err) {
+        console.error('Error updating product status:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// GET product details by security barcode (for quick lookup from stock take)
+app.get('/api/admin/stock-take/product-lookup/:barcode', requireAuth, requireDB, async (req, res) => {
+    try {
+        const barcode = req.params.barcode.toUpperCase();
+
+        const product = await db.collection('products').findOne({
+            security_barcode: barcode
+        });
+
+        if (!product) {
+            return res.status(404).json({ error: 'Product not found' });
+        }
+
+        // Also check for related sales
+        const sale = await db.collection('sales').findOne({
+            $or: [
+                { product_id: product._id },
+                { 'items.product_id': product._id },
+                { 'items.security_barcode': barcode }
+            ]
+        });
+
+        res.json({
+            success: true,
+            product: {
+                _id: product._id,
+                security_barcode: product.security_barcode,
+                product_name: product.product_name,
+                generation: product.generation,
+                part_type: product.part_type,
+                status: product.status,
+                notes: product.notes,
+                date_added: product.date_added,
+                tracking_number: product.tracking_number,
+                ebay_order_number: product.ebay_order_number,
+                sales_order_number: product.sales_order_number,
+                status_history: product.status_history || []
+            },
+            has_sale: !!sale,
+            sale_info: sale ? {
+                _id: sale._id,
+                order_number: sale.order_number || sale.sales_order_number,
+                sale_date: sale.sale_date || sale.created_at,
+                platform: sale.platform
+            } : null
+        });
+    } catch (err) {
+        console.error('Error looking up product:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // ============================================================================
 // END STOCK TAKE MANAGEMENT
 // ============================================================================
