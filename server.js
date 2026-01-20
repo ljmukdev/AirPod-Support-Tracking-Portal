@@ -11620,10 +11620,19 @@ app.get('/api/admin/reports/sales-pl/download', requireAuth, requireDB, async (r
             totalConsumablesCost += parseFloat(sale.consumables_cost) || 0;
         });
 
-        const totalCosts = totalProductCost + totalTransactionFees + totalPostageCost + totalAdFees + totalConsumablesCost;
+        const totalExpenses = totalTransactionFees + totalPostageCost + totalAdFees + totalConsumablesCost;
+        const totalCosts = totalProductCost + totalExpenses;
         const grossProfit = totalRevenue - totalProductCost;
         const netProfit = totalRevenue - totalCosts;
         const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+        const grossMargin = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
+
+        // Calculate percentages of revenue
+        const productCostPct = totalRevenue > 0 ? (totalProductCost / totalRevenue) * 100 : 0;
+        const transactionFeesPct = totalRevenue > 0 ? (totalTransactionFees / totalRevenue) * 100 : 0;
+        const postagePct = totalRevenue > 0 ? (totalPostageCost / totalRevenue) * 100 : 0;
+        const adFeesPct = totalRevenue > 0 ? (totalAdFees / totalRevenue) * 100 : 0;
+        const consumablesPct = totalRevenue > 0 ? (totalConsumablesCost / totalRevenue) * 100 : 0;
 
         // Generate text report
         const reportDate = new Date().toLocaleDateString('en-GB', {
@@ -11632,53 +11641,152 @@ app.get('/api/admin/reports/sales-pl/download', requireAuth, requireDB, async (r
         const fromDate = cutoffDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
         const toDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
-        let textReport = `
+        let textReport = `================================================================================
+                    SALES PROFIT & LOSS REPORT
 ================================================================================
-                         SALES PROFIT & LOSS REPORT
-================================================================================
-Generated: ${reportDate}
-Period: ${fromDate} to ${toDate} (${daysNum} days)
---------------------------------------------------------------------------------
 
-SUMMARY
+REPORT INFORMATION
+------------------
+Report Generated:     ${reportDate}
+Period Start:         ${fromDate}
+Period End:           ${toDate}
+Period Length:        ${daysNum} days
+Total Transactions:   ${recentSales.length}
+
+================================================================================
+                         FINANCIAL SUMMARY
+================================================================================
+
+REVENUE
 -------
-Total Sales:              ${recentSales.length}
-Total Revenue:            £${totalRevenue.toFixed(2)}
-Cost of Goods Sold:       £${totalProductCost.toFixed(2)}
-                          ---------------
-Gross Profit:             £${grossProfit.toFixed(2)}
-
-EXPENSES
---------
-Transaction Fees:         £${totalTransactionFees.toFixed(2)}
-Postage Costs:            £${totalPostageCost.toFixed(2)}
-Advertising Fees:         £${totalAdFees.toFixed(2)}
-Consumables:              £${totalConsumablesCost.toFixed(2)}
-                          ---------------
-Total Expenses:           £${(totalTransactionFees + totalPostageCost + totalAdFees + totalConsumablesCost).toFixed(2)}
+Total Sales Revenue:                    £${totalRevenue.toFixed(2)}
 
 --------------------------------------------------------------------------------
-NET PROFIT:               £${netProfit.toFixed(2)}
-PROFIT MARGIN:            ${profitMargin.toFixed(1)}%
+
+COST OF GOODS SOLD (COGS)
+-------------------------
+Product/Part Purchase Cost:             £${totalProductCost.toFixed(2)}    (${productCostPct.toFixed(1)}% of revenue)
+
+--------------------------------------------------------------------------------
+
+GROSS PROFIT
+------------
+Gross Profit (Revenue - COGS):          £${grossProfit.toFixed(2)}
+Gross Profit Margin:                    ${grossMargin.toFixed(1)}%
+
+================================================================================
+                         OPERATING EXPENSES
 ================================================================================
 
-SALES DETAIL
-------------
+TRANSACTION FEES (Platform/Payment Processing)
+----------------------------------------------
+Total Transaction Fees:                 £${totalTransactionFees.toFixed(2)}    (${transactionFeesPct.toFixed(1)}% of revenue)
+
+SHIPPING & POSTAGE COSTS
+------------------------
+Total Postage/Shipping:                 £${totalPostageCost.toFixed(2)}    (${postagePct.toFixed(1)}% of revenue)
+
+ADVERTISING & MARKETING COSTS
+-----------------------------
+Total Advertising Fees:                 £${totalAdFees.toFixed(2)}    (${adFeesPct.toFixed(1)}% of revenue)
+
+CONSUMABLES & PACKAGING
+-----------------------
+Total Consumables Cost:                 £${totalConsumablesCost.toFixed(2)}    (${consumablesPct.toFixed(1)}% of revenue)
+
+--------------------------------------------------------------------------------
+
+TOTAL OPERATING EXPENSES:               £${totalExpenses.toFixed(2)}    (${(totalRevenue > 0 ? (totalExpenses / totalRevenue) * 100 : 0).toFixed(1)}% of revenue)
+
+================================================================================
+                         NET PROFIT SUMMARY
+================================================================================
+
+Total Revenue:                          £${totalRevenue.toFixed(2)}
+Less: Cost of Goods Sold:              -£${totalProductCost.toFixed(2)}
+Less: Operating Expenses:              -£${totalExpenses.toFixed(2)}
+                                        ----------------
+NET PROFIT:                             £${netProfit.toFixed(2)}
+NET PROFIT MARGIN:                      ${profitMargin.toFixed(1)}%
+
+================================================================================
+                    EXPENSE BREAKDOWN BY CATEGORY
+================================================================================
+
+Category                    Amount          % of Revenue    % of Total Costs
+--------------------------------------------------------------------------------
+Product Costs               £${totalProductCost.toFixed(2).padStart(10)}      ${productCostPct.toFixed(1).padStart(6)}%         ${(totalCosts > 0 ? (totalProductCost / totalCosts) * 100 : 0).toFixed(1).padStart(6)}%
+Transaction Fees            £${totalTransactionFees.toFixed(2).padStart(10)}      ${transactionFeesPct.toFixed(1).padStart(6)}%         ${(totalCosts > 0 ? (totalTransactionFees / totalCosts) * 100 : 0).toFixed(1).padStart(6)}%
+Shipping/Postage            £${totalPostageCost.toFixed(2).padStart(10)}      ${postagePct.toFixed(1).padStart(6)}%         ${(totalCosts > 0 ? (totalPostageCost / totalCosts) * 100 : 0).toFixed(1).padStart(6)}%
+Advertising                 £${totalAdFees.toFixed(2).padStart(10)}      ${adFeesPct.toFixed(1).padStart(6)}%         ${(totalCosts > 0 ? (totalAdFees / totalCosts) * 100 : 0).toFixed(1).padStart(6)}%
+Consumables                 £${totalConsumablesCost.toFixed(2).padStart(10)}      ${consumablesPct.toFixed(1).padStart(6)}%         ${(totalCosts > 0 ? (totalConsumablesCost / totalCosts) * 100 : 0).toFixed(1).padStart(6)}%
+--------------------------------------------------------------------------------
+TOTAL                       £${totalCosts.toFixed(2).padStart(10)}      ${(totalRevenue > 0 ? (totalCosts / totalRevenue) * 100 : 0).toFixed(1).padStart(6)}%         100.0%
+
+================================================================================
+                    INDIVIDUAL SALE DETAILS
+================================================================================
+
 `;
 
-        // Add individual sales
-        recentSales.forEach(sale => {
+        // Add individual sales with full breakdown
+        recentSales.forEach((sale, index) => {
             const saleDate = sale.sale_date ? new Date(sale.sale_date).toLocaleDateString('en-GB') : 'N/A';
-            const productName = (sale.product_name || 'Unknown').substring(0, 25).padEnd(25);
-            const platform = (sale.platform || 'N/A').substring(0, 12).padEnd(12);
-            const revenue = `£${(parseFloat(sale.sale_price) || 0).toFixed(2)}`.padStart(10);
-            const cost = `£${(parseFloat(sale.total_cost) || 0).toFixed(2)}`.padStart(10);
-            const profit = `£${(parseFloat(sale.profit) || 0).toFixed(2)}`.padStart(10);
+            const productCost = parseFloat(sale.product_cost) || 0;
+            const transactionFees = parseFloat(sale.transaction_fees) || 0;
+            const postageCost = parseFloat(sale.postage_label_cost) || 0;
+            const adFees = parseFloat(sale.ad_fee_general) || 0;
+            const consumables = parseFloat(sale.consumables_cost) || 0;
+            const salePrice = parseFloat(sale.sale_price) || 0;
+            const totalSaleCost = productCost + transactionFees + postageCost + adFees + consumables;
+            const saleProfit = salePrice - totalSaleCost;
+            const saleMargin = salePrice > 0 ? (saleProfit / salePrice) * 100 : 0;
 
-            textReport += `${saleDate}  ${productName} ${platform} ${revenue} ${cost} ${profit}\n`;
+            textReport += `SALE #${index + 1}
+--------------------------------------------------------------------------------
+Date:                   ${saleDate}
+Order Number:           ${sale.order_number || 'N/A'}
+Product:                ${sale.product_name || 'Unknown'}
+Platform:               ${sale.platform || 'N/A'}
+
+Revenue:
+  Sale Price:                           £${salePrice.toFixed(2)}
+
+Costs:
+  Product/Part Cost:                    £${productCost.toFixed(2)}
+  Transaction Fees:                     £${transactionFees.toFixed(2)}
+  Shipping/Postage:                     £${postageCost.toFixed(2)}
+  Advertising Fees:                     £${adFees.toFixed(2)}
+  Consumables:                          £${consumables.toFixed(2)}
+                                        ----------------
+  Total Cost:                           £${totalSaleCost.toFixed(2)}
+
+Profit:                                 £${saleProfit.toFixed(2)}
+Margin:                                 ${saleMargin.toFixed(1)}%
+
+`;
         });
 
-        textReport += `
+        textReport += `================================================================================
+                         KEY INSIGHTS FOR ANALYSIS
+================================================================================
+
+1. PROFITABILITY METRICS:
+   - Net Profit Margin: ${profitMargin.toFixed(1)}% (Target: >20% for healthy business)
+   - Gross Profit Margin: ${grossMargin.toFixed(1)}% (Shows pricing power)
+   - Average Profit per Sale: £${(recentSales.length > 0 ? netProfit / recentSales.length : 0).toFixed(2)}
+
+2. COST EFFICIENCY:
+   - Largest Cost Category: ${totalProductCost >= totalTransactionFees && totalProductCost >= totalPostageCost && totalProductCost >= totalAdFees && totalProductCost >= totalConsumablesCost ? 'Product Costs' : totalTransactionFees >= totalPostageCost && totalTransactionFees >= totalAdFees && totalTransactionFees >= totalConsumablesCost ? 'Transaction Fees' : totalPostageCost >= totalAdFees && totalPostageCost >= totalConsumablesCost ? 'Shipping/Postage' : totalAdFees >= totalConsumablesCost ? 'Advertising' : 'Consumables'}
+   - Total Cost as % of Revenue: ${(totalRevenue > 0 ? (totalCosts / totalRevenue) * 100 : 0).toFixed(1)}%
+
+3. EXPENSE RATIOS:
+   - Product Cost Ratio: ${productCostPct.toFixed(1)}%
+   - Transaction Fee Ratio: ${transactionFeesPct.toFixed(1)}%
+   - Shipping Cost Ratio: ${postagePct.toFixed(1)}%
+   - Advertising Ratio: ${adFeesPct.toFixed(1)}%
+   - Consumables Ratio: ${consumablesPct.toFixed(1)}%
+
 ================================================================================
                               END OF REPORT
 ================================================================================
