@@ -555,7 +555,13 @@
                     </div>
                     <div class="form-group">
                         <label for="editSecurityBarcode">Security Barcode *</label>
-                        <input type="text" id="editSecurityBarcode" name="security_barcode" required>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <input type="text" id="editSecurityBarcode" name="security_barcode" required style="flex: 1;">
+                            <button type="button" id="writeOffSecurityBarcodeBtn" class="button" style="background: #d32f2f; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85rem; white-space: nowrap;" title="Write off this security barcode if it's incorrect">
+                                Write Off
+                            </button>
+                        </div>
+                        <small style="color: #666; font-size: 0.8rem;">Use "Write Off" to clear an incorrect barcode that conflicts with another product</small>
                     </div>
                     <div class="form-group">
                         <label for="editEbayOrderNumber">eBay Order Number</label>
@@ -1707,7 +1713,55 @@
                 document.getElementById('editProductError').style.display = 'block';
             }
         });
-        
+
+        // Handle write off security barcode button
+        document.getElementById('writeOffSecurityBarcodeBtn')?.addEventListener('click', async () => {
+            const securityBarcode = document.getElementById('editSecurityBarcode').value;
+
+            if (!securityBarcode) {
+                alert('No security barcode to write off');
+                return;
+            }
+
+            const confirmed = confirm(
+                `Are you sure you want to write off security barcode "${securityBarcode}"?\n\n` +
+                `This will:\n` +
+                `• Clear the security barcode from this product\n` +
+                `• Allow the barcode to be used on another product\n` +
+                `• Record the write-off for audit purposes\n\n` +
+                `Use this when a security barcode was incorrectly assigned.`
+            );
+
+            if (!confirmed) return;
+
+            const reason = prompt('Please enter a reason for writing off this security barcode:', 'Incorrect security barcode - duplicate entry');
+
+            if (reason === null) return; // User cancelled
+
+            try {
+                const apiBase = window.API_BASE || '';
+                const response = await authenticatedFetch(`${apiBase}/api/admin/product/${window.currentProductId}/write-off-security-barcode`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reason: reason || 'No reason provided' })
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    alert(`Security barcode "${result.old_security_barcode}" has been written off successfully.`);
+                    document.getElementById('editSecurityBarcode').value = '';
+                    document.getElementById('editProductModal').style.display = 'none';
+                    // Refresh the search results
+                    document.getElementById('searchForm').dispatchEvent(new Event('submit'));
+                } else {
+                    alert('Error: ' + (result.error || 'Failed to write off security barcode'));
+                }
+            } catch (error) {
+                alert('Network error: ' + error.message);
+            }
+        });
+
         // Handle return product form submission
         document.getElementById('confirmReturnBtn')?.addEventListener('click', async () => {
             const form = document.getElementById('returnProductForm');
