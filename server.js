@@ -16304,6 +16304,14 @@ app.post('/api/admin/stock-take/:id/scan', requireAuth, requireDB, async (req, r
             security_barcode: normalizedBarcode
         });
 
+        // Reject boxes - they're excluded from stock take
+        if (product && product.part_type === 'box') {
+            return res.status(400).json({
+                error: 'Boxes are excluded from stock take',
+                product_name: product.product_name
+            });
+        }
+
         const scannedItem = {
             security_barcode: normalizedBarcode,
             scanned_at: new Date(),
@@ -16374,10 +16382,11 @@ app.post('/api/admin/stock-take/:id/complete', requireAuth, requireDB, async (re
             return res.status(400).json({ error: 'Stock take is not in progress' });
         }
 
-        // Get all products that should be in stock
+        // Get all products that should be in stock (excluding boxes)
         const inStockProducts = await db.collection('products').find({
             status: { $in: ['in_stock', 'active'] },
-            security_barcode: { $exists: true, $ne: '' }
+            security_barcode: { $exists: true, $ne: '' },
+            part_type: { $ne: 'box' }
         }).toArray();
 
         const scannedBarcodes = new Set(
