@@ -2482,27 +2482,35 @@ app.put('/api/admin/product/:id/ebay-order', requireAuth, requireDB, async (req,
 // Update sales order number (Admin only)
 app.put('/api/admin/product/:id/sales-order', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;
-    
+
     if (!ObjectId.isValid(id)) {
         return res.status(400).json({ error: 'Invalid product ID' });
     }
-    
+
     const sales_order_number = req.body.sales_order_number ? req.body.sales_order_number.trim() : null;
-    
+
     try {
         const updateData = {
             sales_order_number: sales_order_number
         };
-        
+
+        // When setting a sales order number, also mark the product as sold
+        // When clearing the sales order number, mark the product as in_stock
+        if (sales_order_number) {
+            updateData.status = 'sold';
+        } else {
+            updateData.status = 'in_stock';
+        }
+
         const result = await db.collection('products').updateOne(
             { _id: new ObjectId(id) },
             { $set: updateData }
         );
-        
+
         if (result.matchedCount === 0) {
             res.status(404).json({ error: 'Product not found' });
         } else {
-            console.log('Sales order number updated successfully, ID:', id, 'Order:', sales_order_number);
+            console.log('Sales order number updated successfully, ID:', id, 'Order:', sales_order_number, 'Status:', updateData.status);
             res.json({ success: true, message: 'Sales order number updated successfully' });
         }
     } catch (err) {
@@ -12734,27 +12742,35 @@ app.put('/api/admin/sales/:id', requireAuth, requireDB, async (req, res) => {
             { _id: new ObjectId(id) },
             { $set: updateData }
         );
-        
-        await db.collection('products').updateOne(
-            { _id: new ObjectId(existingSale.product_id) },
-            { 
-                $set: {
-                    status: 'sold',
-                    sales_order_number: updateData.order_number,
-                    sale_date: updateData.sale_date,
-                    sale_price: updateData.sale_price,
-                    subtotal: updateData.subtotal,
-                    postage_charged: updateData.postage_charged,
-                    transaction_fees: updateData.transaction_fees,
-                    postage_label_cost: updateData.postage_label_cost,
-                    ad_fee_general: updateData.ad_fee_general,
-                    order_total: updateData.order_total,
-                    outward_tracking_number: updateData.outward_tracking_number,
-                    sale_notes: updateData.notes
+
+        // Update ALL products in the sale (not just the first one)
+        // Sales can have multiple products in the products array
+        const productIds = existingSale.products && existingSale.products.length > 0
+            ? existingSale.products.map(p => p.product_id)
+            : [new ObjectId(existingSale.product_id)];
+
+        for (const productId of productIds) {
+            await db.collection('products').updateOne(
+                { _id: productId },
+                {
+                    $set: {
+                        status: 'sold',
+                        sales_order_number: updateData.order_number,
+                        sale_date: updateData.sale_date,
+                        sale_price: updateData.sale_price,
+                        subtotal: updateData.subtotal,
+                        postage_charged: updateData.postage_charged,
+                        transaction_fees: updateData.transaction_fees,
+                        postage_label_cost: updateData.postage_label_cost,
+                        ad_fee_general: updateData.ad_fee_general,
+                        order_total: updateData.order_total,
+                        outward_tracking_number: updateData.outward_tracking_number,
+                        sale_notes: updateData.notes
+                    }
                 }
-            }
-        );
-        
+            );
+        }
+
         res.json({ success: true, message: 'Sale updated successfully' });
     } catch (err) {
         console.error('Error updating sale:', err);
