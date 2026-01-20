@@ -2414,6 +2414,64 @@ app.put('/api/admin/product/:id', requireAuth, requireDB, (req, res, next) => {
     }
 });
 
+// Write off security barcode (Admin only)
+// This clears the security barcode from a product, releasing it from the unique constraint
+// Used when a security barcode was assigned incorrectly and needs to be freed up
+app.post('/api/admin/product/:id/write-off-security-barcode', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid product ID' });
+    }
+
+    const reason = req.body.reason || 'Incorrect security barcode';
+
+    try {
+        // Get the current product to log what's being written off
+        const product = await db.collection('products').findOne({ _id: new ObjectId(id) });
+
+        if (!product) {
+            return res.status(404).json({ error: 'Product not found' });
+        }
+
+        const oldSecurityBarcode = product.security_barcode;
+
+        if (!oldSecurityBarcode) {
+            return res.status(400).json({ error: 'Product does not have a security barcode to write off' });
+        }
+
+        // Update the product: clear security barcode and record the write-off
+        const result = await db.collection('products').updateOne(
+            { _id: new ObjectId(id) },
+            {
+                $set: {
+                    security_barcode: null,
+                    security_barcode_written_off: true,
+                    security_barcode_write_off_date: new Date(),
+                    security_barcode_write_off_reason: reason,
+                    security_barcode_write_off_old_value: oldSecurityBarcode,
+                    security_barcode_write_off_by: req.user?.email || 'unknown'
+                }
+            }
+        );
+
+        if (result.modifiedCount === 0) {
+            return res.status(500).json({ error: 'Failed to update product' });
+        }
+
+        console.log(`Security barcode written off: ${oldSecurityBarcode} from product ${id} by ${req.user?.email || 'unknown'}. Reason: ${reason}`);
+
+        res.json({
+            success: true,
+            message: `Security barcode ${oldSecurityBarcode} has been written off`,
+            old_security_barcode: oldSecurityBarcode
+        });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // Update tracking information for a product (Admin only)
 app.put('/api/admin/product/:id/tracking', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;
