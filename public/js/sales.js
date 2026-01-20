@@ -806,7 +806,8 @@ async function lookupProductByBarcode(barcode) {
                 product_name: displayName,
                 product_serial: serial,
                 security_barcode: securityBarcode,
-                product_cost: cost
+                product_cost: cost,
+                part_type: partType
             };
 
             // Show product card with Add button
@@ -866,6 +867,8 @@ async function lookupProductByBarcode(barcode) {
 function addPendingProduct() {
     if (!pendingProduct) return;
 
+    const partType = pendingProduct.part_type; // Store before clearing
+
     // Add to selected products array
     selectedProducts.push({...pendingProduct});
 
@@ -880,9 +883,75 @@ function addPendingProduct() {
     displaySelectedProducts();
     updatePreview();
 
+    // Auto-apply template based on product type
+    if (partType) {
+        autoApplyTemplateForProduct(partType);
+    }
+
     // Focus back on search input
     const barcodeInput = document.getElementById('securityBarcode');
     if (barcodeInput) barcodeInput.focus();
+}
+
+// Auto-apply consumable template based on product part type
+async function autoApplyTemplateForProduct(partType) {
+    try {
+        // Map part type to template target
+        let targetType = null;
+        if (partType === 'left' || partType === 'right') {
+            targetType = 'airpod';
+        } else if (partType === 'case') {
+            targetType = 'case';
+        }
+
+        if (!targetType) return; // No matching template type for this product
+
+        // Load templates and consumables
+        const [templatesResponse, consumablesResponse] = await Promise.all([
+            authenticatedFetch(`${API_BASE}/api/admin/consumable-templates`),
+            authenticatedFetch(`${API_BASE}/api/admin/consumables`)
+        ]);
+
+        const templatesData = await templatesResponse.json();
+        const consumablesData = await consumablesResponse.json();
+
+        if (!templatesData.templates || templatesData.templates.length === 0) return;
+
+        const currentConsumables = consumablesData.consumables || [];
+
+        // Find template matching the target type
+        const matchingTemplate = templatesData.templates.find(t => t.target_type === targetType);
+
+        if (!matchingTemplate) return;
+
+        // Apply the template consumables (add to existing, don't replace)
+        for (const templateItem of matchingTemplate.consumables) {
+            const currentConsumable = currentConsumables.find(c => c._id === templateItem.consumable_id);
+
+            if (currentConsumable) {
+                // Check if this consumable is already in selectedConsumables
+                const existing = selectedConsumables.find(c => c.consumable_id === templateItem.consumable_id);
+
+                if (existing) {
+                    // Add to existing quantity
+                    existing.quantity += templateItem.quantity;
+                } else {
+                    // Add new consumable
+                    selectedConsumables.push({
+                        consumable_id: currentConsumable._id,
+                        name: currentConsumable.item_name || currentConsumable.name,
+                        cost: currentConsumable.unit_cost || currentConsumable.price_per_unit || 0,
+                        quantity: templateItem.quantity
+                    });
+                }
+            }
+        }
+
+        displayConsumables();
+        updatePreview();
+    } catch (error) {
+        console.error('Error auto-applying template:', error);
+    }
 }
 
 // Make addPendingProduct available globally
