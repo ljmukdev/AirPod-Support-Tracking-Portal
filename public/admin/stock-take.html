@@ -408,6 +408,231 @@
             background: rgba(255, 193, 7, 0.95);
             color: #333;
         }
+
+        /* Enhanced discrepancy items */
+        .discrepancy-item {
+            padding: 16px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: flex-start;
+        }
+        .discrepancy-item:last-child {
+            border-bottom: none;
+        }
+        .discrepancy-item.resolved {
+            background: #f0fff0;
+            opacity: 0.7;
+        }
+        .discrepancy-item.investigated {
+            background: #fffef0;
+        }
+        .discrepancy-item.written-off {
+            background: #fff0f0;
+            opacity: 0.7;
+        }
+        .discrepancy-main {
+            flex: 1;
+            min-width: 200px;
+        }
+        .discrepancy-barcode {
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+            font-size: 1.05rem;
+        }
+        .discrepancy-details {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 4px;
+        }
+        .discrepancy-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .discrepancy-actions .btn-small {
+            padding: 6px 12px;
+            font-size: 0.8rem;
+            border-radius: 4px;
+        }
+        .resolution-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .resolution-badge.pending {
+            background: #e9ecef;
+            color: #495057;
+        }
+        .resolution-badge.investigated {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .resolution-badge.resolved {
+            background: #d4edda;
+            color: #155724;
+        }
+        .resolution-badge.written-off {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.active {
+            display: flex;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-header h3 {
+            margin: 0;
+            font-size: 1.2rem;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #666;
+            padding: 4px 8px;
+        }
+        .modal-close:hover {
+            color: #333;
+        }
+        .modal-body {
+            padding: 24px;
+        }
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        /* Product info card */
+        .product-info-card {
+            background: #f8f9fa;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .product-info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .product-info-row:last-child {
+            border-bottom: none;
+        }
+        .product-info-label {
+            font-weight: 500;
+            color: #666;
+        }
+        .product-info-value {
+            font-weight: 600;
+            color: #333;
+        }
+
+        /* Form group in modal */
+        .modal .form-group {
+            margin-bottom: 16px;
+        }
+        .modal .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            color: #333;
+        }
+        .modal .form-group select,
+        .modal .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.95rem;
+        }
+        .modal .form-group select:focus,
+        .modal .form-group textarea:focus {
+            border-color: var(--accent-teal);
+            outline: none;
+        }
+
+        /* Quick links */
+        .quick-links {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .quick-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 12px;
+            background: #e9ecef;
+            color: #495057;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            transition: background 0.2s;
+        }
+        .quick-link:hover {
+            background: #dee2e6;
+            color: #333;
+        }
+
+        /* Status history */
+        .status-history {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #e0e0e0;
+        }
+        .status-history h4 {
+            margin: 0 0 12px 0;
+            font-size: 0.95rem;
+            color: #666;
+        }
+        .status-history-item {
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+        }
+        .status-change {
+            font-weight: 600;
+        }
     </style>
 </head>
 <body class="admin-panel">
@@ -780,8 +1005,68 @@
     <!-- Scan Feedback Overlay -->
     <div class="scan-feedback" id="scanFeedback"></div>
 
+    <!-- Discrepancy Management Modal -->
+    <div class="modal" id="discrepancyModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Investigate Discrepancy</h3>
+                <button class="modal-close" onclick="closeDiscrepancyModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="product-info-card" id="modalProductInfo">
+                    <p style="text-align: center; color: #666;">Loading product info...</p>
+                </div>
+
+                <div class="quick-links" id="modalQuickLinks">
+                    <!-- Populated by JavaScript -->
+                </div>
+
+                <div class="form-group" style="margin-top: 20px;">
+                    <label for="resolutionStatus">Resolution Status</label>
+                    <select id="resolutionStatus">
+                        <option value="pending">Pending Investigation</option>
+                        <option value="investigated">Investigated</option>
+                        <option value="resolved">Resolved</option>
+                        <option value="written-off">Written Off</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="resolutionNotes">Investigation Notes</label>
+                    <textarea id="resolutionNotes" rows="4" placeholder="Document your findings here...&#10;&#10;Examples:&#10;- Item was sold on eBay, order #12345&#10;- Item found in repair area&#10;- Cannot locate, marked for write-off"></textarea>
+                </div>
+
+                <div class="form-group" id="statusUpdateSection" style="display: none;">
+                    <label for="newProductStatus">Update Product Status</label>
+                    <select id="newProductStatus">
+                        <option value="">-- Don't change status --</option>
+                        <option value="in_stock">In Stock</option>
+                        <option value="sold">Sold</option>
+                        <option value="spares_repairs">Spares/Repairs</option>
+                        <option value="faulty">Faulty</option>
+                        <option value="returned">Returned</option>
+                        <option value="missing">Missing</option>
+                        <option value="written_off">Written Off</option>
+                    </select>
+                    <p style="font-size: 0.8rem; color: #666; margin-top: 4px;">This will update the product's status in the system</p>
+                </div>
+
+                <div class="status-history" id="statusHistorySection" style="display: none;">
+                    <h4>Status History</h4>
+                    <div id="statusHistoryList">
+                        <!-- Populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeDiscrepancyModal()">Cancel</button>
+                <button class="btn btn-primary" id="saveResolutionBtn">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
     <script src="../js/admin.js"></script>
     <script src="../js/main.js?v=1.0.0"></script>
-    <script src="../js/stock-take.js?v=1.0.0"></script>
+    <script src="../js/stock-take.js?v=1.1.0"></script>
 </body>
 </html>
