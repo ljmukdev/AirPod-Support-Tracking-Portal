@@ -497,13 +497,13 @@
                     </div>
 
                     <div class="report-actions">
-                        <a id="downloadPLBtn" href="#" class="btn-download">
+                        <button id="downloadPLBtn" class="btn-download" onclick="downloadPLReport()">
                             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M8 10L8 2M8 10L5 7M8 10L11 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                                 <path d="M2 12L14 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                             </svg>
                             Download Text Report
-                        </a>
+                        </button>
                     </div>
                 </div>
 
@@ -523,13 +523,13 @@
                     <div id="stockBreakdown" class="stock-breakdown"></div>
 
                     <div class="report-actions">
-                        <a id="downloadStockBtn" href="/api/admin/reports/stock-levels/download" class="btn-download">
+                        <button id="downloadStockBtn" class="btn-download" onclick="downloadStockReport()">
                             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M8 10L8 2M8 10L5 7M8 10L11 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                                 <path d="M2 12L14 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                             </svg>
                             Download Text Report
-                        </a>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -548,7 +548,6 @@
         async function loadSalesPLReport() {
             const days = document.getElementById('plDays').value;
             const summaryEl = document.getElementById('salesPLSummary');
-            const downloadBtn = document.getElementById('downloadPLBtn');
 
             summaryEl.innerHTML = '<div class="loading">Loading...</div>';
 
@@ -593,9 +592,6 @@
                             </div>
                         </div>
                     `;
-
-                    // Update download link
-                    downloadBtn.href = `${API_BASE}/api/admin/reports/sales-pl/download?days=${days}`;
                 } else {
                     summaryEl.innerHTML = '<div class="loading">Error loading report</div>';
                 }
@@ -679,6 +675,51 @@
             localStorage.removeItem('adminToken');
             window.location.href = '/admin/login.html';
         });
+
+        // Download P&L Report
+        async function downloadPLReport() {
+            const days = document.getElementById('plDays').value;
+            try {
+                const response = await authenticatedFetch(`${API_BASE}/api/admin/reports/sales-pl/download?days=${days}`);
+                if (!response) return;
+                const text = await response.text();
+
+                const blob = new Blob([text], { type: 'text/plain' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `sales-pl-report-${days}days.txt`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            } catch (err) {
+                console.error('Error downloading P&L report:', err);
+                alert('Error downloading report');
+            }
+        }
+
+        // Download Stock Levels Report
+        async function downloadStockReport() {
+            try {
+                const response = await authenticatedFetch(`${API_BASE}/api/admin/reports/stock-levels/download`);
+                if (!response) return;
+                const text = await response.text();
+
+                const blob = new Blob([text], { type: 'text/plain' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'stock-levels-report.txt';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            } catch (err) {
+                console.error('Error downloading stock report:', err);
+                alert('Error downloading report');
+            }
+        }
 
         // Submenu toggle
         function toggleSubmenu(element) {
