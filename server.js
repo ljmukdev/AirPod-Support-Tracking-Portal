@@ -11504,6 +11504,352 @@ app.post('/api/admin/sales/recalculate-costs', requireAuth, requireDB, async (re
     }
 });
 
+// ===== REPORTS API ENDPOINTS =====
+
+// Get recent sales P&L report data
+app.get('/api/admin/reports/sales-pl', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { days = 30 } = req.query;
+        const daysNum = parseInt(days) || 30;
+
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - daysNum);
+
+        const sales = await buildSalesLedger(db);
+
+        // Filter to recent sales only
+        const recentSales = sales.filter(sale => {
+            const saleDate = sale.sale_date ? new Date(sale.sale_date) : null;
+            return saleDate && saleDate >= cutoffDate;
+        });
+
+        // Calculate summary
+        let totalRevenue = 0;
+        let totalProductCost = 0;
+        let totalTransactionFees = 0;
+        let totalPostageCost = 0;
+        let totalAdFees = 0;
+        let totalConsumablesCost = 0;
+
+        recentSales.forEach(sale => {
+            totalRevenue += parseFloat(sale.sale_price) || 0;
+            totalProductCost += parseFloat(sale.product_cost) || 0;
+            totalTransactionFees += parseFloat(sale.transaction_fees) || 0;
+            totalPostageCost += parseFloat(sale.postage_label_cost) || 0;
+            totalAdFees += parseFloat(sale.ad_fee_general) || 0;
+            totalConsumablesCost += parseFloat(sale.consumables_cost) || 0;
+        });
+
+        const totalCosts = totalProductCost + totalTransactionFees + totalPostageCost + totalAdFees + totalConsumablesCost;
+        const grossProfit = totalRevenue - totalProductCost;
+        const netProfit = totalRevenue - totalCosts;
+        const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+
+        res.json({
+            success: true,
+            report: {
+                period: {
+                    days: daysNum,
+                    from: cutoffDate.toISOString(),
+                    to: new Date().toISOString()
+                },
+                summary: {
+                    sale_count: recentSales.length,
+                    total_revenue: totalRevenue,
+                    total_product_cost: totalProductCost,
+                    gross_profit: grossProfit,
+                    expenses: {
+                        transaction_fees: totalTransactionFees,
+                        postage_costs: totalPostageCost,
+                        ad_fees: totalAdFees,
+                        consumables: totalConsumablesCost,
+                        total: totalTransactionFees + totalPostageCost + totalAdFees + totalConsumablesCost
+                    },
+                    net_profit: netProfit,
+                    profit_margin: profitMargin
+                },
+                sales: recentSales.map(sale => ({
+                    date: sale.sale_date,
+                    order_number: sale.order_number,
+                    product_name: sale.product_name,
+                    platform: sale.platform,
+                    revenue: sale.sale_price,
+                    product_cost: sale.product_cost,
+                    total_cost: sale.total_cost,
+                    profit: sale.profit
+                }))
+            }
+        });
+    } catch (err) {
+        console.error('Error generating sales P&L report:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Download sales P&L report as text file
+app.get('/api/admin/reports/sales-pl/download', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { days = 30 } = req.query;
+        const daysNum = parseInt(days) || 30;
+
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - daysNum);
+
+        const sales = await buildSalesLedger(db);
+
+        // Filter to recent sales only
+        const recentSales = sales.filter(sale => {
+            const saleDate = sale.sale_date ? new Date(sale.sale_date) : null;
+            return saleDate && saleDate >= cutoffDate;
+        });
+
+        // Calculate summary
+        let totalRevenue = 0;
+        let totalProductCost = 0;
+        let totalTransactionFees = 0;
+        let totalPostageCost = 0;
+        let totalAdFees = 0;
+        let totalConsumablesCost = 0;
+
+        recentSales.forEach(sale => {
+            totalRevenue += parseFloat(sale.sale_price) || 0;
+            totalProductCost += parseFloat(sale.product_cost) || 0;
+            totalTransactionFees += parseFloat(sale.transaction_fees) || 0;
+            totalPostageCost += parseFloat(sale.postage_label_cost) || 0;
+            totalAdFees += parseFloat(sale.ad_fee_general) || 0;
+            totalConsumablesCost += parseFloat(sale.consumables_cost) || 0;
+        });
+
+        const totalCosts = totalProductCost + totalTransactionFees + totalPostageCost + totalAdFees + totalConsumablesCost;
+        const grossProfit = totalRevenue - totalProductCost;
+        const netProfit = totalRevenue - totalCosts;
+        const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+
+        // Generate text report
+        const reportDate = new Date().toLocaleDateString('en-GB', {
+            day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+        });
+        const fromDate = cutoffDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        const toDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+        let textReport = `
+================================================================================
+                         SALES PROFIT & LOSS REPORT
+================================================================================
+Generated: ${reportDate}
+Period: ${fromDate} to ${toDate} (${daysNum} days)
+--------------------------------------------------------------------------------
+
+SUMMARY
+-------
+Total Sales:              ${recentSales.length}
+Total Revenue:            £${totalRevenue.toFixed(2)}
+Cost of Goods Sold:       £${totalProductCost.toFixed(2)}
+                          ---------------
+Gross Profit:             £${grossProfit.toFixed(2)}
+
+EXPENSES
+--------
+Transaction Fees:         £${totalTransactionFees.toFixed(2)}
+Postage Costs:            £${totalPostageCost.toFixed(2)}
+Advertising Fees:         £${totalAdFees.toFixed(2)}
+Consumables:              £${totalConsumablesCost.toFixed(2)}
+                          ---------------
+Total Expenses:           £${(totalTransactionFees + totalPostageCost + totalAdFees + totalConsumablesCost).toFixed(2)}
+
+--------------------------------------------------------------------------------
+NET PROFIT:               £${netProfit.toFixed(2)}
+PROFIT MARGIN:            ${profitMargin.toFixed(1)}%
+================================================================================
+
+SALES DETAIL
+------------
+`;
+
+        // Add individual sales
+        recentSales.forEach(sale => {
+            const saleDate = sale.sale_date ? new Date(sale.sale_date).toLocaleDateString('en-GB') : 'N/A';
+            const productName = (sale.product_name || 'Unknown').substring(0, 25).padEnd(25);
+            const platform = (sale.platform || 'N/A').substring(0, 12).padEnd(12);
+            const revenue = `£${(parseFloat(sale.sale_price) || 0).toFixed(2)}`.padStart(10);
+            const cost = `£${(parseFloat(sale.total_cost) || 0).toFixed(2)}`.padStart(10);
+            const profit = `£${(parseFloat(sale.profit) || 0).toFixed(2)}`.padStart(10);
+
+            textReport += `${saleDate}  ${productName} ${platform} ${revenue} ${cost} ${profit}\n`;
+        });
+
+        textReport += `
+================================================================================
+                              END OF REPORT
+================================================================================
+`;
+
+        res.setHeader('Content-Type', 'text/plain');
+        res.setHeader('Content-Disposition', `attachment; filename="sales-pl-report-${daysNum}days.txt"`);
+        res.send(textReport);
+    } catch (err) {
+        console.error('Error downloading sales P&L report:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Get stock levels report data
+app.get('/api/admin/reports/stock-levels', requireAuth, requireDB, async (req, res) => {
+    try {
+        // Get all products that are in stock (not sold)
+        const products = await db.collection('products').find({
+            status: { $in: ['in_stock', 'active'] }
+        }).toArray();
+
+        // Group by generation
+        const stockByGeneration = {};
+        let totalValue = 0;
+        let totalItems = 0;
+
+        products.forEach(product => {
+            const gen = product.generation || 'Unknown';
+            const purchasePrice = parseFloat(product.purchase_price) || 0;
+
+            if (!stockByGeneration[gen]) {
+                stockByGeneration[gen] = {
+                    count: 0,
+                    total_value: 0,
+                    items: []
+                };
+            }
+
+            stockByGeneration[gen].count++;
+            stockByGeneration[gen].total_value += purchasePrice;
+            stockByGeneration[gen].items.push({
+                serial_number: product.serial_number || 'N/A',
+                security_barcode: product.security_barcode || '',
+                purchase_price: purchasePrice,
+                condition: product.condition || 'N/A',
+                date_added: product.created_at || product.date_added
+            });
+
+            totalValue += purchasePrice;
+            totalItems++;
+        });
+
+        res.json({
+            success: true,
+            report: {
+                generated_at: new Date().toISOString(),
+                summary: {
+                    total_items: totalItems,
+                    total_value: totalValue,
+                    average_cost: totalItems > 0 ? totalValue / totalItems : 0
+                },
+                by_generation: stockByGeneration
+            }
+        });
+    } catch (err) {
+        console.error('Error generating stock levels report:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Download stock levels report as text file
+app.get('/api/admin/reports/stock-levels/download', requireAuth, requireDB, async (req, res) => {
+    try {
+        // Get all products that are in stock (not sold)
+        const products = await db.collection('products').find({
+            status: { $in: ['in_stock', 'active'] }
+        }).toArray();
+
+        // Group by generation
+        const stockByGeneration = {};
+        let totalValue = 0;
+        let totalItems = 0;
+
+        products.forEach(product => {
+            const gen = product.generation || 'Unknown';
+            const purchasePrice = parseFloat(product.purchase_price) || 0;
+
+            if (!stockByGeneration[gen]) {
+                stockByGeneration[gen] = {
+                    count: 0,
+                    total_value: 0,
+                    items: []
+                };
+            }
+
+            stockByGeneration[gen].count++;
+            stockByGeneration[gen].total_value += purchasePrice;
+            stockByGeneration[gen].items.push({
+                serial_number: product.serial_number || 'N/A',
+                security_barcode: product.security_barcode || '',
+                purchase_price: purchasePrice,
+                condition: product.condition || 'N/A'
+            });
+
+            totalValue += purchasePrice;
+            totalItems++;
+        });
+
+        // Generate text report
+        const reportDate = new Date().toLocaleDateString('en-GB', {
+            day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+        });
+
+        let textReport = `
+================================================================================
+                          STOCK LEVELS REPORT
+================================================================================
+Generated: ${reportDate}
+--------------------------------------------------------------------------------
+
+SUMMARY
+-------
+Total Items in Stock:     ${totalItems}
+Total Stock Value:        £${totalValue.toFixed(2)}
+Average Cost per Item:    £${(totalItems > 0 ? totalValue / totalItems : 0).toFixed(2)}
+
+================================================================================
+
+STOCK BY GENERATION
+-------------------
+`;
+
+        // Add each generation's stock
+        Object.keys(stockByGeneration).sort().forEach(gen => {
+            const genData = stockByGeneration[gen];
+            textReport += `
+${gen}
+${'='.repeat(gen.length)}
+Count: ${genData.count} items
+Total Value: £${genData.total_value.toFixed(2)}
+Average Cost: £${(genData.count > 0 ? genData.total_value / genData.count : 0).toFixed(2)}
+
+  Serial Number          Barcode        Condition     Price Paid
+  ---------------------  -------------  ------------  ----------
+`;
+
+            genData.items.forEach(item => {
+                const serial = (item.serial_number || 'N/A').substring(0, 20).padEnd(21);
+                const barcode = (item.security_barcode || '-').substring(0, 12).padEnd(13);
+                const condition = (item.condition || 'N/A').substring(0, 11).padEnd(12);
+                const price = `£${item.purchase_price.toFixed(2)}`.padStart(10);
+                textReport += `  ${serial} ${barcode} ${condition} ${price}\n`;
+            });
+        });
+
+        textReport += `
+================================================================================
+                              END OF REPORT
+================================================================================
+`;
+
+        res.setHeader('Content-Type', 'text/plain');
+        res.setHeader('Content-Disposition', 'attachment; filename="stock-levels-report.txt"');
+        res.send(textReport);
+    } catch (err) {
+        console.error('Error downloading stock levels report:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // Create new sale
 app.post('/api/admin/sales', requireAuth, requireDB, async (req, res) => {
     try {
