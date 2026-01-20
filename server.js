@@ -11804,9 +11804,10 @@ Margin:                                 ${saleMargin.toFixed(1)}%
 // Get stock levels report data
 app.get('/api/admin/reports/stock-levels', requireAuth, requireDB, async (req, res) => {
     try {
-        // Get all products that are in stock (not sold)
+        // Get all products that are in stock (not sold) and have a security barcode
         const products = await db.collection('products').find({
-            status: { $in: ['in_stock', 'active'] }
+            status: { $in: ['in_stock', 'active'] },
+            security_barcode: { $exists: true, $ne: '', $ne: null }
         }).toArray();
 
         // Group by generation
@@ -11861,9 +11862,10 @@ app.get('/api/admin/reports/stock-levels', requireAuth, requireDB, async (req, r
 // Download stock levels report as text file
 app.get('/api/admin/reports/stock-levels/download', requireAuth, requireDB, async (req, res) => {
     try {
-        // Get all products that are in stock (not sold)
+        // Get all products that are in stock (not sold) and have a security barcode
         const products = await db.collection('products').find({
-            status: { $in: ['in_stock', 'active'] }
+            status: { $in: ['in_stock', 'active'] },
+            security_barcode: { $exists: true, $ne: '', $ne: null }
         }).toArray();
 
         // Group by generation
