@@ -16612,23 +16612,48 @@ app.get('/api/admin/price-snapshot/full-sets', requireAuth, requireDB, async (re
         const minProfit = parseFloat(req.query.min_profit) || 10;
         const salesCount = parseInt(req.query.sales_count) || 10;
 
-        // Get all unique generations
-        const generations = await db.collection('products').distinct('generation', {
-            status: 'sold'
-        });
+        // Get all unique generation + connector_type combinations from sold products
+        const variants = await db.collection('products').aggregate([
+            { $match: { status: 'sold' } },
+            {
+                $group: {
+                    _id: {
+                        generation: '$generation',
+                        connector_type: '$connector_type'
+                    }
+                }
+            }
+        ]).toArray();
 
         const fullSetSnapshot = [];
 
-        for (const generation of generations) {
+        for (const variant of variants) {
+            const generation = variant._id.generation;
+            const connectorType = variant._id.connector_type;
             if (!generation) continue;
 
-            // Get sales data for each part type within this generation
+            // Create display name with connector type if available
+            const displayName = connectorType ? `${generation} (${connectorType})` : generation;
+
+            // Get sales data for each part type within this generation + connector type
             const partTypes = ['left', 'right', 'case'];
             const partData = {};
             let hasAllParts = true;
 
             for (const partType of partTypes) {
-                // Find sales that include this part type for this generation
+                // Build match criteria - include connector_type if it exists
+                const matchCriteria = {
+                    'product_details.generation': generation,
+                    'product_details.part_type': partType
+                };
+                if (connectorType) {
+                    matchCriteria['product_details.connector_type'] = connectorType;
+                } else {
+                    // Match products with no connector_type or null
+                    matchCriteria['product_details.connector_type'] = { $in: [null, '', undefined] };
+                }
+
+                // Find sales that include this part type for this generation + connector type
                 const partSales = await db.collection('sales').aggregate([
                     { $unwind: '$products' },
                     {
@@ -16640,12 +16665,7 @@ app.get('/api/admin/price-snapshot/full-sets', requireAuth, requireDB, async (re
                         }
                     },
                     { $unwind: '$product_details' },
-                    {
-                        $match: {
-                            'product_details.generation': generation,
-                            'product_details.part_type': partType
-                        }
-                    },
+                    { $match: matchCriteria },
                     { $sort: { sale_date: -1 } },
                     { $limit: salesCount },
                     {
@@ -16723,7 +16743,9 @@ app.get('/api/admin/price-snapshot/full-sets', requireAuth, requireDB, async (re
                 const fullSetMaxBid = combinedNetRevenue - minProfit;
 
                 fullSetSnapshot.push({
-                    generation,
+                    generation: displayName,
+                    base_generation: generation,
+                    connector_type: connectorType || null,
                     has_all_parts: hasAllParts,
                     parts_with_data: partsWithData,
                     combined_sale_price: Math.round(combinedSalePrice * 100) / 100,
@@ -16760,7 +16782,7 @@ app.get('/api/admin/price-snapshot/best-sellers', requireAuth, requireDB, async 
         const dateThreshold = new Date();
         dateThreshold.setDate(dateThreshold.getDate() - daysBack);
 
-        // Get current stock counts by generation and part type
+        // Get current stock counts by generation, connector_type, and part type
         const stockCounts = await db.collection('products').aggregate([
             {
                 $match: {
@@ -16771,6 +16793,7 @@ app.get('/api/admin/price-snapshot/best-sellers', requireAuth, requireDB, async 
                 $group: {
                     _id: {
                         generation: '$generation',
+                        connector_type: '$connector_type',
                         part_type: '$part_type'
                     },
                     current_stock: { $sum: 1 },
@@ -16800,6 +16823,7 @@ app.get('/api/admin/price-snapshot/best-sellers', requireAuth, requireDB, async 
                 $group: {
                     _id: {
                         generation: '$product_details.generation',
+                        connector_type: '$product_details.connector_type',
                         part_type: '$product_details.part_type'
                     },
                     sales_count: { $sum: 1 },
@@ -16815,9 +16839,13 @@ app.get('/api/admin/price-snapshot/best-sellers', requireAuth, requireDB, async 
 
         // Add stock data
         for (const stock of stockCounts) {
-            const key = `${stock._id.generation}|${stock._id.part_type}`;
+            const connectorType = stock._id.connector_type || '';
+            const displayName = connectorType ? `${stock._id.generation} (${connectorType})` : stock._id.generation;
+            const key = `${stock._id.generation}|${connectorType}|${stock._id.part_type}`;
             bestSellersMap.set(key, {
-                generation: stock._id.generation,
+                generation: displayName,
+                base_generation: stock._id.generation,
+                connector_type: connectorType || null,
                 part_type: stock._id.part_type,
                 current_stock: stock.current_stock,
                 avg_purchase_price: Math.round((stock.avg_purchase_price || 0) * 100) / 100,
@@ -16832,9 +16860,13 @@ app.get('/api/admin/price-snapshot/best-sellers', requireAuth, requireDB, async 
 
         // Add sales data
         for (const sale of salesCounts) {
-            const key = `${sale._id.generation}|${sale._id.part_type}`;
+            const connectorType = sale._id.connector_type || '';
+            const displayName = connectorType ? `${sale._id.generation} (${connectorType})` : sale._id.generation;
+            const key = `${sale._id.generation}|${connectorType}|${sale._id.part_type}`;
             const existing = bestSellersMap.get(key) || {
-                generation: sale._id.generation,
+                generation: displayName,
+                base_generation: sale._id.generation,
+                connector_type: connectorType || null,
                 part_type: sale._id.part_type,
                 current_stock: 0,
                 avg_purchase_price: 0
@@ -16858,7 +16890,7 @@ app.get('/api/admin/price-snapshot/best-sellers', requireAuth, requireDB, async 
         let bestSellers = Array.from(bestSellersMap.values());
 
         // Filter out items with no generation
-        bestSellers = bestSellers.filter(item => item.generation);
+        bestSellers = bestSellers.filter(item => item.base_generation);
 
         // Sort by sales velocity (best sellers first)
         bestSellers.sort((a, b) => b.sales_velocity - a.sales_velocity);
@@ -16872,7 +16904,7 @@ app.get('/api/admin/price-snapshot/best-sellers', requireAuth, requireDB, async 
                             item.sales_velocity > 0 ? 'slow' : 'no_sales'
         }));
 
-        // Group by generation for summary
+        // Group by generation (including connector type) for summary
         const generationSummary = {};
         for (const item of bestSellers) {
             if (!generationSummary[item.generation]) {
@@ -16917,15 +16949,28 @@ app.get('/api/admin/price-snapshot/investment-optimizer', requireAuth, requireDB
         const dateThreshold = new Date();
         dateThreshold.setDate(dateThreshold.getDate() - daysBack);
 
-        // Get all unique generations
-        const generations = await db.collection('products').distinct('generation', {
-            status: 'sold'
-        });
+        // Get all unique generation + connector_type combinations from sold products
+        const variants = await db.collection('products').aggregate([
+            { $match: { status: 'sold' } },
+            {
+                $group: {
+                    _id: {
+                        generation: '$generation',
+                        connector_type: '$connector_type'
+                    }
+                }
+            }
+        ]).toArray();
 
         const setAnalysis = [];
 
-        for (const generation of generations) {
+        for (const variant of variants) {
+            const generation = variant._id.generation;
+            const connectorType = variant._id.connector_type;
             if (!generation) continue;
+
+            // Create display name with connector type if available
+            const displayName = connectorType ? `${generation} (${connectorType})` : generation;
 
             const partTypes = ['left', 'right', 'case'];
             const partData = {};
@@ -16936,6 +16981,17 @@ app.get('/api/admin/price-snapshot/investment-optimizer', requireAuth, requireDB
             let partsWithData = 0;
 
             for (const partType of partTypes) {
+                // Build match criteria - include connector_type if it exists
+                const matchCriteria = {
+                    'product_details.generation': generation,
+                    'product_details.part_type': partType
+                };
+                if (connectorType) {
+                    matchCriteria['product_details.connector_type'] = connectorType;
+                } else {
+                    matchCriteria['product_details.connector_type'] = { $in: [null, '', undefined] };
+                }
+
                 // Get sales data
                 const partSales = await db.collection('sales').aggregate([
                     { $unwind: '$products' },
@@ -16948,12 +17004,7 @@ app.get('/api/admin/price-snapshot/investment-optimizer', requireAuth, requireDB
                         }
                     },
                     { $unwind: '$product_details' },
-                    {
-                        $match: {
-                            'product_details.generation': generation,
-                            'product_details.part_type': partType
-                        }
-                    },
+                    { $match: matchCriteria },
                     { $sort: { sale_date: -1 } },
                     { $limit: salesCount },
                     {
@@ -16986,12 +17037,7 @@ app.get('/api/admin/price-snapshot/investment-optimizer', requireAuth, requireDB
                         }
                     },
                     { $unwind: '$product_details' },
-                    {
-                        $match: {
-                            'product_details.generation': generation,
-                            'product_details.part_type': partType
-                        }
-                    },
+                    { $match: matchCriteria },
                     { $count: 'count' }
                 ]).toArray();
 
@@ -17041,7 +17087,9 @@ app.get('/api/admin/price-snapshot/investment-optimizer', requireAuth, requireDB
                 const profitVelocityScore = expectedProfit * avgSalesVelocity;
 
                 setAnalysis.push({
-                    generation,
+                    generation: displayName,
+                    base_generation: generation,
+                    connector_type: connectorType || null,
                     full_set_max_bid: Math.round(fullSetMaxBid * 100) / 100,
                     expected_revenue: Math.round(combinedNetRevenue * 100) / 100,
                     expected_profit: expectedProfit,
