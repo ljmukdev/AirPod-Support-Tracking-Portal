@@ -652,6 +652,24 @@
                             </select>
                         </div>
                         <div class="form-group">
+                            <label>Parts Included</label>
+                            <div style="display:flex;gap:12px;padding:8px 0;">
+                                <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:0.85rem;">
+                                    <input type="checkbox" id="partLeft" checked style="width:16px;height:16px;"> Left
+                                </label>
+                                <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:0.85rem;">
+                                    <input type="checkbox" id="partRight" checked style="width:16px;height:16px;"> Right
+                                </label>
+                                <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:0.85rem;">
+                                    <input type="checkbox" id="partCase" checked style="width:16px;height:16px;"> Case
+                                </label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Postage Cost</label>
+                            <input type="number" id="bidCalcPostage" value="0" min="0" step="0.5" style="width:80px;padding:10px 14px;border:1px solid #d1d5db;border-radius:6px;" placeholder="0.00">
+                        </div>
+                        <div class="form-group">
                             <label>Min Profit Target</label>
                             <input type="number" id="bidCalcProfit" value="10" min="0" step="1" style="width:80px;padding:10px 14px;border:1px solid #d1d5db;border-radius:6px;">
                         </div>
@@ -1202,15 +1220,33 @@
         async function calculateBid() {
             const select = document.getElementById('bidCalcGeneration');
             const profitInput = document.getElementById('bidCalcProfit');
+            const postageInput = document.getElementById('bidCalcPostage');
             const resultDiv = document.getElementById('bidCalcResult');
+
+            // Get selected parts
+            const partLeft = document.getElementById('partLeft')?.checked;
+            const partRight = document.getElementById('partRight')?.checked;
+            const partCase = document.getElementById('partCase')?.checked;
 
             if (!select || !select.value) {
                 resultDiv.innerHTML = '<div class="no-data" style="padding:40px 20px;"><p>Please select a set first.</p></div>';
                 return;
             }
 
+            if (!partLeft && !partRight && !partCase) {
+                resultDiv.innerHTML = '<div class="no-data" style="padding:40px 20px;"><p>Please select at least one part.</p></div>';
+                return;
+            }
+
             const minProfit = parseFloat(profitInput?.value) || 10;
+            const postage = parseFloat(postageInput?.value) || 0;
             const selection = JSON.parse(select.value);
+
+            // Build selected parts array
+            const selectedParts = [];
+            if (partLeft) selectedParts.push('left');
+            if (partRight) selectedParts.push('right');
+            if (partCase) selectedParts.push('case');
 
             resultDiv.innerHTML = '<div class="loading">Calculating...</div>';
 
@@ -1223,7 +1259,9 @@
                 const params = new URLSearchParams({
                     generation: selection.generation,
                     connector_type: selection.connector_type || '',
-                    min_profit: minProfit
+                    min_profit: minProfit,
+                    postage: postage,
+                    parts: selectedParts.join(',')
                 });
 
                 const response = await authenticatedFetch(`/api/admin/price-snapshot/bid-calculator?${params}`);
@@ -1299,32 +1337,55 @@
                 }
 
                 const calc = data.calculation;
+                const selectedParts = data.selected_parts || ['left', 'right', 'case'];
+                const partLabels = { left: 'Left Earbud', right: 'Right Earbud', case: 'Charging Case' };
+
+                // Build parts description
+                const partsDesc = selectedParts.length === 3 ? 'full set' : selectedParts.map(p => partLabels[p]).join(' + ');
+
+                // Build stock level display for each part
+                const buildStockBadge = (partType) => {
+                    const stock = data.stock_levels?.[partType] || 0;
+                    const isHigh = stock >= 5;
+                    return `<span style="margin-left:8px;padding:2px 6px;border-radius:4px;font-size:0.7rem;background:${isHigh ? '#fef3c7' : '#d1fae5'};color:${isHigh ? '#92400e' : '#047857'};">${stock} in stock</span>`;
+                };
 
                 // Build the result HTML
                 resultDiv.innerHTML = `
+                    ${data.has_high_stock ? `
+                        <div style="margin-bottom:20px;padding:16px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;max-width:500px;">
+                            <p style="margin:0 0 8px;color:#b91c1c;font-weight:600;">Stock Warning</p>
+                            <p style="margin:0;font-size:0.85rem;color:#991b1b;">
+                                You already have high stock levels for some of these parts. Consider whether you need more:
+                            </p>
+                            <ul style="margin:8px 0 0;padding-left:20px;font-size:0.85rem;color:#991b1b;">
+                                ${data.stock_warnings.map(w => `<li>${w.message}</li>`).join('')}
+                            </ul>
+                        </div>
+                    ` : ''}
                     <div class="calculator-result">
                         <div class="calculator-card">
-                            <h3>${data.display_name}</h3>
+                            <h3>${data.display_name} <span style="font-size:0.8rem;color:#6b7280;font-weight:normal;">(${partsDesc})</span></h3>
 
                             <div class="calc-section-title">Expected Sale Revenue (per part)</div>
-                            ${calc.parts.left ? `
+                            ${selectedParts.includes('left') ? (calc.parts.left ? `
                                 <div class="calc-row indent">
-                                    <span>Left Earbud</span>
+                                    <span>Left Earbud ${buildStockBadge('left')}</span>
                                     <span>£${calc.parts.left.avg_sale_price.toFixed(2)}</span>
                                 </div>
-                            ` : '<div class="calc-row indent"><span>Left Earbud</span><span class="no-data-part">No data</span></div>'}
-                            ${calc.parts.right ? `
+                            ` : '<div class="calc-row indent"><span>Left Earbud</span><span class="no-data-part">No data</span></div>') : ''}
+                            ${selectedParts.includes('right') ? (calc.parts.right ? `
                                 <div class="calc-row indent">
-                                    <span>Right Earbud</span>
+                                    <span>Right Earbud ${buildStockBadge('right')}</span>
                                     <span>£${calc.parts.right.avg_sale_price.toFixed(2)}</span>
                                 </div>
-                            ` : '<div class="calc-row indent"><span>Right Earbud</span><span class="no-data-part">No data</span></div>'}
-                            ${calc.parts.case ? `
+                            ` : '<div class="calc-row indent"><span>Right Earbud</span><span class="no-data-part">No data</span></div>') : ''}
+                            ${selectedParts.includes('case') ? (calc.parts.case ? `
                                 <div class="calc-row indent">
-                                    <span>Charging Case</span>
+                                    <span>Charging Case ${buildStockBadge('case')}</span>
                                     <span>£${calc.parts.case.avg_sale_price.toFixed(2)}</span>
                                 </div>
-                            ` : '<div class="calc-row indent"><span>Charging Case</span><span class="no-data-part">No data</span></div>'}
+                            ` : '<div class="calc-row indent"><span>Charging Case</span><span class="no-data-part">No data</span></div>') : ''}
                             <div class="calc-row subtotal">
                                 <span>Combined Sale Value</span>
                                 <span>£${calc.combined_sale_price.toFixed(2)}</span>
@@ -1344,9 +1405,15 @@
                                 <span>£${calc.net_revenue.toFixed(2)}</span>
                             </div>
 
-                            <div class="calc-section-title">Profit Target</div>
+                            <div class="calc-section-title">Purchase Costs</div>
+                            ${postage > 0 ? `
                             <div class="calc-row">
-                                <span>Minimum Profit</span>
+                                <span>Postage Cost</span>
+                                <span class="minus">-£${postage.toFixed(2)}</span>
+                            </div>
+                            ` : ''}
+                            <div class="calc-row">
+                                <span>Minimum Profit Target</span>
                                 <span class="minus">-£${minProfit.toFixed(2)}</span>
                             </div>
 
@@ -1384,10 +1451,11 @@
                             </div>
                         ` : ''}
 
-                        <div style="margin-top:20px;padding:16px;background:#f0fdf4;border-radius:8px;max-width:500px;">
-                            <p style="margin:0;font-size:0.85rem;color:#166534;">
-                                <strong>Summary:</strong> To make £${minProfit.toFixed(2)} profit on a ${data.display_name} full set,
+                        <div style="margin-top:20px;padding:16px;background:${data.has_high_stock ? '#fef3c7' : '#f0fdf4'};border-radius:8px;max-width:500px;">
+                            <p style="margin:0;font-size:0.85rem;color:${data.has_high_stock ? '#92400e' : '#166534'};">
+                                <strong>Summary:</strong> To make £${minProfit.toFixed(2)} profit on ${data.display_name} (${partsDesc})${postage > 0 ? ` with £${postage.toFixed(2)} postage` : ''},
                                 you should bid no more than <strong>£${calc.max_bid.toFixed(2)}</strong>.
+                                ${data.has_high_stock ? '<br><strong>Note:</strong> Consider your current stock levels before purchasing.' : ''}
                             </p>
                         </div>
                     </div>

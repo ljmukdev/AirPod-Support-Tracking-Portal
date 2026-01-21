@@ -16642,19 +16642,49 @@ app.get('/api/admin/price-snapshot/bid-calculator', requireAuth, requireDB, asyn
         const generation = req.query.generation;
         const connectorType = req.query.connector_type || null;
         const minProfit = parseFloat(req.query.min_profit) || 10;
+        const postage = parseFloat(req.query.postage) || 0;
         const salesCount = parseInt(req.query.sales_count) || 10;
+
+        // Get selected parts (defaults to all parts if not specified)
+        const partsParam = req.query.parts;
+        const selectedParts = partsParam ? partsParam.split(',').filter(p => ['left', 'right', 'case'].includes(p)) : ['left', 'right', 'case'];
 
         if (!generation) {
             return res.status(400).json({ success: false, error: 'Generation is required' });
         }
 
+        if (selectedParts.length === 0) {
+            return res.status(400).json({ success: false, error: 'At least one part must be selected' });
+        }
+
         const displayName = connectorType ? `${generation} (${connectorType})` : generation;
-        const partTypes = ['left', 'right', 'case'];
+        const partTypes = selectedParts; // Only process selected parts
         const partsData = {};
         let combinedSalePrice = 0;
         let combinedFees = 0;
         let combinedConsumables = 0;
         let partsWithData = 0;
+
+        // Get current stock levels for the selected parts
+        const stockLevels = {};
+        for (const partType of selectedParts) {
+            const stockMatch = {
+                generation: generation,
+                part_type: partType,
+                status: 'in_stock'
+            };
+            if (connectorType) {
+                stockMatch.connector_type = connectorType;
+            } else {
+                stockMatch.$or = [
+                    { connector_type: null },
+                    { connector_type: '' },
+                    { connector_type: { $exists: false } }
+                ];
+            }
+            const count = await db.collection('products').countDocuments(stockMatch);
+            stockLevels[partType] = count;
+        }
 
         for (const partType of partTypes) {
             // Build match criteria
@@ -16731,21 +16761,24 @@ app.get('/api/admin/price-snapshot/bid-calculator', requireAuth, requireDB, asyn
             }
         }
 
-        if (partsWithData < 3) {
+        const requiredParts = selectedParts.length;
+        if (partsWithData < requiredParts) {
             // Return detailed info about which parts are missing data
             const missingParts = partTypes.filter(pt => !partsData[pt]);
             const partsWithDataList = partTypes.filter(pt => partsData[pt]);
 
             return res.json({
                 success: false,
-                error: `Insufficient data: only ${partsWithData}/3 parts have sales data`,
+                error: `Insufficient data: only ${partsWithData}/${requiredParts} selected parts have sales data`,
                 needs_manual_data: true,
                 display_name: displayName,
                 generation: generation,
                 connector_type: connectorType,
+                selected_parts: selectedParts,
                 parts_with_data: partsWithDataList,
                 missing_parts: missingParts,
                 partial_data: partsData,
+                stock_levels: stockLevels,
                 ebay_search_suggestions: missingParts.map(part => ({
                     part_type: part,
                     search_query: `${generation}${connectorType ? ' ' + connectorType : ''} ${part === 'case' ? 'charging case' : part + ' earbud'}`,
@@ -16755,14 +16788,15 @@ app.get('/api/admin/price-snapshot/bid-calculator', requireAuth, requireDB, asyn
         }
 
         const netRevenue = combinedSalePrice - combinedFees - combinedConsumables;
-        const maxBid = netRevenue - minProfit;
+        const maxBid = netRevenue - minProfit - postage;
 
-        // Get historical purchase price
+        // Get historical purchase price (only for selected parts)
         const historicalPrices = await db.collection('products').aggregate([
             {
                 $match: {
                     generation: generation,
                     connector_type: connectorType || { $in: [null, '', undefined] },
+                    part_type: { $in: selectedParts },
                     purchase_price: { $gt: 0 }
                 }
             },
@@ -16777,27 +16811,50 @@ app.get('/api/admin/price-snapshot/bid-calculator', requireAuth, requireDB, asyn
         let totalHistoricalPrice = 0;
         let historicalPartsCount = 0;
         for (const price of historicalPrices) {
-            if (['left', 'right', 'case'].includes(price._id)) {
+            if (selectedParts.includes(price._id)) {
                 totalHistoricalPrice += price.avg_purchase_price;
                 historicalPartsCount++;
             }
         }
+
+        // Generate stock warnings
+        const stockWarnings = [];
+        const HIGH_STOCK_THRESHOLD = 5; // Consider stock "high" if more than 5 units
+        for (const partType of selectedParts) {
+            if (stockLevels[partType] >= HIGH_STOCK_THRESHOLD) {
+                stockWarnings.push({
+                    part_type: partType,
+                    current_stock: stockLevels[partType],
+                    message: `High stock: ${stockLevels[partType]} ${partType} units already in stock`
+                });
+            }
+        }
+
+        // Calculate total stock across selected parts
+        const totalStock = Object.values(stockLevels).reduce((sum, count) => sum + count, 0);
+        const hasHighStock = stockWarnings.length > 0;
 
         res.json({
             success: true,
             display_name: displayName,
             generation: generation,
             connector_type: connectorType,
+            selected_parts: selectedParts,
             calculation: {
                 parts: partsData,
                 combined_sale_price: Math.round(combinedSalePrice * 100) / 100,
                 combined_fees: Math.round(combinedFees * 100) / 100,
                 combined_consumables: Math.round(combinedConsumables * 100) / 100,
                 net_revenue: Math.round(netRevenue * 100) / 100,
+                postage: Math.round(postage * 100) / 100,
                 min_profit: minProfit,
                 max_bid: Math.round(maxBid * 100) / 100
             },
-            historical_price: historicalPartsCount >= 2 ? Math.round(totalHistoricalPrice * 100) / 100 : null
+            stock_levels: stockLevels,
+            total_stock: totalStock,
+            stock_warnings: stockWarnings,
+            has_high_stock: hasHighStock,
+            historical_price: historicalPartsCount >= Math.ceil(selectedParts.length / 2) ? Math.round(totalHistoricalPrice * 100) / 100 : null
         });
 
     } catch (err) {
