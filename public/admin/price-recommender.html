@@ -371,6 +371,117 @@
             color: #6b7280;
         }
 
+        /* Bid Calculator */
+        .bid-calculator-form {
+            display: flex;
+            gap: 16px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+        .bid-calculator-form .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .bid-calculator-form label {
+            font-size: 0.85rem;
+            color: #374151;
+            font-weight: 500;
+        }
+        .bid-calculator-form select {
+            padding: 10px 14px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            min-width: 250px;
+            background: white;
+        }
+        .calculator-result {
+            margin-top: 24px;
+        }
+        .calculator-card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            max-width: 500px;
+        }
+        .calculator-card h3 {
+            margin: 0 0 20px 0;
+            font-size: 1.1rem;
+            color: #1f2937;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .calc-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            font-size: 0.9rem;
+            color: #4b5563;
+        }
+        .calc-row.indent {
+            padding-left: 20px;
+            font-size: 0.85rem;
+            color: #6b7280;
+        }
+        .calc-row.subtotal {
+            border-top: 1px solid #e5e7eb;
+            margin-top: 8px;
+            padding-top: 12px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+        .calc-row.total {
+            border-top: 2px solid #0d9488;
+            margin-top: 12px;
+            padding-top: 16px;
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: #0d9488;
+        }
+        .calc-row .minus { color: #ef4444; }
+        .calc-row .plus { color: #10b981; }
+        .calc-section-title {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            color: #9ca3af;
+            margin-top: 16px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        .no-data-part {
+            color: #9ca3af;
+            font-style: italic;
+        }
+        .historical-comparison {
+            margin-top: 20px;
+            padding: 16px;
+            background: #f9fafb;
+            border-radius: 8px;
+        }
+        .historical-comparison h4 {
+            margin: 0 0 12px 0;
+            font-size: 0.9rem;
+            color: #374151;
+        }
+        .historical-comparison .comparison-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            font-size: 0.85rem;
+        }
+        .historical-comparison .verdict {
+            margin-top: 12px;
+            padding: 10px;
+            border-radius: 6px;
+            font-weight: 600;
+            text-align: center;
+        }
+        .historical-comparison .verdict.good { background: #d1fae5; color: #047857; }
+        .historical-comparison .verdict.warning { background: #fef3c7; color: #92400e; }
+        .historical-comparison .verdict.bad { background: #fee2e2; color: #b91c1c; }
+
         /* Responsive */
         @media (max-width: 768px) {
             .tab-btn {
@@ -523,14 +634,37 @@
         <div class="admin-content">
             <!-- Tab Navigation -->
             <div class="tab-nav">
-                <button class="tab-btn active" data-tab="individual">Individual Parts</button>
+                <button class="tab-btn active" data-tab="bid-calc">Bid Calculator</button>
+                <button class="tab-btn" data-tab="individual">Individual Parts</button>
                 <button class="tab-btn" data-tab="full-sets">Full Sets</button>
                 <button class="tab-btn" data-tab="best-sellers">Best Sellers</button>
                 <button class="tab-btn" data-tab="investment">Investment Optimizer</button>
             </div>
 
+            <!-- Bid Calculator Tab -->
+            <div class="tab-content active" id="tab-bid-calc">
+                <div class="snapshot-controls">
+                    <div class="bid-calculator-form">
+                        <div class="form-group">
+                            <label>Select Set</label>
+                            <select id="bidCalcGeneration">
+                                <option value="">Loading...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Min Profit Target</label>
+                            <input type="number" id="bidCalcProfit" value="10" min="0" step="1" style="width:80px;padding:10px 14px;border:1px solid #d1d5db;border-radius:6px;">
+                        </div>
+                        <button class="btn btn-primary" onclick="calculateBid()">Calculate</button>
+                    </div>
+                </div>
+                <div id="bidCalcResult">
+                    <div class="no-data" style="padding:40px 20px;"><p>Select a set above to calculate the max bid price.</p></div>
+                </div>
+            </div>
+
             <!-- Individual Parts Tab -->
-            <div class="tab-content active" id="tab-individual">
+            <div class="tab-content" id="tab-individual">
                 <div class="snapshot-controls">
                     <label>Min Profit: £<input type="number" id="minProfit" value="10" min="0" step="1"></label>
                     <label>Last <input type="number" id="salesCount" value="5" min="1" max="50"> sales</label>
@@ -1024,8 +1158,192 @@
             }
         }
 
+        // Bid Calculator - Load generation options
+        async function loadBidCalcOptions() {
+            const select = document.getElementById('bidCalcGeneration');
+            if (!select) return;
+
+            try {
+                if (typeof authenticatedFetch !== 'function') {
+                    throw new Error('Please refresh the page');
+                }
+
+                // Get all unique generation + connector_type combinations
+                const response = await authenticatedFetch('/api/admin/price-snapshot/full-sets?min_profit=10&sales_count=10');
+                if (!response.ok) {
+                    throw new Error('Failed to load options');
+                }
+
+                const data = await response.json();
+
+                select.innerHTML = '<option value="">-- Select a set --</option>';
+
+                if (data.full_sets && data.full_sets.length > 0) {
+                    for (const set of data.full_sets) {
+                        const option = document.createElement('option');
+                        option.value = JSON.stringify({
+                            generation: set.base_generation,
+                            connector_type: set.connector_type
+                        });
+                        option.textContent = set.generation;
+                        select.appendChild(option);
+                    }
+                }
+
+                // Also add a divider and manual entry hint
+                if (data.full_sets && data.full_sets.length === 0) {
+                    select.innerHTML = '<option value="">No sets with sales data found</option>';
+                }
+
+            } catch (err) {
+                select.innerHTML = '<option value="">Error loading options</option>';
+                console.error('Error loading bid calc options:', err);
+            }
+        }
+
+        // Bid Calculator - Calculate max bid for selected set
+        async function calculateBid() {
+            const select = document.getElementById('bidCalcGeneration');
+            const profitInput = document.getElementById('bidCalcProfit');
+            const resultDiv = document.getElementById('bidCalcResult');
+
+            if (!select || !select.value) {
+                resultDiv.innerHTML = '<div class="no-data" style="padding:40px 20px;"><p>Please select a set first.</p></div>';
+                return;
+            }
+
+            const minProfit = parseFloat(profitInput?.value) || 10;
+            const selection = JSON.parse(select.value);
+
+            resultDiv.innerHTML = '<div class="loading">Calculating...</div>';
+
+            try {
+                if (typeof authenticatedFetch !== 'function') {
+                    throw new Error('Please refresh the page');
+                }
+
+                // Fetch the calculation for this specific set
+                const params = new URLSearchParams({
+                    generation: selection.generation,
+                    connector_type: selection.connector_type || '',
+                    min_profit: minProfit
+                });
+
+                const response = await authenticatedFetch(`/api/admin/price-snapshot/bid-calculator?${params}`);
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    throw new Error(errData.error || 'Failed to calculate');
+                }
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    resultDiv.innerHTML = `<div class="no-data" style="padding:40px 20px;"><p>${data.error || 'Unable to calculate bid for this set.'}</p></div>`;
+                    return;
+                }
+
+                const calc = data.calculation;
+
+                // Build the result HTML
+                resultDiv.innerHTML = `
+                    <div class="calculator-result">
+                        <div class="calculator-card">
+                            <h3>${data.display_name}</h3>
+
+                            <div class="calc-section-title">Expected Sale Revenue (per part)</div>
+                            ${calc.parts.left ? `
+                                <div class="calc-row indent">
+                                    <span>Left Earbud</span>
+                                    <span>£${calc.parts.left.avg_sale_price.toFixed(2)}</span>
+                                </div>
+                            ` : '<div class="calc-row indent"><span>Left Earbud</span><span class="no-data-part">No data</span></div>'}
+                            ${calc.parts.right ? `
+                                <div class="calc-row indent">
+                                    <span>Right Earbud</span>
+                                    <span>£${calc.parts.right.avg_sale_price.toFixed(2)}</span>
+                                </div>
+                            ` : '<div class="calc-row indent"><span>Right Earbud</span><span class="no-data-part">No data</span></div>'}
+                            ${calc.parts.case ? `
+                                <div class="calc-row indent">
+                                    <span>Charging Case</span>
+                                    <span>£${calc.parts.case.avg_sale_price.toFixed(2)}</span>
+                                </div>
+                            ` : '<div class="calc-row indent"><span>Charging Case</span><span class="no-data-part">No data</span></div>'}
+                            <div class="calc-row subtotal">
+                                <span>Combined Sale Value</span>
+                                <span>£${calc.combined_sale_price.toFixed(2)}</span>
+                            </div>
+
+                            <div class="calc-section-title">Deductions</div>
+                            <div class="calc-row">
+                                <span>Platform Fees (avg)</span>
+                                <span class="minus">-£${calc.combined_fees.toFixed(2)}</span>
+                            </div>
+                            <div class="calc-row">
+                                <span>Consumables (avg)</span>
+                                <span class="minus">-£${calc.combined_consumables.toFixed(2)}</span>
+                            </div>
+                            <div class="calc-row subtotal">
+                                <span>Net Revenue</span>
+                                <span>£${calc.net_revenue.toFixed(2)}</span>
+                            </div>
+
+                            <div class="calc-section-title">Profit Target</div>
+                            <div class="calc-row">
+                                <span>Minimum Profit</span>
+                                <span class="minus">-£${minProfit.toFixed(2)}</span>
+                            </div>
+
+                            <div class="calc-row total">
+                                <span>Max Bid Price</span>
+                                <span>£${calc.max_bid.toFixed(2)}</span>
+                            </div>
+                        </div>
+
+                        ${data.historical_price ? `
+                            <div class="historical-comparison" style="max-width:500px;margin-top:20px;">
+                                <h4>Historical Purchase Price Comparison</h4>
+                                <div class="comparison-row">
+                                    <span>Avg purchase price (from your data)</span>
+                                    <span>£${data.historical_price.toFixed(2)}</span>
+                                </div>
+                                <div class="comparison-row">
+                                    <span>Calculated max bid</span>
+                                    <span>£${calc.max_bid.toFixed(2)}</span>
+                                </div>
+                                <div class="comparison-row">
+                                    <span>Difference</span>
+                                    <span style="color:${calc.max_bid >= data.historical_price ? '#10b981' : '#ef4444'}">
+                                        ${calc.max_bid >= data.historical_price ? '+' : ''}£${(calc.max_bid - data.historical_price).toFixed(2)}
+                                        (${((calc.max_bid - data.historical_price) / data.historical_price * 100).toFixed(1)}%)
+                                    </span>
+                                </div>
+                                <div class="verdict ${calc.max_bid >= data.historical_price ? 'good' : calc.max_bid >= data.historical_price * 0.9 ? 'warning' : 'bad'}">
+                                    ${calc.max_bid >= data.historical_price
+                                        ? 'Max bid is achievable based on historical purchases'
+                                        : calc.max_bid >= data.historical_price * 0.9
+                                            ? 'Max bid is slightly below historical avg - may be difficult to achieve'
+                                            : 'Max bid is significantly below historical avg - unlikely to find at this price'}
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        <div style="margin-top:20px;padding:16px;background:#f0fdf4;border-radius:8px;max-width:500px;">
+                            <p style="margin:0;font-size:0.85rem;color:#166534;">
+                                <strong>Summary:</strong> To make £${minProfit.toFixed(2)} profit on a ${data.display_name} full set,
+                                you should bid no more than <strong>£${calc.max_bid.toFixed(2)}</strong>.
+                            </p>
+                        </div>
+                    </div>
+                `;
+
+            } catch (err) {
+                resultDiv.innerHTML = `<div class="error">Error: ${err.message}</div>`;
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
-            setTimeout(loadSnapshot, 200);
+            setTimeout(loadBidCalcOptions, 200);
         });
     </script>
 </body>
