@@ -16606,6 +16606,514 @@ app.get('/api/admin/price-snapshot/fees-by-platform', requireAuth, requireDB, as
     }
 });
 
+// GET full set max bid calculator - combines individual part sales to calculate set max bid
+app.get('/api/admin/price-snapshot/full-sets', requireAuth, requireDB, async (req, res) => {
+    try {
+        const minProfit = parseFloat(req.query.min_profit) || 10;
+        const salesCount = parseInt(req.query.sales_count) || 10;
+
+        // Get all unique generations
+        const generations = await db.collection('products').distinct('generation', {
+            status: 'sold'
+        });
+
+        const fullSetSnapshot = [];
+
+        for (const generation of generations) {
+            if (!generation) continue;
+
+            // Get sales data for each part type within this generation
+            const partTypes = ['left', 'right', 'case'];
+            const partData = {};
+            let hasAllParts = true;
+
+            for (const partType of partTypes) {
+                // Find sales that include this part type for this generation
+                const partSales = await db.collection('sales').aggregate([
+                    { $unwind: '$products' },
+                    {
+                        $lookup: {
+                            from: 'products',
+                            localField: 'products.product_id',
+                            foreignField: '_id',
+                            as: 'product_details'
+                        }
+                    },
+                    { $unwind: '$product_details' },
+                    {
+                        $match: {
+                            'product_details.generation': generation,
+                            'product_details.part_type': partType
+                        }
+                    },
+                    { $sort: { sale_date: -1 } },
+                    { $limit: salesCount },
+                    {
+                        $project: {
+                            sale_date: 1,
+                            sale_price: 1,
+                            transaction_fees: 1,
+                            postage_label_cost: 1,
+                            ad_fee_general: 1,
+                            consumables_cost: 1,
+                            product_cost: '$products.product_cost',
+                            part_type: '$product_details.part_type'
+                        }
+                    }
+                ]).toArray();
+
+                if (partSales.length === 0) {
+                    hasAllParts = false;
+                    partData[partType] = null;
+                } else {
+                    // Calculate averages for this part type
+                    let totalSalePrice = 0;
+                    let totalFees = 0;
+                    let totalConsumables = 0;
+                    let totalProductCost = 0;
+
+                    for (const sale of partSales) {
+                        totalSalePrice += sale.sale_price || 0;
+                        totalFees += (sale.transaction_fees || 0) + (sale.postage_label_cost || 0) + (sale.ad_fee_general || 0);
+                        totalConsumables += sale.consumables_cost || 0;
+                        totalProductCost += sale.product_cost || 0;
+                    }
+
+                    const count = partSales.length;
+                    partData[partType] = {
+                        sales_count: count,
+                        avg_sale_price: totalSalePrice / count,
+                        avg_fees: totalFees / count,
+                        avg_consumables: totalConsumables / count,
+                        avg_product_cost: totalProductCost / count,
+                        last_sale_date: partSales[0]?.sale_date
+                    };
+                }
+            }
+
+            // Calculate combined full set value
+            let combinedSalePrice = 0;
+            let combinedFees = 0;
+            let combinedConsumables = 0;
+            let partsWithData = 0;
+            const partsBreakdown = {};
+
+            for (const partType of partTypes) {
+                if (partData[partType]) {
+                    combinedSalePrice += partData[partType].avg_sale_price;
+                    combinedFees += partData[partType].avg_fees;
+                    combinedConsumables += partData[partType].avg_consumables;
+                    partsWithData++;
+
+                    partsBreakdown[partType] = {
+                        avg_sale_price: Math.round(partData[partType].avg_sale_price * 100) / 100,
+                        avg_fees: Math.round(partData[partType].avg_fees * 100) / 100,
+                        avg_net: Math.round((partData[partType].avg_sale_price - partData[partType].avg_fees - partData[partType].avg_consumables) * 100) / 100,
+                        sales_analyzed: partData[partType].sales_count,
+                        last_sale: partData[partType].last_sale_date
+                    };
+                } else {
+                    partsBreakdown[partType] = null;
+                }
+            }
+
+            // Only include if we have at least 2 parts with data
+            if (partsWithData >= 2) {
+                const combinedNetRevenue = combinedSalePrice - combinedFees - combinedConsumables;
+                const fullSetMaxBid = combinedNetRevenue - minProfit;
+
+                fullSetSnapshot.push({
+                    generation,
+                    has_all_parts: hasAllParts,
+                    parts_with_data: partsWithData,
+                    combined_sale_price: Math.round(combinedSalePrice * 100) / 100,
+                    combined_fees: Math.round(combinedFees * 100) / 100,
+                    combined_consumables: Math.round(combinedConsumables * 100) / 100,
+                    combined_net_revenue: Math.round(combinedNetRevenue * 100) / 100,
+                    full_set_max_bid: Math.round(fullSetMaxBid * 100) / 100,
+                    min_profit: minProfit,
+                    parts_breakdown: partsBreakdown
+                });
+            }
+        }
+
+        // Sort by max bid descending (most profitable first)
+        fullSetSnapshot.sort((a, b) => b.full_set_max_bid - a.full_set_max_bid);
+
+        res.json({
+            success: true,
+            generated_at: new Date(),
+            min_profit_target: minProfit,
+            sales_per_part: salesCount,
+            full_sets: fullSetSnapshot
+        });
+    } catch (err) {
+        console.error('Error generating full set price snapshot:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// GET best sellers analysis - analyzes stock levels and sales velocity
+app.get('/api/admin/price-snapshot/best-sellers', requireAuth, requireDB, async (req, res) => {
+    try {
+        const daysBack = parseInt(req.query.days) || 30;
+        const dateThreshold = new Date();
+        dateThreshold.setDate(dateThreshold.getDate() - daysBack);
+
+        // Get current stock counts by generation and part type
+        const stockCounts = await db.collection('products').aggregate([
+            {
+                $match: {
+                    status: 'in_stock'
+                }
+            },
+            {
+                $group: {
+                    _id: {
+                        generation: '$generation',
+                        part_type: '$part_type'
+                    },
+                    current_stock: { $sum: 1 },
+                    avg_purchase_price: { $avg: '$purchase_price' }
+                }
+            }
+        ]).toArray();
+
+        // Get sales counts within the date range
+        const salesCounts = await db.collection('sales').aggregate([
+            {
+                $match: {
+                    sale_date: { $gte: dateThreshold }
+                }
+            },
+            { $unwind: '$products' },
+            {
+                $lookup: {
+                    from: 'products',
+                    localField: 'products.product_id',
+                    foreignField: '_id',
+                    as: 'product_details'
+                }
+            },
+            { $unwind: '$product_details' },
+            {
+                $group: {
+                    _id: {
+                        generation: '$product_details.generation',
+                        part_type: '$product_details.part_type'
+                    },
+                    sales_count: { $sum: 1 },
+                    total_revenue: { $sum: '$sale_price' },
+                    avg_sale_price: { $avg: '$sale_price' },
+                    total_profit: { $sum: '$profit' }
+                }
+            }
+        ]).toArray();
+
+        // Combine stock and sales data
+        const bestSellersMap = new Map();
+
+        // Add stock data
+        for (const stock of stockCounts) {
+            const key = `${stock._id.generation}|${stock._id.part_type}`;
+            bestSellersMap.set(key, {
+                generation: stock._id.generation,
+                part_type: stock._id.part_type,
+                current_stock: stock.current_stock,
+                avg_purchase_price: Math.round((stock.avg_purchase_price || 0) * 100) / 100,
+                sales_count: 0,
+                avg_sale_price: 0,
+                total_revenue: 0,
+                total_profit: 0,
+                sales_velocity: 0,
+                days_of_stock: null
+            });
+        }
+
+        // Add sales data
+        for (const sale of salesCounts) {
+            const key = `${sale._id.generation}|${sale._id.part_type}`;
+            const existing = bestSellersMap.get(key) || {
+                generation: sale._id.generation,
+                part_type: sale._id.part_type,
+                current_stock: 0,
+                avg_purchase_price: 0
+            };
+
+            const salesVelocity = sale.sales_count / daysBack; // Sales per day
+            const daysOfStock = salesVelocity > 0 ? Math.round(existing.current_stock / salesVelocity) : null;
+
+            bestSellersMap.set(key, {
+                ...existing,
+                sales_count: sale.sales_count,
+                avg_sale_price: Math.round((sale.avg_sale_price || 0) * 100) / 100,
+                total_revenue: Math.round((sale.total_revenue || 0) * 100) / 100,
+                total_profit: Math.round((sale.total_profit || 0) * 100) / 100,
+                sales_velocity: Math.round(salesVelocity * 100) / 100,
+                days_of_stock: daysOfStock
+            });
+        }
+
+        // Convert to array and calculate rankings
+        let bestSellers = Array.from(bestSellersMap.values());
+
+        // Filter out items with no generation
+        bestSellers = bestSellers.filter(item => item.generation);
+
+        // Sort by sales velocity (best sellers first)
+        bestSellers.sort((a, b) => b.sales_velocity - a.sales_velocity);
+
+        // Add rank
+        bestSellers = bestSellers.map((item, index) => ({
+            ...item,
+            rank: index + 1,
+            seller_category: item.sales_velocity > 0.5 ? 'fast' :
+                            item.sales_velocity > 0.1 ? 'moderate' :
+                            item.sales_velocity > 0 ? 'slow' : 'no_sales'
+        }));
+
+        // Group by generation for summary
+        const generationSummary = {};
+        for (const item of bestSellers) {
+            if (!generationSummary[item.generation]) {
+                generationSummary[item.generation] = {
+                    total_stock: 0,
+                    total_sales: 0,
+                    total_revenue: 0,
+                    parts: []
+                };
+            }
+            generationSummary[item.generation].total_stock += item.current_stock;
+            generationSummary[item.generation].total_sales += item.sales_count;
+            generationSummary[item.generation].total_revenue += item.total_revenue;
+            generationSummary[item.generation].parts.push({
+                part_type: item.part_type,
+                current_stock: item.current_stock,
+                sales_count: item.sales_count,
+                sales_velocity: item.sales_velocity
+            });
+        }
+
+        res.json({
+            success: true,
+            generated_at: new Date(),
+            analysis_period_days: daysBack,
+            best_sellers: bestSellers,
+            generation_summary: generationSummary
+        });
+    } catch (err) {
+        console.error('Error generating best sellers analysis:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// GET investment optimizer - recommends sets to buy based on budget
+app.get('/api/admin/price-snapshot/investment-optimizer', requireAuth, requireDB, async (req, res) => {
+    try {
+        const budget = parseFloat(req.query.budget) || 500;
+        const minProfit = parseFloat(req.query.min_profit) || 10;
+        const salesCount = parseInt(req.query.sales_count) || 10;
+        const daysBack = parseInt(req.query.days) || 30;
+        const dateThreshold = new Date();
+        dateThreshold.setDate(dateThreshold.getDate() - daysBack);
+
+        // Get all unique generations
+        const generations = await db.collection('products').distinct('generation', {
+            status: 'sold'
+        });
+
+        const setAnalysis = [];
+
+        for (const generation of generations) {
+            if (!generation) continue;
+
+            const partTypes = ['left', 'right', 'case'];
+            const partData = {};
+            let totalCombinedSalePrice = 0;
+            let totalCombinedFees = 0;
+            let totalCombinedConsumables = 0;
+            let totalSalesVelocity = 0;
+            let partsWithData = 0;
+
+            for (const partType of partTypes) {
+                // Get sales data
+                const partSales = await db.collection('sales').aggregate([
+                    { $unwind: '$products' },
+                    {
+                        $lookup: {
+                            from: 'products',
+                            localField: 'products.product_id',
+                            foreignField: '_id',
+                            as: 'product_details'
+                        }
+                    },
+                    { $unwind: '$product_details' },
+                    {
+                        $match: {
+                            'product_details.generation': generation,
+                            'product_details.part_type': partType
+                        }
+                    },
+                    { $sort: { sale_date: -1 } },
+                    { $limit: salesCount },
+                    {
+                        $project: {
+                            sale_date: 1,
+                            sale_price: 1,
+                            transaction_fees: 1,
+                            postage_label_cost: 1,
+                            ad_fee_general: 1,
+                            consumables_cost: 1,
+                            product_cost: '$products.product_cost'
+                        }
+                    }
+                ]).toArray();
+
+                // Get recent sales count for velocity
+                const recentSalesCount = await db.collection('sales').aggregate([
+                    {
+                        $match: {
+                            sale_date: { $gte: dateThreshold }
+                        }
+                    },
+                    { $unwind: '$products' },
+                    {
+                        $lookup: {
+                            from: 'products',
+                            localField: 'products.product_id',
+                            foreignField: '_id',
+                            as: 'product_details'
+                        }
+                    },
+                    { $unwind: '$product_details' },
+                    {
+                        $match: {
+                            'product_details.generation': generation,
+                            'product_details.part_type': partType
+                        }
+                    },
+                    { $count: 'count' }
+                ]).toArray();
+
+                const velocityCount = recentSalesCount[0]?.count || 0;
+                const salesVelocity = velocityCount / daysBack;
+
+                if (partSales.length > 0) {
+                    let totalSalePrice = 0;
+                    let totalFees = 0;
+                    let totalConsumables = 0;
+
+                    for (const sale of partSales) {
+                        totalSalePrice += sale.sale_price || 0;
+                        totalFees += (sale.transaction_fees || 0) + (sale.postage_label_cost || 0) + (sale.ad_fee_general || 0);
+                        totalConsumables += sale.consumables_cost || 0;
+                    }
+
+                    const count = partSales.length;
+                    partData[partType] = {
+                        avg_sale_price: totalSalePrice / count,
+                        avg_fees: totalFees / count,
+                        avg_consumables: totalConsumables / count,
+                        sales_velocity: salesVelocity
+                    };
+
+                    totalCombinedSalePrice += partData[partType].avg_sale_price;
+                    totalCombinedFees += partData[partType].avg_fees;
+                    totalCombinedConsumables += partData[partType].avg_consumables;
+                    totalSalesVelocity += salesVelocity;
+                    partsWithData++;
+                }
+            }
+
+            if (partsWithData >= 2) {
+                const combinedNetRevenue = totalCombinedSalePrice - totalCombinedFees - totalCombinedConsumables;
+                const fullSetMaxBid = combinedNetRevenue - minProfit;
+                const avgSalesVelocity = totalSalesVelocity / partsWithData;
+
+                // Profit if you buy at max bid
+                const expectedProfit = minProfit;
+
+                // ROI = profit / cost * 100
+                const roi = fullSetMaxBid > 0 ? (expectedProfit / fullSetMaxBid) * 100 : 0;
+
+                // Profit velocity score = expected profit * avg sales velocity
+                // This rewards both profitable and fast-selling items
+                const profitVelocityScore = expectedProfit * avgSalesVelocity;
+
+                setAnalysis.push({
+                    generation,
+                    full_set_max_bid: Math.round(fullSetMaxBid * 100) / 100,
+                    expected_revenue: Math.round(combinedNetRevenue * 100) / 100,
+                    expected_profit: expectedProfit,
+                    roi_percentage: Math.round(roi * 100) / 100,
+                    avg_sales_velocity: Math.round(avgSalesVelocity * 1000) / 1000,
+                    profit_velocity_score: Math.round(profitVelocityScore * 100) / 100,
+                    parts_with_data: partsWithData
+                });
+            }
+        }
+
+        // Sort by profit velocity score (best investment first)
+        setAnalysis.sort((a, b) => b.profit_velocity_score - a.profit_velocity_score);
+
+        // Now calculate optimal purchase recommendations
+        const recommendations = [];
+        let remainingBudget = budget;
+        const setBudgetAllocation = [...setAnalysis];
+
+        // Greedy algorithm: prioritize by profit velocity score
+        for (const set of setBudgetAllocation) {
+            if (set.full_set_max_bid <= 0) continue;
+
+            const quantity = Math.floor(remainingBudget / set.full_set_max_bid);
+            if (quantity > 0) {
+                const totalCost = quantity * set.full_set_max_bid;
+                const totalExpectedProfit = quantity * set.expected_profit;
+
+                recommendations.push({
+                    generation: set.generation,
+                    recommended_quantity: quantity,
+                    cost_per_set: set.full_set_max_bid,
+                    total_cost: Math.round(totalCost * 100) / 100,
+                    expected_profit_per_set: set.expected_profit,
+                    total_expected_profit: Math.round(totalExpectedProfit * 100) / 100,
+                    roi_percentage: set.roi_percentage,
+                    sales_velocity: set.avg_sales_velocity,
+                    priority_score: set.profit_velocity_score
+                });
+
+                remainingBudget -= totalCost;
+            }
+        }
+
+        // Calculate totals
+        const totalInvestment = budget - remainingBudget;
+        const totalExpectedProfit = recommendations.reduce((sum, r) => sum + r.total_expected_profit, 0);
+        const totalSets = recommendations.reduce((sum, r) => sum + r.recommended_quantity, 0);
+        const overallRoi = totalInvestment > 0 ? (totalExpectedProfit / totalInvestment) * 100 : 0;
+
+        res.json({
+            success: true,
+            generated_at: new Date(),
+            budget: budget,
+            min_profit_target: minProfit,
+            analysis_period_days: daysBack,
+            summary: {
+                total_investment: Math.round(totalInvestment * 100) / 100,
+                remaining_budget: Math.round(remainingBudget * 100) / 100,
+                total_sets_recommended: totalSets,
+                total_expected_profit: Math.round(totalExpectedProfit * 100) / 100,
+                overall_roi_percentage: Math.round(overallRoi * 100) / 100
+            },
+            recommendations,
+            all_sets_analysis: setAnalysis
+        });
+    } catch (err) {
+        console.error('Error generating investment optimizer:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // ============================================================================
 // END PRICE SNAPSHOT
 // ============================================================================

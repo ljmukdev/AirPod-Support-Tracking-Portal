@@ -32,6 +32,9 @@
             border-radius: 6px;
             font-size: 0.9rem;
         }
+        .snapshot-controls input.budget-input {
+            width: 100px;
+        }
         .snapshot-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -91,6 +94,7 @@
             padding-top: 6px;
         }
         .breakdown-row .minus { color: #ef4444; }
+        .breakdown-row .plus { color: #10b981; }
         .last-sale {
             font-size: 0.75rem;
             color: #9ca3af;
@@ -107,6 +111,224 @@
             color: #9ca3af;
             font-size: 0.8rem;
             margin-top: 20px;
+        }
+
+        /* Tab Navigation */
+        .tab-nav {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 24px;
+            background: #f3f4f6;
+            padding: 4px;
+            border-radius: 8px;
+            flex-wrap: wrap;
+        }
+        .tab-btn {
+            flex: 1;
+            min-width: 120px;
+            padding: 12px 16px;
+            border: none;
+            background: transparent;
+            color: #6b7280;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+        .tab-btn:hover {
+            background: rgba(255,255,255,0.5);
+            color: #374151;
+        }
+        .tab-btn.active {
+            background: white;
+            color: #0d9488;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Full Set Cards */
+        .parts-breakdown {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px dashed #e5e7eb;
+        }
+        .part-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+            font-size: 0.8rem;
+            color: #6b7280;
+        }
+        .part-type-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        .part-type-badge.left { background: #dbeafe; color: #1d4ed8; }
+        .part-type-badge.right { background: #fce7f3; color: #be185d; }
+        .part-type-badge.case { background: #d1fae5; color: #047857; }
+        .part-missing {
+            color: #9ca3af;
+            font-style: italic;
+        }
+
+        /* Best Sellers Table */
+        .sellers-table {
+            width: 100%;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .sellers-table th,
+        .sellers-table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .sellers-table th {
+            background: #f9fafb;
+            font-weight: 600;
+            font-size: 0.8rem;
+            color: #374151;
+            text-transform: uppercase;
+        }
+        .sellers-table td {
+            font-size: 0.9rem;
+            color: #4b5563;
+        }
+        .sellers-table tr:last-child td {
+            border-bottom: none;
+        }
+        .velocity-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .velocity-badge.fast { background: #d1fae5; color: #047857; }
+        .velocity-badge.moderate { background: #fef3c7; color: #92400e; }
+        .velocity-badge.slow { background: #fee2e2; color: #b91c1c; }
+        .velocity-badge.no_sales { background: #f3f4f6; color: #6b7280; }
+
+        /* Investment Optimizer */
+        .investment-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .summary-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .summary-card .label {
+            font-size: 0.8rem;
+            color: #6b7280;
+            margin-bottom: 8px;
+        }
+        .summary-card .value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1f2937;
+        }
+        .summary-card .value.profit {
+            color: #10b981;
+        }
+        .summary-card .value.investment {
+            color: #0d9488;
+        }
+        .recommendations-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .recommendation-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 16px;
+            align-items: center;
+        }
+        .recommendation-card .rec-info h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin: 0 0 8px 0;
+        }
+        .recommendation-card .rec-details {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            font-size: 0.85rem;
+            color: #6b7280;
+        }
+        .recommendation-card .rec-details span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .recommendation-card .rec-action {
+            text-align: right;
+        }
+        .recommendation-card .quantity {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #0d9488;
+        }
+        .recommendation-card .quantity-label {
+            font-size: 0.75rem;
+            color: #6b7280;
+        }
+        .priority-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+        .priority-badge.high { background: #d1fae5; color: #047857; }
+        .priority-badge.medium { background: #fef3c7; color: #92400e; }
+        .priority-badge.low { background: #f3f4f6; color: #6b7280; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .tab-btn {
+                min-width: 80px;
+                padding: 10px 12px;
+                font-size: 0.8rem;
+            }
+            .sellers-table {
+                display: block;
+                overflow-x: auto;
+            }
+            .recommendation-card {
+                grid-template-columns: 1fr;
+            }
+            .recommendation-card .rec-action {
+                text-align: left;
+                display: flex;
+                gap: 16px;
+                align-items: center;
+            }
         }
     </style>
 </head>
@@ -237,14 +459,60 @@
         </header>
 
         <div class="admin-content">
-            <div class="snapshot-controls">
-                <label>Min Profit: £<input type="number" id="minProfit" value="10" min="0" step="1"></label>
-                <label>Last <input type="number" id="salesCount" value="5" min="1" max="50"> sales</label>
-                <button class="btn btn-primary" id="refreshBtn" onclick="loadSnapshot()">Refresh</button>
+            <!-- Tab Navigation -->
+            <div class="tab-nav">
+                <button class="tab-btn active" data-tab="individual">Individual Parts</button>
+                <button class="tab-btn" data-tab="full-sets">Full Sets</button>
+                <button class="tab-btn" data-tab="best-sellers">Best Sellers</button>
+                <button class="tab-btn" data-tab="investment">Investment Optimizer</button>
             </div>
 
-            <div id="snapshotContent">
-                <div class="loading">Loading...</div>
+            <!-- Individual Parts Tab -->
+            <div class="tab-content active" id="tab-individual">
+                <div class="snapshot-controls">
+                    <label>Min Profit: £<input type="number" id="minProfit" value="10" min="0" step="1"></label>
+                    <label>Last <input type="number" id="salesCount" value="5" min="1" max="50"> sales</label>
+                    <button class="btn btn-primary" id="refreshBtn" onclick="loadSnapshot()">Refresh</button>
+                </div>
+                <div id="snapshotContent">
+                    <div class="loading">Loading...</div>
+                </div>
+            </div>
+
+            <!-- Full Sets Tab -->
+            <div class="tab-content" id="tab-full-sets">
+                <div class="snapshot-controls">
+                    <label>Min Profit: £<input type="number" id="minProfitSets" value="10" min="0" step="1"></label>
+                    <label>Last <input type="number" id="salesCountSets" value="10" min="1" max="50"> sales per part</label>
+                    <button class="btn btn-primary" id="refreshBtnSets" onclick="loadFullSets()">Refresh</button>
+                </div>
+                <div id="fullSetsContent">
+                    <div class="loading">Loading...</div>
+                </div>
+            </div>
+
+            <!-- Best Sellers Tab -->
+            <div class="tab-content" id="tab-best-sellers">
+                <div class="snapshot-controls">
+                    <label>Last <input type="number" id="daysBestSellers" value="30" min="1" max="365"> days</label>
+                    <button class="btn btn-primary" id="refreshBtnSellers" onclick="loadBestSellers()">Refresh</button>
+                </div>
+                <div id="bestSellersContent">
+                    <div class="loading">Loading...</div>
+                </div>
+            </div>
+
+            <!-- Investment Optimizer Tab -->
+            <div class="tab-content" id="tab-investment">
+                <div class="snapshot-controls">
+                    <label>Budget: £<input type="number" id="investmentBudget" value="500" min="0" step="50" class="budget-input"></label>
+                    <label>Min Profit: £<input type="number" id="minProfitInvest" value="10" min="0" step="1"></label>
+                    <label>Last <input type="number" id="daysInvest" value="30" min="1" max="365"> days</label>
+                    <button class="btn btn-primary" id="refreshBtnInvest" onclick="loadInvestmentOptimizer()">Calculate</button>
+                </div>
+                <div id="investmentContent">
+                    <div class="loading">Loading...</div>
+                </div>
             </div>
 
             <div class="timestamp" id="timestamp"></div>
@@ -255,6 +523,31 @@
 
     <script src="../js/admin.js?v=1.0.6"></script>
     <script>
+        // Tab switching
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const tabId = this.dataset.tab;
+
+                // Update active button
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+
+                // Update active content
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                document.getElementById(`tab-${tabId}`).classList.add('active');
+
+                // Load data for the tab if not loaded
+                if (tabId === 'full-sets' && !window.fullSetsLoaded) {
+                    loadFullSets();
+                } else if (tabId === 'best-sellers' && !window.bestSellersLoaded) {
+                    loadBestSellers();
+                } else if (tabId === 'investment' && !window.investmentLoaded) {
+                    loadInvestmentOptimizer();
+                }
+            });
+        });
+
+        // Individual Parts Snapshot (existing functionality)
         async function loadSnapshot() {
             const content = document.getElementById('snapshotContent');
             const refreshBtn = document.getElementById('refreshBtn');
@@ -321,6 +614,292 @@
                 if (refreshBtn) {
                     refreshBtn.disabled = false;
                     refreshBtn.textContent = 'Refresh';
+                }
+            }
+        }
+
+        // Full Sets Calculator
+        async function loadFullSets() {
+            const content = document.getElementById('fullSetsContent');
+            const refreshBtn = document.getElementById('refreshBtnSets');
+            const minProfitEl = document.getElementById('minProfitSets');
+            const salesCountEl = document.getElementById('salesCountSets');
+
+            if (!content) return;
+
+            const minProfit = minProfitEl ? minProfitEl.value : 10;
+            const salesCount = salesCountEl ? salesCountEl.value : 10;
+
+            content.innerHTML = '<div class="loading">Loading...</div>';
+            if (refreshBtn) {
+                refreshBtn.disabled = true;
+                refreshBtn.textContent = 'Loading...';
+            }
+
+            try {
+                if (typeof authenticatedFetch !== 'function') {
+                    throw new Error('Please refresh the page');
+                }
+
+                const response = await authenticatedFetch(
+                    `/api/admin/price-snapshot/full-sets?min_profit=${minProfit}&sales_count=${salesCount}`
+                );
+
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    throw new Error(errData.error || 'Failed to load');
+                }
+
+                const data = await response.json();
+                window.fullSetsLoaded = true;
+
+                if (!data.full_sets || data.full_sets.length === 0) {
+                    content.innerHTML = '<div class="no-data"><p>No full set data found.</p><p style="font-size:0.9rem">Need sales of individual parts (left, right, case) to calculate full set bids.</p></div>';
+                    return;
+                }
+
+                content.innerHTML = '<div class="snapshot-grid">' + data.full_sets.map(item => `
+                    <div class="snapshot-card">
+                        <div class="snapshot-card-header">
+                            <span class="generation-name">${item.generation}</span>
+                            <span class="sales-count">${item.has_all_parts ? 'All parts' : item.parts_with_data + '/3 parts'}</span>
+                        </div>
+                        <div class="max-bid">£${item.full_set_max_bid.toFixed(2)}</div>
+                        <div class="max-bid-label">Full set max bid for £${minProfit} profit</div>
+                        <div class="breakdown">
+                            <div class="breakdown-row"><span>Combined Sale Value</span><span>£${item.combined_sale_price.toFixed(2)}</span></div>
+                            <div class="breakdown-row"><span>Total Fees</span><span class="minus">-£${item.combined_fees.toFixed(2)}</span></div>
+                            <div class="breakdown-row"><span>Total Consumables</span><span class="minus">-£${item.combined_consumables.toFixed(2)}</span></div>
+                            <div class="breakdown-row highlight"><span>Net Revenue</span><span>£${item.combined_net_revenue.toFixed(2)}</span></div>
+                            <div class="breakdown-row"><span>Min Profit</span><span class="minus">-£${item.min_profit.toFixed(2)}</span></div>
+                            <div class="breakdown-row highlight"><span>Full Set Max Bid</span><span style="color:#0d9488">£${item.full_set_max_bid.toFixed(2)}</span></div>
+                        </div>
+                        <div class="parts-breakdown">
+                            <div style="font-size:0.75rem;color:#6b7280;margin-bottom:8px;">Parts breakdown:</div>
+                            ${['left', 'right', 'case'].map(partType => {
+                                const part = item.parts_breakdown[partType];
+                                if (part) {
+                                    return `<div class="part-row">
+                                        <span class="part-type-badge ${partType}">${partType}</span>
+                                        <span>£${part.avg_sale_price.toFixed(2)} (${part.sales_analyzed} sales)</span>
+                                    </div>`;
+                                } else {
+                                    return `<div class="part-row">
+                                        <span class="part-type-badge ${partType}">${partType}</span>
+                                        <span class="part-missing">No data</span>
+                                    </div>`;
+                                }
+                            }).join('')}
+                        </div>
+                    </div>
+                `).join('') + '</div>';
+
+                document.getElementById('timestamp').textContent = 'Generated: ' + new Date(data.generated_at).toLocaleString();
+
+            } catch (err) {
+                content.innerHTML = `<div class="error">Error: ${err.message}</div>`;
+            } finally {
+                if (refreshBtn) {
+                    refreshBtn.disabled = false;
+                    refreshBtn.textContent = 'Refresh';
+                }
+            }
+        }
+
+        // Best Sellers Analysis
+        async function loadBestSellers() {
+            const content = document.getElementById('bestSellersContent');
+            const refreshBtn = document.getElementById('refreshBtnSellers');
+            const daysEl = document.getElementById('daysBestSellers');
+
+            if (!content) return;
+
+            const days = daysEl ? daysEl.value : 30;
+
+            content.innerHTML = '<div class="loading">Loading...</div>';
+            if (refreshBtn) {
+                refreshBtn.disabled = true;
+                refreshBtn.textContent = 'Loading...';
+            }
+
+            try {
+                if (typeof authenticatedFetch !== 'function') {
+                    throw new Error('Please refresh the page');
+                }
+
+                const response = await authenticatedFetch(
+                    `/api/admin/price-snapshot/best-sellers?days=${days}`
+                );
+
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    throw new Error(errData.error || 'Failed to load');
+                }
+
+                const data = await response.json();
+                window.bestSellersLoaded = true;
+
+                if (!data.best_sellers || data.best_sellers.length === 0) {
+                    content.innerHTML = '<div class="no-data"><p>No best seller data found.</p><p style="font-size:0.9rem">Need stock and sales data to analyze best sellers.</p></div>';
+                    return;
+                }
+
+                content.innerHTML = `
+                    <div class="sellers-table-wrapper" style="overflow-x:auto;">
+                        <table class="sellers-table">
+                            <thead>
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Generation</th>
+                                    <th>Part</th>
+                                    <th>Stock</th>
+                                    <th>Sales (${days}d)</th>
+                                    <th>Velocity/Day</th>
+                                    <th>Days of Stock</th>
+                                    <th>Avg Price</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.best_sellers.map(item => `
+                                    <tr>
+                                        <td><strong>#${item.rank}</strong></td>
+                                        <td>${item.generation || 'Unknown'}</td>
+                                        <td><span class="part-type-badge ${item.part_type}">${item.part_type || 'N/A'}</span></td>
+                                        <td>${item.current_stock}</td>
+                                        <td>${item.sales_count}</td>
+                                        <td>${item.sales_velocity.toFixed(2)}</td>
+                                        <td>${item.days_of_stock !== null ? item.days_of_stock + ' days' : '-'}</td>
+                                        <td>£${item.avg_sale_price.toFixed(2)}</td>
+                                        <td><span class="velocity-badge ${item.seller_category}">${item.seller_category.replace('_', ' ')}</span></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+
+                document.getElementById('timestamp').textContent = 'Generated: ' + new Date(data.generated_at).toLocaleString();
+
+            } catch (err) {
+                content.innerHTML = `<div class="error">Error: ${err.message}</div>`;
+            } finally {
+                if (refreshBtn) {
+                    refreshBtn.disabled = false;
+                    refreshBtn.textContent = 'Refresh';
+                }
+            }
+        }
+
+        // Investment Optimizer
+        async function loadInvestmentOptimizer() {
+            const content = document.getElementById('investmentContent');
+            const refreshBtn = document.getElementById('refreshBtnInvest');
+            const budgetEl = document.getElementById('investmentBudget');
+            const minProfitEl = document.getElementById('minProfitInvest');
+            const daysEl = document.getElementById('daysInvest');
+
+            if (!content) return;
+
+            const budget = budgetEl ? budgetEl.value : 500;
+            const minProfit = minProfitEl ? minProfitEl.value : 10;
+            const days = daysEl ? daysEl.value : 30;
+
+            content.innerHTML = '<div class="loading">Calculating optimal investments...</div>';
+            if (refreshBtn) {
+                refreshBtn.disabled = true;
+                refreshBtn.textContent = 'Calculating...';
+            }
+
+            try {
+                if (typeof authenticatedFetch !== 'function') {
+                    throw new Error('Please refresh the page');
+                }
+
+                const response = await authenticatedFetch(
+                    `/api/admin/price-snapshot/investment-optimizer?budget=${budget}&min_profit=${minProfit}&days=${days}`
+                );
+
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    throw new Error(errData.error || 'Failed to load');
+                }
+
+                const data = await response.json();
+                window.investmentLoaded = true;
+
+                if (!data.recommendations || data.recommendations.length === 0) {
+                    content.innerHTML = '<div class="no-data"><p>No investment recommendations.</p><p style="font-size:0.9rem">Need more sales data or increase budget to generate recommendations.</p></div>';
+                    return;
+                }
+
+                const summary = data.summary;
+
+                content.innerHTML = `
+                    <div class="investment-summary">
+                        <div class="summary-card">
+                            <div class="label">Budget</div>
+                            <div class="value">£${data.budget.toFixed(2)}</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="label">Total Investment</div>
+                            <div class="value investment">£${summary.total_investment.toFixed(2)}</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="label">Expected Profit</div>
+                            <div class="value profit">£${summary.total_expected_profit.toFixed(2)}</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="label">ROI</div>
+                            <div class="value">${summary.overall_roi_percentage.toFixed(1)}%</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="label">Sets to Buy</div>
+                            <div class="value">${summary.total_sets_recommended}</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="label">Remaining</div>
+                            <div class="value">£${summary.remaining_budget.toFixed(2)}</div>
+                        </div>
+                    </div>
+
+                    <h3 style="margin:24px 0 16px;color:#1f2937;">Purchase Recommendations</h3>
+                    <div class="recommendations-list">
+                        ${data.recommendations.map((rec, index) => {
+                            const priority = index < 2 ? 'high' : index < 4 ? 'medium' : 'low';
+                            return `
+                            <div class="recommendation-card">
+                                <div class="rec-info">
+                                    <h3>
+                                        ${rec.generation}
+                                        <span class="priority-badge ${priority}">${priority} priority</span>
+                                    </h3>
+                                    <div class="rec-details">
+                                        <span>£${rec.cost_per_set.toFixed(2)} per set</span>
+                                        <span>£${rec.expected_profit_per_set.toFixed(2)} profit each</span>
+                                        <span>${rec.roi_percentage.toFixed(1)}% ROI</span>
+                                        <span>${rec.sales_velocity.toFixed(2)} sales/day</span>
+                                    </div>
+                                </div>
+                                <div class="rec-action">
+                                    <div class="quantity">${rec.recommended_quantity}</div>
+                                    <div class="quantity-label">sets</div>
+                                    <div style="font-size:0.8rem;color:#6b7280;margin-top:4px;">£${rec.total_cost.toFixed(2)} total</div>
+                                </div>
+                            </div>
+                        `;
+                        }).join('')}
+                    </div>
+                `;
+
+                document.getElementById('timestamp').textContent = 'Generated: ' + new Date(data.generated_at).toLocaleString();
+
+            } catch (err) {
+                content.innerHTML = `<div class="error">Error: ${err.message}</div>`;
+            } finally {
+                if (refreshBtn) {
+                    refreshBtn.disabled = false;
+                    refreshBtn.textContent = 'Calculate';
                 }
             }
         }
