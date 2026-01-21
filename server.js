@@ -16606,6 +16606,160 @@ app.get('/api/admin/price-snapshot/fees-by-platform', requireAuth, requireDB, as
     }
 });
 
+// GET bid calculator - detailed calculation for a specific set
+app.get('/api/admin/price-snapshot/bid-calculator', requireAuth, requireDB, async (req, res) => {
+    try {
+        const generation = req.query.generation;
+        const connectorType = req.query.connector_type || null;
+        const minProfit = parseFloat(req.query.min_profit) || 10;
+        const salesCount = parseInt(req.query.sales_count) || 10;
+
+        if (!generation) {
+            return res.status(400).json({ success: false, error: 'Generation is required' });
+        }
+
+        const displayName = connectorType ? `${generation} (${connectorType})` : generation;
+        const partTypes = ['left', 'right', 'case'];
+        const partsData = {};
+        let combinedSalePrice = 0;
+        let combinedFees = 0;
+        let combinedConsumables = 0;
+        let partsWithData = 0;
+
+        for (const partType of partTypes) {
+            // Build match criteria
+            const matchCriteria = {
+                'product_details.generation': generation,
+                'product_details.part_type': partType
+            };
+            if (connectorType) {
+                matchCriteria['product_details.connector_type'] = connectorType;
+            } else {
+                matchCriteria['product_details.connector_type'] = { $in: [null, '', undefined] };
+            }
+
+            // Get sales data with products_count to divide correctly
+            const partSales = await db.collection('sales').aggregate([
+                {
+                    $addFields: {
+                        products_count: { $size: { $ifNull: ['$products', []] } }
+                    }
+                },
+                { $unwind: '$products' },
+                {
+                    $lookup: {
+                        from: 'products',
+                        localField: 'products.product_id',
+                        foreignField: '_id',
+                        as: 'product_details'
+                    }
+                },
+                { $unwind: '$product_details' },
+                { $match: matchCriteria },
+                { $sort: { sale_date: -1 } },
+                { $limit: salesCount },
+                {
+                    $project: {
+                        sale_date: 1,
+                        sale_price: 1,
+                        transaction_fees: 1,
+                        postage_label_cost: 1,
+                        ad_fee_general: 1,
+                        consumables_cost: 1,
+                        product_cost: '$products.product_cost',
+                        products_count: 1
+                    }
+                }
+            ]).toArray();
+
+            if (partSales.length > 0) {
+                let totalSalePrice = 0;
+                let totalFees = 0;
+                let totalConsumables = 0;
+
+                for (const sale of partSales) {
+                    const productCount = sale.products_count || 1;
+                    totalSalePrice += (sale.sale_price || 0) / productCount;
+                    totalFees += ((sale.transaction_fees || 0) + (sale.postage_label_cost || 0) + (sale.ad_fee_general || 0)) / productCount;
+                    totalConsumables += (sale.consumables_cost || 0) / productCount;
+                }
+
+                const count = partSales.length;
+                partsData[partType] = {
+                    avg_sale_price: Math.round((totalSalePrice / count) * 100) / 100,
+                    avg_fees: Math.round((totalFees / count) * 100) / 100,
+                    avg_consumables: Math.round((totalConsumables / count) * 100) / 100,
+                    sales_count: count
+                };
+
+                combinedSalePrice += partsData[partType].avg_sale_price;
+                combinedFees += partsData[partType].avg_fees;
+                combinedConsumables += partsData[partType].avg_consumables;
+                partsWithData++;
+            } else {
+                partsData[partType] = null;
+            }
+        }
+
+        if (partsWithData < 3) {
+            return res.json({
+                success: false,
+                error: `Insufficient data: only ${partsWithData}/3 parts have sales data`
+            });
+        }
+
+        const netRevenue = combinedSalePrice - combinedFees - combinedConsumables;
+        const maxBid = netRevenue - minProfit;
+
+        // Get historical purchase price
+        const historicalPrices = await db.collection('products').aggregate([
+            {
+                $match: {
+                    generation: generation,
+                    connector_type: connectorType || { $in: [null, '', undefined] },
+                    purchase_price: { $gt: 0 }
+                }
+            },
+            {
+                $group: {
+                    _id: '$part_type',
+                    avg_purchase_price: { $avg: '$purchase_price' }
+                }
+            }
+        ]).toArray();
+
+        let totalHistoricalPrice = 0;
+        let historicalPartsCount = 0;
+        for (const price of historicalPrices) {
+            if (['left', 'right', 'case'].includes(price._id)) {
+                totalHistoricalPrice += price.avg_purchase_price;
+                historicalPartsCount++;
+            }
+        }
+
+        res.json({
+            success: true,
+            display_name: displayName,
+            generation: generation,
+            connector_type: connectorType,
+            calculation: {
+                parts: partsData,
+                combined_sale_price: Math.round(combinedSalePrice * 100) / 100,
+                combined_fees: Math.round(combinedFees * 100) / 100,
+                combined_consumables: Math.round(combinedConsumables * 100) / 100,
+                net_revenue: Math.round(netRevenue * 100) / 100,
+                min_profit: minProfit,
+                max_bid: Math.round(maxBid * 100) / 100
+            },
+            historical_price: historicalPartsCount >= 2 ? Math.round(totalHistoricalPrice * 100) / 100 : null
+        });
+
+    } catch (err) {
+        console.error('Error in bid calculator:', err);
+        res.status(500).json({ success: false, error: 'Database error: ' + err.message });
+    }
+});
+
 // GET full set max bid calculator - combines individual part sales to calculate set max bid
 app.get('/api/admin/price-snapshot/full-sets', requireAuth, requireDB, async (req, res) => {
     try {
