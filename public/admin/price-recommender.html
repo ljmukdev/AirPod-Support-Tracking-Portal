@@ -1158,7 +1158,7 @@
             }
         }
 
-        // Bid Calculator - Load generation options
+        // Bid Calculator - Load generation options (ALL generations, not just those with sales data)
         async function loadBidCalcOptions() {
             const select = document.getElementById('bidCalcGeneration');
             if (!select) return;
@@ -1168,8 +1168,8 @@
                     throw new Error('Please refresh the page');
                 }
 
-                // Get all unique generation + connector_type combinations
-                const response = await authenticatedFetch('/api/admin/price-snapshot/full-sets?min_profit=10&sales_count=10');
+                // Get ALL unique generation + connector_type combinations from products
+                const response = await authenticatedFetch('/api/admin/price-snapshot/all-generations');
                 if (!response.ok) {
                     throw new Error('Failed to load options');
                 }
@@ -1178,21 +1178,18 @@
 
                 select.innerHTML = '<option value="">-- Select a set --</option>';
 
-                if (data.full_sets && data.full_sets.length > 0) {
-                    for (const set of data.full_sets) {
+                if (data.generations && data.generations.length > 0) {
+                    for (const gen of data.generations) {
                         const option = document.createElement('option');
                         option.value = JSON.stringify({
-                            generation: set.base_generation,
-                            connector_type: set.connector_type
+                            generation: gen.generation,
+                            connector_type: gen.connector_type
                         });
-                        option.textContent = set.generation;
+                        option.textContent = gen.display_name;
                         select.appendChild(option);
                     }
-                }
-
-                // Also add a divider and manual entry hint
-                if (data.full_sets && data.full_sets.length === 0) {
-                    select.innerHTML = '<option value="">No sets with sales data found</option>';
+                } else {
+                    select.innerHTML = '<option value="">No products found</option>';
                 }
 
             } catch (err) {
@@ -1238,6 +1235,65 @@
                 const data = await response.json();
 
                 if (!data.success) {
+                    // Check if we need to show eBay search suggestions
+                    if (data.needs_manual_data && data.ebay_search_suggestions) {
+                        let partialDataHtml = '';
+                        if (data.parts_with_data && data.parts_with_data.length > 0) {
+                            partialDataHtml = `
+                                <div style="margin-bottom:20px;">
+                                    <h4 style="margin:0 0 12px;color:#374151;">Available Data:</h4>
+                                    ${data.parts_with_data.map(partType => {
+                                        const part = data.partial_data[partType];
+                                        if (part) {
+                                            return `<div class="part-row" style="padding:8px 12px;background:#d1fae5;border-radius:6px;margin-bottom:4px;">
+                                                <span class="part-type-badge ${partType}">${partType}</span>
+                                                <span style="color:#047857;font-weight:600;">£${part.avg_sale_price.toFixed(2)} avg (${part.sales_count} sales)</span>
+                                            </div>`;
+                                        }
+                                        return '';
+                                    }).join('')}
+                                </div>
+                            `;
+                        }
+
+                        resultDiv.innerHTML = `
+                            <div class="calculator-card" style="max-width:600px;">
+                                <h3>${data.display_name}</h3>
+                                <div style="padding:16px;background:#fef3c7;border-radius:8px;margin-bottom:20px;">
+                                    <p style="margin:0 0 8px;color:#92400e;font-weight:600;">
+                                        Insufficient Sales Data: ${data.parts_with_data?.length || 0}/3 parts have data
+                                    </p>
+                                    <p style="margin:0;color:#92400e;font-size:0.9rem;">
+                                        Search eBay for completed listings to estimate prices for the missing parts.
+                                    </p>
+                                </div>
+                                ${partialDataHtml}
+                                <div>
+                                    <h4 style="margin:0 0 12px;color:#374151;">Missing Parts - Search eBay:</h4>
+                                    ${data.ebay_search_suggestions.map(suggestion => `
+                                        <div style="padding:12px;background:#f9fafb;border-radius:8px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                                            <div>
+                                                <span class="part-type-badge ${suggestion.part_type}">${suggestion.part_type}</span>
+                                                <span style="margin-left:8px;color:#6b7280;font-size:0.85rem;">${suggestion.search_query}</span>
+                                            </div>
+                                            <a href="${suggestion.ebay_url}" target="_blank" rel="noopener"
+                                               style="display:inline-block;padding:8px 16px;background:#0d9488;color:white;border-radius:6px;text-decoration:none;font-size:0.85rem;font-weight:500;">
+                                                Search eBay Sold Listings
+                                            </a>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                                <div style="margin-top:20px;padding:16px;background:#f0f9ff;border-radius:8px;">
+                                    <p style="margin:0;font-size:0.85rem;color:#0369a1;">
+                                        <strong>Tip:</strong> Look at completed/sold listings on eBay to find typical selling prices.
+                                        Note the average sale price after fees for each missing part, then you can manually calculate your max bid.
+                                    </p>
+                                </div>
+                            </div>
+                        `;
+                        return;
+                    }
+
                     resultDiv.innerHTML = `<div class="no-data" style="padding:40px 20px;"><p>${data.error || 'Unable to calculate bid for this set.'}</p></div>`;
                     return;
                 }
