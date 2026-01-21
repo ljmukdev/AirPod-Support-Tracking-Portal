@@ -16606,6 +16606,36 @@ app.get('/api/admin/price-snapshot/fees-by-platform', requireAuth, requireDB, as
     }
 });
 
+// GET all generation/connector_type combinations - for bid calculator dropdown
+app.get('/api/admin/price-snapshot/all-generations', requireAuth, requireDB, async (req, res) => {
+    try {
+        // Get ALL unique generation + connector_type combinations from products (regardless of status)
+        const variants = await db.collection('products').aggregate([
+            { $match: { generation: { $exists: true, $ne: null, $ne: '' } } },
+            {
+                $group: {
+                    _id: {
+                        generation: '$generation',
+                        connector_type: '$connector_type'
+                    }
+                }
+            },
+            { $sort: { '_id.generation': 1, '_id.connector_type': 1 } }
+        ]).toArray();
+
+        const generations = variants.map(v => ({
+            generation: v._id.generation,
+            connector_type: v._id.connector_type || null,
+            display_name: v._id.connector_type ? `${v._id.generation} (${v._id.connector_type})` : v._id.generation
+        }));
+
+        res.json({ success: true, generations });
+    } catch (err) {
+        console.error('Error fetching all generations:', err);
+        res.status(500).json({ success: false, error: 'Database error: ' + err.message });
+    }
+});
+
 // GET bid calculator - detailed calculation for a specific set
 app.get('/api/admin/price-snapshot/bid-calculator', requireAuth, requireDB, async (req, res) => {
     try {
@@ -16702,9 +16732,25 @@ app.get('/api/admin/price-snapshot/bid-calculator', requireAuth, requireDB, asyn
         }
 
         if (partsWithData < 3) {
+            // Return detailed info about which parts are missing data
+            const missingParts = partTypes.filter(pt => !partsData[pt]);
+            const partsWithDataList = partTypes.filter(pt => partsData[pt]);
+
             return res.json({
                 success: false,
-                error: `Insufficient data: only ${partsWithData}/3 parts have sales data`
+                error: `Insufficient data: only ${partsWithData}/3 parts have sales data`,
+                needs_manual_data: true,
+                display_name: displayName,
+                generation: generation,
+                connector_type: connectorType,
+                parts_with_data: partsWithDataList,
+                missing_parts: missingParts,
+                partial_data: partsData,
+                ebay_search_suggestions: missingParts.map(part => ({
+                    part_type: part,
+                    search_query: `${generation}${connectorType ? ' ' + connectorType : ''} ${part === 'case' ? 'charging case' : part + ' earbud'}`,
+                    ebay_url: `https://www.ebay.co.uk/sch/i.html?_nkw=${encodeURIComponent(generation + (connectorType ? ' ' + connectorType : '') + ' ' + (part === 'case' ? 'charging case' : part + ' earbud'))}&LH_Complete=1&LH_Sold=1`
+                }))
             });
         }
 
