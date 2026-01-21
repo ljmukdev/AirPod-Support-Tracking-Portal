@@ -16654,7 +16654,14 @@ app.get('/api/admin/price-snapshot/full-sets', requireAuth, requireDB, async (re
                 }
 
                 // Find sales that include this part type for this generation + connector type
+                // IMPORTANT: We need to count how many products were in each sale to divide the price correctly
                 const partSales = await db.collection('sales').aggregate([
+                    // First, add a field for the number of products in each sale
+                    {
+                        $addFields: {
+                            products_count: { $size: { $ifNull: ['$products', []] } }
+                        }
+                    },
                     { $unwind: '$products' },
                     {
                         $lookup: {
@@ -16677,7 +16684,8 @@ app.get('/api/admin/price-snapshot/full-sets', requireAuth, requireDB, async (re
                             ad_fee_general: 1,
                             consumables_cost: 1,
                             product_cost: '$products.product_cost',
-                            part_type: '$product_details.part_type'
+                            part_type: '$product_details.part_type',
+                            products_count: 1
                         }
                     }
                 ]).toArray();
@@ -16687,16 +16695,19 @@ app.get('/api/admin/price-snapshot/full-sets', requireAuth, requireDB, async (re
                     partData[partType] = null;
                 } else {
                     // Calculate averages for this part type
+                    // IMPORTANT: Divide sale price/fees/consumables by the number of products in that sale
                     let totalSalePrice = 0;
                     let totalFees = 0;
                     let totalConsumables = 0;
                     let totalProductCost = 0;
 
                     for (const sale of partSales) {
-                        totalSalePrice += sale.sale_price || 0;
-                        totalFees += (sale.transaction_fees || 0) + (sale.postage_label_cost || 0) + (sale.ad_fee_general || 0);
-                        totalConsumables += sale.consumables_cost || 0;
-                        totalProductCost += sale.product_cost || 0;
+                        const productCount = sale.products_count || 1;
+                        // Divide the sale totals by number of products to get per-part values
+                        totalSalePrice += (sale.sale_price || 0) / productCount;
+                        totalFees += ((sale.transaction_fees || 0) + (sale.postage_label_cost || 0) + (sale.ad_fee_general || 0)) / productCount;
+                        totalConsumables += (sale.consumables_cost || 0) / productCount;
+                        totalProductCost += sale.product_cost || 0; // Product cost is already per-product
                     }
 
                     const count = partSales.length;
@@ -16737,8 +16748,8 @@ app.get('/api/admin/price-snapshot/full-sets', requireAuth, requireDB, async (re
                 }
             }
 
-            // Only include if we have at least 2 parts with data
-            if (partsWithData >= 2) {
+            // Only include if we have ALL 3 parts with data (full sets only)
+            if (partsWithData === 3) {
                 const combinedNetRevenue = combinedSalePrice - combinedFees - combinedConsumables;
                 const fullSetMaxBid = combinedNetRevenue - minProfit;
 
@@ -17031,8 +17042,13 @@ app.get('/api/admin/price-snapshot/investment-optimizer', requireAuth, requireDB
                     partsWithHistoricalData++;
                 }
 
-                // Get sales data
+                // Get sales data - include products_count to divide sale price correctly
                 const partSales = await db.collection('sales').aggregate([
+                    {
+                        $addFields: {
+                            products_count: { $size: { $ifNull: ['$products', []] } }
+                        }
+                    },
                     { $unwind: '$products' },
                     {
                         $lookup: {
@@ -17054,7 +17070,8 @@ app.get('/api/admin/price-snapshot/investment-optimizer', requireAuth, requireDB
                             postage_label_cost: 1,
                             ad_fee_general: 1,
                             consumables_cost: 1,
-                            product_cost: '$products.product_cost'
+                            product_cost: '$products.product_cost',
+                            products_count: 1
                         }
                     }
                 ]).toArray();
@@ -17089,9 +17106,11 @@ app.get('/api/admin/price-snapshot/investment-optimizer', requireAuth, requireDB
                     let totalConsumables = 0;
 
                     for (const sale of partSales) {
-                        totalSalePrice += sale.sale_price || 0;
-                        totalFees += (sale.transaction_fees || 0) + (sale.postage_label_cost || 0) + (sale.ad_fee_general || 0);
-                        totalConsumables += sale.consumables_cost || 0;
+                        // Divide sale price/fees by number of products in the sale
+                        const productCount = sale.products_count || 1;
+                        totalSalePrice += (sale.sale_price || 0) / productCount;
+                        totalFees += ((sale.transaction_fees || 0) + (sale.postage_label_cost || 0) + (sale.ad_fee_general || 0)) / productCount;
+                        totalConsumables += (sale.consumables_cost || 0) / productCount;
                     }
 
                     const count = partSales.length;
@@ -17110,7 +17129,8 @@ app.get('/api/admin/price-snapshot/investment-optimizer', requireAuth, requireDB
                 }
             }
 
-            if (partsWithData >= 2) {
+            // Only include full sets (all 3 parts with data)
+            if (partsWithData === 3) {
                 const combinedNetRevenue = totalCombinedSalePrice - totalCombinedFees - totalCombinedConsumables;
                 const fullSetMaxBid = combinedNetRevenue - minProfit;
                 const avgSalesVelocity = totalSalesVelocity / partsWithData;
