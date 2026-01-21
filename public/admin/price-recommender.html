@@ -309,6 +309,68 @@
         .priority-badge.medium { background: #fef3c7; color: #92400e; }
         .priority-badge.low { background: #f3f4f6; color: #6b7280; }
 
+        /* Price flag badges */
+        .price-flag-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+        .price-flag-badge.realistic { background: #d1fae5; color: #047857; }
+        .price-flag-badge.below_historical { background: #fef3c7; color: #92400e; }
+        .price-flag-badge.unrealistic { background: #fee2e2; color: #b91c1c; }
+
+        .historical-price-note {
+            font-size: 0.75rem;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+        .historical-price-note.warning {
+            color: #92400e;
+        }
+
+        /* Flagged section */
+        .flagged-section {
+            margin-top: 32px;
+            padding: 20px;
+            background: #fef2f2;
+            border-radius: 12px;
+            border: 1px solid #fecaca;
+        }
+        .flagged-section h4 {
+            color: #b91c1c;
+            margin: 0 0 16px 0;
+            font-size: 1rem;
+        }
+        .flagged-item {
+            background: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .flagged-item:last-child {
+            margin-bottom: 0;
+        }
+        .flagged-item .name {
+            font-weight: 600;
+            color: #1f2937;
+        }
+        .flagged-item .reason {
+            font-size: 0.8rem;
+            color: #b91c1c;
+        }
+        .flagged-item .prices {
+            font-size: 0.8rem;
+            color: #6b7280;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .tab-btn {
@@ -829,11 +891,50 @@
                 window.investmentLoaded = true;
 
                 if (!data.recommendations || data.recommendations.length === 0) {
-                    content.innerHTML = '<div class="no-data"><p>No investment recommendations.</p><p style="font-size:0.9rem">Need more sales data or increase budget to generate recommendations.</p></div>';
+                    // Check if there are flagged items
+                    if (data.flagged_unrealistic && data.flagged_unrealistic.length > 0) {
+                        content.innerHTML = `
+                            <div class="no-data"><p>No realistic investment recommendations.</p><p style="font-size:0.9rem">All sets have unrealistic calculated prices based on historical purchase data.</p></div>
+                            <div class="flagged-section">
+                                <h4>Excluded Sets (Unrealistic Prices)</h4>
+                                ${data.flagged_unrealistic.map(item => `
+                                    <div class="flagged-item">
+                                        <div>
+                                            <div class="name">${item.generation}</div>
+                                            <div class="reason">${item.price_flag_reason}</div>
+                                        </div>
+                                        <div class="prices">
+                                            Calculated: £${item.calculated_max_bid.toFixed(2)} | Historical: £${item.historical_purchase_price ? item.historical_purchase_price.toFixed(2) : 'N/A'}
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        `;
+                    } else {
+                        content.innerHTML = '<div class="no-data"><p>No investment recommendations.</p><p style="font-size:0.9rem">Need more sales data or increase budget to generate recommendations.</p></div>';
+                    }
                     return;
                 }
 
                 const summary = data.summary;
+
+                // Build historical price note helper
+                const getHistoricalNote = (rec) => {
+                    if (!rec.historical_purchase_price) return '';
+                    if (rec.price_flag === 'below_historical') {
+                        return `<div class="historical-price-note warning">Historical avg: £${rec.historical_purchase_price.toFixed(2)}</div>`;
+                    }
+                    return `<div class="historical-price-note">Historical avg: £${rec.historical_purchase_price.toFixed(2)}</div>`;
+                };
+
+                // Build price flag badge helper
+                const getPriceFlagBadge = (rec) => {
+                    if (!rec.price_flag || rec.price_flag === 'realistic') return '';
+                    if (rec.price_flag === 'below_historical') {
+                        return `<span class="price-flag-badge below_historical">Below avg</span>`;
+                    }
+                    return '';
+                };
 
                 content.innerHTML = `
                     <div class="investment-summary">
@@ -873,6 +974,7 @@
                                     <h3>
                                         ${rec.generation}
                                         <span class="priority-badge ${priority}">${priority} priority</span>
+                                        ${getPriceFlagBadge(rec)}
                                     </h3>
                                     <div class="rec-details">
                                         <span>£${rec.cost_per_set.toFixed(2)} per set</span>
@@ -880,6 +982,7 @@
                                         <span>${rec.roi_percentage.toFixed(1)}% ROI</span>
                                         <span>${rec.sales_velocity.toFixed(2)} sales/day</span>
                                     </div>
+                                    ${getHistoricalNote(rec)}
                                 </div>
                                 <div class="rec-action">
                                     <div class="quantity">${rec.recommended_quantity}</div>
@@ -890,6 +993,23 @@
                         `;
                         }).join('')}
                     </div>
+
+                    ${data.flagged_unrealistic && data.flagged_unrealistic.length > 0 ? `
+                        <div class="flagged-section">
+                            <h4>Excluded Sets (Unrealistic Prices - >10% below historical avg)</h4>
+                            ${data.flagged_unrealistic.map(item => `
+                                <div class="flagged-item">
+                                    <div>
+                                        <div class="name">${item.generation}</div>
+                                        <div class="reason">${item.price_flag_reason}</div>
+                                    </div>
+                                    <div class="prices">
+                                        Calculated: £${item.calculated_max_bid.toFixed(2)} | Historical: £${item.historical_purchase_price ? item.historical_purchase_price.toFixed(2) : 'N/A'}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
                 `;
 
                 document.getElementById('timestamp').textContent = 'Generated: ' + new Date(data.generated_at).toLocaleString();

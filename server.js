@@ -16654,7 +16654,14 @@ app.get('/api/admin/price-snapshot/full-sets', requireAuth, requireDB, async (re
                 }
 
                 // Find sales that include this part type for this generation + connector type
+                // IMPORTANT: We need to count how many products were in each sale to divide the price correctly
                 const partSales = await db.collection('sales').aggregate([
+                    // First, add a field for the number of products in each sale
+                    {
+                        $addFields: {
+                            products_count: { $size: { $ifNull: ['$products', []] } }
+                        }
+                    },
                     { $unwind: '$products' },
                     {
                         $lookup: {
@@ -16677,7 +16684,8 @@ app.get('/api/admin/price-snapshot/full-sets', requireAuth, requireDB, async (re
                             ad_fee_general: 1,
                             consumables_cost: 1,
                             product_cost: '$products.product_cost',
-                            part_type: '$product_details.part_type'
+                            part_type: '$product_details.part_type',
+                            products_count: 1
                         }
                     }
                 ]).toArray();
@@ -16687,16 +16695,19 @@ app.get('/api/admin/price-snapshot/full-sets', requireAuth, requireDB, async (re
                     partData[partType] = null;
                 } else {
                     // Calculate averages for this part type
+                    // IMPORTANT: Divide sale price/fees/consumables by the number of products in that sale
                     let totalSalePrice = 0;
                     let totalFees = 0;
                     let totalConsumables = 0;
                     let totalProductCost = 0;
 
                     for (const sale of partSales) {
-                        totalSalePrice += sale.sale_price || 0;
-                        totalFees += (sale.transaction_fees || 0) + (sale.postage_label_cost || 0) + (sale.ad_fee_general || 0);
-                        totalConsumables += sale.consumables_cost || 0;
-                        totalProductCost += sale.product_cost || 0;
+                        const productCount = sale.products_count || 1;
+                        // Divide the sale totals by number of products to get per-part values
+                        totalSalePrice += (sale.sale_price || 0) / productCount;
+                        totalFees += ((sale.transaction_fees || 0) + (sale.postage_label_cost || 0) + (sale.ad_fee_general || 0)) / productCount;
+                        totalConsumables += (sale.consumables_cost || 0) / productCount;
+                        totalProductCost += sale.product_cost || 0; // Product cost is already per-product
                     }
 
                     const count = partSales.length;
@@ -16737,8 +16748,8 @@ app.get('/api/admin/price-snapshot/full-sets', requireAuth, requireDB, async (re
                 }
             }
 
-            // Only include if we have at least 2 parts with data
-            if (partsWithData >= 2) {
+            // Only include if we have ALL 3 parts with data (full sets only)
+            if (partsWithData === 3) {
                 const combinedNetRevenue = combinedSalePrice - combinedFees - combinedConsumables;
                 const fullSetMaxBid = combinedNetRevenue - minProfit;
 
@@ -16962,6 +16973,35 @@ app.get('/api/admin/price-snapshot/investment-optimizer', requireAuth, requireDB
             }
         ]).toArray();
 
+        // Get historical purchase prices by generation + connector_type + part_type
+        const historicalPurchasePrices = await db.collection('products').aggregate([
+            {
+                $match: {
+                    purchase_price: { $gt: 0 }
+                }
+            },
+            {
+                $group: {
+                    _id: {
+                        generation: '$generation',
+                        connector_type: '$connector_type',
+                        part_type: '$part_type'
+                    },
+                    avg_purchase_price: { $avg: '$purchase_price' },
+                    min_purchase_price: { $min: '$purchase_price' },
+                    max_purchase_price: { $max: '$purchase_price' },
+                    count: { $sum: 1 }
+                }
+            }
+        ]).toArray();
+
+        // Build a lookup map for historical prices
+        const historicalPriceMap = new Map();
+        for (const price of historicalPurchasePrices) {
+            const key = `${price._id.generation}|${price._id.connector_type || ''}|${price._id.part_type}`;
+            historicalPriceMap.set(key, price);
+        }
+
         const setAnalysis = [];
 
         for (const variant of variants) {
@@ -16979,6 +17019,8 @@ app.get('/api/admin/price-snapshot/investment-optimizer', requireAuth, requireDB
             let totalCombinedConsumables = 0;
             let totalSalesVelocity = 0;
             let partsWithData = 0;
+            let totalHistoricalPurchasePrice = 0;
+            let partsWithHistoricalData = 0;
 
             for (const partType of partTypes) {
                 // Build match criteria - include connector_type if it exists
@@ -16992,8 +17034,21 @@ app.get('/api/admin/price-snapshot/investment-optimizer', requireAuth, requireDB
                     matchCriteria['product_details.connector_type'] = { $in: [null, '', undefined] };
                 }
 
-                // Get sales data
+                // Get historical purchase price for this part
+                const historicalKey = `${generation}|${connectorType || ''}|${partType}`;
+                const historicalPrice = historicalPriceMap.get(historicalKey);
+                if (historicalPrice) {
+                    totalHistoricalPurchasePrice += historicalPrice.avg_purchase_price;
+                    partsWithHistoricalData++;
+                }
+
+                // Get sales data - include products_count to divide sale price correctly
                 const partSales = await db.collection('sales').aggregate([
+                    {
+                        $addFields: {
+                            products_count: { $size: { $ifNull: ['$products', []] } }
+                        }
+                    },
                     { $unwind: '$products' },
                     {
                         $lookup: {
@@ -17015,7 +17070,8 @@ app.get('/api/admin/price-snapshot/investment-optimizer', requireAuth, requireDB
                             postage_label_cost: 1,
                             ad_fee_general: 1,
                             consumables_cost: 1,
-                            product_cost: '$products.product_cost'
+                            product_cost: '$products.product_cost',
+                            products_count: 1
                         }
                     }
                 ]).toArray();
@@ -17050,9 +17106,11 @@ app.get('/api/admin/price-snapshot/investment-optimizer', requireAuth, requireDB
                     let totalConsumables = 0;
 
                     for (const sale of partSales) {
-                        totalSalePrice += sale.sale_price || 0;
-                        totalFees += (sale.transaction_fees || 0) + (sale.postage_label_cost || 0) + (sale.ad_fee_general || 0);
-                        totalConsumables += sale.consumables_cost || 0;
+                        // Divide sale price/fees by number of products in the sale
+                        const productCount = sale.products_count || 1;
+                        totalSalePrice += (sale.sale_price || 0) / productCount;
+                        totalFees += ((sale.transaction_fees || 0) + (sale.postage_label_cost || 0) + (sale.ad_fee_general || 0)) / productCount;
+                        totalConsumables += (sale.consumables_cost || 0) / productCount;
                     }
 
                     const count = partSales.length;
@@ -17071,7 +17129,8 @@ app.get('/api/admin/price-snapshot/investment-optimizer', requireAuth, requireDB
                 }
             }
 
-            if (partsWithData >= 2) {
+            // Only include full sets (all 3 parts with data)
+            if (partsWithData === 3) {
                 const combinedNetRevenue = totalCombinedSalePrice - totalCombinedFees - totalCombinedConsumables;
                 const fullSetMaxBid = combinedNetRevenue - minProfit;
                 const avgSalesVelocity = totalSalesVelocity / partsWithData;
@@ -17086,6 +17145,26 @@ app.get('/api/admin/price-snapshot/investment-optimizer', requireAuth, requireDB
                 // This rewards both profitable and fast-selling items
                 const profitVelocityScore = expectedProfit * avgSalesVelocity;
 
+                // Compare to historical purchase price
+                const hasHistoricalData = partsWithHistoricalData >= 2;
+                const historicalSetPrice = hasHistoricalData ? totalHistoricalPurchasePrice : null;
+
+                // Flag if max bid is more than 10% below historical purchase price
+                let priceFlag = null;
+                let priceFlagReason = null;
+                if (hasHistoricalData && historicalSetPrice > 0) {
+                    const priceDifference = ((historicalSetPrice - fullSetMaxBid) / historicalSetPrice) * 100;
+                    if (priceDifference > 10) {
+                        priceFlag = 'unrealistic';
+                        priceFlagReason = `Max bid is ${Math.round(priceDifference)}% below historical avg purchase price of £${historicalSetPrice.toFixed(2)}`;
+                    } else if (priceDifference > 0) {
+                        priceFlag = 'below_historical';
+                        priceFlagReason = `Max bid is ${Math.round(priceDifference)}% below historical avg (£${historicalSetPrice.toFixed(2)})`;
+                    } else {
+                        priceFlag = 'realistic';
+                    }
+                }
+
                 setAnalysis.push({
                     generation: displayName,
                     base_generation: generation,
@@ -17096,7 +17175,10 @@ app.get('/api/admin/price-snapshot/investment-optimizer', requireAuth, requireDB
                     roi_percentage: Math.round(roi * 100) / 100,
                     avg_sales_velocity: Math.round(avgSalesVelocity * 1000) / 1000,
                     profit_velocity_score: Math.round(profitVelocityScore * 100) / 100,
-                    parts_with_data: partsWithData
+                    parts_with_data: partsWithData,
+                    historical_purchase_price: hasHistoricalData ? Math.round(historicalSetPrice * 100) / 100 : null,
+                    price_flag: priceFlag,
+                    price_flag_reason: priceFlagReason
                 });
             }
         }
@@ -17105,13 +17187,30 @@ app.get('/api/admin/price-snapshot/investment-optimizer', requireAuth, requireDB
         setAnalysis.sort((a, b) => b.profit_velocity_score - a.profit_velocity_score);
 
         // Now calculate optimal purchase recommendations
+        // Only include realistic recommendations (not flagged as unrealistic)
         const recommendations = [];
+        const flaggedRecommendations = [];
         let remainingBudget = budget;
         const setBudgetAllocation = [...setAnalysis];
 
-        // Greedy algorithm: prioritize by profit velocity score
+        // Greedy algorithm: prioritize by profit velocity score, but skip unrealistic prices
         for (const set of setBudgetAllocation) {
             if (set.full_set_max_bid <= 0) continue;
+
+            const isUnrealistic = set.price_flag === 'unrealistic';
+
+            // Skip unrealistic prices for main recommendations
+            if (isUnrealistic) {
+                flaggedRecommendations.push({
+                    generation: set.generation,
+                    calculated_max_bid: set.full_set_max_bid,
+                    historical_purchase_price: set.historical_purchase_price,
+                    price_flag: set.price_flag,
+                    price_flag_reason: set.price_flag_reason,
+                    reason: 'Excluded from recommendations - price unrealistic based on historical data'
+                });
+                continue;
+            }
 
             const quantity = Math.floor(remainingBudget / set.full_set_max_bid);
             if (quantity > 0) {
@@ -17127,7 +17226,10 @@ app.get('/api/admin/price-snapshot/investment-optimizer', requireAuth, requireDB
                     total_expected_profit: Math.round(totalExpectedProfit * 100) / 100,
                     roi_percentage: set.roi_percentage,
                     sales_velocity: set.avg_sales_velocity,
-                    priority_score: set.profit_velocity_score
+                    priority_score: set.profit_velocity_score,
+                    historical_purchase_price: set.historical_purchase_price,
+                    price_flag: set.price_flag,
+                    price_flag_reason: set.price_flag_reason
                 });
 
                 remainingBudget -= totalCost;
@@ -17151,9 +17253,11 @@ app.get('/api/admin/price-snapshot/investment-optimizer', requireAuth, requireDB
                 remaining_budget: Math.round(remainingBudget * 100) / 100,
                 total_sets_recommended: totalSets,
                 total_expected_profit: Math.round(totalExpectedProfit * 100) / 100,
-                overall_roi_percentage: Math.round(overallRoi * 100) / 100
+                overall_roi_percentage: Math.round(overallRoi * 100) / 100,
+                flagged_count: flaggedRecommendations.length
             },
             recommendations,
+            flagged_unrealistic: flaggedRecommendations,
             all_sets_analysis: setAnalysis
         });
     } catch (err) {
