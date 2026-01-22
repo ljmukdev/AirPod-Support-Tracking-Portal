@@ -16353,6 +16353,141 @@ app.get('/admin/reconciliation', requireAuthHTML, (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin', 'reconciliation.html'));
 });
 
+// ===== DEBT TRACKER API ENDPOINT =====
+// External API for Spain Debt Tracker app to sync purchases and sales data
+// Supports optional Bearer token authentication
+app.get('/api/debt-tracker', requireDB, async (req, res) => {
+    try {
+        // Optional authentication - check Bearer token if provided
+        const authHeader = req.headers.authorization;
+        let authenticated = false;
+
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            const token = authHeader.substring(7);
+            // Simple API key validation - check against DEBT_TRACKER_API_KEY environment variable
+            if (process.env.DEBT_TRACKER_API_KEY && token === process.env.DEBT_TRACKER_API_KEY) {
+                authenticated = true;
+            } else {
+                // If a token was provided but doesn't match, reject the request
+                return res.status(401).json({ error: 'Invalid API key' });
+            }
+        } else if (process.env.DEBT_TRACKER_API_KEY) {
+            // If API key is configured but not provided, reject
+            return res.status(401).json({ error: 'API key required. Set Authorization: Bearer <api_key>' });
+        }
+        // If no DEBT_TRACKER_API_KEY is set, allow unauthenticated access
+
+        // Fetch purchases from MongoDB
+        const purchases = await db.collection('purchases').find({}).sort({ purchase_date: -1 }).toArray();
+
+        // Fetch sales from MongoDB
+        const sales = await db.collection('sales').find({}).sort({ sale_date: -1 }).toArray();
+
+        // Map purchases to expected format
+        const formattedPurchases = purchases.map(purchase => {
+            // Calculate sets from quantity (1 set = 1 purchase unit)
+            const sets = parseInt(purchase.quantity) || 1;
+            const pricePerSet = (parseFloat(purchase.purchase_price) || 0) / sets;
+
+            // Map generation to model name
+            let model = purchase.generation || 'Unknown';
+            if (purchase.connector_type) {
+                model += ` ${purchase.connector_type.toUpperCase()}`;
+            }
+            if (purchase.anc_type) {
+                model += ` ${purchase.anc_type.toUpperCase()}`;
+            }
+
+            // Map status
+            let status = purchase.status || 'pending';
+            if (status === 'delivered' || status === 'completed') {
+                status = 'arrived';
+            } else if (status === 'awaiting_delivery' || status === 'dispatched') {
+                status = 'in_transit';
+            } else if (status === 'paid' || status === 'awaiting_despatch') {
+                status = 'ordered';
+            }
+
+            return {
+                id: purchase._id.toString(),
+                date: purchase.purchase_date ? new Date(purchase.purchase_date).toISOString().split('T')[0] : null,
+                model: model,
+                sets: sets,
+                pricePerSet: parseFloat(pricePerSet.toFixed(2)),
+                totalPrice: parseFloat(purchase.purchase_price) || 0,
+                refundAmount: parseFloat(purchase.refund_amount) || 0,
+                status: status,
+                expectedArrival: purchase.expected_delivery ? new Date(purchase.expected_delivery).toISOString().split('T')[0] : null,
+                seller: purchase.seller_name || null,
+                platform: purchase.platform || null,
+                orderNumber: purchase.order_number || null,
+                trackingNumber: purchase.tracking_number || null,
+                items: purchase.items_purchased || [],
+                notes: purchase.notes || null
+            };
+        });
+
+        // Map sales to expected format
+        const formattedSales = sales.map(sale => {
+            // Get product info - handle both single product and products array
+            let productName = 'Unknown';
+            let productPart = null;
+
+            if (sale.products && sale.products.length > 0) {
+                const firstProduct = sale.products[0];
+                productName = firstProduct.product_name || sale.product_name || 'Unknown';
+                // Try to extract part type from product name (Left, Right, Case)
+                const partMatch = productName.match(/\b(Left|Right|Case)\b/i);
+                if (partMatch) {
+                    productPart = partMatch[1].charAt(0).toUpperCase() + partMatch[1].slice(1).toLowerCase();
+                }
+            } else {
+                productName = sale.product_name || 'Unknown';
+                const partMatch = productName.match(/\b(Left|Right|Case)\b/i);
+                if (partMatch) {
+                    productPart = partMatch[1].charAt(0).toUpperCase() + partMatch[1].slice(1).toLowerCase();
+                }
+            }
+
+            // Calculate net sale (sale price minus fees and postage)
+            const salePrice = parseFloat(sale.sale_price) || 0;
+            const subtotal = parseFloat(sale.subtotal) || salePrice;
+            const postageCharged = parseFloat(sale.postage_charged) || 0;
+            const transactionFees = parseFloat(sale.transaction_fees) || 0;
+            const postageLabelCost = parseFloat(sale.postage_label_cost) || 0;
+            const adFee = parseFloat(sale.ad_fee_general) || 0;
+
+            return {
+                id: sale._id.toString(),
+                date: sale.sale_date ? new Date(sale.sale_date).toISOString().split('T')[0] : null,
+                model: productName,
+                part: productPart,
+                salePrice: subtotal,
+                postage: postageCharged,
+                transactionFees: transactionFees,
+                postageLabelCost: postageLabelCost,
+                adFee: adFee,
+                totalReceived: salePrice,
+                platform: sale.platform || null,
+                orderNumber: sale.order_number || null,
+                productCost: parseFloat(sale.product_cost) || parseFloat(sale.total_product_cost) || 0,
+                profit: parseFloat(sale.profit) || 0
+            };
+        });
+
+        res.json({
+            success: true,
+            timestamp: new Date().toISOString(),
+            authenticated: authenticated,
+            purchases: formattedPurchases,
+            sales: formattedSales
+        });
+    } catch (err) {
+        console.error('[Debt Tracker API] Error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // Health check endpoint - shows database status and readiness for warranty registration
 app.get('/api/health', async (req, res) => {
     const health = {
