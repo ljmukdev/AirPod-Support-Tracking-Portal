@@ -482,6 +482,274 @@
         .historical-comparison .verdict.warning { background: #fef3c7; color: #92400e; }
         .historical-comparison .verdict.bad { background: #fee2e2; color: #b91c1c; }
 
+        /* Mode Selection Panel */
+        .mode-selection-panel {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .mode-radio-group {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .mode-radio {
+            flex: 1;
+            min-width: 200px;
+            display: flex;
+            flex-direction: column;
+            padding: 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .mode-radio:hover {
+            border-color: #0d9488;
+            background: #f0fdfa;
+        }
+        .mode-radio:has(input:checked) {
+            border-color: #0d9488;
+            background: #f0fdfa;
+        }
+        .mode-radio input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .radio-label {
+            font-weight: 600;
+            font-size: 1rem;
+            color: #1f2937;
+            margin-bottom: 4px;
+        }
+        .radio-description {
+            font-size: 0.8rem;
+            color: #6b7280;
+        }
+        .mode-radio:has(input:checked) .radio-label {
+            color: #0d9488;
+        }
+
+        /* Parts Selection Panel */
+        .parts-selection-panel {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+            padding: 16px;
+            background: #f9fafb;
+            border-radius: 8px;
+            flex-wrap: wrap;
+        }
+        .parts-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .parts-checkbox:hover {
+            border-color: #0d9488;
+        }
+        .parts-checkbox:has(input:checked) {
+            border-color: #0d9488;
+            background: #f0fdfa;
+        }
+        .parts-checkbox input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #0d9488;
+        }
+        .checkbox-label {
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        /* Manual Entry Modal */
+        .manual-entry-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+        .manual-entry-content {
+            background: white;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .manual-entry-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .manual-entry-header h3 {
+            margin: 0;
+            font-size: 1.1rem;
+            color: #1f2937;
+        }
+        .close-modal-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: #6b7280;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+        .close-modal-btn:hover {
+            color: #1f2937;
+        }
+        .manual-entry-body {
+            padding: 20px;
+        }
+        .manual-entry-instructions {
+            margin: 0 0 20px 0;
+            color: #4b5563;
+            font-size: 0.9rem;
+        }
+        .manual-prices-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .price-input-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .price-input-row label {
+            width: 60px;
+            font-size: 0.9rem;
+            color: #374151;
+            font-weight: 500;
+        }
+        .manual-price-input {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        .manual-price-input:focus {
+            border-color: #0d9488;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(13,148,136,0.1);
+        }
+        .manual-entry-avg {
+            margin-top: 16px;
+            padding: 12px;
+            background: #f0fdf4;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: #166534;
+            text-align: center;
+        }
+        .manual-entry-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+            border: 1px solid #d1d5db;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+
+        /* eBay Search Button in Results */
+        .ebay-search-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            background: #0d9488;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+        .ebay-search-btn:hover {
+            background: #0f766e;
+        }
+        .enter-manual-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            background: #6366f1;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .enter-manual-btn:hover {
+            background: #4f46e5;
+        }
+        .missing-part-card {
+            padding: 16px;
+            background: #f9fafb;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .missing-part-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .missing-part-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .manual-data-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            background: #dbeafe;
+            color: #1d4ed8;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .tab-btn {
@@ -501,6 +769,19 @@
                 display: flex;
                 gap: 16px;
                 align-items: center;
+            }
+            .mode-radio-group {
+                flex-direction: column;
+            }
+            .mode-radio {
+                min-width: 100%;
+            }
+            .parts-selection-panel {
+                flex-direction: column;
+            }
+            .parts-checkbox {
+                width: 100%;
+                justify-content: flex-start;
             }
         }
     </style>
@@ -646,8 +927,8 @@
                 <div class="snapshot-controls">
                     <div class="bid-calculator-form">
                         <div class="form-group">
-                            <label>Select Set</label>
-                            <select id="bidCalcGeneration">
+                            <label>Select AirPods Generation</label>
+                            <select id="bidCalcGeneration" onchange="onGenerationChange()">
                                 <option value="">Loading...</option>
                             </select>
                         </div>
@@ -655,11 +936,90 @@
                             <label>Min Profit Target</label>
                             <input type="number" id="bidCalcProfit" value="10" min="0" step="1" style="width:80px;padding:10px 14px;border:1px solid #d1d5db;border-radius:6px;">
                         </div>
-                        <button class="btn btn-primary" onclick="calculateBid()">Calculate</button>
                     </div>
                 </div>
+
+                <!-- Calculation Mode Selection -->
+                <div class="mode-selection-panel" id="modeSelectionPanel" style="display:none;">
+                    <div class="mode-radio-group">
+                        <label class="mode-radio">
+                            <input type="radio" name="calcMode" value="full-set" checked onchange="onModeChange()">
+                            <span class="radio-label">Full Set</span>
+                            <span class="radio-description">Calculate max bid for complete set (Left + Right + Case)</span>
+                        </label>
+                        <label class="mode-radio">
+                            <input type="radio" name="calcMode" value="individual-parts" onchange="onModeChange()">
+                            <span class="radio-label">Individual Parts</span>
+                            <span class="radio-description">Select specific parts to calculate max bid</span>
+                        </label>
+                    </div>
+
+                    <!-- Parts Selection (shown when Individual Parts is selected) -->
+                    <div class="parts-selection-panel" id="partsSelectionPanel" style="display:none;">
+                        <label class="parts-checkbox">
+                            <input type="checkbox" id="partLeft" value="left" checked onchange="onPartSelectionChange()">
+                            <span class="checkbox-label part-type-badge left">Left Earbud</span>
+                        </label>
+                        <label class="parts-checkbox">
+                            <input type="checkbox" id="partRight" value="right" checked onchange="onPartSelectionChange()">
+                            <span class="checkbox-label part-type-badge right">Right Earbud</span>
+                        </label>
+                        <label class="parts-checkbox">
+                            <input type="checkbox" id="partCase" value="case" checked onchange="onPartSelectionChange()">
+                            <span class="checkbox-label part-type-badge case">Charging Case</span>
+                        </label>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="calculateBid()" style="margin-top:16px;">Calculate Max Bid</button>
+                </div>
+
                 <div id="bidCalcResult">
                     <div class="no-data" style="padding:40px 20px;"><p>Select a set above to calculate the max bid price.</p></div>
+                </div>
+
+                <!-- Manual Data Entry Modal -->
+                <div class="manual-entry-modal" id="manualEntryModal" style="display:none;">
+                    <div class="manual-entry-content">
+                        <div class="manual-entry-header">
+                            <h3>Enter eBay Sold Listings Data</h3>
+                            <button class="close-modal-btn" onclick="closeManualEntryModal()">&times;</button>
+                        </div>
+                        <div class="manual-entry-body">
+                            <p class="manual-entry-instructions">
+                                Enter the 5 most recent sold prices from eBay completed listings for <strong id="manualEntryPartName"></strong>.
+                                <br><small>Prices should be the final sold price including shipping.</small>
+                            </p>
+                            <div class="manual-prices-grid">
+                                <div class="price-input-row">
+                                    <label>Sale 1:</label>
+                                    <input type="number" class="manual-price-input" id="manualPrice1" placeholder="0.00" step="0.01" min="0">
+                                </div>
+                                <div class="price-input-row">
+                                    <label>Sale 2:</label>
+                                    <input type="number" class="manual-price-input" id="manualPrice2" placeholder="0.00" step="0.01" min="0">
+                                </div>
+                                <div class="price-input-row">
+                                    <label>Sale 3:</label>
+                                    <input type="number" class="manual-price-input" id="manualPrice3" placeholder="0.00" step="0.01" min="0">
+                                </div>
+                                <div class="price-input-row">
+                                    <label>Sale 4:</label>
+                                    <input type="number" class="manual-price-input" id="manualPrice4" placeholder="0.00" step="0.01" min="0">
+                                </div>
+                                <div class="price-input-row">
+                                    <label>Sale 5:</label>
+                                    <input type="number" class="manual-price-input" id="manualPrice5" placeholder="0.00" step="0.01" min="0">
+                                </div>
+                            </div>
+                            <div class="manual-entry-avg" id="manualEntryAvg">
+                                Average: <strong>-</strong>
+                            </div>
+                            <div class="manual-entry-actions">
+                                <button class="btn btn-secondary" onclick="closeManualEntryModal()">Cancel</button>
+                                <button class="btn btn-primary" onclick="applyManualData()">Apply & Calculate</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -1158,6 +1518,11 @@
             }
         }
 
+        // Bid Calculator State
+        let manualPriceData = {};
+        let currentManualEntryPart = null;
+        let currentSelection = null;
+
         // Bid Calculator - Load generation options (ALL generations, not just those with sales data)
         async function loadBidCalcOptions() {
             const select = document.getElementById('bidCalcGeneration');
@@ -1176,7 +1541,7 @@
 
                 const data = await response.json();
 
-                select.innerHTML = '<option value="">-- Select a set --</option>';
+                select.innerHTML = '<option value="">-- Select AirPods Generation --</option>';
 
                 if (data.generations && data.generations.length > 0) {
                     for (const gen of data.generations) {
@@ -1198,6 +1563,156 @@
             }
         }
 
+        // Show/hide mode selection panel when generation is selected
+        function onGenerationChange() {
+            const select = document.getElementById('bidCalcGeneration');
+            const modePanel = document.getElementById('modeSelectionPanel');
+            const resultDiv = document.getElementById('bidCalcResult');
+
+            if (select && select.value) {
+                currentSelection = JSON.parse(select.value);
+                modePanel.style.display = 'block';
+                // Reset manual price data for new selection
+                manualPriceData = {};
+                resultDiv.innerHTML = '<div class="no-data" style="padding:40px 20px;"><p>Select options above and click Calculate.</p></div>';
+            } else {
+                modePanel.style.display = 'none';
+                resultDiv.innerHTML = '<div class="no-data" style="padding:40px 20px;"><p>Select a set above to calculate the max bid price.</p></div>';
+            }
+        }
+
+        // Toggle between full set and individual parts mode
+        function onModeChange() {
+            const mode = document.querySelector('input[name="calcMode"]:checked')?.value;
+            const partsPanel = document.getElementById('partsSelectionPanel');
+
+            if (mode === 'individual-parts') {
+                partsPanel.style.display = 'flex';
+            } else {
+                partsPanel.style.display = 'none';
+                // Reset all checkboxes to checked
+                document.getElementById('partLeft').checked = true;
+                document.getElementById('partRight').checked = true;
+                document.getElementById('partCase').checked = true;
+            }
+        }
+
+        // Get selected parts
+        function getSelectedParts() {
+            const mode = document.querySelector('input[name="calcMode"]:checked')?.value;
+            if (mode === 'full-set') {
+                return ['left', 'right', 'case'];
+            }
+            const parts = [];
+            if (document.getElementById('partLeft').checked) parts.push('left');
+            if (document.getElementById('partRight').checked) parts.push('right');
+            if (document.getElementById('partCase').checked) parts.push('case');
+            return parts;
+        }
+
+        // Handle part selection changes
+        function onPartSelectionChange() {
+            const parts = getSelectedParts();
+            if (parts.length === 0) {
+                // Prevent deselecting all parts
+                alert('Please select at least one part.');
+                event.target.checked = true;
+            }
+        }
+
+        // Open manual entry modal for a specific part
+        function openManualEntryModal(partType, partName, searchQuery, ebayUrl) {
+            const modal = document.getElementById('manualEntryModal');
+            const partNameEl = document.getElementById('manualEntryPartName');
+
+            currentManualEntryPart = {
+                partType,
+                partName,
+                searchQuery,
+                ebayUrl
+            };
+
+            partNameEl.innerHTML = `<span class="part-type-badge ${partType}">${partType}</span> ${partName}`;
+
+            // Clear previous values
+            for (let i = 1; i <= 5; i++) {
+                document.getElementById(`manualPrice${i}`).value = '';
+            }
+
+            // If we have existing manual data for this part, populate it
+            if (manualPriceData[partType] && manualPriceData[partType].prices) {
+                manualPriceData[partType].prices.forEach((price, index) => {
+                    if (index < 5) {
+                        document.getElementById(`manualPrice${index + 1}`).value = price;
+                    }
+                });
+            }
+
+            updateManualAverage();
+            modal.style.display = 'flex';
+
+            // Add event listeners to update average
+            for (let i = 1; i <= 5; i++) {
+                document.getElementById(`manualPrice${i}`).addEventListener('input', updateManualAverage);
+            }
+        }
+
+        // Close manual entry modal
+        function closeManualEntryModal() {
+            const modal = document.getElementById('manualEntryModal');
+            modal.style.display = 'none';
+            currentManualEntryPart = null;
+        }
+
+        // Update manual entry average calculation
+        function updateManualAverage() {
+            const prices = [];
+            for (let i = 1; i <= 5; i++) {
+                const val = parseFloat(document.getElementById(`manualPrice${i}`).value);
+                if (!isNaN(val) && val > 0) {
+                    prices.push(val);
+                }
+            }
+
+            const avgEl = document.getElementById('manualEntryAvg');
+            if (prices.length > 0) {
+                const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
+                avgEl.innerHTML = `Average (${prices.length} prices): <strong>£${avg.toFixed(2)}</strong>`;
+            } else {
+                avgEl.innerHTML = 'Average: <strong>-</strong>';
+            }
+        }
+
+        // Apply manual data and recalculate
+        function applyManualData() {
+            if (!currentManualEntryPart) return;
+
+            const prices = [];
+            for (let i = 1; i <= 5; i++) {
+                const val = parseFloat(document.getElementById(`manualPrice${i}`).value);
+                if (!isNaN(val) && val > 0) {
+                    prices.push(val);
+                }
+            }
+
+            if (prices.length === 0) {
+                alert('Please enter at least one price.');
+                return;
+            }
+
+            const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
+
+            manualPriceData[currentManualEntryPart.partType] = {
+                avg_sale_price: avg,
+                prices: prices,
+                is_manual: true,
+                sales_count: prices.length
+            };
+
+            closeManualEntryModal();
+            calculateBid();
+        }
+
         // Bid Calculator - Calculate max bid for selected set
         async function calculateBid() {
             const select = document.getElementById('bidCalcGeneration');
@@ -1211,6 +1726,12 @@
 
             const minProfit = parseFloat(profitInput?.value) || 10;
             const selection = JSON.parse(select.value);
+            const selectedParts = getSelectedParts();
+
+            if (selectedParts.length === 0) {
+                resultDiv.innerHTML = '<div class="no-data" style="padding:40px 20px;"><p>Please select at least one part.</p></div>';
+                return;
+            }
 
             resultDiv.innerHTML = '<div class="loading">Calculating...</div>';
 
@@ -1219,12 +1740,18 @@
                     throw new Error('Please refresh the page');
                 }
 
-                // Fetch the calculation for this specific set
+                // Fetch the calculation for this specific set with selected parts
                 const params = new URLSearchParams({
                     generation: selection.generation,
                     connector_type: selection.connector_type || '',
-                    min_profit: minProfit
+                    min_profit: minProfit,
+                    parts: selectedParts.join(',')
                 });
+
+                // Add manual data if available
+                if (Object.keys(manualPriceData).length > 0) {
+                    params.append('manual_data', JSON.stringify(manualPriceData));
+                }
 
                 const response = await authenticatedFetch(`/api/admin/price-snapshot/bid-calculator?${params}`);
                 if (!response.ok) {
@@ -1234,20 +1761,28 @@
 
                 const data = await response.json();
 
+                // Build display name for selected parts
+                const partsDisplayName = selectedParts.length === 3 ? 'Full Set' :
+                    selectedParts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' + ');
+
                 if (!data.success) {
-                    // Check if we need to show eBay search suggestions
-                    if (data.needs_manual_data && data.ebay_search_suggestions) {
+                    // Show missing parts with eBay search and manual entry options
+                    if (data.needs_manual_data && data.missing_parts) {
                         let partialDataHtml = '';
-                        if (data.parts_with_data && data.parts_with_data.length > 0) {
+                        const partsWithData = selectedParts.filter(pt => data.partial_data && data.partial_data[pt]);
+
+                        if (partsWithData.length > 0) {
                             partialDataHtml = `
                                 <div style="margin-bottom:20px;">
                                     <h4 style="margin:0 0 12px;color:#374151;">Available Data:</h4>
-                                    ${data.parts_with_data.map(partType => {
+                                    ${partsWithData.map(partType => {
                                         const part = data.partial_data[partType];
+                                        const isManual = manualPriceData[partType]?.is_manual;
                                         if (part) {
                                             return `<div class="part-row" style="padding:8px 12px;background:#d1fae5;border-radius:6px;margin-bottom:4px;">
                                                 <span class="part-type-badge ${partType}">${partType}</span>
-                                                <span style="color:#047857;font-weight:600;">£${part.avg_sale_price.toFixed(2)} avg (${part.sales_count} sales)</span>
+                                                <span style="color:#047857;font-weight:600;">£${part.avg_sale_price.toFixed(2)} avg (${part.sales_count} ${isManual ? 'manual entries' : 'sales'})</span>
+                                                ${isManual ? '<span class="manual-data-badge">Manual</span>' : ''}
                                             </div>`;
                                         }
                                         return '';
@@ -1256,37 +1791,49 @@
                             `;
                         }
 
+                        const missingParts = data.missing_parts.filter(pt => selectedParts.includes(pt));
+
                         resultDiv.innerHTML = `
-                            <div class="calculator-card" style="max-width:600px;">
-                                <h3>${data.display_name}</h3>
+                            <div class="calculator-card" style="max-width:700px;">
+                                <h3>${data.display_name} - ${partsDisplayName}</h3>
                                 <div style="padding:16px;background:#fef3c7;border-radius:8px;margin-bottom:20px;">
                                     <p style="margin:0 0 8px;color:#92400e;font-weight:600;">
-                                        Insufficient Sales Data: ${data.parts_with_data?.length || 0}/3 parts have data
+                                        Missing Data: ${missingParts.length} of ${selectedParts.length} selected parts need data
                                     </p>
                                     <p style="margin:0;color:#92400e;font-size:0.9rem;">
-                                        Search eBay for completed listings to estimate prices for the missing parts.
+                                        Search eBay completed listings and enter the 5 most recent sold prices.
                                     </p>
                                 </div>
                                 ${partialDataHtml}
                                 <div>
-                                    <h4 style="margin:0 0 12px;color:#374151;">Missing Parts - Search eBay:</h4>
-                                    ${data.ebay_search_suggestions.map(suggestion => `
-                                        <div style="padding:12px;background:#f9fafb;border-radius:8px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-                                            <div>
-                                                <span class="part-type-badge ${suggestion.part_type}">${suggestion.part_type}</span>
-                                                <span style="margin-left:8px;color:#6b7280;font-size:0.85rem;">${suggestion.search_query}</span>
+                                    <h4 style="margin:0 0 12px;color:#374151;">Missing Parts - Enter Prices:</h4>
+                                    ${missingParts.map(partType => {
+                                        const suggestion = data.ebay_search_suggestions?.find(s => s.part_type === partType);
+                                        const searchQuery = suggestion?.search_query || `${selection.generation} ${partType}`;
+                                        const ebayUrl = suggestion?.ebay_url || `https://www.ebay.co.uk/sch/i.html?_nkw=${encodeURIComponent(searchQuery)}&LH_Complete=1&LH_Sold=1`;
+                                        return `
+                                            <div class="missing-part-card">
+                                                <div class="missing-part-info">
+                                                    <div>
+                                                        <span class="part-type-badge ${partType}">${partType}</span>
+                                                        <span style="margin-left:8px;color:#6b7280;font-size:0.85rem;">${searchQuery}</span>
+                                                    </div>
+                                                </div>
+                                                <div class="missing-part-actions">
+                                                    <a href="${ebayUrl}" target="_blank" rel="noopener" class="ebay-search-btn">
+                                                        Search eBay Sold Listings
+                                                    </a>
+                                                    <button class="enter-manual-btn" onclick="openManualEntryModal('${partType}', '${searchQuery}', '${searchQuery}', '${ebayUrl}')">
+                                                        Enter 5 Sales Prices
+                                                    </button>
+                                                </div>
                                             </div>
-                                            <a href="${suggestion.ebay_url}" target="_blank" rel="noopener"
-                                               style="display:inline-block;padding:8px 16px;background:#0d9488;color:white;border-radius:6px;text-decoration:none;font-size:0.85rem;font-weight:500;">
-                                                Search eBay Sold Listings
-                                            </a>
-                                        </div>
-                                    `).join('')}
+                                        `;
+                                    }).join('')}
                                 </div>
                                 <div style="margin-top:20px;padding:16px;background:#f0f9ff;border-radius:8px;">
                                     <p style="margin:0;font-size:0.85rem;color:#0369a1;">
-                                        <strong>Tip:</strong> Look at completed/sold listings on eBay to find typical selling prices.
-                                        Note the average sale price after fees for each missing part, then you can manually calculate your max bid.
+                                        <strong>How to use:</strong> Click "Search eBay Sold Listings" to find recent sold prices, then click "Enter 5 Sales Prices" to input them. The calculator will use the average of your entered prices.
                                     </p>
                                 </div>
                             </div>
@@ -1294,37 +1841,39 @@
                         return;
                     }
 
-                    resultDiv.innerHTML = `<div class="no-data" style="padding:40px 20px;"><p>${data.error || 'Unable to calculate bid for this set.'}</p></div>`;
+                    resultDiv.innerHTML = `<div class="no-data" style="padding:40px 20px;"><p>${data.error || 'Unable to calculate bid.'}</p></div>`;
                     return;
                 }
 
                 const calc = data.calculation;
 
-                // Build the result HTML
+                // Build the result HTML with support for partial parts
+                const getPartRow = (partType, label) => {
+                    if (!selectedParts.includes(partType)) {
+                        return ''; // Don't show parts that weren't selected
+                    }
+                    const part = calc.parts[partType];
+                    const isManual = manualPriceData[partType]?.is_manual;
+                    if (part) {
+                        return `
+                            <div class="calc-row indent">
+                                <span>${label}${isManual ? ' <span class="manual-data-badge">Manual</span>' : ''}</span>
+                                <span>£${part.avg_sale_price.toFixed(2)}</span>
+                            </div>
+                        `;
+                    }
+                    return `<div class="calc-row indent"><span>${label}</span><span class="no-data-part">No data</span></div>`;
+                };
+
                 resultDiv.innerHTML = `
                     <div class="calculator-result">
                         <div class="calculator-card">
-                            <h3>${data.display_name}</h3>
+                            <h3>${data.display_name} - ${partsDisplayName}</h3>
 
-                            <div class="calc-section-title">Expected Sale Revenue (per part)</div>
-                            ${calc.parts.left ? `
-                                <div class="calc-row indent">
-                                    <span>Left Earbud</span>
-                                    <span>£${calc.parts.left.avg_sale_price.toFixed(2)}</span>
-                                </div>
-                            ` : '<div class="calc-row indent"><span>Left Earbud</span><span class="no-data-part">No data</span></div>'}
-                            ${calc.parts.right ? `
-                                <div class="calc-row indent">
-                                    <span>Right Earbud</span>
-                                    <span>£${calc.parts.right.avg_sale_price.toFixed(2)}</span>
-                                </div>
-                            ` : '<div class="calc-row indent"><span>Right Earbud</span><span class="no-data-part">No data</span></div>'}
-                            ${calc.parts.case ? `
-                                <div class="calc-row indent">
-                                    <span>Charging Case</span>
-                                    <span>£${calc.parts.case.avg_sale_price.toFixed(2)}</span>
-                                </div>
-                            ` : '<div class="calc-row indent"><span>Charging Case</span><span class="no-data-part">No data</span></div>'}
+                            <div class="calc-section-title">Expected Sale Revenue</div>
+                            ${getPartRow('left', 'Left Earbud')}
+                            ${getPartRow('right', 'Right Earbud')}
+                            ${getPartRow('case', 'Charging Case')}
                             <div class="calc-row subtotal">
                                 <span>Combined Sale Value</span>
                                 <span>£${calc.combined_sale_price.toFixed(2)}</span>
@@ -1386,7 +1935,7 @@
 
                         <div style="margin-top:20px;padding:16px;background:#f0fdf4;border-radius:8px;max-width:500px;">
                             <p style="margin:0;font-size:0.85rem;color:#166534;">
-                                <strong>Summary:</strong> To make £${minProfit.toFixed(2)} profit on a ${data.display_name} full set,
+                                <strong>Summary:</strong> To make £${minProfit.toFixed(2)} profit on ${data.display_name} (${partsDisplayName}),
                                 you should bid no more than <strong>£${calc.max_bid.toFixed(2)}</strong>.
                             </p>
                         </div>
@@ -1400,6 +1949,13 @@
 
         document.addEventListener('DOMContentLoaded', function() {
             setTimeout(loadBidCalcOptions, 200);
+        });
+
+        // Close modal on escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeManualEntryModal();
+            }
         });
     </script>
 </body>

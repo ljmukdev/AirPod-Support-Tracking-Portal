@@ -16810,12 +16810,30 @@ app.get('/api/admin/price-snapshot/bid-calculator', requireAuth, requireDB, asyn
         const minProfit = parseFloat(req.query.min_profit) || 10;
         const salesCount = parseInt(req.query.sales_count) || 10;
 
+        // Support for parts selection - default to all parts
+        const partsParam = req.query.parts || 'left,right,case';
+        const selectedParts = partsParam.split(',').filter(p => ['left', 'right', 'case'].includes(p.trim()));
+
+        // Support for manual data input
+        let manualData = {};
+        if (req.query.manual_data) {
+            try {
+                manualData = JSON.parse(req.query.manual_data);
+            } catch (e) {
+                // Ignore parse errors
+            }
+        }
+
         if (!generation) {
             return res.status(400).json({ success: false, error: 'Generation is required' });
         }
 
+        if (selectedParts.length === 0) {
+            return res.status(400).json({ success: false, error: 'At least one part must be selected' });
+        }
+
         const displayName = connectorType ? `${generation} (${connectorType})` : generation;
-        const partTypes = ['left', 'right', 'case'];
+        const partTypes = selectedParts; // Only process selected parts
         const partsData = {};
         let combinedSalePrice = 0;
         let combinedFees = 0;
@@ -16823,6 +16841,27 @@ app.get('/api/admin/price-snapshot/bid-calculator', requireAuth, requireDB, asyn
         let partsWithData = 0;
 
         for (const partType of partTypes) {
+            // Check if we have manual data for this part
+            if (manualData[partType] && manualData[partType].avg_sale_price > 0) {
+                partsData[partType] = {
+                    avg_sale_price: Math.round(manualData[partType].avg_sale_price * 100) / 100,
+                    avg_fees: 0, // Manual entries don't have fee data, we'll estimate
+                    avg_consumables: 0,
+                    sales_count: manualData[partType].sales_count || 1,
+                    is_manual: true
+                };
+
+                // Estimate fees as ~15% of sale price (typical eBay fees)
+                partsData[partType].avg_fees = Math.round(manualData[partType].avg_sale_price * 0.15 * 100) / 100;
+                // Estimate consumables as £1 per item
+                partsData[partType].avg_consumables = 1;
+
+                combinedSalePrice += partsData[partType].avg_sale_price;
+                combinedFees += partsData[partType].avg_fees;
+                combinedConsumables += partsData[partType].avg_consumables;
+                partsWithData++;
+                continue; // Skip database query for this part
+            }
             // Build match criteria
             const matchCriteria = {
                 'product_details.generation': generation,
@@ -16897,18 +16936,20 @@ app.get('/api/admin/price-snapshot/bid-calculator', requireAuth, requireDB, asyn
             }
         }
 
-        if (partsWithData < 3) {
+        // Check if we have data for all SELECTED parts (not necessarily all 3)
+        if (partsWithData < selectedParts.length) {
             // Return detailed info about which parts are missing data
             const missingParts = partTypes.filter(pt => !partsData[pt]);
             const partsWithDataList = partTypes.filter(pt => partsData[pt]);
 
             return res.json({
                 success: false,
-                error: `Insufficient data: only ${partsWithData}/3 parts have sales data`,
+                error: `Insufficient data: only ${partsWithData}/${selectedParts.length} selected parts have data`,
                 needs_manual_data: true,
                 display_name: displayName,
                 generation: generation,
                 connector_type: connectorType,
+                selected_parts: selectedParts,
                 parts_with_data: partsWithDataList,
                 missing_parts: missingParts,
                 partial_data: partsData,
@@ -16923,13 +16964,14 @@ app.get('/api/admin/price-snapshot/bid-calculator', requireAuth, requireDB, asyn
         const netRevenue = combinedSalePrice - combinedFees - combinedConsumables;
         const maxBid = netRevenue - minProfit;
 
-        // Get historical purchase price
+        // Get historical purchase price - only for selected parts
         const historicalPrices = await db.collection('products').aggregate([
             {
                 $match: {
                     generation: generation,
                     connector_type: connectorType || { $in: [null, '', undefined] },
-                    purchase_price: { $gt: 0 }
+                    purchase_price: { $gt: 0 },
+                    part_type: { $in: selectedParts }
                 }
             },
             {
@@ -16943,17 +16985,21 @@ app.get('/api/admin/price-snapshot/bid-calculator', requireAuth, requireDB, asyn
         let totalHistoricalPrice = 0;
         let historicalPartsCount = 0;
         for (const price of historicalPrices) {
-            if (['left', 'right', 'case'].includes(price._id)) {
+            if (selectedParts.includes(price._id)) {
                 totalHistoricalPrice += price.avg_purchase_price;
                 historicalPartsCount++;
             }
         }
+
+        // Determine if we should show historical price (need data for at least half of selected parts)
+        const historicalThreshold = Math.max(1, Math.floor(selectedParts.length / 2));
 
         res.json({
             success: true,
             display_name: displayName,
             generation: generation,
             connector_type: connectorType,
+            selected_parts: selectedParts,
             calculation: {
                 parts: partsData,
                 combined_sale_price: Math.round(combinedSalePrice * 100) / 100,
@@ -16963,7 +17009,8 @@ app.get('/api/admin/price-snapshot/bid-calculator', requireAuth, requireDB, asyn
                 min_profit: minProfit,
                 max_bid: Math.round(maxBid * 100) / 100
             },
-            historical_price: historicalPartsCount >= 2 ? Math.round(totalHistoricalPrice * 100) / 100 : null
+            historical_price: historicalPartsCount >= historicalThreshold ? Math.round(totalHistoricalPrice * 100) / 100 : null,
+            has_manual_data: Object.values(partsData).some(p => p && p.is_manual)
         });
 
     } catch (err) {
