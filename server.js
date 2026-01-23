@@ -16776,13 +16776,29 @@ app.get('/api/admin/price-snapshot/fees-by-platform', requireAuth, requireDB, as
 app.get('/api/admin/price-snapshot/all-generations', requireAuth, requireDB, async (req, res) => {
     try {
         // Get ALL unique generation + connector_type combinations from products (regardless of status)
+        // Normalize connector_type to treat null, undefined, and empty string as the same (null)
         const variants = await db.collection('products').aggregate([
             { $match: { generation: { $exists: true, $ne: null, $ne: '' } } },
+            {
+                $addFields: {
+                    normalized_connector_type: {
+                        $cond: {
+                            if: { $or: [
+                                { $eq: ['$connector_type', null] },
+                                { $eq: ['$connector_type', ''] },
+                                { $not: { $ifNull: ['$connector_type', false] } }
+                            ]},
+                            then: null,
+                            else: '$connector_type'
+                        }
+                    }
+                }
+            },
             {
                 $group: {
                     _id: {
                         generation: '$generation',
-                        connector_type: '$connector_type'
+                        connector_type: '$normalized_connector_type'
                     }
                 }
             },
