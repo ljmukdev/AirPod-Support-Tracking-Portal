@@ -16497,19 +16497,27 @@ app.get('/api/debt-tracker', requireDB, async (req, res) => {
         const totalProfit = formattedSales.reduce((sum, s) => sum + (s.profit || 0), 0);
         const currentBalance = totalSales - (totalPurchases - totalRefunds);
 
+        const summaryData = {
+            totalPurchases: parseFloat(totalPurchases.toFixed(2)),
+            totalRefunds: parseFloat(totalRefunds.toFixed(2)),
+            totalSales: parseFloat(totalSales.toFixed(2)),
+            totalProfit: parseFloat(totalProfit.toFixed(2)),
+            currentBalance: parseFloat(currentBalance.toFixed(2)),
+            purchaseCount: formattedPurchases.length,
+            salesCount: formattedSales.length
+        };
+
         res.json({
             success: true,
             timestamp: new Date().toISOString(),
             authenticated: authenticated,
-            summary: {
-                totalPurchases: parseFloat(totalPurchases.toFixed(2)),
-                totalRefunds: parseFloat(totalRefunds.toFixed(2)),
-                totalSales: parseFloat(totalSales.toFixed(2)),
-                totalProfit: parseFloat(totalProfit.toFixed(2)),
-                currentBalance: parseFloat(currentBalance.toFixed(2)),
-                purchaseCount: formattedPurchases.length,
-                salesCount: formattedSales.length
-            },
+            // Root-level fields for backwards compatibility
+            currentBalance: summaryData.currentBalance,
+            totalPurchases: summaryData.totalPurchases,
+            totalSales: summaryData.totalSales,
+            totalProfit: summaryData.totalProfit,
+            // Nested summary object
+            summary: summaryData,
             purchases: formattedPurchases,
             sales: formattedSales
         });
