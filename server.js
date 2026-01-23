@@ -16809,6 +16809,7 @@ app.get('/api/admin/price-snapshot/bid-calculator', requireAuth, requireDB, asyn
         const connectorType = req.query.connector_type || null;
         const minProfit = parseFloat(req.query.min_profit) || 10;
         const salesCount = parseInt(req.query.sales_count) || 10;
+        const postageCharged = parseFloat(req.query.postage_charged) || 0;
 
         // Support for parts selection - default to all parts
         const partsParam = req.query.parts || 'left,right,case';
@@ -16961,7 +16962,7 @@ app.get('/api/admin/price-snapshot/bid-calculator', requireAuth, requireDB, asyn
             });
         }
 
-        const netRevenue = combinedSalePrice - combinedFees - combinedConsumables;
+        const netRevenue = combinedSalePrice - combinedFees - combinedConsumables - postageCharged;
         const maxBid = netRevenue - minProfit;
 
         // Get historical purchase price - only for selected parts
@@ -17005,6 +17006,7 @@ app.get('/api/admin/price-snapshot/bid-calculator', requireAuth, requireDB, asyn
                 combined_sale_price: Math.round(combinedSalePrice * 100) / 100,
                 combined_fees: Math.round(combinedFees * 100) / 100,
                 combined_consumables: Math.round(combinedConsumables * 100) / 100,
+                postage_charged: Math.round(postageCharged * 100) / 100,
                 net_revenue: Math.round(netRevenue * 100) / 100,
                 min_profit: minProfit,
                 max_bid: Math.round(maxBid * 100) / 100
