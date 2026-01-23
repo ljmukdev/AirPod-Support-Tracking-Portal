@@ -16490,10 +16490,26 @@ app.get('/api/debt-tracker', requireDB, async (req, res) => {
             };
         });
 
+        // Calculate financial summary
+        const totalPurchases = formattedPurchases.reduce((sum, p) => sum + (p.totalPrice || 0), 0);
+        const totalRefunds = formattedPurchases.reduce((sum, p) => sum + (p.refundAmount || 0), 0);
+        const totalSales = formattedSales.reduce((sum, s) => sum + (s.totalReceived || 0), 0);
+        const totalProfit = formattedSales.reduce((sum, s) => sum + (s.profit || 0), 0);
+        const currentBalance = totalSales - (totalPurchases - totalRefunds);
+
         res.json({
             success: true,
             timestamp: new Date().toISOString(),
             authenticated: authenticated,
+            summary: {
+                totalPurchases: parseFloat(totalPurchases.toFixed(2)),
+                totalRefunds: parseFloat(totalRefunds.toFixed(2)),
+                totalSales: parseFloat(totalSales.toFixed(2)),
+                totalProfit: parseFloat(totalProfit.toFixed(2)),
+                currentBalance: parseFloat(currentBalance.toFixed(2)),
+                purchaseCount: formattedPurchases.length,
+                salesCount: formattedSales.length
+            },
             purchases: formattedPurchases,
             sales: formattedSales
         });
