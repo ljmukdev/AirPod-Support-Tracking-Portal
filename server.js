@@ -16355,8 +16355,23 @@ app.get('/admin/reconciliation', requireAuthHTML, (req, res) => {
 
 // ===== DEBT TRACKER API ENDPOINT =====
 // External API for Spain Debt Tracker app to sync purchases and sales data
-// Supports optional Bearer token authentication
+// Supports optional Bearer token authentication with CORS enabled
+
+// CORS preflight handler for debt-tracker endpoint
+app.options('/api/debt-tracker', (req, res) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.header('Access-Control-Max-Age', '86400'); // 24 hours
+    res.sendStatus(204);
+});
+
 app.get('/api/debt-tracker', requireDB, async (req, res) => {
+    // Enable CORS for this endpoint
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
     try {
         // Optional authentication - check Bearer token if provided
         const authHeader = req.headers.authorization;
