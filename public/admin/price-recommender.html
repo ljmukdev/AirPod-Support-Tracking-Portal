@@ -749,6 +749,33 @@
             font-weight: 600;
             margin-left: 8px;
         }
+        .stale-data-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            background: #f59e0b;
+            color: white;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+        .saved-data-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            background: #10b981;
+            color: white;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+        .stale-price-warning {
+            animation: pulse-warning 2s infinite;
+        }
+        @keyframes pulse-warning {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.85; }
+        }
 
         /* Responsive */
         @media (max-width: 768px) {
@@ -1688,7 +1715,7 @@
         }
 
         // Apply manual data and recalculate
-        function applyManualData() {
+        async function applyManualData() {
             if (!currentManualEntryPart) return;
 
             const prices = [];
@@ -1712,6 +1739,25 @@
                 is_manual: true,
                 sales_count: prices.length
             };
+
+            // Save to database for persistence
+            if (currentSelection) {
+                try {
+                    await authenticatedFetch('/api/admin/price-snapshot/manual-prices', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            generation: currentSelection.generation,
+                            connector_type: currentSelection.connector_type || null,
+                            part_type: currentManualEntryPart.partType,
+                            prices: prices
+                        })
+                    });
+                } catch (err) {
+                    console.error('Failed to save manual prices:', err);
+                    // Continue anyway - prices are stored locally
+                }
+            }
 
             closeManualEntryModal();
             calculateBid();
@@ -1778,18 +1824,47 @@
                         let partialDataHtml = '';
                         const partsWithData = selectedParts.filter(pt => data.partial_data && data.partial_data[pt]);
 
+                        // Build stale warning for partial data section
+                        let staleWarningHtml = '';
+                        if (data.has_stale_prices && data.stale_parts_warning && data.stale_parts_warning.length > 0) {
+                            const staleInPartialData = data.stale_parts_warning.filter(s => partsWithData.includes(s.part_type));
+                            if (staleInPartialData.length > 0) {
+                                staleWarningHtml = `
+                                    <div style="margin-bottom:20px;padding:12px;background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;">
+                                        <p style="margin:0;color:#92400e;font-size:0.85rem;">
+                                            <strong>⚠️ Note:</strong> Some saved prices are older than 3 days. Consider refreshing them for accuracy.
+                                        </p>
+                                    </div>
+                                `;
+                            }
+                        }
+
                         if (partsWithData.length > 0) {
                             partialDataHtml = `
+                                ${staleWarningHtml}
                                 <div style="margin-bottom:20px;">
                                     <h4 style="margin:0 0 12px;color:#374151;">Available Data:</h4>
                                     ${partsWithData.map(partType => {
                                         const part = data.partial_data[partType];
-                                        const isManual = manualPriceData[partType]?.is_manual;
+                                        const isManual = manualPriceData[partType]?.is_manual || part?.is_manual;
+                                        const isSaved = part?.is_saved;
+                                        const isStale = part?.is_stale;
+                                        const daysSinceUpdate = part?.days_since_update;
                                         if (part) {
-                                            return `<div class="part-row" style="padding:8px 12px;background:#d1fae5;border-radius:6px;margin-bottom:4px;">
+                                            let badge = '';
+                                            let bgColor = '#d1fae5';
+                                            if (isStale) {
+                                                badge = `<span style="background:#f59e0b;color:white;font-size:0.7rem;padding:2px 6px;border-radius:3px;margin-left:8px;">Stale (${daysSinceUpdate}d)</span>`;
+                                                bgColor = '#fef3c7';
+                                            } else if (isSaved) {
+                                                badge = '<span style="background:#10b981;color:white;font-size:0.7rem;padding:2px 6px;border-radius:3px;margin-left:8px;">Saved</span>';
+                                            } else if (isManual) {
+                                                badge = '<span class="manual-data-badge">Manual</span>';
+                                            }
+                                            return `<div class="part-row" style="padding:8px 12px;background:${bgColor};border-radius:6px;margin-bottom:4px;">
                                                 <span class="part-type-badge ${partType}">${partType}</span>
-                                                <span style="color:#047857;font-weight:600;">£${part.avg_sale_price.toFixed(2)} avg (${part.sales_count} ${isManual ? 'manual entries' : 'sales'})</span>
-                                                ${isManual ? '<span class="manual-data-badge">Manual</span>' : ''}
+                                                <span style="color:#047857;font-weight:600;">£${part.avg_sale_price.toFixed(2)} avg (${part.sales_count} ${isManual || isSaved ? 'manual entries' : 'sales'})</span>
+                                                ${badge}
                                             </div>`;
                                         }
                                         return '';
@@ -1854,17 +1929,67 @@
 
                 const calc = data.calculation;
 
+                // Build stale price warning HTML
+                let stalePriceWarningHtml = '';
+                if (data.has_stale_prices && data.stale_parts_warning && data.stale_parts_warning.length > 0) {
+                    const stalePartsList = data.stale_parts_warning.map(p =>
+                        `<strong>${p.part_type}</strong> (${p.days_since_update} days old)`
+                    ).join(', ');
+                    stalePriceWarningHtml = `
+                        <div class="stale-price-warning" style="margin-bottom:20px;padding:16px;background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;">
+                            <div style="display:flex;align-items:flex-start;gap:12px;">
+                                <span style="font-size:1.5rem;">⚠️</span>
+                                <div>
+                                    <p style="margin:0 0 8px;color:#92400e;font-weight:600;">
+                                        Price Data Needs Refreshing
+                                    </p>
+                                    <p style="margin:0 0 12px;color:#92400e;font-size:0.9rem;">
+                                        The following parts have saved prices older than 3 days: ${stalePartsList}
+                                    </p>
+                                    <p style="margin:0;color:#92400e;font-size:0.85rem;">
+                                        Please search eBay for current sold listings and re-enter prices to ensure accuracy.
+                                    </p>
+                                    <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;">
+                                        ${data.stale_parts_warning.map(p => {
+                                            const searchQuery = `${selection.generation}${selection.connector_type ? ' ' + selection.connector_type : ''} ${p.part_type === 'case' ? 'charging case' : p.part_type + ' earbud'}`;
+                                            const ebayUrl = `https://www.ebay.co.uk/sch/i.html?_nkw=${encodeURIComponent(searchQuery)}&LH_Complete=1&LH_Sold=1`;
+                                            return `
+                                                <button class="btn btn-sm" onclick="openManualEntryModal('${p.part_type}', '${searchQuery}', '${searchQuery}', '${ebayUrl}')"
+                                                    style="padding:6px 12px;font-size:0.8rem;background:#f59e0b;color:white;border:none;border-radius:4px;cursor:pointer;">
+                                                    Refresh ${p.part_type} prices
+                                                </button>
+                                            `;
+                                        }).join('')}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
                 // Build the result HTML with support for partial parts
                 const getPartRow = (partType, label) => {
                     if (!selectedParts.includes(partType)) {
                         return ''; // Don't show parts that weren't selected
                     }
                     const part = calc.parts[partType];
-                    const isManual = manualPriceData[partType]?.is_manual;
+                    const isManual = manualPriceData[partType]?.is_manual || part?.is_manual;
+                    const isSaved = part?.is_saved;
+                    const isStale = part?.is_stale;
+                    const daysSinceUpdate = part?.days_since_update;
+
                     if (part) {
+                        let badge = '';
+                        if (isManual && !isSaved) {
+                            badge = ' <span class="manual-data-badge">Manual</span>';
+                        } else if (isStale) {
+                            badge = ` <span class="stale-data-badge" style="background:#f59e0b;color:white;font-size:0.7rem;padding:2px 6px;border-radius:3px;margin-left:4px;">Stale (${daysSinceUpdate}d)</span>`;
+                        } else if (isSaved) {
+                            badge = ` <span class="saved-data-badge" style="background:#10b981;color:white;font-size:0.7rem;padding:2px 6px;border-radius:3px;margin-left:4px;">Saved</span>`;
+                        }
                         return `
                             <div class="calc-row indent">
-                                <span>${label}${isManual ? ' <span class="manual-data-badge">Manual</span>' : ''}</span>
+                                <span>${label}${badge}</span>
                                 <span>£${part.avg_sale_price.toFixed(2)}</span>
                             </div>
                         `;
@@ -1874,6 +1999,7 @@
 
                 resultDiv.innerHTML = `
                     <div class="calculator-result">
+                        ${stalePriceWarningHtml}
                         <div class="calculator-card">
                             <h3>${data.display_name} - ${partsDisplayName}</h3>
 
