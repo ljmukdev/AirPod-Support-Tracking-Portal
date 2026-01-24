@@ -1151,6 +1151,21 @@ async function initializeDatabase() {
             }
         }
 
+        // Create indexes for manual eBay prices collection (for bid calculator)
+        try {
+            await db.collection('manual_ebay_prices').createIndex(
+                { generation: 1, connector_type: 1, part_type: 1 },
+                { unique: true }
+            );
+            await db.collection('manual_ebay_prices').createIndex({ created_at: -1 });
+            await db.collection('manual_ebay_prices').createIndex({ updated_at: -1 });
+            console.log('✅ Created manual_ebay_prices indexes');
+        } catch (err) {
+            if (!err.message.includes('already exists') && !err.message.includes('E11000')) {
+                console.error('Warning: Could not create manual_ebay_prices indexes:', err.message);
+            }
+        }
+
         // Create indexes for support tickets collection
         try {
             await db.collection('support_tickets').createIndex({ ticket_id: 1 }, { unique: true });
@@ -16817,6 +16832,10 @@ app.get('/api/admin/price-snapshot/bid-calculator', requireAuth, requireDB, asyn
 
         // Support for manual data input
         let manualData = {};
+        let savedManualPrices = {};
+        const staleDays = 3;
+        const staleThreshold = new Date(Date.now() - (staleDays * 24 * 60 * 60 * 1000));
+
         if (req.query.manual_data) {
             try {
                 manualData = JSON.parse(req.query.manual_data);
@@ -16833,6 +16852,33 @@ app.get('/api/admin/price-snapshot/bid-calculator', requireAuth, requireDB, asyn
             return res.status(400).json({ success: false, error: 'At least one part must be selected' });
         }
 
+        // Load saved manual prices from database for parts without fresh manual data
+        const dbQuery = { generation };
+        if (connectorType) {
+            dbQuery.connector_type = connectorType;
+        } else {
+            dbQuery.connector_type = { $in: [null, '', undefined] };
+        }
+
+        const savedPrices = await db.collection('manual_ebay_prices').find(dbQuery).toArray();
+        for (const price of savedPrices) {
+            const updatedAt = price.updated_at || price.created_at;
+            const isStale = updatedAt < staleThreshold;
+            const daysSinceUpdate = Math.floor((Date.now() - updatedAt) / (24 * 60 * 60 * 1000));
+
+            savedManualPrices[price.part_type] = {
+                avg_sale_price: price.avg_price,
+                prices: price.prices,
+                sales_count: price.prices.length,
+                is_manual: true,
+                is_saved: true,
+                updated_at: updatedAt,
+                days_since_update: daysSinceUpdate,
+                is_stale: isStale,
+                needs_refresh: isStale
+            };
+        }
+
         const displayName = connectorType ? `${generation} (${connectorType})` : generation;
         const partTypes = selectedParts; // Only process selected parts
         const partsData = {};
@@ -16840,16 +16886,18 @@ app.get('/api/admin/price-snapshot/bid-calculator', requireAuth, requireDB, asyn
         let combinedFees = 0;
         let combinedConsumables = 0;
         let partsWithData = 0;
+        let stalePartsWarning = [];
 
         for (const partType of partTypes) {
-            // Check if we have manual data for this part
+            // Check if we have fresh manual data from request for this part
             if (manualData[partType] && manualData[partType].avg_sale_price > 0) {
                 partsData[partType] = {
                     avg_sale_price: Math.round(manualData[partType].avg_sale_price * 100) / 100,
                     avg_fees: 0, // Manual entries don't have fee data, we'll estimate
                     avg_consumables: 0,
                     sales_count: manualData[partType].sales_count || 1,
-                    is_manual: true
+                    is_manual: true,
+                    is_fresh: true // Fresh data from current session
                 };
 
                 // Estimate fees as ~15% of sale price (typical eBay fees)
@@ -16863,6 +16911,44 @@ app.get('/api/admin/price-snapshot/bid-calculator', requireAuth, requireDB, asyn
                 partsWithData++;
                 continue; // Skip database query for this part
             }
+
+            // Check if we have saved manual prices from database for this part
+            if (savedManualPrices[partType] && savedManualPrices[partType].avg_sale_price > 0) {
+                const savedPrice = savedManualPrices[partType];
+                partsData[partType] = {
+                    avg_sale_price: Math.round(savedPrice.avg_sale_price * 100) / 100,
+                    avg_fees: 0,
+                    avg_consumables: 0,
+                    sales_count: savedPrice.sales_count || 1,
+                    is_manual: true,
+                    is_saved: true,
+                    updated_at: savedPrice.updated_at,
+                    days_since_update: savedPrice.days_since_update,
+                    is_stale: savedPrice.is_stale,
+                    needs_refresh: savedPrice.needs_refresh
+                };
+
+                // Estimate fees as ~15% of sale price (typical eBay fees)
+                partsData[partType].avg_fees = Math.round(savedPrice.avg_sale_price * 0.15 * 100) / 100;
+                // Estimate consumables as £1 per item
+                partsData[partType].avg_consumables = 1;
+
+                combinedSalePrice += partsData[partType].avg_sale_price;
+                combinedFees += partsData[partType].avg_fees;
+                combinedConsumables += partsData[partType].avg_consumables;
+                partsWithData++;
+
+                // Track stale parts for warning
+                if (savedPrice.is_stale) {
+                    stalePartsWarning.push({
+                        part_type: partType,
+                        days_since_update: savedPrice.days_since_update,
+                        updated_at: savedPrice.updated_at
+                    });
+                }
+                continue; // Skip database query for this part
+            }
+
             // Build match criteria
             const matchCriteria = {
                 'product_details.generation': generation,
@@ -16954,6 +17040,9 @@ app.get('/api/admin/price-snapshot/bid-calculator', requireAuth, requireDB, asyn
                 parts_with_data: partsWithDataList,
                 missing_parts: missingParts,
                 partial_data: partsData,
+                saved_manual_prices: savedManualPrices,
+                has_stale_prices: stalePartsWarning.length > 0,
+                stale_parts_warning: stalePartsWarning,
                 ebay_search_suggestions: missingParts.map(part => ({
                     part_type: part,
                     search_query: `${generation}${connectorType ? ' ' + connectorType : ''} ${part === 'case' ? 'charging case' : part + ' earbud'}`,
@@ -17012,11 +17101,175 @@ app.get('/api/admin/price-snapshot/bid-calculator', requireAuth, requireDB, asyn
                 max_bid: Math.round(maxBid * 100) / 100
             },
             historical_price: historicalPartsCount >= historicalThreshold ? Math.round(totalHistoricalPrice * 100) / 100 : null,
-            has_manual_data: Object.values(partsData).some(p => p && p.is_manual)
+            has_manual_data: Object.values(partsData).some(p => p && p.is_manual),
+            has_saved_manual_data: Object.values(partsData).some(p => p && p.is_saved),
+            has_stale_prices: stalePartsWarning.length > 0,
+            stale_parts_warning: stalePartsWarning,
+            saved_manual_prices: savedManualPrices
         });
 
     } catch (err) {
         console.error('Error in bid calculator:', err);
+        res.status(500).json({ success: false, error: 'Database error: ' + err.message });
+    }
+});
+
+// POST save manual eBay prices for a part
+app.post('/api/admin/price-snapshot/manual-prices', requireAuth, requireDB, async (req, res) => {
+    try {
+        const { generation, connector_type, part_type, prices } = req.body;
+
+        if (!generation || !part_type) {
+            return res.status(400).json({ success: false, error: 'Generation and part_type are required' });
+        }
+
+        if (!prices || !Array.isArray(prices) || prices.length === 0) {
+            return res.status(400).json({ success: false, error: 'At least one price is required' });
+        }
+
+        // Validate prices are numbers
+        const validPrices = prices.filter(p => typeof p === 'number' && p > 0);
+        if (validPrices.length === 0) {
+            return res.status(400).json({ success: false, error: 'At least one valid price is required' });
+        }
+
+        const avgPrice = validPrices.reduce((a, b) => a + b, 0) / validPrices.length;
+        const now = new Date();
+
+        // Upsert the manual price entry
+        await db.collection('manual_ebay_prices').updateOne(
+            {
+                generation: generation,
+                connector_type: connector_type || null,
+                part_type: part_type
+            },
+            {
+                $set: {
+                    prices: validPrices,
+                    avg_price: Math.round(avgPrice * 100) / 100,
+                    updated_at: now
+                },
+                $setOnInsert: {
+                    created_at: now
+                }
+            },
+            { upsert: true }
+        );
+
+        res.json({
+            success: true,
+            message: 'Manual prices saved successfully',
+            data: {
+                generation,
+                connector_type: connector_type || null,
+                part_type,
+                prices: validPrices,
+                avg_price: Math.round(avgPrice * 100) / 100,
+                updated_at: now
+            }
+        });
+
+    } catch (err) {
+        console.error('Error saving manual prices:', err);
+        res.status(500).json({ success: false, error: 'Database error: ' + err.message });
+    }
+});
+
+// GET saved manual eBay prices for a generation
+app.get('/api/admin/price-snapshot/manual-prices', requireAuth, requireDB, async (req, res) => {
+    try {
+        const generation = req.query.generation;
+        const connectorType = req.query.connector_type || null;
+        const staleDays = parseInt(req.query.stale_days) || 3;
+
+        if (!generation) {
+            return res.status(400).json({ success: false, error: 'Generation is required' });
+        }
+
+        // Build query
+        const query = { generation };
+        if (connectorType) {
+            query.connector_type = connectorType;
+        } else {
+            query.connector_type = { $in: [null, '', undefined] };
+        }
+
+        // Get all manual prices for this generation
+        const manualPrices = await db.collection('manual_ebay_prices')
+            .find(query)
+            .toArray();
+
+        const now = new Date();
+        const staleThreshold = new Date(now.getTime() - (staleDays * 24 * 60 * 60 * 1000));
+
+        // Process each price entry to add staleness info
+        const processedPrices = manualPrices.map(price => {
+            const updatedAt = price.updated_at || price.created_at;
+            const isStale = updatedAt < staleThreshold;
+            const daysSinceUpdate = Math.floor((now - updatedAt) / (24 * 60 * 60 * 1000));
+
+            return {
+                part_type: price.part_type,
+                prices: price.prices,
+                avg_price: price.avg_price,
+                updated_at: updatedAt,
+                days_since_update: daysSinceUpdate,
+                is_stale: isStale,
+                needs_refresh: isStale
+            };
+        });
+
+        // Convert to object keyed by part_type for easier frontend use
+        const pricesByPart = {};
+        for (const price of processedPrices) {
+            pricesByPart[price.part_type] = price;
+        }
+
+        res.json({
+            success: true,
+            generation,
+            connector_type: connectorType,
+            stale_threshold_days: staleDays,
+            manual_prices: pricesByPart,
+            has_any_stale: processedPrices.some(p => p.is_stale)
+        });
+
+    } catch (err) {
+        console.error('Error fetching manual prices:', err);
+        res.status(500).json({ success: false, error: 'Database error: ' + err.message });
+    }
+});
+
+// DELETE manual eBay prices for a specific part
+app.delete('/api/admin/price-snapshot/manual-prices', requireAuth, requireDB, async (req, res) => {
+    try {
+        const generation = req.query.generation;
+        const connectorType = req.query.connector_type || null;
+        const partType = req.query.part_type;
+
+        if (!generation || !partType) {
+            return res.status(400).json({ success: false, error: 'Generation and part_type are required' });
+        }
+
+        const query = {
+            generation,
+            part_type: partType
+        };
+        if (connectorType) {
+            query.connector_type = connectorType;
+        } else {
+            query.connector_type = { $in: [null, '', undefined] };
+        }
+
+        const result = await db.collection('manual_ebay_prices').deleteOne(query);
+
+        res.json({
+            success: true,
+            deleted: result.deletedCount > 0
+        });
+
+    } catch (err) {
+        console.error('Error deleting manual prices:', err);
         res.status(500).json({ success: false, error: 'Database error: ' + err.message });
     }
 });
