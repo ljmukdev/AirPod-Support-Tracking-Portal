@@ -16791,23 +16791,27 @@ app.get('/api/admin/price-snapshot/fees-by-platform', requireAuth, requireDB, as
 app.get('/api/admin/price-snapshot/all-generations', requireAuth, requireDB, async (req, res) => {
     try {
         // Get ALL unique generation + connector_type combinations from products (regardless of status)
+        // Normalize connector_type to handle case inconsistencies (e.g., "Lightning" vs "lightning")
         const variants = await db.collection('products').aggregate([
             { $match: { generation: { $exists: true, $ne: null, $ne: '' } } },
             {
                 $group: {
                     _id: {
                         generation: '$generation',
-                        connector_type: '$connector_type'
-                    }
+                        // Normalize connector_type to uppercase for grouping
+                        connector_type_normalized: { $toUpper: { $ifNull: ['$connector_type', ''] } }
+                    },
+                    // Keep the first original connector_type for display
+                    connector_type_original: { $first: '$connector_type' }
                 }
             },
-            { $sort: { '_id.generation': 1, '_id.connector_type': 1 } }
+            { $sort: { '_id.generation': 1, '_id.connector_type_normalized': 1 } }
         ]).toArray();
 
         const generations = variants.map(v => ({
             generation: v._id.generation,
-            connector_type: v._id.connector_type || null,
-            display_name: v._id.connector_type ? `${v._id.generation} (${v._id.connector_type})` : v._id.generation
+            connector_type: v.connector_type_original || null,
+            display_name: v.connector_type_original ? `${v._id.generation} (${v.connector_type_original})` : v._id.generation
         }));
 
         res.json({ success: true, generations });
@@ -16853,9 +16857,10 @@ app.get('/api/admin/price-snapshot/bid-calculator', requireAuth, requireDB, asyn
         }
 
         // Load saved manual prices from database for parts without fresh manual data
+        // Use case-insensitive matching for connector_type
         const dbQuery = { generation };
         if (connectorType) {
-            dbQuery.connector_type = connectorType;
+            dbQuery.connector_type = { $regex: new RegExp(`^${connectorType.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') };
         } else {
             dbQuery.connector_type = { $in: [null, '', undefined] };
         }
@@ -16998,12 +17003,14 @@ app.get('/api/admin/price-snapshot/bid-calculator', requireAuth, requireDB, asyn
             }
 
             // Build match criteria
+            // Use case-insensitive regex for connector_type to handle inconsistencies
             const matchCriteria = {
                 'product_details.generation': generation,
                 'product_details.part_type': partType
             };
             if (connectorType) {
-                matchCriteria['product_details.connector_type'] = connectorType;
+                // Case-insensitive match for connector_type
+                matchCriteria['product_details.connector_type'] = { $regex: new RegExp(`^${connectorType.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') };
             } else {
                 matchCriteria['product_details.connector_type'] = { $in: [null, '', undefined] };
             }
@@ -17103,15 +17110,19 @@ app.get('/api/admin/price-snapshot/bid-calculator', requireAuth, requireDB, asyn
         const maxBid = netRevenue - minProfit;
 
         // Get historical purchase price - only for selected parts
+        // Use case-insensitive matching for connector_type
+        const historicalMatch = {
+            generation: generation,
+            purchase_price: { $gt: 0 },
+            part_type: { $in: selectedParts }
+        };
+        if (connectorType) {
+            historicalMatch.connector_type = { $regex: new RegExp(`^${connectorType.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') };
+        } else {
+            historicalMatch.connector_type = { $in: [null, '', undefined] };
+        }
         const historicalPrices = await db.collection('products').aggregate([
-            {
-                $match: {
-                    generation: generation,
-                    connector_type: connectorType || { $in: [null, '', undefined] },
-                    purchase_price: { $gt: 0 },
-                    part_type: { $in: selectedParts }
-                }
-            },
+            { $match: historicalMatch },
             {
                 $group: {
                     _id: '$part_type',
