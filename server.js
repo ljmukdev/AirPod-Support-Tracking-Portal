@@ -4417,6 +4417,16 @@ app.get('/api/admin/tasks', requireAuth, requireDB, async (req, res) => {
                 continue; // Items are being returned, don't show split task
             }
 
+            // Skip if purchase has been refunded or has return tracking
+            if (purchase) {
+                if (purchase.status === 'refunded' || purchase.status === 'returned') {
+                    continue; // Purchase was refunded/returned, no need to split
+                }
+                if (purchase.return_tracking) {
+                    continue; // Return in progress, no need to split
+                }
+            }
+
             const checkInDate = checkIn.checked_in_date || checkIn.created_at;
             const daysSinceCheckIn = checkInDate ? (now - new Date(checkInDate)) / (1000 * 60 * 60 * 24) : 0;
             const isOverdue = daysSinceCheckIn > 3; // Overdue after 3 days
