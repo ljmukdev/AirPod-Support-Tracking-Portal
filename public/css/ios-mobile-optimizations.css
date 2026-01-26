@@ -166,11 +166,14 @@ label,
    ============================================ */
 
 /* Enable smooth scrolling without pull-to-refresh interference */
-html,
-body {
-    touch-action: pan-x pan-y;
-    overscroll-behavior: none;
-    overscroll-behavior-y: none;
+/* Only apply touch-specific optimizations on touch devices to avoid breaking mouse scroll wheel */
+@media (hover: none) and (pointer: coarse) {
+    html,
+    body {
+        touch-action: pan-x pan-y;
+        overscroll-behavior: none;
+        overscroll-behavior-y: none;
+    }
 }
 
 /* Buttons should respond immediately to taps */
