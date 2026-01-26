@@ -442,6 +442,16 @@
         }
         .calc-row .minus { color: #ef4444; }
         .calc-row .plus { color: #10b981; }
+        .fee-estimate-badge {
+            font-size: 0.7rem;
+            background: #fef3c7;
+            color: #92400e;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 500;
+            cursor: help;
+            vertical-align: middle;
+        }
         .calc-section-title {
             font-size: 0.8rem;
             text-transform: uppercase;
@@ -2014,7 +2024,7 @@
 
                             <div class="calc-section-title">Deductions</div>
                             <div class="calc-row">
-                                <span>Platform Fees (avg)</span>
+                                <span>Platform Fees (avg)${data.fee_estimation && data.fee_estimation.has_estimated_fees ? ` <span class="fee-estimate-badge" title="Fees estimated at ${data.fee_estimation.fee_percentage}% based on ${data.fee_estimation.sample_size > 0 ? data.fee_estimation.sample_size + ' recent sales' : 'default rate'}">(est.)</span>` : ''}</span>
                                 <span class="minus">-£${calc.combined_fees.toFixed(2)}</span>
                             </div>
                             <div class="calc-row">

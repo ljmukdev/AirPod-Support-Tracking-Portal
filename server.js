@@ -16888,6 +16888,52 @@ app.get('/api/admin/price-snapshot/bid-calculator', requireAuth, requireDB, asyn
         let partsWithData = 0;
         let stalePartsWarning = [];
 
+        // Calculate actual average fee percentage from recent eBay sales
+        // This replaces the hardcoded 15% estimate with real data
+        let actualFeePercentage = 0.15; // Default fallback
+        let feePercentageSource = 'default';
+        let feeDataSampleSize = 0;
+
+        const feeStats = await db.collection('sales').aggregate([
+            {
+                $match: {
+                    platform: 'eBay',
+                    sale_price: { $gt: 0 },
+                    $or: [
+                        { transaction_fees: { $gt: 0 } },
+                        { ad_fee_general: { $gt: 0 } }
+                    ]
+                }
+            },
+            { $sort: { sale_date: -1 } },
+            { $limit: 50 }, // Use last 50 eBay sales for fee calculation
+            {
+                $group: {
+                    _id: null,
+                    total_fees: {
+                        $sum: {
+                            $add: [
+                                { $ifNull: ['$transaction_fees', 0] },
+                                { $ifNull: ['$ad_fee_general', 0] }
+                            ]
+                        }
+                    },
+                    total_sale_price: { $sum: '$sale_price' },
+                    count: { $sum: 1 },
+                    avg_transaction_fees: { $avg: { $ifNull: ['$transaction_fees', 0] } },
+                    avg_ad_fees: { $avg: { $ifNull: ['$ad_fee_general', 0] } }
+                }
+            }
+        ]).toArray();
+
+        if (feeStats.length > 0 && feeStats[0].total_sale_price > 0) {
+            actualFeePercentage = feeStats[0].total_fees / feeStats[0].total_sale_price;
+            // Ensure the percentage is reasonable (between 5% and 25%)
+            actualFeePercentage = Math.max(0.05, Math.min(0.25, actualFeePercentage));
+            feePercentageSource = 'calculated';
+            feeDataSampleSize = feeStats[0].count;
+        }
+
         for (const partType of partTypes) {
             // Check if we have fresh manual data from request for this part
             if (manualData[partType] && manualData[partType].avg_sale_price > 0) {
@@ -16900,8 +16946,9 @@ app.get('/api/admin/price-snapshot/bid-calculator', requireAuth, requireDB, asyn
                     is_fresh: true // Fresh data from current session
                 };
 
-                // Estimate fees as ~15% of sale price (typical eBay fees)
-                partsData[partType].avg_fees = Math.round(manualData[partType].avg_sale_price * 0.15 * 100) / 100;
+                // Estimate fees using actual average fee percentage from recent sales
+                partsData[partType].avg_fees = Math.round(manualData[partType].avg_sale_price * actualFeePercentage * 100) / 100;
+                partsData[partType].fee_is_estimated = true;
                 // Estimate consumables as £1 per item
                 partsData[partType].avg_consumables = 1;
 
@@ -16928,8 +16975,9 @@ app.get('/api/admin/price-snapshot/bid-calculator', requireAuth, requireDB, asyn
                     needs_refresh: savedPrice.needs_refresh
                 };
 
-                // Estimate fees as ~15% of sale price (typical eBay fees)
-                partsData[partType].avg_fees = Math.round(savedPrice.avg_sale_price * 0.15 * 100) / 100;
+                // Estimate fees using actual average fee percentage from recent sales
+                partsData[partType].avg_fees = Math.round(savedPrice.avg_sale_price * actualFeePercentage * 100) / 100;
+                partsData[partType].fee_is_estimated = true;
                 // Estimate consumables as £1 per item
                 partsData[partType].avg_consumables = 1;
 
@@ -17084,6 +17132,9 @@ app.get('/api/admin/price-snapshot/bid-calculator', requireAuth, requireDB, asyn
         // Determine if we should show historical price (need data for at least half of selected parts)
         const historicalThreshold = Math.max(1, Math.floor(selectedParts.length / 2));
 
+        // Check if any parts have estimated fees
+        const hasEstimatedFees = Object.values(partsData).some(p => p && p.fee_is_estimated);
+
         res.json({
             success: true,
             display_name: displayName,
@@ -17105,7 +17156,14 @@ app.get('/api/admin/price-snapshot/bid-calculator', requireAuth, requireDB, asyn
             has_saved_manual_data: Object.values(partsData).some(p => p && p.is_saved),
             has_stale_prices: stalePartsWarning.length > 0,
             stale_parts_warning: stalePartsWarning,
-            saved_manual_prices: savedManualPrices
+            saved_manual_prices: savedManualPrices,
+            // Fee estimation info - tells frontend when fees are estimated vs actual
+            fee_estimation: {
+                has_estimated_fees: hasEstimatedFees,
+                fee_percentage: Math.round(actualFeePercentage * 10000) / 100, // e.g., 14.52%
+                fee_source: feePercentageSource, // 'calculated' or 'default'
+                sample_size: feeDataSampleSize
+            }
         });
 
     } catch (err) {
