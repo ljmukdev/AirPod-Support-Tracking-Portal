@@ -1,5 +1,5 @@
 // Check-In Management - Frontend Logic
-console.log('[CHECK-IN] Script loaded - v1.0.0');
+console.log('[CHECK-IN] Script loaded - v1.0.9');
 
 let currentPurchase = null;
 
@@ -26,7 +26,16 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('cancelButton').addEventListener('click', resetForm);
     
     // Submit check-in
-    document.getElementById('submitCheckIn').addEventListener('click', submitCheckIn);
+    const submitBtn = document.getElementById('submitCheckIn');
+    if (submitBtn) {
+        submitBtn.addEventListener('click', function(e) {
+            console.log('[CHECK-IN] Submit button clicked!');
+            submitCheckIn();
+        });
+        console.log('[CHECK-IN] Submit button event listener attached');
+    } else {
+        console.error('[CHECK-IN] Submit button not found!');
+    }
     
     // Sidebar toggle
     document.getElementById('sidebarToggle').addEventListener('click', function() {
@@ -391,20 +400,36 @@ function setupIssueEvidenceListeners(items, quantity) {
 }
 
 async function submitCheckIn() {
-    const submitButton = document.getElementById('submitCheckIn');
-    const errorBanner = document.getElementById('errorBanner');
-    const successBanner = document.getElementById('successBanner');
-    
-    // Hide previous messages
-    errorBanner.style.display = 'none';
-    successBanner.style.display = 'none';
-    
+    console.log('[CHECK-IN] submitCheckIn called');
+
+    let submitButton, errorBanner, successBanner;
+
+    try {
+        submitButton = document.getElementById('submitCheckIn');
+        errorBanner = document.getElementById('errorBanner');
+        successBanner = document.getElementById('successBanner');
+
+        console.log('[CHECK-IN] DOM elements found:', { submitButton: !!submitButton, errorBanner: !!errorBanner, successBanner: !!successBanner });
+
+        if (!errorBanner || !successBanner || !submitButton) {
+            console.error('[CHECK-IN] Required DOM elements not found!');
+            alert('Error: Form elements not found. Please refresh the page.');
+            return;
+        }
+
+        // Hide previous messages
+        errorBanner.style.display = 'none';
+        successBanner.style.display = 'none';
+
     if (!currentPurchase) {
+        console.log('[CHECK-IN] No currentPurchase loaded');
         errorBanner.textContent = 'No purchase loaded';
         errorBanner.style.display = 'block';
         return;
     }
-    
+
+    console.log('[CHECK-IN] currentPurchase:', currentPurchase._id, 'items_purchased:', currentPurchase.items_purchased);
+
     // Collect check-in data - normalize items_purchased to handle both formats
     const rawItems = currentPurchase.items_purchased || [];
     const items = rawItems.map(item => {
@@ -413,6 +438,9 @@ async function submitCheckIn() {
         return null;
     }).filter(Boolean);
     const quantity = currentPurchase.quantity || 1;
+
+    console.log('[CHECK-IN] Parsed items:', items, 'quantity:', quantity);
+
     const checkInData = {
         purchase_id: currentPurchase._id,
         tracking_number: currentPurchase.tracking_number,
@@ -426,11 +454,16 @@ async function submitCheckIn() {
         const fieldSuffix = quantity > 1 ? `_${setIndex}` : '';
 
         for (const item of items) {
-            const genuineRadio = document.querySelector(`input[name="genuine_${item}${fieldSuffix}"]:checked`);
-            const conditionRadio = document.querySelector(`input[name="condition_${item}${fieldSuffix}"]:checked`);
+            const genuineRadioName = `genuine_${item}${fieldSuffix}`;
+            const conditionRadioName = `condition_${item}${fieldSuffix}`;
+            const genuineRadio = document.querySelector(`input[name="${genuineRadioName}"]:checked`);
+            const conditionRadio = document.querySelector(`input[name="${conditionRadioName}"]:checked`);
+
+            console.log(`[CHECK-IN] Validating item: ${item}, set: ${setIndex}, genuine: ${genuineRadio?.value}, condition: ${conditionRadio?.value}`);
 
             if (!genuineRadio || !conditionRadio) {
-                errorBanner.textContent = 'Please complete all fields for each item';
+                console.log(`[CHECK-IN] Validation failed for item: ${item} - missing genuine=${!genuineRadio} or condition=${!conditionRadio}`);
+                errorBanner.textContent = `Please complete all fields for ${item} (set ${setIndex})`;
                 errorBanner.style.display = 'block';
                 hasErrors = true;
                 break;
@@ -491,14 +524,18 @@ async function submitCheckIn() {
     }
     
     // Submit the check-in
+    console.log('[CHECK-IN] Disabling button and starting submission...');
     submitButton.disabled = true;
     submitButton.textContent = 'Saving...';
-    
+
     try {
         const formData = new FormData();
         formData.append('purchase_id', checkInData.purchase_id);
         formData.append('tracking_number', checkInData.tracking_number || '');
         formData.append('items', JSON.stringify(checkInData.items));
+
+        console.log('[CHECK-IN] FormData created with purchase_id:', checkInData.purchase_id);
+        console.log('[CHECK-IN] Items to submit:', checkInData.items);
 
         for (let setIndex = 1; setIndex <= quantity; setIndex++) {
             const fieldSuffix = quantity > 1 ? `_${setIndex}` : '';
@@ -512,12 +549,15 @@ async function submitCheckIn() {
             }
         }
 
+        console.log('[CHECK-IN] About to call authenticatedFetch to /api/admin/check-in');
         const response = await authenticatedFetch(`${window.API_BASE}/api/admin/check-in`, {
             method: 'POST',
             body: formData
         });
-        
+
+        console.log('[CHECK-IN] Response received, status:', response.status);
         const data = await response.json();
+        console.log('[CHECK-IN] Response data:', data);
         
         if (response.ok && data.success) {
             // Check if there are any issues that require seller contact
@@ -538,11 +578,22 @@ async function submitCheckIn() {
             throw new Error(data.error || 'Failed to complete check-in');
         }
     } catch (error) {
-        console.error('[CHECK-IN] Error:', error);
+        console.error('[CHECK-IN] Error during submission:', error);
+        console.error('[CHECK-IN] Error stack:', error.stack);
         errorBanner.textContent = error.message || 'An error occurred. Please try again.';
         errorBanner.style.display = 'block';
         submitButton.disabled = false;
         submitButton.textContent = 'Complete Check-In';
+    }
+
+    } catch (outerError) {
+        console.error('[CHECK-IN] Unexpected error in submitCheckIn:', outerError);
+        console.error('[CHECK-IN] Outer error stack:', outerError.stack);
+        alert('An unexpected error occurred: ' + (outerError.message || 'Unknown error'));
+        if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.textContent = 'Complete Check-In';
+        }
     }
 }
 
