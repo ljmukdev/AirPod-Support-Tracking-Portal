@@ -8023,12 +8023,24 @@ app.put('/api/admin/product/:id/restock', requireAuth, requireDB, async (req, re
         restockHistory.push(restockRecord);
 
         // Build update data - set status to 'in_stock' (available for sale)
+        // Clear all sale-related fields so the product is fully available for a new sale
         const updateData = {
             status: 'in_stock',
             restock_count: restockCount,
             restock_history: restockHistory,
             last_restock_date: new Date(),
-            ebay_order_number: null // Clear the old order number since this is back in stock
+            ebay_order_number: null,
+            sales_order_number: null,
+            sale_date: null,
+            sale_price: null,
+            subtotal: null,
+            postage_charged: null,
+            transaction_fees: null,
+            postage_label_cost: null,
+            ad_fee_general: null,
+            order_total: null,
+            outward_tracking_number: null,
+            sale_notes: null
         };
 
         // Update security barcode if provided
@@ -12828,13 +12840,14 @@ app.put('/api/admin/sales/:id', requireAuth, requireDB, async (req, res) => {
 
         // Update ALL products in the sale (not just the first one)
         // Sales can have multiple products in the products array
+        // Only update products that are still marked as 'sold' - skip restocked products
         const productIds = existingSale.products && existingSale.products.length > 0
             ? existingSale.products.map(p => p.product_id)
             : [new ObjectId(existingSale.product_id)];
 
         for (const productId of productIds) {
             await db.collection('products').updateOne(
-                { _id: productId },
+                { _id: productId, status: 'sold' },
                 {
                     $set: {
                         status: 'sold',
