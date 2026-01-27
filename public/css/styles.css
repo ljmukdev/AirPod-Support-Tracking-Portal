@@ -1506,7 +1506,6 @@ aside.admin-sidebar {
     display: flex;
     align-items: center;
     gap: 8px;
-    flex-wrap: wrap;
 }
 
 .topbar-add-button {
@@ -1855,10 +1854,10 @@ body.add-product-page .form-fields-card {
         padding: 20px;
     }
 
-    /* Quick actions: move to own row below search bar */
+    /* Quick actions: full-width row below search bar */
     .admin-topbar {
-        padding: 8px 12px;
-        gap: 8px;
+        padding: 10px 12px;
+        gap: 0;
     }
 
     .topbar-left {
@@ -1866,12 +1865,11 @@ body.add-product-page .form-fields-card {
     }
 
     .topbar-quick-actions {
-        order: 10;
-        width: 100%;
+        flex-basis: 100%;
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 8px;
-        padding-top: 4px;
+        padding: 8px 0 2px;
     }
 
     .topbar-add-button {
