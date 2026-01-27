@@ -35,6 +35,10 @@ async function loadDashboardStats() {
         console.log('[Dashboard] Fetching purchases...');
         const purchasesResponse = await authenticatedFetch(`${window.API_BASE}/api/admin/purchases`);
 
+        // Also fetch sales for profit stats
+        console.log('[Dashboard] Fetching sales...');
+        const salesResponse = await authenticatedFetch(`${window.API_BASE}/api/admin/sales`);
+
         console.log('[Dashboard] Response status:', response.status);
 
         if (!response.ok) {
@@ -160,6 +164,42 @@ async function loadDashboardStats() {
             }
         } else {
             console.warn('[Dashboard] Failed to load purchases:', purchasesResponse.status);
+        }
+
+        // Process sales data for profit stats
+        console.log('[Dashboard] Processing sales data...');
+        if (salesResponse.ok) {
+            const salesData = await salesResponse.json();
+            const sales = salesData.sales || [];
+            console.log('[Dashboard] Received sales:', sales.length);
+
+            const now = new Date();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+
+            let monthlyProfit = 0;
+            let monthlyRevenue = 0;
+            let monthlySalesCount = 0;
+            let totalProfit = 0;
+
+            sales.forEach(sale => {
+                const profit = parseFloat(sale.profit) || 0;
+                const revenue = parseFloat(sale.sale_price) || 0;
+                totalProfit += profit;
+
+                if (sale.sale_date) {
+                    const saleDate = new Date(sale.sale_date);
+                    if (saleDate.getMonth() === currentMonth && saleDate.getFullYear() === currentYear) {
+                        monthlyProfit += profit;
+                        monthlyRevenue += revenue;
+                        monthlySalesCount++;
+                    }
+                }
+            });
+
+            displaySalesStats({ monthlyProfit, monthlyRevenue, monthlySalesCount, totalProfit });
+        } else {
+            console.warn('[Dashboard] Failed to load sales:', salesResponse.status);
         }
     } catch (error) {
         console.error('Error loading stats:', error);
@@ -338,6 +378,35 @@ function displayPurchaseStats(stats) {
                 recentPurchasesContainer.appendChild(item);
             });
         }
+    }
+}
+
+function displaySalesStats(stats) {
+    const formatCurrency = (value) => {
+        const prefix = value < 0 ? '-£' : '£';
+        return prefix + Math.abs(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
+
+    const monthlyProfitEl = document.getElementById('statMonthlyProfit');
+    if (monthlyProfitEl) {
+        monthlyProfitEl.textContent = formatCurrency(stats.monthlyProfit);
+        monthlyProfitEl.style.color = stats.monthlyProfit >= 0 ? '#10b981' : '#ef4444';
+    }
+
+    const monthlyRevenueEl = document.getElementById('statMonthlyRevenue');
+    if (monthlyRevenueEl) {
+        monthlyRevenueEl.textContent = formatCurrency(stats.monthlyRevenue);
+    }
+
+    const monthlySalesCountEl = document.getElementById('statMonthlySalesCount');
+    if (monthlySalesCountEl) {
+        monthlySalesCountEl.textContent = stats.monthlySalesCount.toLocaleString();
+    }
+
+    const totalProfitEl = document.getElementById('statTotalProfit');
+    if (totalProfitEl) {
+        totalProfitEl.textContent = formatCurrency(stats.totalProfit);
+        totalProfitEl.style.color = stats.totalProfit >= 0 ? '#10b981' : '#ef4444';
     }
 }
 
