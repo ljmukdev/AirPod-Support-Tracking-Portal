@@ -775,7 +775,8 @@ async function lookupProductByBarcode(barcode) {
                 statusDiv.style.color = '#dc2626';
                 statusDiv.style.border = '1px solid #fecaca';
                 statusDiv.style.borderLeft = '4px solid #ef4444';
-                statusDiv.innerHTML = `<strong>❌ Not Available</strong> - This product has already been sold or is marked as faulty.`;
+                const productSearchQuery = product.serial_number || product.security_barcode || product._id;
+                statusDiv.innerHTML = `<strong>❌ Not Available</strong> - This product has already been sold or is marked as faulty.<br><a href="/admin/search-product.html?q=${encodeURIComponent(productSearchQuery)}" target="_blank" style="color: #2563eb; text-decoration: underline; font-size: 13px;">View product to mark as returned &amp; put back in stock →</a>`;
                 selectedProductId.value = '';
                 return;
             }
