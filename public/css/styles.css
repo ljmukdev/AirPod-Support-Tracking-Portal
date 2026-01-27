@@ -1852,18 +1852,24 @@ body.add-product-page .form-fields-card {
         width: 100%;
         display: flex;
         flex-wrap: nowrap;
-        gap: 8px;
+        gap: 6px;
         padding-top: 4px;
-        overflow-x: auto;
     }
 
     .topbar-add-button {
         justify-content: center;
-        padding: 10px 8px;
-        font-size: 0.8rem;
+        padding: 8px 6px;
+        font-size: 0.75rem;
         border-radius: 8px;
         flex: 1;
         min-width: 0;
+        gap: 3px;
+    }
+
+    .topbar-add-button svg {
+        width: 10px;
+        height: 10px;
+        flex-shrink: 0;
     }
 }
 
