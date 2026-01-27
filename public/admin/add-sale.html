@@ -999,9 +999,14 @@
                     return;
                 }
 
+                const consumable = consumableIdMap.get(String(consumableId));
+                const unitCost = consumable
+                    ? (parseFloat(consumable.unit_cost) || parseFloat(consumable.price_per_unit) || 0)
+                    : 0;
                 selectedConsumables.push({
                     consumable_id: consumableId,
                     name: checkbox.dataset.name,
+                    cost: unitCost,
                     quantity: quantity
                 });
             }

@@ -12681,8 +12681,13 @@ app.put('/api/admin/sales/:id', requireAuth, requireDB, async (req, res) => {
             console.log('[DERIVED SALE UPDATE] Existing product order_total:', product.order_total);
 
             // Handle consumables stock updates for derived sales
-            const updatedConsumables = Array.isArray(consumables) ? consumables : [];
+            // Preserve stored costs: if incoming consumable has no cost, use existing stored cost
             const oldConsumables = product.sale_consumables || [];
+            const oldCostMap = new Map(oldConsumables.map(item => [String(item.consumable_id), parseFloat(item.cost) || 0]));
+            const updatedConsumables = Array.isArray(consumables) ? consumables.map(item => ({
+                ...item,
+                cost: (parseFloat(item.cost) || 0) > 0 ? parseFloat(item.cost) : (oldCostMap.get(String(item.consumable_id)) || 0)
+            })) : [];
             const oldMap = new Map(oldConsumables.map(item => [String(item.consumable_id), item.quantity || 0]));
             const newMap = new Map(updatedConsumables.map(item => [String(item.consumable_id), item.quantity || 0]));
             const allConsumableIds = new Set([...oldMap.keys(), ...newMap.keys()]);
@@ -12779,8 +12784,13 @@ app.put('/api/admin/sales/:id', requireAuth, requireDB, async (req, res) => {
             return res.status(400).json({ error: 'Editing the product for a sale is not supported' });
         }
         
-        const updatedConsumables = Array.isArray(consumables) ? consumables : existingSale.consumables || [];
+        // Preserve stored costs: if incoming consumable has no cost, use existing stored cost
         const oldConsumables = existingSale.consumables || [];
+        const oldCostMap = new Map(oldConsumables.map(item => [String(item.consumable_id), parseFloat(item.cost) || 0]));
+        const updatedConsumables = Array.isArray(consumables) ? consumables.map(item => ({
+            ...item,
+            cost: (parseFloat(item.cost) || 0) > 0 ? parseFloat(item.cost) : (oldCostMap.get(String(item.consumable_id)) || 0)
+        })) : existingSale.consumables || [];
         const oldMap = new Map(oldConsumables.map(item => [String(item.consumable_id), item.quantity || 0]));
         const newMap = new Map(updatedConsumables.map(item => [String(item.consumable_id), item.quantity || 0]));
         const allConsumableIds = new Set([...oldMap.keys(), ...newMap.keys()]);

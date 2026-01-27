@@ -1376,10 +1376,13 @@ async function openEditSaleModal(id) {
         selectedConsumables = (sale.consumables || []).map(item => {
             const consumableId = normalizeConsumableId(item.consumable_id);
             const consumable = consumablesMap.get(consumableId);
+            // Always preserve the stored cost from the sale record as fallback
+            const storedCost = parseFloat(item.cost) || 0;
+            const currentCost = consumable ? (parseFloat(consumable.unit_cost) || parseFloat(consumable.price_per_unit) || 0) : 0;
             return {
                 consumable_id: consumableId,
                 name: consumable?.item_name || consumable?.name || item.name || 'Unknown',
-                cost: consumable?.unit_cost ?? consumable?.price_per_unit ?? item.cost ?? 0,
+                cost: consumable ? currentCost : storedCost,
                 quantity: normalizeQuantity(item.quantity)
             };
         });
@@ -1735,14 +1738,20 @@ async function loadTemplate() {
                         selectedConsumables.push({
                             consumable_id: currentConsumable._id,
                             name: currentConsumable.item_name || currentConsumable.name,
-                            cost: currentConsumable.unit_cost || currentConsumable.price_per_unit || 0,
+                            cost: parseFloat(currentConsumable.unit_cost) || parseFloat(currentConsumable.price_per_unit) || 0,
                             quantity: templateItem.quantity
                         });
                     } else {
-                        // Consumable no longer exists - show warning but include with stored data
-                        const templateName = templateItem.name || templateItem.item_name;
-                        console.warn(`Consumable ${templateName} (ID: ${templateItem.consumable_id}) no longer exists`);
-                        alert(`Warning: Consumable "${templateName}" no longer exists in inventory. It will be skipped.`);
+                        // Consumable no longer exists - preserve stored template data with warning
+                        const templateName = templateItem.name || templateItem.item_name || 'Unknown';
+                        const templateCost = parseFloat(templateItem.cost) || parseFloat(templateItem.unit_cost) || 0;
+                        console.warn(`Consumable ${templateName} (ID: ${templateItem.consumable_id}) no longer exists in inventory, using stored cost`);
+                        selectedConsumables.push({
+                            consumable_id: templateItem.consumable_id,
+                            name: templateName + ' (removed from inventory)',
+                            cost: templateCost,
+                            quantity: templateItem.quantity
+                        });
                     }
                 }
                 
