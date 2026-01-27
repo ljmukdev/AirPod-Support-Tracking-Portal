@@ -101,25 +101,7 @@ h3 {
 
 /* Version Display */
 .version-display {
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    font-size: 0.7rem;
-    color: rgba(0, 0, 0, 0.6);
-    font-family: 'Courier New', monospace;
-    z-index: 9999;
-    padding: 4px 8px;
-    background-color: rgba(255, 255, 255, 0.85);
-    border-radius: 4px;
-    -webkit-backdrop-filter: blur(4px);
-    backdrop-filter: blur(4px);
-    transition: opacity 0.3s ease;
-    -webkit-user-select: none;
-    user-select: none;
-    pointer-events: none;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    opacity: 1 !important;
-    display: block !important;
+    display: none !important;
 }
 
 .version-display:hover {
@@ -1370,7 +1352,7 @@ aside.admin-sidebar {
 .admin-topbar {
     background-color: var(--background-white);
     border-bottom: 1px solid #e5e7eb;
-    padding: 0 24px;
+    padding: 12px 24px;
     min-height: 64px;
     display: flex;
     align-items: center;
@@ -1505,8 +1487,8 @@ aside.admin-sidebar {
 .topbar-quick-actions {
     display: flex;
     align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
+    gap: 10px;
+    flex-wrap: nowrap;
 }
 
 .topbar-add-button {
@@ -1868,10 +1850,11 @@ body.add-product-page .form-fields-card {
     .topbar-quick-actions {
         order: 10;
         width: 100%;
-        display: grid;
-        grid-template-columns: 1fr 1fr;
+        display: flex;
+        flex-wrap: nowrap;
         gap: 8px;
         padding-top: 4px;
+        overflow-x: auto;
     }
 
     .topbar-add-button {
@@ -1879,6 +1862,8 @@ body.add-product-page .form-fields-card {
         padding: 10px 8px;
         font-size: 0.8rem;
         border-radius: 8px;
+        flex: 1;
+        min-width: 0;
     }
 }
 
