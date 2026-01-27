@@ -1375,6 +1375,8 @@ aside.admin-sidebar {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     position: sticky;
     top: 0;
@@ -1500,6 +1502,13 @@ aside.admin-sidebar {
     color: var(--text-dark);
 }
 
+.topbar-quick-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
 .topbar-add-button {
     display: inline-flex;
     align-items: center;
@@ -1513,7 +1522,6 @@ aside.admin-sidebar {
     font-weight: 500;
     transition: background-color 0.2s ease;
     white-space: nowrap;
-    margin-left: 12px;
 }
 
 .topbar-add-button:hover {
@@ -1834,17 +1842,43 @@ body.add-product-page .form-fields-card {
     .topbar-search-form {
         max-width: 200px;
     }
-    
+
     .topbar-user-name {
         display: none;
     }
-    
+
     .admin-content {
         padding: 12px;
     }
-    
+
     .admin-form {
         padding: 20px;
+    }
+
+    /* Quick actions: move to own row below search bar */
+    .admin-topbar {
+        padding: 8px 12px;
+        gap: 8px;
+    }
+
+    .topbar-left {
+        gap: 8px;
+    }
+
+    .topbar-quick-actions {
+        order: 10;
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        padding-top: 4px;
+    }
+
+    .topbar-add-button {
+        justify-content: center;
+        padding: 10px 8px;
+        font-size: 0.8rem;
+        border-radius: 8px;
     }
 }
 
