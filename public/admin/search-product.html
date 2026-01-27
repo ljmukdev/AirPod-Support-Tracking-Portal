@@ -935,6 +935,23 @@
             }
         }
 
+        async function deleteSearchSale(saleId) {
+            if (!confirm('Delete this sale? This will mark the product(s) as unsold and back in stock.')) return;
+            try {
+                const response = await authenticatedFetch(`${window.API_BASE}/api/admin/sales/${saleId}`, { method: 'DELETE' });
+                if (response.ok) {
+                    alert('Sale deleted successfully. Products have been marked as unsold.');
+                    document.getElementById('searchForm').dispatchEvent(new Event('submit'));
+                } else {
+                    const error = await response.json();
+                    alert(`Failed to delete sale: ${error.error || error.message || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Error deleting sale:', error);
+                alert(`Error deleting sale: ${error.message || 'Unknown error'}`);
+            }
+        }
+
         function displaySales(sales) {
             const container = document.getElementById('salesResults');
             const formatDate = (date) => date ? new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A';
@@ -947,7 +964,11 @@
                     <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #9c27b0;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                             <h3 style="margin: 0; color: #333;">Order: ${sale.order_number || 'N/A'}</h3>
-                            <span style="padding: 4px 12px; background: #9c27b0; color: white; border-radius: 4px; font-size: 0.85rem;">${sale.platform || 'Unknown'}</span>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <span style="padding: 4px 12px; background: #9c27b0; color: white; border-radius: 4px; font-size: 0.85rem;">${sale.platform || 'Unknown'}</span>
+                                <a href="sales.html" target="_blank" style="padding: 4px 12px; background: #2563eb; color: white; border-radius: 4px; font-size: 0.85rem; text-decoration: none; cursor: pointer;">Edit</a>
+                                <button onclick="deleteSearchSale('${sale.id}')" style="padding: 4px 12px; background: #dc2626; color: white; border-radius: 4px; font-size: 0.85rem; border: none; cursor: pointer;">Delete</button>
+                            </div>
                         </div>
                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
                             <div><strong>Date:</strong> ${formatDate(sale.sale_date)}</div>
