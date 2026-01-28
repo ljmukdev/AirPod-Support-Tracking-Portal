@@ -3145,8 +3145,8 @@ function getFallbackExampleImage(partType, partModelNumber) {
         'A3047': '/images/examples/airpod-pro-2nd-gen-left.svg',  // Left earbud USB-C
         'A3048': '/images/examples/airpod-pro-2nd-gen-right.svg',  // Right earbud USB-C
         // AirPods Pro 1st Gen
-        'A2084': '/images/examples/airpod-pro-1st-gen-left.svg',
-        'A2083': '/images/examples/airpod-pro-1st-gen-right.svg',
+        'A2084': '/images/examples/airpod-pro-1st-gen-right.svg',
+        'A2083': '/images/examples/airpod-pro-1st-gen-left.svg',
         'A2190': '/images/examples/airpod-pro-1st-gen-case.svg',
         'A2190-L': '/images/examples/airpod-pro-1st-gen-case.svg', // Lightning case
         // AirPods 3rd Gen

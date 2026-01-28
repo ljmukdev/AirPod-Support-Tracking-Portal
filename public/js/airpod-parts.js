@@ -97,12 +97,12 @@ const airpodParts = {
     },
     'AirPods Pro (1st Gen)': {
         'Earbuds (Right)': {
-            partModelNumber: 'A2083',
+            partModelNumber: 'A2084',
             partType: 'right',
             notes: 'Identified in teardown'
         },
         'Earbuds (Left)': {
-            partModelNumber: 'A2084',
+            partModelNumber: 'A2083',
             partType: 'left',
             notes: 'Identified in teardown'
         },

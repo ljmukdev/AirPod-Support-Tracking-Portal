@@ -77,19 +77,19 @@
     },
     "A2084": {
       "partModelNumber": "A2084",
-      "partType": "left",
+      "partType": "right",
       "generation": "AirPods Pro (1st Gen)",
       "purchasedPart": {
-        "name": "Left AirPod Pro 1st Gen",
-        "exampleImage": "images/examples/airpod-pro-1st-gen-left.svg"
+        "name": "Right AirPod Pro 1st Gen",
+        "exampleImage": "images/examples/airpod-pro-1st-gen-right.svg"
       },
       "compatibleParts": [
         {
           "partModelNumber": "A2083",
-          "partType": "right",
-          "name": "Right AirPod Pro 1st Gen",
-          "exampleImage": "images/examples/airpod-pro-1st-gen-right.svg",
-          "description": "Right AirPod Pro 1st Gen - should match your left AirPod"
+          "partType": "left",
+          "name": "Left AirPod Pro 1st Gen",
+          "exampleImage": "images/examples/airpod-pro-1st-gen-left.svg",
+          "description": "Left AirPod Pro 1st Gen - should match your right AirPod"
         },
         {
           "partModelNumber": "A2190",
@@ -102,19 +102,19 @@
     },
     "A2083": {
       "partModelNumber": "A2083",
-      "partType": "right",
+      "partType": "left",
       "generation": "AirPods Pro (1st Gen)",
       "purchasedPart": {
-        "name": "Right AirPod Pro 1st Gen",
-        "exampleImage": "images/examples/airpod-pro-1st-gen-right.svg"
+        "name": "Left AirPod Pro 1st Gen",
+        "exampleImage": "images/examples/airpod-pro-1st-gen-left.svg"
       },
       "compatibleParts": [
         {
           "partModelNumber": "A2084",
-          "partType": "left",
-          "name": "Left AirPod Pro 1st Gen",
-          "exampleImage": "images/examples/airpod-pro-1st-gen-left.svg",
-          "description": "Left AirPod Pro 1st Gen - should match your right AirPod"
+          "partType": "right",
+          "name": "Right AirPod Pro 1st Gen",
+          "exampleImage": "images/examples/airpod-pro-1st-gen-right.svg",
+          "description": "Right AirPod Pro 1st Gen - should match your left AirPod"
         },
         {
           "partModelNumber": "A2190",
@@ -135,14 +135,14 @@
       },
       "compatibleParts": [
         {
-          "partModelNumber": "A2084",
+          "partModelNumber": "A2083",
           "partType": "left",
           "name": "Left AirPod Pro 1st Gen",
           "exampleImage": "images/examples/airpod-pro-1st-gen-left.svg",
           "description": "Left AirPod Pro 1st Gen"
         },
         {
-          "partModelNumber": "A2083",
+          "partModelNumber": "A2084",
           "partType": "right",
           "name": "Right AirPod Pro 1st Gen",
           "exampleImage": "images/examples/airpod-pro-1st-gen-right.svg",

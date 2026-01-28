@@ -1352,8 +1352,8 @@ async function populateInitialParts() {
         {generation: 'AirPods (4th Gen) standard line (ANC version)', part_name: 'Earbuds (Right)', part_model_number: 'A3056 / A3057', part_type: 'right', notes: 'ANC version of standard line (multiple model numbers)', display_order: 2, date_added: new Date()},
         {generation: 'AirPods (4th Gen) standard line (ANC version)', part_name: 'Charging Case', part_model_number: 'A3059', part_type: 'case', notes: 'ANC case', display_order: 3, date_added: new Date()},
         // AirPods Pro (1st Gen)
-        {generation: 'AirPods Pro (1st Gen)', part_name: 'Earbuds (Right)', part_model_number: 'A2083', part_type: 'right', notes: 'Identified in teardown', display_order: 1, date_added: new Date()},
-        {generation: 'AirPods Pro (1st Gen)', part_name: 'Earbuds (Left)', part_model_number: 'A2084', part_type: 'left', notes: 'Identified in teardown', display_order: 2, date_added: new Date()},
+        {generation: 'AirPods Pro (1st Gen)', part_name: 'Earbuds (Right)', part_model_number: 'A2084', part_type: 'right', notes: 'Identified in teardown', display_order: 1, date_added: new Date()},
+        {generation: 'AirPods Pro (1st Gen)', part_name: 'Earbuds (Left)', part_model_number: 'A2083', part_type: 'left', notes: 'Identified in teardown', display_order: 2, date_added: new Date()},
         {generation: 'AirPods Pro (1st Gen)', part_name: 'Charging Case', part_model_number: 'A2190', part_type: 'case', notes: 'MagSafe case first Pro', display_order: 3, date_added: new Date()},
         {generation: 'AirPods Pro (1st Gen)', part_name: 'Charging Case (Lightning)', part_model_number: 'A2190-L', part_type: 'case', notes: 'Lightning case for Pro 1st Gen', display_order: 4, date_added: new Date()},
         {generation: 'AirPods Pro (1st Gen)', part_name: 'Service Kit Replacement Pods (Left)', part_model_number: '661-17164', part_type: 'left', notes: 'Internal service kit', display_order: 5, date_added: new Date()},
@@ -13423,9 +13423,9 @@ app.get('/api/compatible-parts/:partModelNumber', requireDB, async (req, res) =>
             'A3047': ['A3048', 'A2968'],  // Right AirPod USB-C -> Left AirPod USB-C, Case USB-C
             'A3048': ['A3047', 'A2968'],  // Right AirPod USB-C -> Left AirPod USB-C, Case USB-C
             // AirPods Pro 1st Gen
-            'A2084': ['A2083', 'A2190'],  // Left AirPod -> Right AirPod, Case
-            'A2083': ['A2084', 'A2190'],  // Right AirPod -> Left AirPod, Case
-            'A2190': ['A2084', 'A2083'],  // Case -> Left AirPod, Right AirPod
+            'A2084': ['A2083', 'A2190'],  // Right AirPod -> Left AirPod, Case
+            'A2083': ['A2084', 'A2190'],  // Left AirPod -> Right AirPod, Case
+            'A2190': ['A2083', 'A2084'],  // Case -> Left AirPod, Right AirPod
             // AirPods 3rd Gen
             'A2564': ['A2565', 'A2566'],  // Left AirPod -> Right AirPod, Case
             'A2565': ['A2564', 'A2566'],  // Right AirPod -> Left AirPod, Case
