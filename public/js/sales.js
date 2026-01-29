@@ -2179,6 +2179,7 @@ function showError(message) {
 window.viewSale = viewSale;
 window.editSale = editSale;
 window.deleteSale = deleteSale;
+window.returnSale = returnSale;
 window.removeConsumable = removeConsumable;
 window.closeSaleModal = closeSaleModal;
 window.closeTemplatesModal = closeTemplatesModal;
