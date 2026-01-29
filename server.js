@@ -7714,7 +7714,14 @@ app.put('/api/admin/product/:id/return', requireAuth, requireDB, async (req, res
         if (!product) {
             return res.status(404).json({ error: 'Product not found' });
         }
-        
+
+        // Prevent returning an already-returned product
+        if (product.status === 'returned') {
+            return res.status(400).json({
+                error: 'Product is already marked as returned. Use "Edit Return Details" to update return information, or restock the item first before marking a new return.'
+            });
+        }
+
         const currentReturnCount = product.return_count || 0;
         const totalRefundAmount = (product.total_refund_amount || 0) + refundAmount;
         const totalPostageLost = (product.total_postage_lost || 0) + originalPostage;
