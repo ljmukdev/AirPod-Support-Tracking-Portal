@@ -3383,6 +3383,12 @@ html {
     border-color: #fecaca;
 }
 
+.sale-card-action.return:hover {
+    background: #fff7ed;
+    color: #ea580c;
+    border-color: #fed7aa;
+}
+
 /* Desktop Table Improvements */
 .products-table th {
     white-space: nowrap;
@@ -3455,6 +3461,12 @@ html {
     background: #fef2f2;
     color: #dc2626;
     border-color: #fecaca;
+}
+
+.sale-action-btn.return:hover {
+    background: #fff7ed;
+    color: #ea580c;
+    border-color: #fed7aa;
 }
 
 /* Fees breakdown tooltip styling */

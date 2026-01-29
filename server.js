@@ -7836,6 +7836,71 @@ app.put('/api/admin/product/:id/return-details', requireAuth, requireDB, async (
     }
 });
 
+// Undo accidental return - decrement return count (Admin only)
+app.put('/api/admin/product/:id/undo-return', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid product ID' });
+    }
+
+    try {
+        const product = await db.collection('products').findOne({ _id: new ObjectId(id) });
+
+        if (!product) {
+            return res.status(404).json({ error: 'Product not found' });
+        }
+
+        if (product.status !== 'returned') {
+            return res.status(400).json({ error: 'Product is not marked as returned' });
+        }
+
+        const currentReturnCount = product.return_count || 0;
+
+        if (currentReturnCount <= 1) {
+            return res.status(400).json({
+                error: 'Cannot undo return - return count is already at 1. Use "Restock" or "Reopen" to change the product status instead.'
+            });
+        }
+
+        // Decrement return count and halve the doubled totals
+        const newReturnCount = currentReturnCount - 1;
+        const refundAmount = product.refund_amount || 0;
+        const originalPostage = product.original_postage_packaging || 0;
+        const returnPostage = product.return_postage_cost || 0;
+
+        // Reset totals to single return values
+        const updateData = {
+            return_count: newReturnCount,
+            total_refund_amount: refundAmount,
+            total_postage_lost: originalPostage + returnPostage,
+            total_return_cost: refundAmount + originalPostage + returnPostage
+        };
+
+        const result = await db.collection('products').updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updateData }
+        );
+
+        if (result.matchedCount === 0) {
+            res.status(404).json({ error: 'Product not found' });
+        } else {
+            console.log('Undo return successful, ID:', id, 'New return count:', newReturnCount);
+            res.json({
+                success: true,
+                message: `Return count corrected from ${currentReturnCount} to ${newReturnCount}`,
+                return_count: newReturnCount,
+                total_refund_amount: updateData.total_refund_amount,
+                total_postage_lost: updateData.total_postage_lost,
+                total_return_cost: updateData.total_return_cost
+            });
+        }
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // Reopen/Reactivate a returned product (Admin only)
 app.put('/api/admin/product/:id/reopen', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;

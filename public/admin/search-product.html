@@ -878,13 +878,58 @@
             const urlParams = new URLSearchParams(window.location.search);
             const securityBarcode = urlParams.get('security_barcode');
             const q = urlParams.get('q');
+            const productId = urlParams.get('id');
+            const action = urlParams.get('action');
             const searchTerm = securityBarcode || q;
 
-            if (searchTerm) {
+            // Store pending action for after product loads
+            if (action) {
+                window.pendingAction = action;
+            }
+
+            if (productId) {
+                // Direct product lookup by ID
+                loadProductById(productId);
+            } else if (searchTerm) {
                 document.getElementById('universalSearch').value = searchTerm;
                 document.getElementById('searchForm').dispatchEvent(new Event('submit'));
             }
         });
+
+        // Load product directly by ID
+        async function loadProductById(productId) {
+            try {
+                document.getElementById('loadingMessage').style.display = 'block';
+                document.getElementById('searchResults').style.display = 'none';
+
+                const apiBase = window.API_BASE || '';
+                const response = await authenticatedFetch(`${apiBase}/api/admin/product/${productId}`);
+
+                if (response.ok) {
+                    const product = await response.json();
+                    // Format product for display
+                    product.id = product._id;
+                    displayProduct(product);
+
+                    // Trigger pending action after product is displayed
+                    if (window.pendingAction === 'return' && product.status !== 'returned') {
+                        setTimeout(() => {
+                            const markReturnedBtn = document.getElementById('markReturnedBtn');
+                            if (markReturnedBtn) {
+                                markReturnedBtn.click();
+                            }
+                        }, 100);
+                    }
+                } else {
+                    showError('Product not found');
+                }
+            } catch (error) {
+                console.error('Error loading product:', error);
+                showError('Error loading product');
+            } finally {
+                document.getElementById('loadingMessage').style.display = 'none';
+            }
+        }
 
         function displaySearchSummary(data) {
             const summary = data.summary;
@@ -1356,11 +1401,18 @@
                     <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                             <strong>⚠️ Product Status: RETURNED</strong>
-                            <button id="editReturnDetailsBtn" class="button" style="background: #007bff; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.9rem;">
-                                ✏️ Edit Return Details
-                            </button>
+                            <div style="display: flex; gap: 8px;">
+                                ${product.return_count > 1 ? `
+                                    <button id="undoReturnBtn" class="button" style="background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.9rem;">
+                                        ↩️ Undo Duplicate Return
+                                    </button>
+                                ` : ''}
+                                <button id="editReturnDetailsBtn" class="button" style="background: #007bff; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.9rem;">
+                                    ✏️ Edit Return Details
+                                </button>
+                            </div>
                         </div>
-                        ${product.return_count ? `<p style="margin: 5px 0;">Return Count: ${product.return_count}</p>` : ''}
+                        ${product.return_count ? `<p style="margin: 5px 0;">Return Count: ${product.return_count}${product.return_count > 1 ? ' <span style="color: #dc3545; font-weight: bold;">(Possible duplicate!)</span>' : ''}</p>` : ''}
                         ${product.return_reason ? `<p style="margin: 5px 0;"><strong>Reason:</strong> ${product.return_reason}</p>` : ''}
                         ${product.item_opened !== undefined ? `<p style="margin: 5px 0;"><strong>Condition:</strong> <span style="display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 4px; font-size: 0.85rem; ${product.item_opened ? 'background: #fff3cd; color: #856404;' : 'background: #d4edda; color: #155724;'}">${product.item_opened ? '📦 Opened (seal broken)' : '✅ Sealed (unopened)'}</span></p>` : ''}
                         ${product.refund_amount !== undefined ? `<p style="margin: 5px 0;"><strong>Refund Amount:</strong> £${parseFloat(product.refund_amount).toFixed(2)}</p>` : ''}
@@ -1657,6 +1709,34 @@
                 }
             }
             
+            if (e.target.id === 'undoReturnBtn') {
+                const product = window.currentProduct;
+                if (product && product.return_count > 1) {
+                    if (confirm(`This will correct the duplicate return by:\n\n- Reducing return count from ${product.return_count} to ${product.return_count - 1}\n- Resetting totals to single return values\n\nContinue?`)) {
+                        try {
+                            const apiBase = window.API_BASE || '';
+                            const response = await authenticatedFetch(`${apiBase}/api/admin/product/${window.currentProductId}/undo-return`, {
+                                method: 'PUT',
+                                credentials: 'include',
+                                headers: { 'Content-Type': 'application/json' }
+                            });
+
+                            const data = await response.json();
+                            if (response.ok) {
+                                alert(`Return count corrected!\n\nNew return count: ${data.return_count}\nTotal refund: £${data.total_refund_amount?.toFixed(2) || '0.00'}\nTotal return cost: £${data.total_return_cost?.toFixed(2) || '0.00'}`);
+                                // Refresh the search results
+                                document.getElementById('searchForm').dispatchEvent(new Event('submit'));
+                            } else {
+                                alert('Error: ' + (data.error || 'Failed to undo return'));
+                            }
+                        } catch (err) {
+                            console.error('Error undoing return:', err);
+                            alert('Error undoing return: ' + err.message);
+                        }
+                    }
+                }
+            }
+
             if (e.target.id === 'resoldProductBtn') {
                 // Reset form for new resale
                 document.getElementById('resaleProductForm').reset();

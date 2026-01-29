@@ -386,6 +386,12 @@ function displaySales(sales) {
                                 <path d="M2 4h12M5 4V3h6v1M5 7v6M8 7v6M11 7v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                             </svg>
                         </button>
+                        <button class="sale-action-btn return" onclick="returnSale('${sale._id}', '${sale.product_id || (sale.products && sale.products[0] ? sale.products[0].product_id : '')}')" title="Return">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M2 8h10M6 4l-4 4 4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M12 3v10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                        </button>
                     </div>
                 </td>
             </tr>
@@ -447,6 +453,12 @@ function displaySales(sales) {
                     <button class="sale-card-action delete" onclick="deleteSale('${sale._id}')" title="Delete Sale">
                         <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
                             <path d="M2 4h12M5 4V3h6v1M5 7v6M8 7v6M11 7v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                    <button class="sale-card-action return" onclick="returnSale('${sale._id}', '${sale.product_id || (sale.products && sale.products[0] ? sale.products[0].product_id : '')}')" title="Return Sale">
+                        <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
+                            <path d="M2 8h10M6 4l-4 4 4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M12 3v10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                         </svg>
                     </button>
                 </div>
@@ -2016,6 +2028,16 @@ async function viewSale(id) {
 
 async function editSale(id) {
     openEditSaleModal(id);
+}
+
+async function returnSale(saleId, productId) {
+    if (!productId) {
+        alert('No product linked to this sale. Please process the return manually from the Product Search page.');
+        return;
+    }
+
+    // Navigate to search-product page with the product ID to process the return
+    window.location.href = `search-product.html?id=${productId}&action=return`;
 }
 
 async function deleteSale(id) {
