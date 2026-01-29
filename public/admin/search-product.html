@@ -906,9 +906,12 @@
                 const response = await authenticatedFetch(`${apiBase}/api/admin/product/${productId}`);
 
                 if (response.ok) {
-                    const product = await response.json();
-                    // Format product for display
-                    product.id = product._id;
+                    const data = await response.json();
+                    const product = data.product || data;
+                    // Format product for display (id should already be set by API, but fallback to _id if present)
+                    if (!product.id && product._id) {
+                        product.id = product._id;
+                    }
                     displayProduct(product);
 
                     // Trigger pending action after product is displayed
