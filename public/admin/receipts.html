@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Shipping Receipts | LJM AirPod Support</title>
+    <link rel="stylesheet" href="../css/styles.css?v=1.2.8">
+    <link rel="stylesheet" href="../css/ios-mobile-optimizations.css">
+
+    <script>
+        // Inline version display
+        (function() {
+            var API_BASE = window.API_BASE || '';
+            function showVersion(versionData) {
+                var el = document.getElementById('version-display');
+                if (!el) {
+                    el = document.createElement('div');
+                    el.id = 'version-display';
+                    el.style.cssText = 'position:fixed;top:10px;right:10px;font-size:0.7rem;color:rgba(0,0,0,0.7);font-family:"Courier New",monospace;z-index:99999;padding:4px 8px;background:rgba(255,255,255,0.9);border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.2);pointer-events:none;';
+                    if (document.body) {
+                        document.body.appendChild(el);
+                    } else {
+                        setTimeout(function() {
+                            if (document.body) document.body.appendChild(el);
+                        }, 100);
+                    }
+                }
+                if (versionData) {
+                    var versionText = 'v' + versionData.version + '.' + versionData.revision;
+                    el.textContent = versionText;
+                } else {
+                    el.textContent = 'v1.2.5.033';
+                }
+            }
+            fetch(API_BASE + '/api/version')
+                .then(function(res) { return res.json(); })
+                .then(function(data) { showVersion(data); })
+                .catch(function(err) { showVersion(null); });
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function() { showVersion(null); });
+            } else {
+                showVersion(null);
+            }
+        })();
+    </script>
+    <style>
+        /* Receipt-specific styles */
+        .receipt-status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .receipt-status-badge.matched { background: #d1fae5; color: #065f46; }
+        .receipt-status-badge.pending_review { background: #fef3c7; color: #92400e; }
+        .receipt-status-badge.no_tracking_found { background: #fee2e2; color: #991b1b; }
+        .receipt-status-badge.manually_associated { background: #dbeafe; color: #1e40af; }
+
+        /* Upload area styles */
+        .upload-area {
+            border: 2px dashed #d1d5db;
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            background: #f9fafb;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .upload-area:hover, .upload-area.dragover {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+        .upload-area.processing {
+            border-color: #f59e0b;
+            background: #fffbeb;
+            cursor: wait;
+        }
+        .upload-area svg {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 12px;
+            color: #9ca3af;
+        }
+        .upload-area.dragover svg,
+        .upload-area:hover svg {
+            color: #3b82f6;
+        }
+        .upload-area h3 {
+            margin: 0 0 8px 0;
+            font-size: 16px;
+            color: #374151;
+        }
+        .upload-area p {
+            margin: 0;
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        /* Camera capture button */
+        .camera-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 16px;
+            padding: 12px 24px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .camera-btn:hover {
+            background: #2563eb;
+        }
+
+        /* OCR result display */
+        .ocr-result {
+            margin-top: 20px;
+            padding: 16px;
+            background: #f3f4f6;
+            border-radius: 8px;
+        }
+        .ocr-result h4 {
+            margin: 0 0 12px 0;
+            font-size: 14px;
+            color: #374151;
+        }
+        .ocr-text {
+            max-height: 150px;
+            overflow-y: auto;
+            padding: 12px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            color: #4b5563;
+        }
+
+        /* Tracking matches */
+        .tracking-matches {
+            margin-top: 16px;
+        }
+        .tracking-match {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        .tracking-match.matched {
+            border-color: #10b981;
+            background: #ecfdf5;
+        }
+        .tracking-match-info {
+            flex: 1;
+        }
+        .tracking-match-number {
+            font-weight: 600;
+            font-family: monospace;
+            font-size: 14px;
+            color: #1f2937;
+        }
+        .tracking-match-provider {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 2px;
+        }
+        .tracking-match-order {
+            font-size: 13px;
+            color: #059669;
+            font-weight: 500;
+            margin-top: 4px;
+        }
+        .tracking-match-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* Receipt image preview */
+        .receipt-preview {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 8px;
+            margin: 16px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        /* Receipt detail modal */
+        .receipt-detail-section {
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .receipt-detail-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        .receipt-detail-section h4 {
+            margin: 0 0 12px 0;
+            font-size: 14px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        /* Manual tracking input */
+        .manual-tracking-form {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+        }
+        .manual-tracking-form input {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            text-transform: uppercase;
+        }
+        .manual-tracking-form input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        /* Solid form styling for modals */
+        #uploadReceiptModal .modal-content,
+        #receiptDetailModal .modal-content {
+            background-color: #f8f9fa;
+        }
+        #uploadReceiptModal .modal-body,
+        #receiptDetailModal .modal-body {
+            padding: 24px;
+            background-color: #f8f9fa;
+        }
+        #uploadReceiptModal .form-group input,
+        #uploadReceiptModal .form-group select,
+        #uploadReceiptModal .form-group textarea,
+        #receiptDetailModal .form-group input,
+        #receiptDetailModal .form-group select,
+        #receiptDetailModal .form-group textarea {
+            background-color: #ffffff;
+            border: 1px solid #dee2e6;
+            box-shadow: none;
+            border-radius: 6px;
+            padding: 12px 14px;
+            font-size: 14px;
+        }
+        #uploadReceiptModal .form-group input:focus,
+        #uploadReceiptModal .form-group select:focus,
+        #uploadReceiptModal .form-group textarea:focus,
+        #receiptDetailModal .form-group input:focus,
+        #receiptDetailModal .form-group select:focus,
+        #receiptDetailModal .form-group textarea:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            outline: none;
+        }
+
+        /* Processing spinner */
+        .processing-spinner {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border: 3px solid #e5e7eb;
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Receipt thumbnail in table */
+        .receipt-thumbnail {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .receipt-thumbnail:hover {
+            transform: scale(1.1);
+        }
+
+        /* Search order results */
+        .order-search-results {
+            margin-top: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .order-result-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .order-result-item:hover {
+            border-color: #3b82f6;
+            background: #f0f9ff;
+        }
+        .order-result-info {
+            flex: 1;
+        }
+        .order-result-number {
+            font-weight: 600;
+            color: #1f2937;
+        }
+        .order-result-details {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-wrapper">
+    <!-- Sidebar Navigation -->
+    <aside class="admin-sidebar">
+        <div class="sidebar-header">
+            <a href="dashboard.html" class="sidebar-logo">
+                <img src="../images/logo.png" alt="LJM AirPod Support" class="sidebar-logo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                <span class="sidebar-logo-text" style="display: none;">LJM Support</span>
+            </a>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-group">
+                <ul class="nav-menu">
+                    <!-- Dashboard -->
+                    <li class="nav-item">
+                        <a href="dashboard.html" class="nav-link" data-page="dashboard">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 10L9 4L9 10L17 10M3 10L3 16M3 10L17 10M17 10L17 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+
+                    <!-- Inventory Category -->
+                    <li class="nav-item has-submenu">
+                        <a href="#" class="nav-link" data-page="inventory" onclick="event.preventDefault(); toggleSubmenu(this.parentElement);">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 5L10 2L17 5M3 5L3 15L10 18M3 5L10 8M17 5L17 15L10 18M17 5L10 8M10 8L10 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Inventory</span>
+                        </a>
+                        <ul class="nav-submenu">
+                            <li class="nav-item"><a href="products.html" class="nav-link" data-page="products"><span>Products</span></a></li>
+                            <li class="nav-item"><a href="parts.html" class="nav-link" data-page="parts"><span>Manage Parts</span></a></li>
+                            <li class="nav-item"><a href="purchases.html" class="nav-link" data-page="purchases"><span>Purchases</span></a></li>
+                            <li class="nav-item"><a href="check-in.html" class="nav-link" data-page="check-in"><span>Check-In</span></a></li>
+                            <li class="nav-item"><a href="consumables.html" class="nav-link" data-page="consumables"><span>Consumables</span></a></li>
+                            <li class="nav-item"><a href="untracked-stock.html" class="nav-link" data-page="untracked-stock"><span>Untracked Stock</span></a></li>
+                            <li class="nav-item"><a href="stock-take.html" class="nav-link" data-page="stock-take"><span>Stock Take</span></a></li>
+                            <li class="nav-item"><a href="reconciliation.html" class="nav-link" data-page="reconciliation"><span>Reconciliation</span></a></li>
+                        </ul>
+                    </li>
+
+                    <!-- Sales Category -->
+                    <li class="nav-item has-submenu">
+                        <a href="#" class="nav-link" data-page="sales-category" onclick="event.preventDefault(); toggleSubmenu(this.parentElement);">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 2L5 9L2 12L5 15L8 12L15 5M14 7L17 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <circle cx="14.5" cy="5.5" r="1.5" fill="currentColor"/>
+                            </svg>
+                            <span>Sales</span>
+                        </a>
+                        <ul class="nav-submenu">
+                            <li class="nav-item"><a href="sales.html" class="nav-link" data-page="sales"><span>Sales Orders</span></a></li>
+                            <li class="nav-item"><a href="addon-sales.html" class="nav-link" data-page="addon-sales"><span>Add-On Sales</span></a></li>
+                            <li class="nav-item"><a href="returns.html" class="nav-link" data-page="returns"><span>Returns</span></a></li>
+                            <li class="nav-item"><a href="receipts.html" class="nav-link active" data-page="receipts"><span>Shipping Receipts</span></a></li>
+                        </ul>
+                    </li>
+
+                    <!-- Tasks -->
+                    <li class="nav-item">
+                        <a href="tasks.html" class="nav-link" data-page="tasks">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M9 5H7C5.89543 5 5 5.89543 5 7V15C5 16.1046 5.89543 17 7 17H13C14.1046 17 15 16.1046 15 15V7C15 5.89543 14.1046 5 13 5H11M9 5C9 3.89543 9.89543 3 11 3H9C7.89543 3 7 3.89543 7 5M9 5C9 6.10457 9.89543 7 11 7H9C7.89543 7 7 6.10457 7 5M8 10H12M8 13H12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Tasks</span>
+                        </a>
+                    </li>
+
+                    <!-- Service Category -->
+                    <li class="nav-item has-submenu">
+                        <a href="#" class="nav-link" data-page="service-category" onclick="event.preventDefault(); toggleSubmenu(this.parentElement);">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M7 10L9 12L13 8M18 10C18 14.4183 14.4183 18 10 18C5.58172 18 2 14.4183 2 10C2 5.58172 5.58172 2 10 2C14.4183 2 18 5.58172 18 10Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Service</span>
+                        </a>
+                        <ul class="nav-submenu">
+                            <li class="nav-item"><a href="support-tickets.html" class="nav-link" data-page="support-tickets"><span>Support Tickets</span></a></li>
+                        </ul>
+                    </li>
+
+                    <!-- Warranties Category -->
+                    <li class="nav-item has-submenu">
+                        <a href="#" class="nav-link" data-page="warranties-category" onclick="event.preventDefault(); toggleSubmenu(this.parentElement);">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M10 2L3 6L3 10C3 14.5 6.5 18.5 10 19C13.5 18.5 17 14.5 17 10L17 6L10 2Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Warranties</span>
+                        </a>
+                        <ul class="nav-submenu">
+                            <li class="nav-item"><a href="warranties.html" class="nav-link" data-page="warranties"><span>Warranty List</span></a></li>
+                            <li class="nav-item"><a href="warranty-pricing.html" class="nav-link" data-page="warranty-pricing"><span>Pricing</span></a></li>
+                            <li class="nav-item"><a href="warranty-terms.html" class="nav-link" data-page="warranty-terms"><span>T&Cs</span></a></li>
+                        </ul>
+                    </li>
+
+                    <!-- Analytics -->
+                    <li class="nav-item">
+                        <a href="analytics.html" class="nav-link" data-page="analytics">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 16L3 12M7 16L7 8M11 16L11 10M15 16L15 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Analytics</span>
+                        </a>
+                    </li>
+
+                    <!-- Reports -->
+                    <li class="nav-item">
+                        <a href="reports.html" class="nav-link" data-page="reports">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M4 2H12L16 6V18H4V2Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M12 2V6H16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M7 10H13M7 13H13M7 16H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Reports</span>
+                        </a>
+                    </li>
+
+                    <!-- Price Recommender -->
+                    <li class="nav-item">
+                        <a href="price-recommender.html" class="nav-link" data-page="price-recommender">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M10 2C10 2 10 5 10 7M10 7C8 7 6 8 6 10C6 12 8 13 10 13C12 13 14 12 14 10C14 8 12 7 10 7ZM10 13V18M6 18H14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Price Recommender</span>
+                        </a>
+                    </li>
+
+                    <!-- Settings -->
+                    <li class="nav-item has-submenu">
+                        <a href="#" class="nav-link" data-page="settings-category" onclick="event.preventDefault(); toggleSubmenu(this.parentElement);">
+                            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M10 12C11.1046 12 12 11.1046 12 10C12 8.89543 11.1046 8 10 8C8.89543 8 8 8.89543 8 10C8 11.1046 8.89543 12 10 12Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M16.5 10C16.5 10.5 16.6 11 16.7 11.5L18.5 12.5C18.8 12.7 18.9 13.1 18.7 13.4L17.1 15.9C16.9 16.2 16.5 16.3 16.2 16.1L14.2 15.1C13.7 15.4 13.2 15.6 12.7 15.7L12.5 17.8C12.5 18.1 12.2 18.4 11.9 18.4H8.1C7.8 18.4 7.5 18.1 7.5 17.8L7.3 15.7C6.8 15.6 6.3 15.4 5.8 15.1L3.8 16.1C3.5 16.3 3.1 16.2 2.9 15.9L1.3 13.4C1.1 13.1 1.2 12.7 1.5 12.5L3.3 11.5C3.4 11 3.5 10.5 3.5 10C3.5 9.5 3.4 9 3.3 8.5L1.5 7.5C1.2 7.3 1.1 6.9 1.3 6.6L2.9 4.1C3.1 3.8 3.5 3.7 3.8 3.9L5.8 4.9C6.3 4.6 6.8 4.4 7.3 4.3L7.5 2.2C7.5 1.9 7.8 1.6 8.1 1.6H11.9C12.2 1.6 12.5 1.9 12.5 2.2L12.7 4.3C13.2 4.4 13.7 4.6 14.2 4.9L16.2 3.9C16.5 3.7 16.9 3.8 17.1 4.1L18.7 6.6C18.9 6.9 18.8 7.3 18.5 7.5L16.7 8.5C16.6 9 16.5 9.5 16.5 10Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Settings</span>
+                        </a>
+                        <ul class="nav-submenu">
+                            <li class="nav-item"><a href="setup-instructions.html" class="nav-link" data-page="setup-instructions"><span>Setup Instructions</span></a></li>
+                            <li class="nav-item"><a href="settings.html" class="nav-link" data-page="settings"><span>Email Configuration</span></a></li>
+                            <li class="nav-item"><a href="settings.html#page-field-options" class="nav-link" data-page="settings" data-section="status"><span>Page Field Options</span></a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <div class="sidebar-footer">
+            <a href="downloads.html" class="sidebar-footer-link" data-page="downloads">
+                <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M10 13L10 3M10 13L6 9M10 13L14 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M3 16L17 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+                <span>Downloads</span>
+            </a>
+            <button class="sidebar-footer-link sidebar-logout" id="logoutButton">
+                <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M13 15L17 10L13 5M17 10H7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M7 3H4C3.44772 3 3 3.44772 3 4V16C3 16.5523 3.44772 17 4 17H7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>Logout</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <div class="admin-main">
+        <!-- Top Utility Bar -->
+        <header class="admin-topbar">
+            <div class="topbar-left">
+                <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 5H17M3 10H17M3 15H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                </button>
+                <form class="topbar-search-form" onsubmit="return handleUniversalSearch(event)">
+                    <input
+                        type="text"
+                        id="universalSearchInput"
+                        class="topbar-search-input"
+                        placeholder="Search serial, security, eBay order..."
+                        autocomplete="off"
+                    >
+                    <button type="submit" class="topbar-search-button" aria-label="Search">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M8.33333 13.6667C11.2789 13.6667 13.6667 11.2789 13.6667 8.33333C13.6667 5.38781 11.2789 3 8.33333 3C5.38781 3 3 5.38781 3 8.33333C3 11.2789 5.38781 13.6667 8.33333 13.6667Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M15 15L12.1 12.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </form>
+                <div class="topbar-quick-actions">
+                    <a href="search-product.html" class="topbar-add-button">Search Products</a>
+                    <a href="add-product.html" class="topbar-add-button">
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M8 3V13M3 8H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                        Product
+                    </a>
+                    <a href="sales.html" class="topbar-add-button">
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M8 3V13M3 8H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                        Sale
+                    </a>
+                </div>
+            </div>
+            <div class="topbar-right">
+                <div class="topbar-user">
+                    <span class="topbar-user-name">Admin</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Page Content -->
+        <div class="admin-content">
+            <!-- Receipts Header -->
+            <div class="products-header">
+                <h1 class="products-title">Shipping Receipts</h1>
+                <div class="products-header-actions">
+                    <div class="search-box">
+                        <input
+                            type="text"
+                            id="headerSearch"
+                            class="search-input"
+                            placeholder="Search receipts..."
+                            autocomplete="off"
+                        >
+                    </div>
+                    <button class="btn-primary" id="uploadReceiptBtn">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M8 12V4M4 8L8 4L12 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M2 14H14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        Upload Receipt
+                    </button>
+                </div>
+            </div>
+
+            <!-- Summary Cards -->
+            <div class="return-summary-cards">
+                <div class="return-summary-card" style="border-left-color: #10b981;">
+                    <div class="value" id="matchedCount">0</div>
+                    <div class="label">Matched</div>
+                </div>
+                <div class="return-summary-card pending">
+                    <div class="value" id="pendingReviewCount">0</div>
+                    <div class="label">Pending Review</div>
+                </div>
+                <div class="return-summary-card" style="border-left-color: #3b82f6;">
+                    <div class="value" id="manualCount">0</div>
+                    <div class="label">Manual</div>
+                </div>
+                <div class="return-summary-card" style="border-left-color: #ef4444;">
+                    <div class="value" id="noTrackingCount">0</div>
+                    <div class="label">No Tracking</div>
+                </div>
+                <div class="return-summary-card">
+                    <div class="value" id="totalReceipts">0</div>
+                    <div class="label">Total Receipts</div>
+                </div>
+            </div>
+
+            <!-- Receipts Layout -->
+            <div class="products-layout">
+                <!-- Left Sidebar: Filters -->
+                <aside class="products-sidebar">
+                    <div class="sidebar-section">
+                        <h3 class="sidebar-heading">Search</h3>
+                        <input
+                            type="text"
+                            id="filterSearch"
+                            class="sidebar-input"
+                            placeholder="Tracking # / Order #"
+                            autocomplete="off"
+                        >
+                    </div>
+
+                    <div class="sidebar-section">
+                        <h3 class="sidebar-heading">Status</h3>
+                        <select id="filterStatus" class="sidebar-select">
+                            <option value="">All Statuses</option>
+                            <option value="matched">Matched</option>
+                            <option value="pending_review">Pending Review</option>
+                            <option value="manually_associated">Manual</option>
+                            <option value="no_tracking_found">No Tracking Found</option>
+                        </select>
+                    </div>
+
+                    <div class="sidebar-section">
+                        <h3 class="sidebar-heading">Date Range</h3>
+                        <select id="filterPeriod" class="sidebar-select">
+                            <option value="all">All Time</option>
+                            <option value="today">Today</option>
+                            <option value="week">This Week</option>
+                            <option value="month">This Month</option>
+                        </select>
+                    </div>
+
+                    <button id="clearFilters" class="sidebar-btn">Clear filters</button>
+
+                    <div class="sidebar-count">
+                        <span id="receiptsCount">0 receipts</span>
+                    </div>
+                </aside>
+
+                <!-- Main Content: Receipts Table -->
+                <main class="products-main">
+                    <div class="products-table-wrapper">
+                        <table class="products-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 60px;">Image</th>
+                                    <th style="width: 100px;">Status</th>
+                                    <th>Upload Date</th>
+                                    <th>Tracking Numbers</th>
+                                    <th>Matched Order</th>
+                                    <th style="width: 150px;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="receiptsTableBody">
+                                <tr>
+                                    <td colspan="6" class="table-loading">Loading receipts...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Mobile Cards View -->
+                    <div class="sales-cards-mobile" id="receiptsCardsMobile">
+                        <div class="sale-card">
+                            <div class="sale-card-body" style="text-align: center; padding: 40px;">
+                                <p style="color: #9ca3af;">Loading receipts...</p>
+                            </div>
+                        </div>
+                    </div>
+                </main>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload Receipt Modal -->
+    <div id="uploadReceiptModal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2>Upload Shipping Receipt</h2>
+                <button class="modal-close" onclick="closeUploadModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Upload Area -->
+                <div id="uploadArea" class="upload-area" onclick="document.getElementById('receiptFileInput').click()">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 16V8M8 12L12 8L16 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M20 16V18C20 19.1046 19.1046 20 18 20H6C4.89543 20 4 19.1046 4 18V16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <h3>Drop receipt image here or click to browse</h3>
+                    <p>Supports JPEG, PNG, WebP, HEIC (max 10MB)</p>
+                </div>
+                <input type="file" id="receiptFileInput" accept="image/*" capture="environment" style="display: none;">
+
+                <!-- Camera Capture Button (mobile friendly) -->
+                <div style="text-align: center;">
+                    <button type="button" class="camera-btn" onclick="document.getElementById('receiptFileInput').click()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M23 19C23 19.5304 22.7893 20.0391 22.4142 20.4142C22.0391 20.7893 21.5304 21 21 21H3C2.46957 21 1.96086 20.7893 1.58579 20.4142C1.21071 20.0391 1 19.5304 1 19V8C1 7.46957 1.21071 6.96086 1.58579 6.58579C1.96086 6.21071 2.46957 6 3 6H7L9 3H15L17 6H21C21.5304 6 22.0391 6.21071 22.4142 6.58579C22.7893 6.96086 23 7.46957 23 8V19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <circle cx="12" cy="13" r="4" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                        Take Photo
+                    </button>
+                </div>
+
+                <!-- Processing Indicator -->
+                <div id="processingIndicator" style="display: none; text-align: center; margin-top: 20px;">
+                    <div class="processing-spinner"></div>
+                    <p style="margin-top: 12px; color: #6b7280;">Processing receipt with OCR...</p>
+                </div>
+
+                <!-- Preview and Results -->
+                <div id="uploadPreview" style="display: none;">
+                    <img id="previewImage" class="receipt-preview" alt="Receipt preview">
+                </div>
+
+                <div id="ocrResults" style="display: none;">
+                    <div class="ocr-result">
+                        <h4>Extracted Text</h4>
+                        <div id="ocrTextDisplay" class="ocr-text"></div>
+                    </div>
+
+                    <div class="tracking-matches" id="trackingMatchesContainer">
+                        <h4 style="margin: 16px 0 12px 0; font-size: 14px; color: #374151;">Detected Tracking Numbers</h4>
+                        <div id="trackingMatchesList"></div>
+                    </div>
+
+                    <!-- Manual tracking entry -->
+                    <div style="margin-top: 20px;">
+                        <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #374151;">Manual Entry</h4>
+                        <p style="font-size: 12px; color: #6b7280; margin-bottom: 12px;">If OCR didn't detect the tracking number, enter it manually:</p>
+                        <div class="manual-tracking-form">
+                            <input type="text" id="manualTrackingInput" placeholder="Enter tracking number...">
+                            <button type="button" class="btn-primary" onclick="searchManualTracking()">Search</button>
+                        </div>
+                        <div id="manualSearchResults" class="order-search-results"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" id="uploadModalFooter" style="display: none;">
+                <button type="button" class="button button-secondary" onclick="closeUploadModal()">Close</button>
+                <button type="button" class="button button-primary" id="saveReceiptBtn" onclick="saveReceipt()">Save Receipt</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Receipt Detail Modal -->
+    <div id="receiptDetailModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h2>Receipt Details</h2>
+                <button class="modal-close" onclick="closeDetailModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="receiptDetailContent">
+                <!-- Populated by JS -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="button button-danger" onclick="deleteCurrentReceipt()">Delete</button>
+                <button type="button" class="button button-secondary" onclick="reprocessCurrentReceipt()">Re-run OCR</button>
+                <button type="button" class="button button-secondary" onclick="closeDetailModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Lightbox -->
+    <div id="imageLightbox" class="modal" style="background: rgba(0,0,0,0.9);" onclick="closeLightbox()">
+        <div style="display: flex; align-items: center; justify-content: center; height: 100%; padding: 20px;">
+            <img id="lightboxImage" style="max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px;">
+        </div>
+        <button style="position: absolute; top: 20px; right: 20px; background: white; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; font-size: 24px;">&times;</button>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../js/admin.js"></script>
+    <script src="../js/main.js?v=1.0.0"></script>
+    <script src="../js/receipts.js?v=1.0.0"></script>
+    <script src="../js/version.js"></script>
+
+    <!-- Sidebar Overlay for Mobile -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <script>
+        // Sidebar toggle functionality
+        (function() {
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const sidebar = document.querySelector('.admin-sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+
+            if (sidebarToggle && sidebar) {
+                sidebarToggle.addEventListener('click', function() {
+                    sidebar.classList.toggle('sidebar-open');
+                    if (overlay) {
+                        overlay.classList.toggle('active');
+                    }
+                });
+
+                if (overlay) {
+                    overlay.addEventListener('click', function() {
+                        sidebar.classList.remove('sidebar-open');
+                        overlay.classList.remove('active');
+                    });
+                }
+            }
+
+            // Set active nav item based on current page
+            const currentPage = window.location.pathname.split('/').pop() || 'dashboard.html';
+            const navLinks = document.querySelectorAll('.nav-link, .sidebar-footer-link');
+            navLinks.forEach(link => {
+                const href = link.getAttribute('href');
+                if (href && (href === currentPage || currentPage.includes(href.replace('.html', '')))) {
+                    link.classList.add('active');
+                }
+            });
+        })();
+    </script>
+</body>
+</html>

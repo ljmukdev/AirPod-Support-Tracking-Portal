@@ -87,6 +87,10 @@ if (process.env.GOCARDLESS_ACCESS_TOKEN) {
 }
 */
 
+// Initialize Tesseract.js for OCR (receipt scanning)
+const Tesseract = require('tesseract.js');
+console.log('✅ Tesseract.js loaded for OCR receipt scanning');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
@@ -13555,6 +13559,568 @@ app.delete('/api/admin/returns/:id', requireAuth, requireDB, async (req, res) =>
     } catch (err) {
         console.error('Error deleting return:', err);
         res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// ===== SHIPPING RECEIPT TRACKING API ENDPOINTS =====
+
+// Tracking number patterns for UK shipping providers
+const trackingPatterns = [
+    // Royal Mail - various formats
+    { provider: 'Royal Mail', pattern: /\b([A-Z]{2}\d{9}GB)\b/gi },
+    { provider: 'Royal Mail', pattern: /\b(TN\d{9}GB)\b/gi },
+    { provider: 'Royal Mail', pattern: /\b([A-Z]{2}\d{9}[A-Z]{2})\b/gi },
+    { provider: 'Royal Mail', pattern: /\b(\d{16,20})\b/g },
+    // Evri/Hermes
+    { provider: 'Evri', pattern: /\b(\d{16})\b/g },
+    { provider: 'Evri', pattern: /\b([A-Z0-9]{12,16})\b/gi },
+    // DPD
+    { provider: 'DPD', pattern: /\b(\d{14})\b/g },
+    { provider: 'DPD', pattern: /\b(\d{20})\b/g },
+    // Yodel
+    { provider: 'Yodel', pattern: /\b(JD\d{18})\b/gi },
+    { provider: 'Yodel', pattern: /\b(2S\d{12})\b/gi },
+    // ParcelForce
+    { provider: 'Parcelforce', pattern: /\b([A-Z]{2}\d{7})\b/gi },
+    { provider: 'Parcelforce', pattern: /\b(PF[A-Z0-9]{10,12})\b/gi },
+    // UPS
+    { provider: 'UPS', pattern: /\b(1Z[A-Z0-9]{16})\b/gi },
+    // FedEx
+    { provider: 'FedEx', pattern: /\b(\d{12})\b/g },
+    { provider: 'FedEx', pattern: /\b(\d{15})\b/g },
+    // Generic tracking patterns
+    { provider: 'Unknown', pattern: /\b([A-Z]{2}\d{9,12}[A-Z]{0,2})\b/gi }
+];
+
+// Extract tracking numbers from OCR text
+function extractTrackingNumbers(ocrText) {
+    const foundTracking = [];
+    const seenNumbers = new Set();
+
+    for (const { provider, pattern } of trackingPatterns) {
+        const matches = ocrText.match(pattern);
+        if (matches) {
+            for (const match of matches) {
+                const normalized = match.toUpperCase().trim();
+                // Skip if we've already seen this number or if it's too short
+                if (!seenNumbers.has(normalized) && normalized.length >= 10) {
+                    seenNumbers.add(normalized);
+                    foundTracking.push({
+                        tracking_number: normalized,
+                        provider: provider,
+                        confidence: provider === 'Unknown' ? 'low' : 'medium'
+                    });
+                }
+            }
+        }
+    }
+
+    return foundTracking;
+}
+
+// Configure multer for receipt uploads
+const receiptStorage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        const currentUploadsDir = global.uploadsDir || uploadsDir;
+        const receiptsDir = path.join(currentUploadsDir, 'receipts');
+
+        // Ensure receipts directory exists
+        if (!fs.existsSync(receiptsDir)) {
+            try {
+                fs.mkdirSync(receiptsDir, { recursive: true });
+                console.log('✅ Created receipts directory:', receiptsDir);
+            } catch (err) {
+                console.error('❌ Failed to create receipts directory:', err);
+                return cb(err);
+            }
+        }
+
+        cb(null, receiptsDir);
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + crypto.randomBytes(8).toString('hex');
+        const ext = path.extname(file.originalname);
+        cb(null, 'receipt-' + uniqueSuffix + ext);
+    }
+});
+
+const receiptUpload = multer({
+    storage: receiptStorage,
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+    fileFilter: (req, file, cb) => {
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif'];
+        if (allowedTypes.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error('Invalid file type. Only JPEG, PNG, GIF, WebP, and HEIC images are allowed.'));
+        }
+    }
+});
+
+// Upload receipt with OCR processing
+app.post('/api/admin/receipts/upload', requireAuth, requireDB, (req, res, next) => {
+    receiptUpload.single('receipt')(req, res, (err) => {
+        if (err) {
+            console.error('Receipt upload error:', err);
+            return res.status(400).json({ error: err.message });
+        }
+        next();
+    });
+}, async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No receipt image uploaded' });
+        }
+
+        const imagePath = req.file.path;
+        const imageUrl = `/uploads/receipts/${req.file.filename}`;
+
+        console.log('📸 Processing receipt OCR for:', imagePath);
+
+        // Run OCR on the image
+        let ocrResult;
+        let extractedText = '';
+        let extractedTracking = [];
+
+        try {
+            ocrResult = await Tesseract.recognize(imagePath, 'eng', {
+                logger: m => {
+                    if (m.status === 'recognizing text') {
+                        console.log(`   OCR Progress: ${Math.round(m.progress * 100)}%`);
+                    }
+                }
+            });
+
+            extractedText = ocrResult.data.text;
+            extractedTracking = extractTrackingNumbers(extractedText);
+
+            console.log('✅ OCR completed. Found', extractedTracking.length, 'potential tracking numbers');
+        } catch (ocrError) {
+            console.error('⚠️ OCR processing failed:', ocrError.message);
+            // Continue with manual entry fallback
+        }
+
+        // Try to find matching sales orders for extracted tracking numbers
+        const matchedOrders = [];
+        for (const tracking of extractedTracking) {
+            const matchingSale = await db.collection('sales').findOne({
+                outward_tracking_number: { $regex: new RegExp(tracking.tracking_number, 'i') }
+            });
+
+            if (matchingSale) {
+                matchedOrders.push({
+                    tracking_number: tracking.tracking_number,
+                    provider: tracking.provider,
+                    sale_id: matchingSale._id.toString(),
+                    order_number: matchingSale.ebay_order_number || matchingSale.sales_order_number,
+                    platform: matchingSale.platform || 'Unknown'
+                });
+                tracking.matched = true;
+                tracking.sale_id = matchingSale._id.toString();
+            }
+        }
+
+        // Create receipt record in database
+        const receiptRecord = {
+            image_path: imageUrl,
+            original_filename: req.file.originalname,
+            ocr_text: extractedText,
+            extracted_tracking: extractedTracking,
+            matched_orders: matchedOrders,
+            status: matchedOrders.length > 0 ? 'matched' : (extractedTracking.length > 0 ? 'pending_review' : 'no_tracking_found'),
+            associated_sale_id: matchedOrders.length === 1 ? matchedOrders[0].sale_id : null,
+            manually_entered_tracking: null,
+            uploaded_at: new Date(),
+            uploaded_by: req.user.email,
+            notes: ''
+        };
+
+        const result = await db.collection('shipping_receipts').insertOne(receiptRecord);
+
+        res.json({
+            success: true,
+            receipt_id: result.insertedId.toString(),
+            image_url: imageUrl,
+            ocr_text: extractedText,
+            extracted_tracking: extractedTracking,
+            matched_orders: matchedOrders,
+            status: receiptRecord.status,
+            message: matchedOrders.length > 0
+                ? `Found ${matchedOrders.length} matching order(s)!`
+                : (extractedTracking.length > 0
+                    ? `Found ${extractedTracking.length} tracking number(s), but no matching orders. Please verify.`
+                    : 'No tracking numbers detected. Please enter manually.')
+        });
+
+    } catch (err) {
+        console.error('Error processing receipt:', err);
+        res.status(500).json({ error: 'Failed to process receipt: ' + err.message });
+    }
+});
+
+// Get all receipts with pagination and filtering
+app.get('/api/admin/receipts', requireAuth, requireDB, async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const skip = (page - 1) * limit;
+        const status = req.query.status;
+
+        const query = {};
+        if (status && status !== 'all') {
+            query.status = status;
+        }
+
+        const [receipts, total] = await Promise.all([
+            db.collection('shipping_receipts')
+                .find(query)
+                .sort({ uploaded_at: -1 })
+                .skip(skip)
+                .limit(limit)
+                .toArray(),
+            db.collection('shipping_receipts').countDocuments(query)
+        ]);
+
+        res.json({
+            success: true,
+            receipts,
+            pagination: {
+                page,
+                limit,
+                total,
+                pages: Math.ceil(total / limit)
+            }
+        });
+    } catch (err) {
+        console.error('Error fetching receipts:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Get receipt summary/stats
+app.get('/api/admin/receipts/summary', requireAuth, requireDB, async (req, res) => {
+    try {
+        const pipeline = [
+            {
+                $group: {
+                    _id: '$status',
+                    count: { $sum: 1 }
+                }
+            }
+        ];
+
+        const statusCounts = await db.collection('shipping_receipts').aggregate(pipeline).toArray();
+        const total = await db.collection('shipping_receipts').countDocuments();
+
+        const summary = {
+            total,
+            matched: 0,
+            pending_review: 0,
+            no_tracking_found: 0,
+            manually_associated: 0
+        };
+
+        for (const s of statusCounts) {
+            if (summary.hasOwnProperty(s._id)) {
+                summary[s._id] = s.count;
+            }
+        }
+
+        res.json({ success: true, summary });
+    } catch (err) {
+        console.error('Error fetching receipt summary:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Get single receipt by ID
+app.get('/api/admin/receipts/:id', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid receipt ID' });
+    }
+
+    try {
+        const receipt = await db.collection('shipping_receipts').findOne({ _id: new ObjectId(id) });
+
+        if (!receipt) {
+            return res.status(404).json({ error: 'Receipt not found' });
+        }
+
+        // If there's an associated sale, fetch its details
+        if (receipt.associated_sale_id) {
+            const sale = await db.collection('sales').findOne({
+                _id: new ObjectId(receipt.associated_sale_id)
+            });
+            if (sale) {
+                receipt.associated_sale = {
+                    order_number: sale.ebay_order_number || sale.sales_order_number,
+                    platform: sale.platform,
+                    buyer_name: sale.buyer_name,
+                    sale_date: sale.sale_date
+                };
+            }
+        }
+
+        res.json({ success: true, receipt });
+    } catch (err) {
+        console.error('Error fetching receipt:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Search for sales by tracking number
+app.get('/api/admin/receipts/search-order/:trackingNumber', requireAuth, requireDB, async (req, res) => {
+    const trackingNumber = req.params.trackingNumber.trim().toUpperCase();
+
+    try {
+        // Search in sales collection
+        const sales = await db.collection('sales').find({
+            $or: [
+                { outward_tracking_number: { $regex: new RegExp(trackingNumber, 'i') } },
+                { outward_tracking_number: trackingNumber }
+            ]
+        }).limit(10).toArray();
+
+        const results = sales.map(sale => ({
+            sale_id: sale._id.toString(),
+            order_number: sale.ebay_order_number || sale.sales_order_number,
+            platform: sale.platform || 'Unknown',
+            buyer_name: sale.buyer_name,
+            outward_tracking_number: sale.outward_tracking_number,
+            sale_date: sale.sale_date,
+            product_name: sale.product_name
+        }));
+
+        res.json({ success: true, results, count: results.length });
+    } catch (err) {
+        console.error('Error searching for order:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Associate receipt with a sale (manual or confirm auto-match)
+app.put('/api/admin/receipts/:id/associate', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    const { sale_id, tracking_number } = req.body;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid receipt ID' });
+    }
+
+    if (!sale_id || !ObjectId.isValid(sale_id)) {
+        return res.status(400).json({ error: 'Valid sale ID is required' });
+    }
+
+    try {
+        // Verify the sale exists
+        const sale = await db.collection('sales').findOne({ _id: new ObjectId(sale_id) });
+        if (!sale) {
+            return res.status(404).json({ error: 'Sale not found' });
+        }
+
+        // Update the receipt
+        const updateData = {
+            associated_sale_id: sale_id,
+            status: 'manually_associated',
+            associated_at: new Date(),
+            associated_by: req.user.email
+        };
+
+        if (tracking_number) {
+            updateData.manually_entered_tracking = tracking_number.trim().toUpperCase();
+        }
+
+        await db.collection('shipping_receipts').updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updateData }
+        );
+
+        // Also update the sale to link to this receipt
+        await db.collection('sales').updateOne(
+            { _id: new ObjectId(sale_id) },
+            {
+                $set: {
+                    shipping_receipt_id: id,
+                    shipping_receipt_date: new Date()
+                }
+            }
+        );
+
+        res.json({
+            success: true,
+            message: 'Receipt associated with order successfully',
+            order_number: sale.ebay_order_number || sale.sales_order_number
+        });
+    } catch (err) {
+        console.error('Error associating receipt:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Update receipt notes
+app.put('/api/admin/receipts/:id/notes', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    const { notes } = req.body;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid receipt ID' });
+    }
+
+    try {
+        await db.collection('shipping_receipts').updateOne(
+            { _id: new ObjectId(id) },
+            { $set: { notes: notes || '', updated_at: new Date() } }
+        );
+
+        res.json({ success: true, message: 'Notes updated' });
+    } catch (err) {
+        console.error('Error updating receipt notes:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Re-run OCR on a receipt
+app.post('/api/admin/receipts/:id/reprocess', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid receipt ID' });
+    }
+
+    try {
+        const receipt = await db.collection('shipping_receipts').findOne({ _id: new ObjectId(id) });
+
+        if (!receipt) {
+            return res.status(404).json({ error: 'Receipt not found' });
+        }
+
+        // Get the full path to the image
+        const currentUploadsDir = global.uploadsDir || uploadsDir;
+        const imagePath = path.join(currentUploadsDir, receipt.image_path.replace('/uploads/', ''));
+
+        if (!fs.existsSync(imagePath)) {
+            return res.status(404).json({ error: 'Receipt image file not found' });
+        }
+
+        console.log('🔄 Re-processing OCR for receipt:', id);
+
+        // Re-run OCR
+        const ocrResult = await Tesseract.recognize(imagePath, 'eng', {
+            logger: m => {
+                if (m.status === 'recognizing text') {
+                    console.log(`   OCR Progress: ${Math.round(m.progress * 100)}%`);
+                }
+            }
+        });
+
+        const extractedText = ocrResult.data.text;
+        const extractedTracking = extractTrackingNumbers(extractedText);
+
+        // Try to find matching sales
+        const matchedOrders = [];
+        for (const tracking of extractedTracking) {
+            const matchingSale = await db.collection('sales').findOne({
+                outward_tracking_number: { $regex: new RegExp(tracking.tracking_number, 'i') }
+            });
+
+            if (matchingSale) {
+                matchedOrders.push({
+                    tracking_number: tracking.tracking_number,
+                    provider: tracking.provider,
+                    sale_id: matchingSale._id.toString(),
+                    order_number: matchingSale.ebay_order_number || matchingSale.sales_order_number,
+                    platform: matchingSale.platform || 'Unknown'
+                });
+                tracking.matched = true;
+                tracking.sale_id = matchingSale._id.toString();
+            }
+        }
+
+        // Update the receipt
+        const newStatus = matchedOrders.length > 0 ? 'matched' : (extractedTracking.length > 0 ? 'pending_review' : 'no_tracking_found');
+
+        await db.collection('shipping_receipts').updateOne(
+            { _id: new ObjectId(id) },
+            {
+                $set: {
+                    ocr_text: extractedText,
+                    extracted_tracking: extractedTracking,
+                    matched_orders: matchedOrders,
+                    status: receipt.associated_sale_id ? receipt.status : newStatus,
+                    reprocessed_at: new Date()
+                }
+            }
+        );
+
+        res.json({
+            success: true,
+            ocr_text: extractedText,
+            extracted_tracking: extractedTracking,
+            matched_orders: matchedOrders,
+            status: newStatus,
+            message: `OCR reprocessed. Found ${extractedTracking.length} tracking number(s), ${matchedOrders.length} matched.`
+        });
+
+    } catch (err) {
+        console.error('Error reprocessing receipt:', err);
+        res.status(500).json({ error: 'Failed to reprocess: ' + err.message });
+    }
+});
+
+// Delete receipt
+app.delete('/api/admin/receipts/:id', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid receipt ID' });
+    }
+
+    try {
+        const receipt = await db.collection('shipping_receipts').findOne({ _id: new ObjectId(id) });
+
+        if (!receipt) {
+            return res.status(404).json({ error: 'Receipt not found' });
+        }
+
+        // Delete the image file
+        if (receipt.image_path) {
+            const currentUploadsDir = global.uploadsDir || uploadsDir;
+            const imagePath = path.join(currentUploadsDir, receipt.image_path.replace('/uploads/', ''));
+            if (fs.existsSync(imagePath)) {
+                fs.unlinkSync(imagePath);
+                console.log('🗑️ Deleted receipt image:', imagePath);
+            }
+        }
+
+        // Remove receipt link from any associated sale
+        if (receipt.associated_sale_id) {
+            await db.collection('sales').updateOne(
+                { _id: new ObjectId(receipt.associated_sale_id) },
+                { $unset: { shipping_receipt_id: '', shipping_receipt_date: '' } }
+            );
+        }
+
+        // Delete the receipt record
+        await db.collection('shipping_receipts').deleteOne({ _id: new ObjectId(id) });
+
+        res.json({ success: true, message: 'Receipt deleted successfully' });
+    } catch (err) {
+        console.error('Error deleting receipt:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Serve receipt images
+app.get('/uploads/receipts/:filename', (req, res) => {
+    const currentUploadsDir = global.uploadsDir || uploadsDir;
+    const filePath = path.join(currentUploadsDir, 'receipts', req.params.filename);
+
+    if (fs.existsSync(filePath)) {
+        res.sendFile(filePath);
+    } else {
+        res.status(404).send('Receipt image not found');
     }
 });
 
