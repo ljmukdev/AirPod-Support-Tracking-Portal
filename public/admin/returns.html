@@ -63,6 +63,97 @@
         .return-status-badge.rejected { background: #fee2e2; color: #991b1b; }
         .return-status-badge.refunded { background: #f3e8ff; color: #6b21a8; }
 
+        /* Solid form styling for return modals */
+        #returnModal .modal-content,
+        #manageReturnModal .modal-content,
+        #inspectionModal .modal-content,
+        #restockModal .modal-content {
+            background-color: #f8f9fa;
+        }
+        #returnModal .modal-body,
+        #manageReturnModal .modal-body,
+        #inspectionModal .modal-body,
+        #restockModal .modal-body {
+            padding: 24px;
+            background-color: #f8f9fa;
+        }
+        #returnModal .form-group input,
+        #returnModal .form-group select,
+        #returnModal .form-group textarea,
+        #manageReturnModal .form-group input,
+        #manageReturnModal .form-group select,
+        #manageReturnModal .form-group textarea,
+        #inspectionModal .form-group input,
+        #inspectionModal .form-group select,
+        #inspectionModal .form-group textarea,
+        #restockModal .form-group input,
+        #restockModal .form-group select,
+        #restockModal .form-group textarea {
+            background-color: #ffffff;
+            border: 1px solid #dee2e6;
+            box-shadow: none;
+            border-radius: 6px;
+            padding: 12px 14px;
+            font-size: 14px;
+        }
+        #returnModal .form-group input:focus,
+        #returnModal .form-group select:focus,
+        #returnModal .form-group textarea:focus,
+        #manageReturnModal .form-group input:focus,
+        #manageReturnModal .form-group select:focus,
+        #manageReturnModal .form-group textarea:focus,
+        #inspectionModal .form-group input:focus,
+        #inspectionModal .form-group select:focus,
+        #inspectionModal .form-group textarea:focus,
+        #restockModal .form-group input:focus,
+        #restockModal .form-group select:focus,
+        #restockModal .form-group textarea:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            outline: none;
+        }
+        #returnModal .form-group label,
+        #manageReturnModal .form-group label,
+        #inspectionModal .form-group label,
+        #restockModal .form-group label {
+            color: #374151;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            display: block;
+        }
+        #returnModal .form-group small,
+        #manageReturnModal .form-group small,
+        #inspectionModal .form-group small,
+        #restockModal .form-group small {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 4px;
+            display: block;
+        }
+        #returnModal .form-row,
+        #manageReturnModal .form-row,
+        #inspectionModal .form-row,
+        #restockModal .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        @media (max-width: 600px) {
+            #returnModal .form-row,
+            #manageReturnModal .form-row,
+            #inspectionModal .form-row,
+            #restockModal .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+        #returnModal .form-group,
+        #manageReturnModal .form-group,
+        #inspectionModal .form-group,
+        #restockModal .form-group {
+            margin-bottom: 16px;
+        }
+
         .return-timeline {
             position: relative;
             padding-left: 24px;
@@ -517,15 +608,15 @@
                         <table class="products-table">
                             <thead>
                                 <tr>
-                                    <th style="width: 50px;">Status</th>
+                                    <th style="width: 80px;">Status</th>
                                     <th>Return Date</th>
                                     <th>Order #</th>
                                     <th>Product</th>
                                     <th>Reason</th>
                                     <th>Return Tracking</th>
-                                    <th>Condition</th>
                                     <th>Refund</th>
-                                    <th>Actions</th>
+                                    <th>Loss</th>
+                                    <th style="width: 150px;">Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="returnsTableBody">
@@ -631,12 +722,29 @@
 
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="originalPostageLost">Original Postage Lost (£)</label>
+                                <label for="originalPostageLost">Outward Postage Lost (£)</label>
                                 <input type="number" id="originalPostageLost" step="0.01" placeholder="0.00" value="0">
+                                <small>The postage you paid to ship it out</small>
                             </div>
                             <div class="form-group">
                                 <label for="returnPostageCost">Return Postage Cost (£)</label>
                                 <input type="number" id="returnPostageCost" step="0.01" placeholder="0.00" value="0">
+                                <small>Postage for the customer to return it</small>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="consumablesLost">Consumables Lost (£)</label>
+                                <input type="number" id="consumablesLost" step="0.01" placeholder="0.00" value="0">
+                                <small>Envelope, packaging, labels etc.</small>
+                            </div>
+                            <div class="form-group" style="display: flex; align-items: end; padding-bottom: 8px;">
+                                <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 6px; padding: 12px; width: 100%;">
+                                    <div style="font-size: 12px; color: #92400e; margin-bottom: 4px;">Actual Loss</div>
+                                    <div style="font-size: 18px; font-weight: 700; color: #dc2626;" id="actualLossPreview">£0.00</div>
+                                    <div style="font-size: 11px; color: #92400e;">Postage + Consumables (not refund)</div>
+                                </div>
                             </div>
                         </div>
 
