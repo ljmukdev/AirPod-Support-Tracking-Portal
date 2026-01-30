@@ -13100,9 +13100,11 @@ app.get('/api/admin/returns/summary', requireAuth, requireDB, async (req, res) =
             received: returns.filter(r => r.status === 'received').length,
             inspected: returns.filter(r => r.status === 'inspected').length,
             restocked: returns.filter(r => r.status === 'restocked').length,
+            // Actual loss = postage + consumables only (not refund, since product comes back)
             total_loss: returns.reduce((sum, r) => {
-                return sum + (r.refund_amount || 0) + (r.original_postage_lost || 0) + (r.return_postage_cost || 0);
-            }, 0)
+                return sum + (r.original_postage_lost || 0) + (r.return_postage_cost || 0) + (r.consumables_lost || 0);
+            }, 0),
+            total_refunds: returns.reduce((sum, r) => sum + (r.refund_amount || 0), 0)
         };
 
         res.json(summary);
@@ -13229,6 +13231,7 @@ app.post('/api/admin/returns', requireAuth, requireDB, async (req, res) => {
             refund_amount,
             original_postage_lost,
             return_postage_cost,
+            consumables_lost,
             notes
         } = req.body;
 
@@ -13255,6 +13258,7 @@ app.post('/api/admin/returns', requireAuth, requireDB, async (req, res) => {
             refund_amount: parseFloat(refund_amount) || 0,
             original_postage_lost: parseFloat(original_postage_lost) || 0,
             return_postage_cost: parseFloat(return_postage_cost) || 0,
+            consumables_lost: parseFloat(consumables_lost) || 0,
             notes: notes || null,
             status: return_tracking_number ? 'in_transit' : 'pending',
             item_condition: null,

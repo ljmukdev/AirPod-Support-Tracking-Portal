@@ -53,6 +53,11 @@
         // Search Sale Input
         document.getElementById('searchSale')?.addEventListener('input', debounce(handleSaleSearch, 300));
 
+        // Loss calculation live preview
+        document.getElementById('originalPostageLost')?.addEventListener('input', updateLossPreview);
+        document.getElementById('returnPostageCost')?.addEventListener('input', updateLossPreview);
+        document.getElementById('consumablesLost')?.addEventListener('input', updateLossPreview);
+
         // Filter listeners
         document.getElementById('filterSearch')?.addEventListener('input', filterReturns);
         document.getElementById('headerSearch')?.addEventListener('input', filterReturns);
@@ -63,6 +68,17 @@
         document.getElementById('filterDateTo')?.addEventListener('change', filterReturns);
         document.getElementById('filterCondition')?.addEventListener('change', filterReturns);
         document.getElementById('clearFilters')?.addEventListener('click', clearAllFilters);
+    }
+
+    function updateLossPreview() {
+        const postage = parseFloat(document.getElementById('originalPostageLost')?.value) || 0;
+        const returnPostage = parseFloat(document.getElementById('returnPostageCost')?.value) || 0;
+        const consumables = parseFloat(document.getElementById('consumablesLost')?.value) || 0;
+        const actualLoss = postage + returnPostage + consumables;
+        const preview = document.getElementById('actualLossPreview');
+        if (preview) {
+            preview.textContent = `£${actualLoss.toFixed(2)}`;
+        }
     }
 
     // ===== RETURNS LIST =====
@@ -141,10 +157,12 @@
             const returnDate = new Date(ret.return_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
             const statusBadge = getStatusBadge(ret.status);
             const reasonDisplay = getReasonDisplay(ret.return_reason);
-            const conditionDisplay = getConditionDisplay(ret.item_condition);
             const trackingDisplay = ret.return_tracking_number
                 ? `<a href="#" onclick="trackReturn('${ret._id}'); return false;">${ret.return_tracking_number.substring(0, 12)}...</a>`
                 : '<span style="color: #999;">Not tracked</span>';
+
+            // Calculate actual loss (postage + consumables only, not refund)
+            const actualLoss = (ret.original_postage_lost || 0) + (ret.return_postage_cost || 0) + (ret.consumables_lost || 0);
 
             // Desktop row
             tableRows += `
@@ -158,28 +176,30 @@
                     </td>
                     <td>
                         <div style="font-weight: 600;">${ret.product_name || 'Unknown'}</div>
-                        <div style="font-size: 0.8rem; color: #666;">${ret.product_serial || ''} ${ret.security_barcode ? `· ${ret.security_barcode}` : ''}</div>
+                        <div style="font-size: 0.8rem; color: #666;">${ret.product_serial || ''}</div>
                     </td>
                     <td>${reasonDisplay}</td>
                     <td>${trackingDisplay}</td>
-                    <td>${conditionDisplay}</td>
-                    <td style="font-weight: 600; color: #ef4444;">£${(ret.refund_amount || 0).toFixed(2)}</td>
+                    <td style="color: #6b7280;">£${(ret.refund_amount || 0).toFixed(2)}</td>
+                    <td style="font-weight: 600; color: #ef4444;">£${actualLoss.toFixed(2)}</td>
                     <td>
-                        <div class="sale-actions">
-                            <button class="sale-action-btn" onclick="viewReturn('${ret._id}')" title="View/Manage">
+                        <div style="display: flex; gap: 6px; align-items: center;">
+                            ${ret.status === 'received' || ret.status === 'inspected' ? `
+                                <button onclick="openRestockModal('${ret._id}')" title="Restock Item"
+                                    style="background: #10b981; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 4px;">
+                                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                                        <path d="M8 2v4M8 2L6 4M8 2l2 2M3 7h10v6H3V7z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                    Restock
+                                </button>
+                            ` : ''}
+                            <button class="sale-action-btn" onclick="viewReturn('${ret._id}')" title="View Details" style="padding: 6px;">
                                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                                     <path d="M8 3C4.5 3 2 8 2 8s2.5 5 6 5 6-5 6-5-2.5-5-6-5z" stroke="currentColor" stroke-width="1.5"/>
                                     <circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.5"/>
                                 </svg>
                             </button>
-                            ${ret.status === 'received' || ret.status === 'inspected' ? `
-                                <button class="sale-action-btn" onclick="openRestockModal('${ret._id}')" title="Restock" style="color: #10b981;">
-                                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                                        <path d="M3 5L10 2L17 5M3 5L3 15L10 18M3 5L10 8M17 5L17 15L10 18M17 5L10 8M10 8L10 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" transform="scale(0.8) translate(1, 1)"/>
-                                    </svg>
-                                </button>
-                            ` : ''}
-                            <button class="sale-action-btn delete" onclick="deleteReturn('${ret._id}')" title="Delete">
+                            <button class="sale-action-btn delete" onclick="deleteReturn('${ret._id}')" title="Delete" style="padding: 6px;">
                                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                                     <path d="M2 4h12M5 4V3h6v1M5 7v6M8 7v6M11 7v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                                 </svg>
@@ -579,6 +599,7 @@
             refund_amount: parseFloat(document.getElementById('refundAmount').value) || 0,
             original_postage_lost: parseFloat(document.getElementById('originalPostageLost').value) || 0,
             return_postage_cost: parseFloat(document.getElementById('returnPostageCost').value) || 0,
+            consumables_lost: parseFloat(document.getElementById('consumablesLost').value) || 0,
             notes: document.getElementById('returnNotes').value
         };
 
