@@ -13066,6 +13066,453 @@ app.delete('/api/admin/sales/:id', requireAuth, requireDB, async (req, res) => {
     }
 });
 
+// ===== RETURNS MANAGEMENT API ENDPOINTS =====
+
+// Get all returns
+app.get('/api/admin/returns', requireAuth, requireDB, async (req, res) => {
+    try {
+        const returns = await db.collection('returns')
+            .find({})
+            .sort({ return_date: -1 })
+            .toArray();
+
+        const returnsWithIds = returns.map(r => ({
+            ...r,
+            _id: r._id.toString()
+        }));
+
+        res.json({ returns: returnsWithIds });
+    } catch (err) {
+        console.error('Error fetching returns:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Get returns summary
+app.get('/api/admin/returns/summary', requireAuth, requireDB, async (req, res) => {
+    try {
+        const returns = await db.collection('returns').find({}).toArray();
+
+        const summary = {
+            total: returns.length,
+            pending: returns.filter(r => r.status === 'pending').length,
+            in_transit: returns.filter(r => r.status === 'in_transit').length,
+            received: returns.filter(r => r.status === 'received').length,
+            inspected: returns.filter(r => r.status === 'inspected').length,
+            restocked: returns.filter(r => r.status === 'restocked').length,
+            total_loss: returns.reduce((sum, r) => {
+                return sum + (r.refund_amount || 0) + (r.original_postage_lost || 0) + (r.return_postage_cost || 0);
+            }, 0)
+        };
+
+        res.json(summary);
+    } catch (err) {
+        console.error('Error fetching returns summary:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Search sales for return creation
+app.get('/api/admin/sales/search', requireAuth, requireDB, async (req, res) => {
+    try {
+        const query = (req.query.q || '').trim().toUpperCase();
+
+        if (query.length < 2) {
+            return res.json({ sales: [] });
+        }
+
+        // Search in sales collection
+        const sales = await db.collection('sales').find({
+            $or: [
+                { order_number: { $regex: query, $options: 'i' } },
+                { product_serial: { $regex: query, $options: 'i' } },
+                { security_barcode: { $regex: query, $options: 'i' } },
+                { 'products.product_serial': { $regex: query, $options: 'i' } },
+                { 'products.security_barcode': { $regex: query, $options: 'i' } }
+            ]
+        }).limit(10).toArray();
+
+        const salesWithIds = sales.map(s => ({
+            ...s,
+            _id: s._id.toString()
+        }));
+
+        res.json({ sales: salesWithIds });
+    } catch (err) {
+        console.error('Error searching sales:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Get single return
+app.get('/api/admin/returns/:id', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid return ID' });
+    }
+
+    try {
+        const returnDoc = await db.collection('returns').findOne({ _id: new ObjectId(id) });
+
+        if (!returnDoc) {
+            return res.status(404).json({ error: 'Return not found' });
+        }
+
+        res.json({ return: { ...returnDoc, _id: returnDoc._id.toString() } });
+    } catch (err) {
+        console.error('Error fetching return:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Create new return
+app.post('/api/admin/returns', requireAuth, requireDB, async (req, res) => {
+    try {
+        const {
+            sale_id,
+            product_id,
+            order_number,
+            product_name,
+            product_serial,
+            security_barcode,
+            platform,
+            original_sale_date,
+            original_sale_price,
+            return_reason,
+            return_reason_details,
+            return_date,
+            return_tracking_number,
+            return_tracking_provider,
+            expected_delivery_date,
+            refund_amount,
+            original_postage_lost,
+            return_postage_cost,
+            notes
+        } = req.body;
+
+        if (!return_reason || !return_date || refund_amount === undefined) {
+            return res.status(400).json({ error: 'Return reason, date, and refund amount are required' });
+        }
+
+        const returnDoc = {
+            sale_id: sale_id || null,
+            product_id: product_id || null,
+            order_number: order_number || null,
+            product_name: product_name || 'Unknown Product',
+            product_serial: product_serial || null,
+            security_barcode: security_barcode || null,
+            platform: platform || null,
+            original_sale_date: original_sale_date ? new Date(original_sale_date) : null,
+            original_sale_price: parseFloat(original_sale_price) || 0,
+            return_reason,
+            return_reason_details: return_reason_details || null,
+            return_date: new Date(return_date),
+            return_tracking_number: return_tracking_number || null,
+            return_tracking_provider: return_tracking_provider || null,
+            expected_delivery_date: expected_delivery_date ? new Date(expected_delivery_date) : null,
+            refund_amount: parseFloat(refund_amount) || 0,
+            original_postage_lost: parseFloat(original_postage_lost) || 0,
+            return_postage_cost: parseFloat(return_postage_cost) || 0,
+            notes: notes || null,
+            status: return_tracking_number ? 'in_transit' : 'pending',
+            item_condition: null,
+            inspection_date: null,
+            inspection_notes: null,
+            restocked_date: null,
+            restock_history: [],
+            created_at: new Date(),
+            created_by: req.user.email
+        };
+
+        // Insert return
+        const result = await db.collection('returns').insertOne(returnDoc);
+
+        // Update product status to returned if product_id provided
+        if (product_id && ObjectId.isValid(product_id)) {
+            await db.collection('products').updateOne(
+                { _id: new ObjectId(product_id) },
+                {
+                    $set: {
+                        status: 'returned',
+                        return_reason: return_reason,
+                        refund_amount: parseFloat(refund_amount) || 0,
+                        original_postage_packaging: parseFloat(original_postage_lost) || 0,
+                        return_date: new Date(return_date),
+                        return_count: 1
+                    },
+                    $inc: {
+                        total_refund_amount: parseFloat(refund_amount) || 0,
+                        total_postage_lost: parseFloat(original_postage_lost) || 0
+                    }
+                }
+            );
+        }
+
+        res.json({
+            success: true,
+            message: 'Return created successfully',
+            return_id: result.insertedId.toString()
+        });
+    } catch (err) {
+        console.error('Error creating return:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Update return tracking
+app.put('/api/admin/returns/:id/tracking', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid return ID' });
+    }
+
+    const { return_tracking_number, return_tracking_provider, expected_delivery_date } = req.body;
+
+    try {
+        const updateData = {
+            return_tracking_number: return_tracking_number || null,
+            return_tracking_provider: return_tracking_provider || null,
+            tracking_added_date: new Date(),
+            status: 'in_transit'
+        };
+
+        if (expected_delivery_date) {
+            updateData.expected_delivery_date = new Date(expected_delivery_date);
+        }
+
+        const result = await db.collection('returns').updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updateData }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ error: 'Return not found' });
+        }
+
+        res.json({ success: true, message: 'Tracking updated' });
+    } catch (err) {
+        console.error('Error updating tracking:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Mark return as received
+app.put('/api/admin/returns/:id/received', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid return ID' });
+    }
+
+    try {
+        const result = await db.collection('returns').updateOne(
+            { _id: new ObjectId(id) },
+            {
+                $set: {
+                    status: 'received',
+                    received_date: new Date()
+                }
+            }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ error: 'Return not found' });
+        }
+
+        res.json({ success: true, message: 'Return marked as received' });
+    } catch (err) {
+        console.error('Error updating return:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Save inspection results
+app.put('/api/admin/returns/:id/inspect', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid return ID' });
+    }
+
+    const {
+        item_condition,
+        serial_verified,
+        security_barcode_verified,
+        physical_condition_ok,
+        functional_test_passed,
+        inspection_notes,
+        recommended_action
+    } = req.body;
+
+    try {
+        const updateData = {
+            status: 'inspected',
+            item_condition: item_condition || 'unknown',
+            inspection_date: new Date(),
+            inspection_notes: inspection_notes || null,
+            inspection_results: {
+                serial_verified: serial_verified || false,
+                security_barcode_verified: security_barcode_verified || false,
+                physical_condition_ok: physical_condition_ok || false,
+                functional_test_passed: functional_test_passed || false,
+                recommended_action: recommended_action || null,
+                inspected_by: req.user.email,
+                inspected_at: new Date()
+            }
+        };
+
+        const result = await db.collection('returns').updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updateData }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ error: 'Return not found' });
+        }
+
+        // Also update the product with inspection info
+        const returnDoc = await db.collection('returns').findOne({ _id: new ObjectId(id) });
+        if (returnDoc && returnDoc.product_id && ObjectId.isValid(returnDoc.product_id)) {
+            await db.collection('products').updateOne(
+                { _id: new ObjectId(returnDoc.product_id) },
+                {
+                    $set: {
+                        item_opened: item_condition !== 'sealed'
+                    }
+                }
+            );
+        }
+
+        res.json({ success: true, message: 'Inspection saved' });
+    } catch (err) {
+        console.error('Error saving inspection:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Restock returned item
+app.put('/api/admin/returns/:id/restock', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid return ID' });
+    }
+
+    const { new_security_barcode, restock_notes, archive_return } = req.body;
+
+    try {
+        const returnDoc = await db.collection('returns').findOne({ _id: new ObjectId(id) });
+
+        if (!returnDoc) {
+            return res.status(404).json({ error: 'Return not found' });
+        }
+
+        // Update return status
+        const restockRecord = {
+            restocked_at: new Date(),
+            restocked_by: req.user.email,
+            new_security_barcode: new_security_barcode || null,
+            notes: restock_notes || null
+        };
+
+        await db.collection('returns').updateOne(
+            { _id: new ObjectId(id) },
+            {
+                $set: {
+                    status: 'restocked',
+                    restocked_date: new Date()
+                },
+                $push: { restock_history: restockRecord }
+            }
+        );
+
+        // Update product back to in_stock
+        if (returnDoc.product_id && ObjectId.isValid(returnDoc.product_id)) {
+            const productUpdate = {
+                status: 'in_stock',
+                last_restock_date: new Date(),
+                restock_notes: restock_notes || null
+            };
+
+            if (new_security_barcode) {
+                productUpdate.security_barcode = new_security_barcode;
+            }
+
+            // Archive return data for tax purposes
+            if (archive_return) {
+                const product = await db.collection('products').findOne({ _id: new ObjectId(returnDoc.product_id) });
+                if (product) {
+                    const restockHistory = product.restock_history || [];
+                    restockHistory.push({
+                        date: new Date(),
+                        user: req.user.email,
+                        archived_return_data: {
+                            return_id: returnDoc._id.toString(),
+                            return_reason: returnDoc.return_reason,
+                            refund_amount: returnDoc.refund_amount,
+                            original_postage_lost: returnDoc.original_postage_lost,
+                            return_postage_cost: returnDoc.return_postage_cost,
+                            return_date: returnDoc.return_date,
+                            item_condition: returnDoc.item_condition,
+                            original_sale_date: returnDoc.original_sale_date,
+                            original_sale_price: returnDoc.original_sale_price
+                        }
+                    });
+                    productUpdate.restock_history = restockHistory;
+                }
+            }
+
+            // Clear return fields on product
+            await db.collection('products').updateOne(
+                { _id: new ObjectId(returnDoc.product_id) },
+                {
+                    $set: productUpdate,
+                    $unset: {
+                        return_reason: "",
+                        refund_amount: "",
+                        original_postage_packaging: "",
+                        return_postage_cost: "",
+                        return_date: "",
+                        return_count: "",
+                        total_refund_amount: "",
+                        total_postage_lost: "",
+                        total_return_cost: ""
+                    }
+                }
+            );
+        }
+
+        res.json({ success: true, message: 'Item restocked successfully' });
+    } catch (err) {
+        console.error('Error restocking item:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
+// Delete return
+app.delete('/api/admin/returns/:id', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid return ID' });
+    }
+
+    try {
+        const result = await db.collection('returns').deleteOne({ _id: new ObjectId(id) });
+
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ error: 'Return not found' });
+        }
+
+        res.json({ success: true, message: 'Return deleted successfully' });
+    } catch (err) {
+        console.error('Error deleting return:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // ===== CONSUMABLE TEMPLATES API ENDPOINTS =====
 
 // Get all consumable templates

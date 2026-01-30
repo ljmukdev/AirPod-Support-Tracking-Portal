@@ -2031,13 +2031,8 @@ async function editSale(id) {
 }
 
 async function returnSale(saleId, productId) {
-    if (!productId) {
-        alert('No product linked to this sale. Please process the return manually from the Product Search page.');
-        return;
-    }
-
-    // Navigate to search-product page with the product ID to process the return
-    window.location.href = `search-product.html?id=${productId}&action=return`;
+    // Navigate to returns page with the sale ID to create a return
+    window.location.href = `returns.html?sale_id=${saleId}${productId ? '&product_id=' + productId : ''}`;
 }
 
 async function deleteSale(id) {
