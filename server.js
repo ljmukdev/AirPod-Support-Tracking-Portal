@@ -13115,22 +13115,63 @@ app.get('/api/admin/returns/summary', requireAuth, requireDB, async (req, res) =
 // Search sales for return creation
 app.get('/api/admin/sales/search', requireAuth, requireDB, async (req, res) => {
     try {
-        const query = (req.query.q || '').trim().toUpperCase();
+        const query = (req.query.q || '').trim();
 
         if (query.length < 2) {
             return res.json({ sales: [] });
         }
 
-        // Search in sales collection
-        const sales = await db.collection('sales').find({
+        const queryUpper = query.toUpperCase();
+
+        // First, search for sales directly by order number
+        let sales = await db.collection('sales').find({
             $or: [
+                { order_number: query },
+                { order_number: queryUpper },
                 { order_number: { $regex: query, $options: 'i' } },
-                { product_serial: { $regex: query, $options: 'i' } },
-                { security_barcode: { $regex: query, $options: 'i' } },
-                { 'products.product_serial': { $regex: query, $options: 'i' } },
-                { 'products.security_barcode': { $regex: query, $options: 'i' } }
+                { outward_tracking_number: query },
+                { outward_tracking_number: queryUpper },
+                // Search within products array
+                { 'products.product_serial': queryUpper },
+                { 'products.product_serial': query },
+                { 'products.security_barcode': queryUpper },
+                { 'products.security_barcode': query }
             ]
         }).limit(10).toArray();
+
+        // Also search for products that match, then find their associated sales
+        const products = await db.collection('products').find({
+            $or: [
+                { serial_number: queryUpper },
+                { serial_number: query },
+                { security_barcode: queryUpper },
+                { security_barcode: query },
+                { security_barcode: { $regex: query, $options: 'i' } }
+            ]
+        }).toArray();
+
+        // Get sales order numbers from matched products
+        const salesOrderNumbers = new Set();
+        for (const product of products) {
+            if (product.sales_order_number) {
+                salesOrderNumbers.add(product.sales_order_number);
+            }
+        }
+
+        // Find sales by these order numbers
+        if (salesOrderNumbers.size > 0) {
+            const productSales = await db.collection('sales').find({
+                order_number: { $in: Array.from(salesOrderNumbers) }
+            }).toArray();
+
+            // Merge with existing sales, avoiding duplicates
+            const existingSaleIds = new Set(sales.map(s => s._id.toString()));
+            for (const sale of productSales) {
+                if (!existingSaleIds.has(sale._id.toString())) {
+                    sales.push(sale);
+                }
+            }
+        }
 
         const salesWithIds = sales.map(s => ({
             ...s,
