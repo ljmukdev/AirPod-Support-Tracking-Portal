@@ -422,29 +422,43 @@
         resultsContainer.innerHTML = '<p style="color: #6b7280;">Searching...</p>';
 
         try {
-            const response = await authenticatedFetch(`${API_BASE}/api/admin/sales/search?q=${encodeURIComponent(searchTerm)}`);
+            // Use universal search endpoint which we know works
+            const response = await authenticatedFetch(`${API_BASE}/api/admin/universal-search?q=${encodeURIComponent(searchTerm)}`);
             const data = await response.json();
 
             if (response.ok && data.sales && data.sales.length > 0) {
                 let html = '<div style="display: flex; flex-direction: column; gap: 8px;">';
                 data.sales.forEach(sale => {
-                    const saleDate = new Date(sale.sale_date).toLocaleDateString();
-                    const productName = sale.product_name || (sale.products && sale.products[0]?.product_name) || 'Unknown';
-                    const productSerial = sale.product_serial || (sale.products && sale.products[0]?.product_serial) || '';
+                    const saleDate = sale.sale_date ? new Date(sale.sale_date).toLocaleDateString() : 'N/A';
+                    const productName = sale.products && sale.products[0] ? sale.products[0].product_serial : 'Unknown';
+                    const productSerial = sale.products && sale.products[0] ? sale.products[0].product_serial : '';
+                    const salePrice = sale.sale_price || 0;
+
+                    // Build sale object with necessary fields for return creation
+                    const saleObj = {
+                        _id: sale.id,
+                        order_number: sale.order_number,
+                        sale_date: sale.sale_date,
+                        sale_price: salePrice,
+                        order_total: salePrice,
+                        platform: sale.platform,
+                        products: sale.products || [],
+                        outward_tracking_number: sale.outward_tracking_number
+                    };
 
                     html += `
-                        <div onclick="selectSaleForReturn(${JSON.stringify(sale).replace(/"/g, '&quot;')})"
+                        <div onclick='selectSaleForReturn(${JSON.stringify(saleObj).replace(/'/g, "&#39;")})'
                              style="padding: 12px; border: 1px solid #dee2e6; border-radius: 8px; cursor: pointer; background: white; transition: all 0.2s;"
                              onmouseover="this.style.borderColor='#3b82f6'; this.style.background='#eff6ff';"
                              onmouseout="this.style.borderColor='#dee2e6'; this.style.background='white';">
                             <div style="display: flex; justify-content: space-between; align-items: start;">
                                 <div>
                                     <div style="font-weight: 600;">${sale.order_number || 'No Order #'}</div>
-                                    <div style="font-size: 0.9rem; color: #6b7280;">${productName}</div>
+                                    <div style="font-size: 0.9rem; color: #6b7280;">${sale.product_count || 1} product(s)</div>
                                     <div style="font-size: 0.8rem; color: #999;">${productSerial}</div>
                                 </div>
                                 <div style="text-align: right;">
-                                    <div style="font-weight: 600; color: #10b981;">£${(sale.order_total || sale.sale_price || 0).toFixed(2)}</div>
+                                    <div style="font-weight: 600; color: #10b981;">£${salePrice.toFixed(2)}</div>
                                     <div style="font-size: 0.8rem; color: #999;">${saleDate}</div>
                                 </div>
                             </div>
