@@ -7,12 +7,38 @@ let allReceipts = [];
 let currentReceiptId = null;
 let currentUploadData = null;
 
+// Wait for authentication token to be available before making API calls
+function waitForAuth(callback, maxWait = 3000) {
+    const startTime = Date.now();
+
+    function checkToken() {
+        const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+        if (token) {
+            console.log('[RECEIPTS] Token found, initializing...');
+            callback();
+        } else if (Date.now() - startTime < maxWait) {
+            // Token not yet available, wait and check again
+            setTimeout(checkToken, 100);
+        } else {
+            // Timeout - try anyway (will fail with 401 but won't break the page)
+            console.warn('[RECEIPTS] Auth token not found after waiting, attempting to load anyway');
+            callback();
+        }
+    }
+
+    checkToken();
+}
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
-    loadReceipts();
-    loadSummary();
     setupEventListeners();
     setupDragDrop();
+
+    // Wait for token to be available before loading data
+    waitForAuth(function() {
+        loadReceipts();
+        loadSummary();
+    });
 });
 
 // Setup event listeners
