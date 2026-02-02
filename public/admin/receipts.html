@@ -50,6 +50,38 @@
             white-space: nowrap;
         }
 
+        /* Summary cards container */
+        .return-summary-cards {
+            display: flex;
+            gap: 16px;
+            padding: 16px 32px;
+            background: #f9fafb;
+            flex-wrap: wrap;
+        }
+
+        /* Individual summary card */
+        .return-summary-card {
+            background: white;
+            border-radius: 8px;
+            padding: 16px 24px;
+            border-left: 4px solid #6b7280;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            min-width: 120px;
+        }
+        .return-summary-card .value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #111827;
+        }
+        .return-summary-card .label {
+            font-size: 13px;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+        .return-summary-card.pending {
+            border-left-color: #f59e0b;
+        }
+
         /* Receipt-specific styles */
         .receipt-status-badge {
             display: inline-flex;
