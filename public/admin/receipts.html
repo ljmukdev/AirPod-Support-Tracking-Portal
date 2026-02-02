@@ -44,6 +44,12 @@
         })();
     </script>
     <style>
+        /* Ensure upload button is always visible */
+        #uploadReceiptBtn {
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+
         /* Receipt-specific styles */
         .receipt-status-badge {
             display: inline-flex;
@@ -554,6 +560,13 @@
             <div class="products-header">
                 <h1 class="products-title">Shipping Receipts</h1>
                 <div class="products-header-actions">
+                    <button class="btn-primary" id="uploadReceiptBtn">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M8 12V4M4 8L8 4L12 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M2 14H14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        Upload Receipt
+                    </button>
                     <div class="search-box">
                         <input
                             type="text"
@@ -563,13 +576,6 @@
                             autocomplete="off"
                         >
                     </div>
-                    <button class="btn-primary" id="uploadReceiptBtn">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M8 12V4M4 8L8 4L12 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            <path d="M2 14H14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                        </svg>
-                        Upload Receipt
-                    </button>
                 </div>
             </div>
 
