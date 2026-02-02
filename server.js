@@ -13618,6 +13618,152 @@ function extractTrackingNumbers(ocrText) {
     return foundTracking;
 }
 
+// Extract delivery office/Post Office address from OCR text
+function extractDeliveryOffice(ocrText) {
+    const lines = ocrText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    let deliveryOffice = null;
+
+    // Common patterns for Post Office/delivery office identification
+    const officePatterns = [
+        /(?:Post\s*Office|PO|Branch|Delivery\s*Office|Collection\s*Point|Drop[\s-]*off)[\s:]*(.+)/i,
+        /(?:Location|Office|Branch|Store)[\s:]*(.+)/i,
+        /(?:Accepted\s*at|Dropped\s*(?:off\s*)?at|Handed\s*in\s*at)[\s:]*(.+)/i,
+    ];
+
+    // Look for address-like patterns (UK postcodes)
+    const postcodePattern = /\b([A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2})\b/gi;
+
+    // Try to find office name patterns
+    for (const line of lines) {
+        for (const pattern of officePatterns) {
+            const match = line.match(pattern);
+            if (match && match[1]) {
+                deliveryOffice = match[1].trim();
+                break;
+            }
+        }
+        if (deliveryOffice) break;
+    }
+
+    // If no explicit office found, look for lines with postcodes that might be addresses
+    if (!deliveryOffice) {
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            // Look for lines containing "Post Office", "PO", common store names
+            if (/post\s*office|WHSmith|McColls|Co[\s-]*op|Londis|Spar|One\s*Stop|Martin's|RS\s*McColl/i.test(line)) {
+                // Collect this line and potentially the next few lines as address
+                const addressLines = [line];
+                for (let j = i + 1; j < Math.min(i + 3, lines.length); j++) {
+                    if (postcodePattern.test(lines[j]) || /^\d+|street|road|lane|avenue|drive|close|way|place|crescent/i.test(lines[j])) {
+                        addressLines.push(lines[j]);
+                    }
+                }
+                deliveryOffice = addressLines.join(', ');
+                break;
+            }
+        }
+    }
+
+    // Last resort: find any line with a UK postcode
+    if (!deliveryOffice) {
+        for (const line of lines) {
+            if (postcodePattern.test(line) && line.length > 10) {
+                deliveryOffice = line;
+                break;
+            }
+        }
+    }
+
+    return deliveryOffice;
+}
+
+// Extract drop-off date and time from OCR text
+function extractDropOffDateTime(ocrText) {
+    const lines = ocrText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    let dropOffDate = null;
+    let dropOffTime = null;
+
+    // Date patterns (UK format DD/MM/YYYY, DD-MM-YYYY, DD MMM YYYY, etc.)
+    const datePatterns = [
+        /(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/g,  // DD/MM/YYYY or DD-MM-YYYY
+        /(\d{1,2}\s*(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s*\d{2,4})/gi,  // DD Mon YYYY
+        /(\d{1,2}(?:st|nd|rd|th)?\s*(?:January|February|March|April|May|June|July|August|September|October|November|December)\s*\d{2,4})/gi  // DD Month YYYY
+    ];
+
+    // Time patterns (24hr and 12hr formats)
+    const timePatterns = [
+        /(\d{1,2}:\d{2}(?::\d{2})?(?:\s*[AaPp][Mm])?)/g,  // HH:MM or HH:MM:SS with optional AM/PM
+        /(\d{1,2}\.\d{2}(?:\s*[AaPp][Mm])?)/g,  // HH.MM format
+        /(?:at|@)\s*(\d{1,2}[:\.]?\d{2}(?:\s*[AaPp][Mm])?)/gi  // "at 14:30" or "@ 2:30pm"
+    ];
+
+    // Combined date/time patterns
+    const dateTimePatterns = [
+        /(?:Date|Time|Dropped|Accepted|Received|Posted)[\s:]*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})[\s,]*(?:at|@)?\s*(\d{1,2}[:\.]?\d{2}(?:\s*[AaPp][Mm])?)?/gi,
+        /(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})[\s,]+(\d{1,2}[:\.]?\d{2}(?:\s*[AaPp][Mm])?)/g
+    ];
+
+    const fullText = ocrText;
+
+    // Try combined date/time patterns first
+    for (const pattern of dateTimePatterns) {
+        const matches = [...fullText.matchAll(pattern)];
+        if (matches.length > 0) {
+            const match = matches[0];
+            if (match[1]) dropOffDate = match[1].trim();
+            if (match[2]) dropOffTime = match[2].trim();
+            break;
+        }
+    }
+
+    // If no combined match, look for date separately
+    if (!dropOffDate) {
+        for (const pattern of datePatterns) {
+            const matches = fullText.match(pattern);
+            if (matches && matches.length > 0) {
+                dropOffDate = matches[0].trim();
+                break;
+            }
+        }
+    }
+
+    // Look for time separately if not found
+    if (!dropOffTime) {
+        for (const pattern of timePatterns) {
+            const matches = fullText.match(pattern);
+            if (matches && matches.length > 0) {
+                dropOffTime = matches[0].trim();
+                break;
+            }
+        }
+    }
+
+    // Try to parse and normalize the date
+    let parsedDate = null;
+    if (dropOffDate) {
+        try {
+            // Try UK format DD/MM/YYYY
+            const ukDateMatch = dropOffDate.match(/(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})/);
+            if (ukDateMatch) {
+                const day = parseInt(ukDateMatch[1]);
+                const month = parseInt(ukDateMatch[2]) - 1;
+                let year = parseInt(ukDateMatch[3]);
+                if (year < 100) year += 2000;
+                parsedDate = new Date(year, month, day);
+            }
+        } catch (e) {
+            // Keep the original string if parsing fails
+        }
+    }
+
+    return {
+        date: dropOffDate,
+        time: dropOffTime,
+        parsed_date: parsedDate,
+        formatted: dropOffDate && dropOffTime ? `${dropOffDate} at ${dropOffTime}` : (dropOffDate || dropOffTime || null)
+    };
+}
+
 // Configure multer for receipt uploads
 const receiptStorage = multer.diskStorage({
     destination: function (req, file, cb) {
@@ -13677,24 +13823,38 @@ app.post('/api/admin/receipts/upload', requireAuth, requireDB, (req, res, next) 
 
         console.log('📸 Processing receipt OCR for:', imagePath);
 
-        // Run OCR on the image
+        // Run OCR on the image with improved settings
         let ocrResult;
         let extractedText = '';
         let extractedTracking = [];
+        let deliveryOffice = null;
+        let dropOffDateTime = null;
 
         try {
+            // Use improved Tesseract configuration for better recognition
             ocrResult = await Tesseract.recognize(imagePath, 'eng', {
                 logger: m => {
                     if (m.status === 'recognizing text') {
                         console.log(`   OCR Progress: ${Math.round(m.progress * 100)}%`);
                     }
-                }
+                },
+                // Improved OCR settings
+                tessedit_pageseg_mode: '6',  // Assume uniform block of text
+                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789/:.-@#, ',
+                preserve_interword_spaces: '1'
             });
 
             extractedText = ocrResult.data.text;
-            extractedTracking = extractTrackingNumbers(extractedText);
 
-            console.log('✅ OCR completed. Found', extractedTracking.length, 'potential tracking numbers');
+            // Extract all information from the receipt
+            extractedTracking = extractTrackingNumbers(extractedText);
+            deliveryOffice = extractDeliveryOffice(extractedText);
+            dropOffDateTime = extractDropOffDateTime(extractedText);
+
+            console.log('✅ OCR completed:');
+            console.log('   - Tracking numbers found:', extractedTracking.length);
+            console.log('   - Delivery office:', deliveryOffice || 'Not detected');
+            console.log('   - Drop-off date/time:', dropOffDateTime?.formatted || 'Not detected');
         } catch (ocrError) {
             console.error('⚠️ OCR processing failed:', ocrError.message);
             // Continue with manual entry fallback
@@ -13730,6 +13890,11 @@ app.post('/api/admin/receipts/upload', requireAuth, requireDB, (req, res, next) 
             status: matchedOrders.length > 0 ? 'matched' : (extractedTracking.length > 0 ? 'pending_review' : 'no_tracking_found'),
             associated_sale_id: matchedOrders.length === 1 ? matchedOrders[0].sale_id : null,
             manually_entered_tracking: null,
+            // New fields for delivery office and drop-off time
+            delivery_office: deliveryOffice,
+            drop_off_date: dropOffDateTime?.date || null,
+            drop_off_time: dropOffDateTime?.time || null,
+            drop_off_parsed: dropOffDateTime?.parsed_date || null,
             uploaded_at: new Date(),
             uploaded_by: req.user.email,
             notes: ''
@@ -13745,6 +13910,11 @@ app.post('/api/admin/receipts/upload', requireAuth, requireDB, (req, res, next) 
             extracted_tracking: extractedTracking,
             matched_orders: matchedOrders,
             status: receiptRecord.status,
+            // Include new extracted data in response
+            delivery_office: deliveryOffice,
+            drop_off_date: dropOffDateTime?.date || null,
+            drop_off_time: dropOffDateTime?.time || null,
+            drop_off_formatted: dropOffDateTime?.formatted || null,
             message: matchedOrders.length > 0
                 ? `Found ${matchedOrders.length} matching order(s)!`
                 : (extractedTracking.length > 0
@@ -14006,17 +14176,26 @@ app.post('/api/admin/receipts/:id/reprocess', requireAuth, requireDB, async (req
 
         console.log('🔄 Re-processing OCR for receipt:', id);
 
-        // Re-run OCR
+        // Re-run OCR with improved settings
         const ocrResult = await Tesseract.recognize(imagePath, 'eng', {
             logger: m => {
                 if (m.status === 'recognizing text') {
                     console.log(`   OCR Progress: ${Math.round(m.progress * 100)}%`);
                 }
-            }
+            },
+            // Improved OCR settings
+            tessedit_pageseg_mode: '6',
+            tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789/:.-@#, ',
+            preserve_interword_spaces: '1'
         });
 
         const extractedText = ocrResult.data.text;
         const extractedTracking = extractTrackingNumbers(extractedText);
+        const deliveryOffice = extractDeliveryOffice(extractedText);
+        const dropOffDateTime = extractDropOffDateTime(extractedText);
+
+        console.log('   - Delivery office:', deliveryOffice || 'Not detected');
+        console.log('   - Drop-off date/time:', dropOffDateTime?.formatted || 'Not detected');
 
         // Try to find matching sales
         const matchedOrders = [];
@@ -14049,6 +14228,10 @@ app.post('/api/admin/receipts/:id/reprocess', requireAuth, requireDB, async (req
                     extracted_tracking: extractedTracking,
                     matched_orders: matchedOrders,
                     status: receipt.associated_sale_id ? receipt.status : newStatus,
+                    delivery_office: deliveryOffice,
+                    drop_off_date: dropOffDateTime?.date || null,
+                    drop_off_time: dropOffDateTime?.time || null,
+                    drop_off_parsed: dropOffDateTime?.parsed_date || null,
                     reprocessed_at: new Date()
                 }
             }
@@ -14060,6 +14243,10 @@ app.post('/api/admin/receipts/:id/reprocess', requireAuth, requireDB, async (req
             extracted_tracking: extractedTracking,
             matched_orders: matchedOrders,
             status: newStatus,
+            delivery_office: deliveryOffice,
+            drop_off_date: dropOffDateTime?.date || null,
+            drop_off_time: dropOffDateTime?.time || null,
+            drop_off_formatted: dropOffDateTime?.formatted || null,
             message: `OCR reprocessed. Found ${extractedTracking.length} tracking number(s), ${matchedOrders.length} matched.`
         });
 
