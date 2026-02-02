@@ -213,6 +213,41 @@ function displayOCRResults(data) {
         ocrTextDisplay.textContent = data.ocr_text || 'No text extracted';
     }
 
+    // Display extracted receipt info (delivery office and drop-off time)
+    const extractedInfoContainer = document.getElementById('extractedReceiptInfo');
+    if (extractedInfoContainer) {
+        let infoHtml = '';
+
+        if (data.delivery_office) {
+            infoHtml += `
+                <div class="extracted-info-item">
+                    <span class="extracted-info-label">📍 Delivery Office:</span>
+                    <span class="extracted-info-value">${data.delivery_office}</span>
+                </div>
+            `;
+        }
+
+        if (data.drop_off_formatted || data.drop_off_date || data.drop_off_time) {
+            const dateTimeStr = data.drop_off_formatted ||
+                               (data.drop_off_date && data.drop_off_time ? `${data.drop_off_date} at ${data.drop_off_time}` :
+                               data.drop_off_date || data.drop_off_time);
+            infoHtml += `
+                <div class="extracted-info-item">
+                    <span class="extracted-info-label">🕐 Drop-off Time:</span>
+                    <span class="extracted-info-value">${dateTimeStr}</span>
+                </div>
+            `;
+        }
+
+        if (infoHtml) {
+            extractedInfoContainer.innerHTML = infoHtml;
+            extractedInfoContainer.style.display = 'block';
+        } else {
+            extractedInfoContainer.innerHTML = '<p style="color: #9ca3af; font-size: 13px;">No delivery office or drop-off time detected</p>';
+            extractedInfoContainer.style.display = 'block';
+        }
+    }
+
     // Display tracking matches
     if (trackingMatchesList) {
         if (data.extracted_tracking && data.extracted_tracking.length > 0) {
@@ -576,6 +611,12 @@ function displayReceiptDetail(receipt) {
         </div>
     `).join('') || '';
 
+    // Build delivery info section if available
+    const hasDeliveryInfo = receipt.delivery_office || receipt.drop_off_date || receipt.drop_off_time;
+    const dropOffStr = receipt.drop_off_date && receipt.drop_off_time
+        ? `${receipt.drop_off_date} at ${receipt.drop_off_time}`
+        : (receipt.drop_off_date || receipt.drop_off_time || null);
+
     content.innerHTML = `
         <div class="receipt-detail-section">
             <h4>Receipt Image</h4>
@@ -590,6 +631,26 @@ function displayReceiptDetail(receipt) {
                 Uploaded ${formatDate(receipt.uploaded_at)} by ${receipt.uploaded_by || 'Unknown'}
             </span>
         </div>
+
+        ${hasDeliveryInfo ? `
+        <div class="receipt-detail-section">
+            <h4>📍 Drop-off Information</h4>
+            <div style="background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); border: 1px solid #86efac; border-radius: 8px; padding: 12px;">
+                ${receipt.delivery_office ? `
+                    <div style="margin-bottom: 8px;">
+                        <span style="font-size: 12px; color: #166534; font-weight: 600;">Delivery Office:</span>
+                        <div style="font-size: 14px; color: #15803d; margin-top: 2px;">${receipt.delivery_office}</div>
+                    </div>
+                ` : ''}
+                ${dropOffStr ? `
+                    <div>
+                        <span style="font-size: 12px; color: #166534; font-weight: 600;">Date & Time:</span>
+                        <div style="font-size: 14px; color: #15803d; margin-top: 2px;">${dropOffStr}</div>
+                    </div>
+                ` : ''}
+            </div>
+        </div>
+        ` : ''}
 
         <div class="receipt-detail-section">
             <h4>Extracted Tracking Numbers</h4>
