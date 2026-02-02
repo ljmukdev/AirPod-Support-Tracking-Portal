@@ -137,7 +137,7 @@ async function processFile(file) {
         const formData = new FormData();
         formData.append('receipt', file);
 
-        const response = await fetch(`${RECEIPTS_API_BASE}/api/admin/receipts/upload`, {
+        const response = await authenticatedFetch(`${RECEIPTS_API_BASE}/api/admin/receipts/upload`, {
             method: 'POST',
             credentials: 'include',
             body: formData
@@ -207,7 +207,7 @@ function displayOCRResults(data) {
 // Search for order by tracking number
 async function searchOrderByTracking(trackingNumber) {
     try {
-        const response = await fetch(`${RECEIPTS_API_BASE}/api/admin/receipts/search-order/${encodeURIComponent(trackingNumber)}`, {
+        const response = await authenticatedFetch(`${RECEIPTS_API_BASE}/api/admin/receipts/search-order/${encodeURIComponent(trackingNumber)}`, {
             credentials: 'include'
         });
 
@@ -239,7 +239,7 @@ async function searchManualTracking() {
     resultsContainer.innerHTML = '<p style="color: #6b7280; font-size: 13px;">Searching...</p>';
 
     try {
-        const response = await fetch(`${RECEIPTS_API_BASE}/api/admin/receipts/search-order/${encodeURIComponent(trackingNumber)}`, {
+        const response = await authenticatedFetch(`${RECEIPTS_API_BASE}/api/admin/receipts/search-order/${encodeURIComponent(trackingNumber)}`, {
             credentials: 'include'
         });
 
@@ -277,7 +277,7 @@ async function associateWithOrder(saleId, trackingNumber) {
     }
 
     try {
-        const response = await fetch(`${RECEIPTS_API_BASE}/api/admin/receipts/${currentUploadData.receipt_id}/associate`, {
+        const response = await authenticatedFetch(`${RECEIPTS_API_BASE}/api/admin/receipts/${currentUploadData.receipt_id}/associate`, {
             method: 'PUT',
             credentials: 'include',
             headers: {
@@ -360,7 +360,7 @@ function saveReceipt() {
 // Load receipts list
 async function loadReceipts() {
     try {
-        const response = await fetch(`${RECEIPTS_API_BASE}/api/admin/receipts?limit=100`, {
+        const response = await authenticatedFetch(`${RECEIPTS_API_BASE}/api/admin/receipts?limit=100`, {
             credentials: 'include'
         });
 
@@ -381,7 +381,7 @@ async function loadReceipts() {
 // Load summary stats
 async function loadSummary() {
     try {
-        const response = await fetch(`${RECEIPTS_API_BASE}/api/admin/receipts/summary`, {
+        const response = await authenticatedFetch(`${RECEIPTS_API_BASE}/api/admin/receipts/summary`, {
             credentials: 'include'
         });
 
@@ -485,7 +485,7 @@ async function viewReceiptDetail(receiptId) {
     currentReceiptId = receiptId;
 
     try {
-        const response = await fetch(`${RECEIPTS_API_BASE}/api/admin/receipts/${receiptId}`, {
+        const response = await authenticatedFetch(`${RECEIPTS_API_BASE}/api/admin/receipts/${receiptId}`, {
             credentials: 'include'
         });
 
@@ -605,7 +605,7 @@ async function searchFromDetail() {
     resultsContainer.innerHTML = '<p style="color: #6b7280;">Searching...</p>';
 
     try {
-        const response = await fetch(`${RECEIPTS_API_BASE}/api/admin/receipts/search-order/${encodeURIComponent(query)}`, {
+        const response = await authenticatedFetch(`${RECEIPTS_API_BASE}/api/admin/receipts/search-order/${encodeURIComponent(query)}`, {
             credentials: 'include'
         });
 
@@ -637,7 +637,7 @@ async function associateFromDetail(saleId, trackingNumber) {
     if (!currentReceiptId) return;
 
     try {
-        const response = await fetch(`${RECEIPTS_API_BASE}/api/admin/receipts/${currentReceiptId}/associate`, {
+        const response = await authenticatedFetch(`${RECEIPTS_API_BASE}/api/admin/receipts/${currentReceiptId}/associate`, {
             method: 'PUT',
             credentials: 'include',
             headers: {
@@ -673,7 +673,7 @@ async function saveReceiptNotes() {
     if (!notesInput) return;
 
     try {
-        const response = await fetch(`${RECEIPTS_API_BASE}/api/admin/receipts/${currentReceiptId}/notes`, {
+        const response = await authenticatedFetch(`${RECEIPTS_API_BASE}/api/admin/receipts/${currentReceiptId}/notes`, {
             method: 'PUT',
             credentials: 'include',
             headers: {
@@ -704,7 +704,7 @@ async function reprocessCurrentReceipt() {
     try {
         showNotification('Re-processing OCR...', 'info');
 
-        const response = await fetch(`${RECEIPTS_API_BASE}/api/admin/receipts/${currentReceiptId}/reprocess`, {
+        const response = await authenticatedFetch(`${RECEIPTS_API_BASE}/api/admin/receipts/${currentReceiptId}/reprocess`, {
             method: 'POST',
             credentials: 'include'
         });
@@ -730,7 +730,7 @@ async function deleteReceipt(receiptId) {
     if (!confirm('Are you sure you want to delete this receipt?')) return;
 
     try {
-        const response = await fetch(`${RECEIPTS_API_BASE}/api/admin/receipts/${receiptId}`, {
+        const response = await authenticatedFetch(`${RECEIPTS_API_BASE}/api/admin/receipts/${receiptId}`, {
             method: 'DELETE',
             credentials: 'include'
         });
