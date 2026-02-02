@@ -163,16 +163,25 @@ async function processFile(file) {
         const formData = new FormData();
         formData.append('receipt', file);
 
+        console.log('[RECEIPTS] Uploading receipt...');
         const response = await authenticatedFetch(`${RECEIPTS_API_BASE}/api/admin/receipts/upload`, {
             method: 'POST',
             credentials: 'include',
             body: formData
         });
 
-        const data = await response.json();
+        console.log('[RECEIPTS] Upload response status:', response.status);
 
         if (processingIndicator) processingIndicator.style.display = 'none';
         if (uploadArea) uploadArea.classList.remove('processing');
+
+        // Handle 401 without redirecting
+        if (response.status === 401) {
+            showNotification('Session expired. Please refresh the page and try again.', 'error');
+            return;
+        }
+
+        const data = await response.json();
 
         if (data.success) {
             currentUploadData = data;
@@ -386,9 +395,19 @@ function saveReceipt() {
 // Load receipts list
 async function loadReceipts() {
     try {
+        console.log('[RECEIPTS] Loading receipts...');
         const response = await authenticatedFetch(`${RECEIPTS_API_BASE}/api/admin/receipts?limit=100`, {
             credentials: 'include'
         });
+
+        console.log('[RECEIPTS] Response status:', response.status);
+
+        // Handle 401 without redirecting
+        if (response.status === 401) {
+            console.warn('[RECEIPTS] Unauthorized - please refresh the page or log in again');
+            showNotification('Session expired. Please refresh the page.', 'warning');
+            return;
+        }
 
         const data = await response.json();
 
@@ -399,7 +418,7 @@ async function loadReceipts() {
             showNotification(data.error || 'Failed to load receipts', 'error');
         }
     } catch (error) {
-        console.error('Load error:', error);
+        console.error('[RECEIPTS] Load error:', error);
         showNotification('Failed to load receipts.', 'error');
     }
 }
@@ -407,9 +426,18 @@ async function loadReceipts() {
 // Load summary stats
 async function loadSummary() {
     try {
+        console.log('[RECEIPTS] Loading summary...');
         const response = await authenticatedFetch(`${RECEIPTS_API_BASE}/api/admin/receipts/summary`, {
             credentials: 'include'
         });
+
+        console.log('[RECEIPTS] Summary response status:', response.status);
+
+        // Handle 401 without redirecting
+        if (response.status === 401) {
+            console.warn('[RECEIPTS] Summary unauthorized');
+            return;
+        }
 
         const data = await response.json();
 
@@ -421,7 +449,7 @@ async function loadSummary() {
             document.getElementById('totalReceipts').textContent = data.summary.total || 0;
         }
     } catch (error) {
-        console.error('Summary load error:', error);
+        console.error('[RECEIPTS] Summary load error:', error);
     }
 }
 
