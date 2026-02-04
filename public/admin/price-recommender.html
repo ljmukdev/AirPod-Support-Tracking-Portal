@@ -1061,6 +1061,26 @@
                     <button class="btn btn-primary" onclick="calculateBid()" style="margin-top:16px;">Calculate Max Bid</button>
                 </div>
 
+                <!-- Quick Load Recent Sales Section -->
+                <div class="recent-sales-section" id="recentSalesPanel" style="display:none;margin-top:16px;max-width:700px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+                        <div>
+                            <strong style="color:#047857;">Quick Option: Use Your Recent Sales</strong>
+                            <p style="margin:4px 0 0;font-size:0.85rem;color:#059669;">
+                                Load prices from your last 5 sales for each part type to auto-fill pricing data.
+                            </p>
+                        </div>
+                        <button class="load-recent-sales-btn" id="loadRecentSalesBtnMain" onclick="loadRecentSales()">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M2 8C2 4.68629 4.68629 2 8 2C10.0503 2 11.8574 3.00442 12.9554 4.54404M14 8C14 11.3137 11.3137 14 8 14C5.94972 14 4.14265 12.9956 3.04464 11.456" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                <path d="M12.9554 4.54404L13.5 2.5M12.9554 4.54404L10.9 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            Load Recent Sales
+                        </button>
+                    </div>
+                    <div id="recentSalesStatusMain" style="display:none;margin-top:12px;"></div>
+                </div>
+
                 <div id="bidCalcResult">
                     <div class="no-data" style="padding:40px 20px;"><p>Select a set above to calculate the max bid price.</p></div>
                 </div>
@@ -1655,16 +1675,25 @@
         function onGenerationChange() {
             const select = document.getElementById('bidCalcGeneration');
             const modePanel = document.getElementById('modeSelectionPanel');
+            const recentSalesPanel = document.getElementById('recentSalesPanel');
             const resultDiv = document.getElementById('bidCalcResult');
 
             if (select && select.value) {
                 currentSelection = JSON.parse(select.value);
                 modePanel.style.display = 'block';
+                recentSalesPanel.style.display = 'block';
                 // Reset manual price data for new selection
                 manualPriceData = {};
+                // Reset recent sales status
+                const statusDiv = document.getElementById('recentSalesStatusMain');
+                if (statusDiv) {
+                    statusDiv.style.display = 'none';
+                    statusDiv.innerHTML = '';
+                }
                 resultDiv.innerHTML = '<div class="no-data" style="padding:40px 20px;"><p>Select options above and click Calculate.</p></div>';
             } else {
                 modePanel.style.display = 'none';
+                recentSalesPanel.style.display = 'none';
                 resultDiv.innerHTML = '<div class="no-data" style="padding:40px 20px;"><p>Select a set above to calculate the max bid price.</p></div>';
             }
         }
@@ -2171,22 +2200,40 @@
                 return;
             }
 
-            const btn = document.getElementById('loadRecentSalesBtn');
-            const statusDiv = document.getElementById('recentSalesStatus');
+            // Get both main panel and error message elements
+            const btnMain = document.getElementById('loadRecentSalesBtnMain');
+            const btnError = document.getElementById('loadRecentSalesBtn');
+            const statusMain = document.getElementById('recentSalesStatusMain');
+            const statusError = document.getElementById('recentSalesStatus');
 
-            if (btn) {
-                btn.disabled = true;
-                btn.innerHTML = `
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="animation: spin 1s linear infinite;">
-                        <path d="M2 8C2 4.68629 4.68629 2 8 2C10.0503 2 11.8574 3.00442 12.9554 4.54404M14 8C14 11.3137 11.3137 14 8 14C5.94972 14 4.14265 12.9956 3.04464 11.456" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                    </svg>
-                    Loading...
-                `;
-            }
+            // Helper to update all buttons
+            const setButtonState = (disabled, html) => {
+                [btnMain, btnError].forEach(btn => {
+                    if (btn) {
+                        btn.disabled = disabled;
+                        btn.innerHTML = html;
+                    }
+                });
+            };
 
-            if (statusDiv) {
-                statusDiv.style.display = 'none';
-            }
+            // Helper to update all status divs
+            const setStatusHtml = (show, html) => {
+                [statusMain, statusError].forEach(div => {
+                    if (div) {
+                        div.style.display = show ? 'block' : 'none';
+                        if (html) div.innerHTML = html;
+                    }
+                });
+            };
+
+            setButtonState(true, `
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="animation: spin 1s linear infinite;">
+                    <path d="M2 8C2 4.68629 4.68629 2 8 2C10.0503 2 11.8574 3.00442 12.9554 4.54404M14 8C14 11.3137 11.3137 14 8 14C5.94972 14 4.14265 12.9956 3.04464 11.456" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+                Loading...
+            `);
+
+            setStatusHtml(false, '');
 
             try {
                 if (typeof authenticatedFetch !== 'function') {
@@ -2213,15 +2260,12 @@
 
                 // Check if we have any sales data
                 if (data.parts_with_data === 0) {
-                    if (statusDiv) {
-                        statusDiv.style.display = 'block';
-                        statusDiv.innerHTML = `
-                            <div style="padding:12px;background:#fef3c7;border-radius:6px;color:#92400e;">
-                                <strong>No sales data found</strong> for ${data.display_name}.
-                                <br><small>You'll need to enter prices manually from eBay.</small>
-                            </div>
-                        `;
-                    }
+                    setStatusHtml(true, `
+                        <div style="padding:12px;background:#fef3c7;border-radius:6px;color:#92400e;">
+                            <strong>No sales data found</strong> for ${data.display_name}.
+                            <br><small>You'll need to enter prices manually from eBay.</small>
+                        </div>
+                    `);
                     return;
                 }
 
@@ -2273,58 +2317,46 @@
                 }
 
                 if (appliedParts.length > 0) {
-                    if (statusDiv) {
-                        statusDiv.style.display = 'block';
-                        statusDiv.innerHTML = `
-                            <div style="padding:12px;background:#d1fae5;border-radius:6px;color:#047857;">
-                                <strong>Loaded ${appliedParts.length} part(s) from recent sales:</strong>
-                                <ul style="margin:8px 0 0 20px;padding:0;">
-                                    ${appliedDetails.map(d => `
-                                        <li style="margin-bottom:4px;">
-                                            <span class="part-type-badge ${d.partType}" style="font-size:0.7rem;padding:2px 6px;">${d.partType}</span>
-                                            £${d.avgPrice.toFixed(2)} avg (${d.salesCount} sales, ${d.dateRange})
-                                        </li>
-                                    `).join('')}
-                                </ul>
-                            </div>
-                        `;
-                    }
+                    setStatusHtml(true, `
+                        <div style="padding:12px;background:#d1fae5;border-radius:6px;color:#047857;">
+                            <strong>Loaded ${appliedParts.length} part(s) from recent sales:</strong>
+                            <ul style="margin:8px 0 0 20px;padding:0;">
+                                ${appliedDetails.map(d => `
+                                    <li style="margin-bottom:4px;">
+                                        <span class="part-type-badge ${d.partType}" style="font-size:0.7rem;padding:2px 6px;">${d.partType}</span>
+                                        £${d.avgPrice.toFixed(2)} avg (${d.salesCount} sales, ${d.dateRange})
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                    `);
 
                     // Re-calculate bid with the new data
                     setTimeout(() => calculateBid(), 100);
                 } else {
-                    if (statusDiv) {
-                        statusDiv.style.display = 'block';
-                        statusDiv.innerHTML = `
-                            <div style="padding:12px;background:#fef3c7;border-radius:6px;color:#92400e;">
-                                <strong>No matching sales found</strong> for the selected parts.
-                                <br><small>You'll need to enter prices manually from eBay.</small>
-                            </div>
-                        `;
-                    }
+                    setStatusHtml(true, `
+                        <div style="padding:12px;background:#fef3c7;border-radius:6px;color:#92400e;">
+                            <strong>No matching sales found</strong> for the selected parts.
+                            <br><small>You'll need to enter prices manually from eBay.</small>
+                        </div>
+                    `);
                 }
 
             } catch (err) {
                 console.error('Error loading recent sales:', err);
-                if (statusDiv) {
-                    statusDiv.style.display = 'block';
-                    statusDiv.innerHTML = `
-                        <div style="padding:12px;background:#fee2e2;border-radius:6px;color:#b91c1c;">
-                            <strong>Error:</strong> ${err.message}
-                        </div>
-                    `;
-                }
+                setStatusHtml(true, `
+                    <div style="padding:12px;background:#fee2e2;border-radius:6px;color:#b91c1c;">
+                        <strong>Error:</strong> ${err.message}
+                    </div>
+                `);
             } finally {
-                if (btn) {
-                    btn.disabled = false;
-                    btn.innerHTML = `
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M2 8C2 4.68629 4.68629 2 8 2C10.0503 2 11.8574 3.00442 12.9554 4.54404M14 8C14 11.3137 11.3137 14 8 14C5.94972 14 4.14265 12.9956 3.04464 11.456" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                            <path d="M12.9554 4.54404L13.5 2.5M12.9554 4.54404L10.9 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                        Load Recent Sales
-                    `;
-                }
+                setButtonState(false, `
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M2 8C2 4.68629 4.68629 2 8 2C10.0503 2 11.8574 3.00442 12.9554 4.54404M14 8C14 11.3137 11.3137 14 8 14C5.94972 14 4.14265 12.9956 3.04464 11.456" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        <path d="M12.9554 4.54404L13.5 2.5M12.9554 4.54404L10.9 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Load Recent Sales
+                `);
             }
         }
 
