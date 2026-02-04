@@ -832,6 +832,45 @@
             margin-left: 8px;
         }
 
+        /* eBay Entry Section */
+        .ebay-part-row {
+            padding: 12px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #dbeafe;
+        }
+        .ebay-part-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .ebay-prices-inputs {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .ebay-price-input {
+            width: 70px;
+            padding: 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            text-align: center;
+        }
+        .ebay-price-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+        .ebay-part-avg {
+            font-size: 0.8rem;
+            color: #1d4ed8;
+            font-weight: 500;
+            min-width: 100px;
+            text-align: right;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .tab-btn {
@@ -1079,6 +1118,34 @@
                         </button>
                     </div>
                     <div id="recentSalesStatusMain" style="display:none;margin-top:12px;"></div>
+                </div>
+
+                <!-- Manual eBay Price Entry Section -->
+                <div class="ebay-entry-section" id="ebayEntryPanel" style="display:none;margin-top:16px;max-width:700px;padding:16px;background:#eff6ff;border:1px solid #3b82f6;border-radius:8px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:12px;">
+                        <div>
+                            <strong style="color:#1d4ed8;">Enter eBay Sold Listings</strong>
+                            <p style="margin:4px 0 0;font-size:0.85rem;color:#2563eb;">
+                                Enter the 5 most recent sold prices from eBay for each part type.
+                            </p>
+                        </div>
+                        <a id="ebaySearchLink" href="#" target="_blank" rel="noopener" class="btn btn-secondary" style="font-size:0.85rem;padding:8px 12px;text-decoration:none;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="margin-right:4px;vertical-align:middle;">
+                                <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            Search eBay
+                        </a>
+                    </div>
+
+                    <div id="ebayEntryParts" style="display:flex;flex-direction:column;gap:12px;">
+                        <!-- Part entry rows will be populated by JS -->
+                    </div>
+
+                    <div style="margin-top:16px;display:flex;justify-content:flex-end;gap:8px;">
+                        <button class="btn btn-secondary" onclick="clearEbayPrices()" style="font-size:0.85rem;">Clear All</button>
+                        <button class="btn btn-primary" onclick="applyEbayPrices()" style="font-size:0.85rem;">Apply & Calculate</button>
+                    </div>
+                    <div id="ebayEntryStatus" style="display:none;margin-top:12px;"></div>
                 </div>
 
                 <div id="bidCalcResult">
@@ -1676,12 +1743,14 @@
             const select = document.getElementById('bidCalcGeneration');
             const modePanel = document.getElementById('modeSelectionPanel');
             const recentSalesPanel = document.getElementById('recentSalesPanel');
+            const ebayEntryPanel = document.getElementById('ebayEntryPanel');
             const resultDiv = document.getElementById('bidCalcResult');
 
             if (select && select.value) {
                 currentSelection = JSON.parse(select.value);
                 modePanel.style.display = 'block';
                 recentSalesPanel.style.display = 'block';
+                ebayEntryPanel.style.display = 'block';
                 // Reset manual price data for new selection
                 manualPriceData = {};
                 // Reset recent sales status
@@ -1690,10 +1759,19 @@
                     statusDiv.style.display = 'none';
                     statusDiv.innerHTML = '';
                 }
+                // Reset eBay entry status
+                const ebayStatusDiv = document.getElementById('ebayEntryStatus');
+                if (ebayStatusDiv) {
+                    ebayStatusDiv.style.display = 'none';
+                    ebayStatusDiv.innerHTML = '';
+                }
+                // Populate eBay entry panel
+                populateEbayEntryPanel();
                 resultDiv.innerHTML = '<div class="no-data" style="padding:40px 20px;"><p>Select options above and click Calculate.</p></div>';
             } else {
                 modePanel.style.display = 'none';
                 recentSalesPanel.style.display = 'none';
+                ebayEntryPanel.style.display = 'none';
                 resultDiv.innerHTML = '<div class="no-data" style="padding:40px 20px;"><p>Select a set above to calculate the max bid price.</p></div>';
             }
         }
@@ -2358,6 +2436,171 @@
                     Load Recent Sales
                 `);
             }
+        }
+
+        // Populate eBay entry panel with part rows
+        function populateEbayEntryPanel() {
+            if (!currentSelection) return;
+
+            const container = document.getElementById('ebayEntryParts');
+            const ebaySearchLink = document.getElementById('ebaySearchLink');
+            const parts = ['left', 'right', 'case'];
+            const partLabels = { left: 'Left Earbud', right: 'Right Earbud', case: 'Charging Case' };
+
+            // Update eBay search link
+            const searchQuery = currentSelection.generation;
+            const ebayUrl = `https://www.ebay.co.uk/sch/i.html?_nkw=${encodeURIComponent(searchQuery)}&LH_Complete=1&LH_Sold=1`;
+            ebaySearchLink.href = ebayUrl;
+
+            // Build part entry rows
+            container.innerHTML = parts.map(partType => `
+                <div class="ebay-part-row" id="ebayRow_${partType}">
+                    <div class="ebay-part-header">
+                        <span class="part-type-badge ${partType}">${partLabels[partType]}</span>
+                        <span class="ebay-part-avg" id="ebayAvg_${partType}">Avg: -</span>
+                    </div>
+                    <div class="ebay-prices-inputs">
+                        <input type="number" class="ebay-price-input" id="ebay_${partType}_1" placeholder="£" step="0.01" min="0" oninput="updateEbayPartAverage('${partType}')">
+                        <input type="number" class="ebay-price-input" id="ebay_${partType}_2" placeholder="£" step="0.01" min="0" oninput="updateEbayPartAverage('${partType}')">
+                        <input type="number" class="ebay-price-input" id="ebay_${partType}_3" placeholder="£" step="0.01" min="0" oninput="updateEbayPartAverage('${partType}')">
+                        <input type="number" class="ebay-price-input" id="ebay_${partType}_4" placeholder="£" step="0.01" min="0" oninput="updateEbayPartAverage('${partType}')">
+                        <input type="number" class="ebay-price-input" id="ebay_${partType}_5" placeholder="£" step="0.01" min="0" oninput="updateEbayPartAverage('${partType}')">
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Update average display for a part type
+        function updateEbayPartAverage(partType) {
+            const prices = [];
+            for (let i = 1; i <= 5; i++) {
+                const input = document.getElementById(`ebay_${partType}_${i}`);
+                if (input) {
+                    const val = parseFloat(input.value);
+                    if (!isNaN(val) && val > 0) {
+                        prices.push(val);
+                    }
+                }
+            }
+
+            const avgEl = document.getElementById(`ebayAvg_${partType}`);
+            if (avgEl) {
+                if (prices.length > 0) {
+                    const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
+                    avgEl.innerHTML = `Avg: <strong>£${avg.toFixed(2)}</strong>`;
+                    avgEl.style.color = '#047857';
+                } else {
+                    avgEl.innerHTML = 'Avg: -';
+                    avgEl.style.color = '#1d4ed8';
+                }
+            }
+        }
+
+        // Clear all eBay price inputs
+        function clearEbayPrices() {
+            const parts = ['left', 'right', 'case'];
+            for (const partType of parts) {
+                for (let i = 1; i <= 5; i++) {
+                    const input = document.getElementById(`ebay_${partType}_${i}`);
+                    if (input) input.value = '';
+                }
+                updateEbayPartAverage(partType);
+            }
+            const statusDiv = document.getElementById('ebayEntryStatus');
+            if (statusDiv) {
+                statusDiv.style.display = 'none';
+                statusDiv.innerHTML = '';
+            }
+        }
+
+        // Apply eBay prices and calculate
+        async function applyEbayPrices() {
+            if (!currentSelection) {
+                alert('Please select a generation first.');
+                return;
+            }
+
+            const parts = ['left', 'right', 'case'];
+            const selectedParts = getSelectedParts();
+            let appliedCount = 0;
+            const statusDiv = document.getElementById('ebayEntryStatus');
+            const appliedDetails = [];
+
+            for (const partType of parts) {
+                if (!selectedParts.includes(partType)) continue;
+
+                const prices = [];
+                for (let i = 1; i <= 5; i++) {
+                    const input = document.getElementById(`ebay_${partType}_${i}`);
+                    if (input) {
+                        const val = parseFloat(input.value);
+                        if (!isNaN(val) && val > 0) {
+                            prices.push(val);
+                        }
+                    }
+                }
+
+                if (prices.length > 0) {
+                    const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
+                    manualPriceData[partType] = {
+                        avg_sale_price: avg,
+                        prices: prices,
+                        is_manual: true,
+                        is_from_ebay_entry: true,
+                        sales_count: prices.length
+                    };
+                    appliedCount++;
+                    appliedDetails.push({
+                        partType,
+                        avgPrice: avg,
+                        count: prices.length
+                    });
+
+                    // Save to database for persistence
+                    try {
+                        await authenticatedFetch('/api/admin/price-snapshot/manual-prices', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                generation: currentSelection.generation,
+                                connector_type: currentSelection.connector_type || null,
+                                part_type: partType,
+                                prices: prices
+                            })
+                        });
+                    } catch (saveErr) {
+                        console.error('Failed to save eBay prices:', saveErr);
+                    }
+                }
+            }
+
+            if (appliedCount === 0) {
+                if (statusDiv) {
+                    statusDiv.style.display = 'block';
+                    statusDiv.innerHTML = `
+                        <div style="padding:12px;background:#fef3c7;border-radius:6px;color:#92400e;">
+                            <strong>No prices entered.</strong> Enter at least one price for the selected parts.
+                        </div>
+                    `;
+                }
+                return;
+            }
+
+            if (statusDiv) {
+                statusDiv.style.display = 'block';
+                statusDiv.innerHTML = `
+                    <div style="padding:12px;background:#d1fae5;border-radius:6px;color:#047857;">
+                        <strong>Applied ${appliedCount} part(s):</strong>
+                        ${appliedDetails.map(d => `
+                            <span class="part-type-badge ${d.partType}" style="font-size:0.7rem;padding:2px 6px;margin-left:8px;">${d.partType}</span>
+                            £${d.avgPrice.toFixed(2)} (${d.count} prices)
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            // Calculate bid with new data
+            setTimeout(() => calculateBid(), 100);
         }
 
         document.addEventListener('DOMContentLoaded', function() {
