@@ -18683,6 +18683,112 @@ app.delete('/api/admin/price-snapshot/manual-prices', requireAuth, requireDB, as
     }
 });
 
+// GET recent sales prices for a generation - returns last 5 sales per part type from actual sales data
+app.get('/api/admin/price-snapshot/recent-sales', requireAuth, requireDB, async (req, res) => {
+    try {
+        const generation = req.query.generation;
+        const connectorType = req.query.connector_type || null;
+        const salesLimit = parseInt(req.query.limit) || 5;
+
+        if (!generation) {
+            return res.status(400).json({ success: false, error: 'Generation is required' });
+        }
+
+        const partTypes = ['left', 'right', 'case'];
+        const recentSalesByPart = {};
+
+        for (const partType of partTypes) {
+            // Build match criteria with case-insensitive connector_type
+            const matchCriteria = {
+                'product_details.generation': generation,
+                'product_details.part_type': partType
+            };
+            if (connectorType) {
+                matchCriteria['product_details.connector_type'] = {
+                    $regex: new RegExp(`^${connectorType.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i')
+                };
+            } else {
+                matchCriteria['product_details.connector_type'] = { $in: [null, '', undefined] };
+            }
+
+            // Get the most recent sales for this part type
+            const partSales = await db.collection('sales').aggregate([
+                {
+                    $addFields: {
+                        products_count: { $size: { $ifNull: ['$products', []] } }
+                    }
+                },
+                { $unwind: '$products' },
+                {
+                    $lookup: {
+                        from: 'products',
+                        localField: 'products.product_id',
+                        foreignField: '_id',
+                        as: 'product_details'
+                    }
+                },
+                { $unwind: '$product_details' },
+                { $match: matchCriteria },
+                { $sort: { sale_date: -1 } },
+                { $limit: salesLimit },
+                {
+                    $project: {
+                        sale_date: 1,
+                        sale_price: 1,
+                        order_number: 1,
+                        platform: 1,
+                        products_count: 1,
+                        product_name: '$product_details.name'
+                    }
+                }
+            ]).toArray();
+
+            if (partSales.length > 0) {
+                const prices = partSales.map(sale => {
+                    const productCount = sale.products_count || 1;
+                    return Math.round((sale.sale_price / productCount) * 100) / 100;
+                });
+
+                const avgPrice = prices.reduce((a, b) => a + b, 0) / prices.length;
+
+                recentSalesByPart[partType] = {
+                    prices: prices,
+                    avg_price: Math.round(avgPrice * 100) / 100,
+                    sales_count: partSales.length,
+                    sales: partSales.map(sale => ({
+                        date: sale.sale_date,
+                        price: Math.round((sale.sale_price / (sale.products_count || 1)) * 100) / 100,
+                        order_number: sale.order_number,
+                        platform: sale.platform,
+                        product_name: sale.product_name
+                    })),
+                    oldest_sale_date: partSales[partSales.length - 1]?.sale_date,
+                    newest_sale_date: partSales[0]?.sale_date
+                };
+            } else {
+                recentSalesByPart[partType] = null;
+            }
+        }
+
+        // Calculate how many parts have data
+        const partsWithData = Object.values(recentSalesByPart).filter(p => p !== null).length;
+
+        res.json({
+            success: true,
+            generation,
+            connector_type: connectorType,
+            display_name: connectorType ? `${generation} (${connectorType})` : generation,
+            sales_limit: salesLimit,
+            parts_with_data: partsWithData,
+            recent_sales: recentSalesByPart
+        });
+
+    } catch (err) {
+        console.error('Error fetching recent sales:', err);
+        res.status(500).json({ success: false, error: 'Database error: ' + err.message });
+    }
+});
+
 // GET full set max bid calculator - combines individual part sales to calculate set max bid
 app.get('/api/admin/price-snapshot/full-sets', requireAuth, requireDB, async (req, res) => {
     try {

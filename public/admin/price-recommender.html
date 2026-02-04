@@ -787,6 +787,51 @@
             50% { opacity: 0.85; }
         }
 
+        /* Recent Sales Button */
+        .load-recent-sales-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 18px;
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .load-recent-sales-btn:hover {
+            background: #059669;
+        }
+        .load-recent-sales-btn:disabled {
+            background: #9ca3af;
+            cursor: wait;
+        }
+        .recent-sales-section {
+            margin-bottom: 20px;
+            padding: 16px;
+            background: #ecfdf5;
+            border: 1px solid #10b981;
+            border-radius: 8px;
+        }
+        .recent-sales-info {
+            margin-top: 12px;
+            font-size: 0.85rem;
+            color: #047857;
+        }
+        .recent-sales-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            background: #10b981;
+            color: white;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .tab-btn {
@@ -1895,12 +1940,33 @@
                                         Missing Data: ${missingParts.length} of ${selectedParts.length} selected parts need data
                                     </p>
                                     <p style="margin:0;color:#92400e;font-size:0.9rem;">
-                                        Search eBay completed listings and enter the 5 most recent sold prices.
+                                        Use your recent sales data or search eBay completed listings.
                                     </p>
                                 </div>
+
+                                <!-- Recent Sales Quick Load Section -->
+                                <div class="recent-sales-section">
+                                    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+                                        <div>
+                                            <strong style="color:#047857;">Quick Option: Use Your Recent Sales</strong>
+                                            <p style="margin:4px 0 0;font-size:0.85rem;color:#059669;">
+                                                Load prices from your last 5 sales for each part type.
+                                            </p>
+                                        </div>
+                                        <button class="load-recent-sales-btn" id="loadRecentSalesBtn" onclick="loadRecentSales()">
+                                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M2 8C2 4.68629 4.68629 2 8 2C10.0503 2 11.8574 3.00442 12.9554 4.54404M14 8C14 11.3137 11.3137 14 8 14C5.94972 14 4.14265 12.9956 3.04464 11.456" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                                <path d="M12.9554 4.54404L13.5 2.5M12.9554 4.54404L10.9 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                            </svg>
+                                            Load Recent Sales
+                                        </button>
+                                    </div>
+                                    <div id="recentSalesStatus" style="display:none;margin-top:12px;"></div>
+                                </div>
+
                                 ${partialDataHtml}
                                 <div>
-                                    <h4 style="margin:0 0 12px;color:#374151;">Missing Parts - Enter Prices:</h4>
+                                    <h4 style="margin:0 0 12px;color:#374151;">Or Enter Prices Manually:</h4>
                                     ${missingParts.map(partType => {
                                         const suggestion = data.ebay_search_suggestions?.find(s => s.part_type === partType);
                                         const searchQuery = suggestion?.search_query || `${selection.generation} ${partType}`;
@@ -2095,6 +2161,170 @@
 
             } catch (err) {
                 resultDiv.innerHTML = `<div class="error">Error: ${err.message}</div>`;
+            }
+        }
+
+        // Load recent sales data from system and apply to manual price data
+        async function loadRecentSales() {
+            if (!currentSelection) {
+                alert('Please select a generation first.');
+                return;
+            }
+
+            const btn = document.getElementById('loadRecentSalesBtn');
+            const statusDiv = document.getElementById('recentSalesStatus');
+
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = `
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="animation: spin 1s linear infinite;">
+                        <path d="M2 8C2 4.68629 4.68629 2 8 2C10.0503 2 11.8574 3.00442 12.9554 4.54404M14 8C14 11.3137 11.3137 14 8 14C5.94972 14 4.14265 12.9956 3.04464 11.456" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                    Loading...
+                `;
+            }
+
+            if (statusDiv) {
+                statusDiv.style.display = 'none';
+            }
+
+            try {
+                if (typeof authenticatedFetch !== 'function') {
+                    throw new Error('Please refresh the page');
+                }
+
+                const params = new URLSearchParams({
+                    generation: currentSelection.generation,
+                    connector_type: currentSelection.connector_type || '',
+                    limit: 5
+                });
+
+                const response = await authenticatedFetch(`/api/admin/price-snapshot/recent-sales?${params}`);
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    throw new Error(errData.error || 'Failed to load recent sales');
+                }
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || 'Failed to load recent sales');
+                }
+
+                // Check if we have any sales data
+                if (data.parts_with_data === 0) {
+                    if (statusDiv) {
+                        statusDiv.style.display = 'block';
+                        statusDiv.innerHTML = `
+                            <div style="padding:12px;background:#fef3c7;border-radius:6px;color:#92400e;">
+                                <strong>No sales data found</strong> for ${data.display_name}.
+                                <br><small>You'll need to enter prices manually from eBay.</small>
+                            </div>
+                        `;
+                    }
+                    return;
+                }
+
+                // Apply the recent sales data to manualPriceData
+                let appliedParts = [];
+                let appliedDetails = [];
+                const selectedParts = getSelectedParts();
+
+                for (const partType of ['left', 'right', 'case']) {
+                    if (!selectedParts.includes(partType)) continue;
+
+                    const partData = data.recent_sales[partType];
+                    if (partData && partData.prices && partData.prices.length > 0) {
+                        manualPriceData[partType] = {
+                            avg_sale_price: partData.avg_price,
+                            prices: partData.prices,
+                            is_manual: true,
+                            is_from_recent_sales: true,
+                            sales_count: partData.sales_count
+                        };
+                        appliedParts.push(partType);
+
+                        // Format dates for display
+                        const newestDate = partData.newest_sale_date ? new Date(partData.newest_sale_date).toLocaleDateString() : 'N/A';
+                        const oldestDate = partData.oldest_sale_date ? new Date(partData.oldest_sale_date).toLocaleDateString() : 'N/A';
+                        appliedDetails.push({
+                            partType,
+                            avgPrice: partData.avg_price,
+                            salesCount: partData.sales_count,
+                            dateRange: partData.sales_count > 1 ? `${oldestDate} - ${newestDate}` : newestDate
+                        });
+
+                        // Save to database for persistence
+                        try {
+                            await authenticatedFetch('/api/admin/price-snapshot/manual-prices', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    generation: currentSelection.generation,
+                                    connector_type: currentSelection.connector_type || null,
+                                    part_type: partType,
+                                    prices: partData.prices
+                                })
+                            });
+                        } catch (saveErr) {
+                            console.error('Failed to save recent sales prices:', saveErr);
+                        }
+                    }
+                }
+
+                if (appliedParts.length > 0) {
+                    if (statusDiv) {
+                        statusDiv.style.display = 'block';
+                        statusDiv.innerHTML = `
+                            <div style="padding:12px;background:#d1fae5;border-radius:6px;color:#047857;">
+                                <strong>Loaded ${appliedParts.length} part(s) from recent sales:</strong>
+                                <ul style="margin:8px 0 0 20px;padding:0;">
+                                    ${appliedDetails.map(d => `
+                                        <li style="margin-bottom:4px;">
+                                            <span class="part-type-badge ${d.partType}" style="font-size:0.7rem;padding:2px 6px;">${d.partType}</span>
+                                            £${d.avgPrice.toFixed(2)} avg (${d.salesCount} sales, ${d.dateRange})
+                                        </li>
+                                    `).join('')}
+                                </ul>
+                            </div>
+                        `;
+                    }
+
+                    // Re-calculate bid with the new data
+                    setTimeout(() => calculateBid(), 100);
+                } else {
+                    if (statusDiv) {
+                        statusDiv.style.display = 'block';
+                        statusDiv.innerHTML = `
+                            <div style="padding:12px;background:#fef3c7;border-radius:6px;color:#92400e;">
+                                <strong>No matching sales found</strong> for the selected parts.
+                                <br><small>You'll need to enter prices manually from eBay.</small>
+                            </div>
+                        `;
+                    }
+                }
+
+            } catch (err) {
+                console.error('Error loading recent sales:', err);
+                if (statusDiv) {
+                    statusDiv.style.display = 'block';
+                    statusDiv.innerHTML = `
+                        <div style="padding:12px;background:#fee2e2;border-radius:6px;color:#b91c1c;">
+                            <strong>Error:</strong> ${err.message}
+                        </div>
+                    `;
+                }
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = `
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M2 8C2 4.68629 4.68629 2 8 2C10.0503 2 11.8574 3.00442 12.9554 4.54404M14 8C14 11.3137 11.3137 14 8 14C5.94972 14 4.14265 12.9956 3.04464 11.456" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            <path d="M12.9554 4.54404L13.5 2.5M12.9554 4.54404L10.9 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Load Recent Sales
+                    `;
+                }
             }
         }
 
