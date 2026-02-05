@@ -157,6 +157,7 @@
             const returnDate = new Date(ret.return_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
             const statusBadge = getStatusBadge(ret.status);
             const reasonDisplay = getReasonDisplay(ret.return_reason);
+            const conditionDisplay = getConditionDisplay(ret.item_condition);
             const trackingDisplay = ret.return_tracking_number
                 ? `<a href="#" onclick="trackReturn('${ret._id}'); return false;">${ret.return_tracking_number.substring(0, 12)}...</a>`
                 : '<span style="color: #999;">Not tracked</span>';
