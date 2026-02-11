@@ -15,6 +15,23 @@ const path = require('path');
 const multer = require('multer');
 const fs = require('fs');
 const crypto = require('crypto');
+
+// Prevent unhandled promise rejections from crashing the process (e.g. MongoDB connection timeouts)
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('⚠️  Unhandled Promise Rejection:', reason?.message || reason);
+});
+
+process.on('uncaughtException', (err) => {
+    console.error('⚠️  Uncaught Exception:', err.message);
+    // Only exit for non-MongoDB errors that indicate a real programming bug
+    if (!err.message?.includes('MongoServerSelectionError') &&
+        !err.message?.includes('Server selection timed out') &&
+        !err.message?.includes('connect ECONNREFUSED') &&
+        !err.message?.includes('MongoNetworkError')) {
+        console.error('Fatal non-MongoDB error, exiting...');
+        process.exit(1);
+    }
+});
 // Initialize Stripe only if secret key is available
 let stripe = null;
 if (process.env.STRIPE_SECRET_KEY) {
@@ -760,7 +777,16 @@ if (mongoSessionUrl && MongoStore && typeof MongoStore === 'function') {
             touchAfter: 24 * 3600,
             crypto: {
                 secret: process.env.SESSION_SECRET || 'LJM_SECURE_SESSION_KEY_2024'
+            },
+            mongoOptions: {
+                serverSelectionTimeoutMS: 10000,
+                connectTimeoutMS: 10000
             }
+        });
+        // Handle async connection errors to prevent unhandled rejections crashing the process
+        sessionStore.on('error', (error) => {
+            console.error('❌ MongoStore session store error:', error.message);
+            console.warn('⚠️  Sessions may not persist. Server will continue running.');
         });
         console.log('✅ Using MongoStore for sessions');
     } catch (error) {
@@ -940,21 +966,25 @@ async function tryConnect() {
     const MONGOPORT = process.env.MONGOPORT || '27017';
     const database = process.env.MONGODATABASE || process.env.MONGODB_DATABASE || 'AutoRestockDB';
     const encodedPassword = encodeURIComponent(MONGOPASSWORD);
-    
+
     // Try different authSource options
     const authOptions = [
         { authSource: 'admin', desc: 'admin (standard)' },
         { authSource: 'AutoRestockDB', desc: 'AutoRestockDB (database name)' },
         { authSource: null, desc: 'no authSource' }
     ];
-    
+
     for (const option of authOptions) {
         const authSourceParam = option.authSource ? `?authSource=${option.authSource}` : '';
         const connectionString = `mongodb://${MONGOUSER}:${encodedPassword}@${MONGOHOST}:${MONGOPORT}/${database}${authSourceParam}`;
-        
+
         try {
             console.log(`Trying connection with authSource: ${option.desc}...`);
-            const client = await MongoClient.connect(connectionString);
+            const client = await MongoClient.connect(connectionString, {
+                serverSelectionTimeoutMS: 10000,
+                connectTimeoutMS: 10000,
+                socketTimeoutMS: 20000
+            });
             console.log(`✅ Connected to MongoDB successfully using authSource: ${option.desc}`);
             db = client.db(database);
             await initializeDatabase();
@@ -964,12 +994,13 @@ async function tryConnect() {
                 console.log(`❌ Failed with ${option.desc}: ${err.message}`);
                 continue; // Try next option
             } else {
-                // Other error, throw it
+                // Connection/timeout error - log and throw to trigger retry
+                console.log(`❌ Failed with ${option.desc}: ${err.message}`);
                 throw err;
             }
         }
     }
-    
+
     // If we get here, all auth options failed
     throw new Error('All authentication methods failed');
 }
