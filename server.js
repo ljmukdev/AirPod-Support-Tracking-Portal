@@ -18317,22 +18317,92 @@ app.get('/api/admin/price-snapshot/bid-calculator', requireAuth, requireDB, asyn
         }
 
         const savedPrices = await db.collection('manual_ebay_prices').find(dbQuery).toArray();
+        const newSalesThreshold = 5; // Number of new sales needed to supersede manual prices
         for (const price of savedPrices) {
             const updatedAt = price.updated_at || price.created_at;
             const isStale = updatedAt < staleThreshold;
             const daysSinceUpdate = Math.floor((Date.now() - updatedAt) / (24 * 60 * 60 * 1000));
 
-            savedManualPrices[price.part_type] = {
-                avg_sale_price: price.avg_price,
-                prices: price.prices,
-                sales_count: price.prices.length,
-                is_manual: true,
-                is_saved: true,
-                updated_at: updatedAt,
-                days_since_update: daysSinceUpdate,
-                is_stale: isStale,
-                needs_refresh: isStale
+            // Count how many new internal sales have occurred since the manual price was saved
+            const newSalesMatchCriteria = {
+                'product_details.generation': generation,
+                'product_details.part_type': price.part_type
             };
+            if (connectorType) {
+                newSalesMatchCriteria['product_details.connector_type'] = { $regex: new RegExp(`^${connectorType.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') };
+            } else {
+                newSalesMatchCriteria['product_details.connector_type'] = { $in: [null, '', undefined] };
+            }
+
+            const newSalesStats = await db.collection('sales').aggregate([
+                { $match: { sale_date: { $gt: updatedAt } } },
+                { $unwind: '$products' },
+                {
+                    $lookup: {
+                        from: 'products',
+                        localField: 'products.product_id',
+                        foreignField: '_id',
+                        as: 'product_details'
+                    }
+                },
+                { $unwind: '$product_details' },
+                { $match: newSalesMatchCriteria },
+                {
+                    $group: {
+                        _id: null,
+                        total: { $sum: 1 },
+                        most_recent_sale: { $max: '$sale_date' }
+                    }
+                }
+            ]).toArray();
+
+            const salesSinceUpdate = newSalesStats.length > 0 ? newSalesStats[0].total : 0;
+            const mostRecentSaleDate = newSalesStats.length > 0 ? newSalesStats[0].most_recent_sale : null;
+            const isSuperseded = salesSinceUpdate >= newSalesThreshold;
+            // Check if the most recent sale is within the freshness window (5 days)
+            const salesFreshnessDays = 5;
+            const salesFreshnessThreshold = new Date(Date.now() - (salesFreshnessDays * 24 * 60 * 60 * 1000));
+            const salesAreRecent = mostRecentSaleDate && mostRecentSaleDate > salesFreshnessThreshold;
+            const daysSinceMostRecentSale = mostRecentSaleDate ? Math.floor((Date.now() - new Date(mostRecentSaleDate).getTime()) / (24 * 60 * 60 * 1000)) : null;
+
+            // If 5+ new sales exist since manual price was saved, mark as superseded
+            // so the bid calculator falls through to actual sales data
+            if (!isSuperseded) {
+                savedManualPrices[price.part_type] = {
+                    avg_sale_price: price.avg_price,
+                    prices: price.prices,
+                    sales_count: price.prices.length,
+                    is_manual: true,
+                    is_saved: true,
+                    updated_at: updatedAt,
+                    days_since_update: daysSinceUpdate,
+                    is_stale: isStale,
+                    needs_refresh: isStale,
+                    new_sales_since_update: salesSinceUpdate,
+                    new_sales_threshold: newSalesThreshold
+                };
+            } else {
+                // Manual price superseded by 5+ new sales
+                // If those sales are also old (>5 days), mark as needing fresh data
+                savedManualPrices[price.part_type] = {
+                    avg_sale_price: price.avg_price,
+                    prices: price.prices,
+                    sales_count: price.prices.length,
+                    is_manual: true,
+                    is_saved: true,
+                    is_superseded: true,
+                    sales_are_recent: salesAreRecent,
+                    needs_fresh_data: !salesAreRecent, // True when all data is old
+                    most_recent_sale_date: mostRecentSaleDate,
+                    days_since_most_recent_sale: daysSinceMostRecentSale,
+                    updated_at: updatedAt,
+                    days_since_update: daysSinceUpdate,
+                    is_stale: isStale,
+                    needs_refresh: true,
+                    new_sales_since_update: salesSinceUpdate,
+                    new_sales_threshold: newSalesThreshold
+                };
+            }
         }
 
         const displayName = connectorType ? `${generation} (${connectorType})` : generation;
@@ -18416,7 +18486,8 @@ app.get('/api/admin/price-snapshot/bid-calculator', requireAuth, requireDB, asyn
             }
 
             // Check if we have saved manual prices from database for this part
-            if (savedManualPrices[partType] && savedManualPrices[partType].avg_sale_price > 0) {
+            // Skip if the saved price has been superseded by 5+ new internal sales
+            if (savedManualPrices[partType] && savedManualPrices[partType].avg_sale_price > 0 && !savedManualPrices[partType].is_superseded) {
                 const savedPrice = savedManualPrices[partType];
                 partsData[partType] = {
                     avg_sale_price: Math.round(savedPrice.avg_sale_price * 100) / 100,
@@ -18513,12 +18584,34 @@ app.get('/api/admin/price-snapshot/bid-calculator', requireAuth, requireDB, asyn
                 }
 
                 const count = partSales.length;
+                // Check the freshness of the most recent sale
+                const newestSaleDate = partSales[0]?.sale_date;
+                const salesFreshnessDays = 5;
+                const salesFreshnessThreshold = new Date(Date.now() - (salesFreshnessDays * 24 * 60 * 60 * 1000));
+                const salesDataIsRecent = newestSaleDate && new Date(newestSaleDate) > salesFreshnessThreshold;
+                const daysSinceNewestSale = newestSaleDate ? Math.floor((Date.now() - new Date(newestSaleDate).getTime()) / (24 * 60 * 60 * 1000)) : null;
+
                 partsData[partType] = {
                     avg_sale_price: Math.round((totalSalePrice / count) * 100) / 100,
                     avg_fees: Math.round((totalFees / count) * 100) / 100,
                     avg_consumables: Math.round((totalConsumables / count) * 100) / 100,
-                    sales_count: count
+                    sales_count: count,
+                    newest_sale_date: newestSaleDate,
+                    days_since_newest_sale: daysSinceNewestSale,
+                    sales_data_is_fresh: salesDataIsRecent,
+                    needs_fresh_data: !salesDataIsRecent
                 };
+
+                // Track parts with old sales data that need fresh input
+                if (!salesDataIsRecent) {
+                    stalePartsWarning.push({
+                        part_type: partType,
+                        days_since_update: daysSinceNewestSale,
+                        updated_at: newestSaleDate,
+                        reason: 'sales_data_old',
+                        message: `Most recent sale is ${daysSinceNewestSale} days old`
+                    });
+                }
 
                 combinedSalePrice += partsData[partType].avg_sale_price;
                 combinedFees += partsData[partType].avg_fees;
@@ -18722,11 +18815,42 @@ app.get('/api/admin/price-snapshot/manual-prices', requireAuth, requireDB, async
         const now = new Date();
         const staleThreshold = new Date(now.getTime() - (staleDays * 24 * 60 * 60 * 1000));
 
-        // Process each price entry to add staleness info
-        const processedPrices = manualPrices.map(price => {
+        // Process each price entry to add staleness info and new sales count
+        const newSalesThreshold = 5;
+        const processedPrices = await Promise.all(manualPrices.map(async (price) => {
             const updatedAt = price.updated_at || price.created_at;
             const isStale = updatedAt < staleThreshold;
             const daysSinceUpdate = Math.floor((now - updatedAt) / (24 * 60 * 60 * 1000));
+
+            // Count new internal sales since this manual price was saved
+            const newSalesMatchCriteria = {
+                'product_details.generation': generation,
+                'product_details.part_type': price.part_type
+            };
+            if (connectorType) {
+                newSalesMatchCriteria['product_details.connector_type'] = { $regex: new RegExp(`^${connectorType.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') };
+            } else {
+                newSalesMatchCriteria['product_details.connector_type'] = { $in: [null, '', undefined] };
+            }
+
+            const newSalesResult = await db.collection('sales').aggregate([
+                { $match: { sale_date: { $gt: updatedAt } } },
+                { $unwind: '$products' },
+                {
+                    $lookup: {
+                        from: 'products',
+                        localField: 'products.product_id',
+                        foreignField: '_id',
+                        as: 'product_details'
+                    }
+                },
+                { $unwind: '$product_details' },
+                { $match: newSalesMatchCriteria },
+                { $count: 'total' }
+            ]).toArray();
+
+            const salesSinceUpdate = newSalesResult.length > 0 ? newSalesResult[0].total : 0;
+            const isSuperseded = salesSinceUpdate >= newSalesThreshold;
 
             return {
                 part_type: price.part_type,
@@ -18735,9 +18859,12 @@ app.get('/api/admin/price-snapshot/manual-prices', requireAuth, requireDB, async
                 updated_at: updatedAt,
                 days_since_update: daysSinceUpdate,
                 is_stale: isStale,
-                needs_refresh: isStale
+                is_superseded: isSuperseded,
+                needs_refresh: isStale || isSuperseded,
+                new_sales_since_update: salesSinceUpdate,
+                new_sales_threshold: newSalesThreshold
             };
-        });
+        }));
 
         // Convert to object keyed by part_type for easier frontend use
         const pricesByPart = {};
@@ -18750,8 +18877,10 @@ app.get('/api/admin/price-snapshot/manual-prices', requireAuth, requireDB, async
             generation,
             connector_type: connectorType,
             stale_threshold_days: staleDays,
+            new_sales_threshold: newSalesThreshold,
             manual_prices: pricesByPart,
-            has_any_stale: processedPrices.some(p => p.is_stale)
+            has_any_stale: processedPrices.some(p => p.is_stale),
+            has_any_superseded: processedPrices.some(p => p.is_superseded)
         });
 
     } catch (err) {
