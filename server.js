@@ -2078,7 +2078,7 @@ app.get('/api/admin/products', requireAuth, requireDB, async (req, res) => {
             // Add purchase part value information
             if (product.purchase_id && purchaseMap[product.purchase_id]) {
                 productData.part_value = purchaseMap[product.purchase_id].part_value;
-                productData.purchase_price = purchaseMap[product.purchase_id].purchase_price;
+                productData.purchase_price = purchaseMap[product.purchase_id].effective_price;
             }
 
             return productData;
@@ -2154,6 +2154,34 @@ app.get('/api/admin/products/lookup-barcode', requireAuth, requireDB, async (req
             _id: product._id.toString()
         };
 
+        // Adjust purchase_price to account for partial refunds from parent purchase
+        if (product.purchase_id) {
+            try {
+                const purchase = await db.collection('purchases').findOne(
+                    { _id: new ObjectId(product.purchase_id) },
+                    { projection: { purchase_price: 1, refund_amount: 1, quantity: 1, items_purchased: 1 } }
+                );
+                if (purchase && purchase.refund_amount) {
+                    const workingParts = ['left', 'right', 'case'];
+                    const items = purchase.items_purchased || [];
+                    const workingPartsPerSet = items.filter(item => workingParts.includes(item)).length;
+                    const quantity = purchase.quantity || 1;
+                    const totalWorkingParts = workingPartsPerSet * quantity;
+
+                    const effectivePrice = parseFloat(purchase.purchase_price) - (purchase.refund_amount || 0);
+                    const partValue = totalWorkingParts > 0 ? effectivePrice / totalWorkingParts : null;
+
+                    if (partValue !== null) {
+                        productData.purchase_price = partValue;
+                    } else {
+                        productData.purchase_price = effectivePrice;
+                    }
+                }
+            } catch (purchaseErr) {
+                console.error('[PRODUCTS] Error fetching purchase for refund adjustment:', purchaseErr);
+            }
+        }
+
         res.json({ product: productData });
     } catch (err) {
         console.error('Database error:', err);
@@ -2221,6 +2249,34 @@ app.get('/api/admin/products/search', requireAuth, requireDB, async (req, res) =
             ...productWithoutPriority,
             _id: product._id.toString()
         };
+
+        // Adjust purchase_price to account for partial refunds from parent purchase
+        if (product.purchase_id) {
+            try {
+                const purchase = await db.collection('purchases').findOne(
+                    { _id: new ObjectId(product.purchase_id) },
+                    { projection: { purchase_price: 1, refund_amount: 1, quantity: 1, items_purchased: 1 } }
+                );
+                if (purchase && purchase.refund_amount) {
+                    const workingParts = ['left', 'right', 'case'];
+                    const items = purchase.items_purchased || [];
+                    const workingPartsPerSet = items.filter(item => workingParts.includes(item)).length;
+                    const quantity = purchase.quantity || 1;
+                    const totalWorkingParts = workingPartsPerSet * quantity;
+
+                    const effectivePrice = parseFloat(purchase.purchase_price) - (purchase.refund_amount || 0);
+                    const partValue = totalWorkingParts > 0 ? effectivePrice / totalWorkingParts : null;
+
+                    if (partValue !== null) {
+                        productData.purchase_price = partValue;
+                    } else {
+                        productData.purchase_price = effectivePrice;
+                    }
+                }
+            } catch (purchaseErr) {
+                console.error('[PRODUCTS] Error fetching purchase for refund adjustment:', purchaseErr);
+            }
+        }
 
         res.json({ product: productData });
     } catch (err) {
@@ -12683,8 +12739,32 @@ app.get('/api/admin/sales/:id', requireAuth, requireDB, async (req, res) => {
             const transactionFees = parseFloat(product.transaction_fees) || 0;
             const postageLabelCost = parseFloat(product.postage_label_cost) || 0;
             const adFeeGeneral = parseFloat(product.ad_fee_general) || 0;
-            const productCost = parseFloat(product.purchase_price) || 0;
+            let productCost = parseFloat(product.purchase_price) || 0;
             const consumablesCost = parseFloat(product.sale_consumables_cost) || 0;
+
+            // Adjust product cost for partial refunds from parent purchase
+            if (product.purchase_id) {
+                try {
+                    const purchase = await db.collection('purchases').findOne(
+                        { _id: new ObjectId(product.purchase_id) },
+                        { projection: { purchase_price: 1, refund_amount: 1, quantity: 1, items_purchased: 1 } }
+                    );
+                    if (purchase && purchase.refund_amount) {
+                        const workingParts = ['left', 'right', 'case'];
+                        const items = purchase.items_purchased || [];
+                        const workingPartsPerSet = items.filter(item => workingParts.includes(item)).length;
+                        const quantity = purchase.quantity || 1;
+                        const totalWorkingParts = workingPartsPerSet * quantity;
+
+                        const effectivePrice = parseFloat(purchase.purchase_price) - (purchase.refund_amount || 0);
+                        const partValue = totalWorkingParts > 0 ? effectivePrice / totalWorkingParts : null;
+
+                        productCost = partValue !== null ? partValue : effectivePrice;
+                    }
+                } catch (purchaseErr) {
+                    console.error('[SALES] Error fetching purchase for refund adjustment:', purchaseErr);
+                }
+            }
             const totalCost = productCost + transactionFees + postageLabelCost + adFeeGeneral + consumablesCost;
 
             const sale = {
