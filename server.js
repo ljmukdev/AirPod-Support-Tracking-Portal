@@ -18950,6 +18950,162 @@ app.get('/api/admin/ebay-market/status', requireAuth, async (req, res) => {
     res.json({ success: true, status: ebayApi.getStatus() });
 });
 
+// GET eBay API diagnostic - tests the full pipeline and reports faults
+app.get('/api/admin/ebay-market/diagnostic', requireAuth, async (req, res) => {
+    const results = {
+        timestamp: new Date().toISOString(),
+        checks: [],
+        overall: 'pending',
+    };
+
+    function addCheck(name, status, detail) {
+        results.checks.push({ name, status, detail });
+    }
+
+    // 1. Module loaded?
+    if (!ebayApi) {
+        addCheck('module_loaded', 'FAIL', 'ebay-api.js module failed to load. Check server startup logs.');
+        results.overall = 'FAIL';
+        return res.json(results);
+    }
+    addCheck('module_loaded', 'PASS', 'ebay-api.js loaded successfully');
+
+    // 2. EBAY_APP_ID configured?
+    const status = ebayApi.getStatus();
+    if (!status.has_app_id) {
+        addCheck('app_id_configured', 'FAIL', 'EBAY_APP_ID environment variable is not set. Get one from developer.ebay.com');
+        results.overall = 'FAIL';
+        return res.json(results);
+    }
+    addCheck('app_id_configured', 'PASS', `EBAY_APP_ID is set, marketplace: ${status.marketplace}`);
+
+    // 3. Test API call - simple search
+    const testQuery = 'AirPods Pro 2 left earbud';
+    try {
+        const searchResult = await ebayApi.searchSoldListings(testQuery, {
+            maxResults: 3,
+            minPrice: 1,
+            maxPrice: 200,
+        });
+
+        if (!searchResult.success) {
+            addCheck('api_connection', 'FAIL', {
+                message: 'eBay API returned an error',
+                query: testQuery,
+                error: searchResult.error,
+            });
+            results.overall = 'FAIL';
+            return res.json(results);
+        }
+
+        addCheck('api_connection', 'PASS', {
+            message: 'Successfully connected to eBay Finding API',
+            query: testQuery,
+            total_results: searchResult.total_results,
+            items_returned: searchResult.items_returned,
+        });
+
+        // 4. Check we got actual sold items back
+        if (searchResult.items_returned === 0) {
+            addCheck('sold_items_returned', 'WARN', {
+                message: 'API responded but returned 0 sold items. This could mean the query is too specific or eBay rate-limited the request.',
+                total_results: searchResult.total_results,
+            });
+        } else {
+            const sample = searchResult.items[0];
+            addCheck('sold_items_returned', 'PASS', {
+                message: `Got ${searchResult.items_returned} sold items`,
+                sample_item: {
+                    title: sample.title,
+                    sold_price: `${sample.currency} ${sample.sold_price}`,
+                    sold_date: sample.sold_date,
+                    condition: sample.condition,
+                },
+            });
+        }
+
+    } catch (err) {
+        addCheck('api_connection', 'FAIL', {
+            message: 'Exception calling eBay API',
+            error_type: err.constructor.name,
+            error_message: err.message,
+            hint: err.message.includes('fetch') ? 'Network error - check server can reach svcs.ebay.com' :
+                  err.message.includes('401') || err.message.includes('403') ? 'Authentication failed - check EBAY_APP_ID is valid and not expired' :
+                  err.message.includes('500') ? 'eBay server error - try again in a few minutes' :
+                  'Check the error message for details',
+        });
+        results.overall = 'FAIL';
+        return res.json(results);
+    }
+
+    // 5. Test the fetchMarketPrices helper
+    try {
+        const priceResult = await ebayApi.fetchMarketPrices('AirPods Pro 2', 'left', {
+            connectorType: null,
+            maxResults: 5,
+        });
+
+        if (priceResult.success) {
+            addCheck('price_fetch', 'PASS', {
+                message: 'fetchMarketPrices working',
+                query_used: priceResult.query,
+                items_found: priceResult.items_found,
+                price_stats: priceResult.price_stats,
+            });
+        } else {
+            addCheck('price_fetch', 'WARN', {
+                message: 'fetchMarketPrices returned no results',
+                query_used: priceResult.query,
+                error: priceResult.error,
+            });
+        }
+    } catch (err) {
+        addCheck('price_fetch', 'FAIL', {
+            message: 'Exception in fetchMarketPrices',
+            error_message: err.message,
+        });
+    }
+
+    // 6. Database cache write/read test
+    if (db) {
+        try {
+            const testDoc = {
+                generation: '__diagnostic_test__',
+                part_type: 'test',
+                connector_type: null,
+                price_stats: { avg_price: 0 },
+                items_found: 0,
+                listings: [],
+                fetched_at: new Date(),
+            };
+
+            await db.collection('ebay_market_data').insertOne(testDoc);
+            const found = await db.collection('ebay_market_data').findOne({ generation: '__diagnostic_test__' });
+            await db.collection('ebay_market_data').deleteMany({ generation: '__diagnostic_test__' });
+
+            if (found) {
+                addCheck('database_cache', 'PASS', 'Can write and read from ebay_market_data collection');
+            } else {
+                addCheck('database_cache', 'FAIL', 'Wrote to ebay_market_data but could not read back');
+            }
+        } catch (err) {
+            addCheck('database_cache', 'FAIL', {
+                message: 'Database error on ebay_market_data',
+                error_message: err.message,
+            });
+        }
+    } else {
+        addCheck('database_cache', 'FAIL', 'Database not connected');
+    }
+
+    // Overall result
+    const hasFailure = results.checks.some(c => c.status === 'FAIL');
+    const hasWarning = results.checks.some(c => c.status === 'WARN');
+    results.overall = hasFailure ? 'FAIL' : hasWarning ? 'WARN' : 'PASS';
+
+    res.json(results);
+});
+
 // GET search eBay sold listings (raw search)
 app.get('/api/admin/ebay-market/search-sold', requireAuth, async (req, res) => {
     try {
