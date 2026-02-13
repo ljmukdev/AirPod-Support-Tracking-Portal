@@ -16,14 +16,18 @@ const multer = require('multer');
 const fs = require('fs');
 const crypto = require('crypto');
 
-// Initialize eBay API integration (optional - requires EBAY_APP_ID)
+// Initialize eBay API integration (requires EBAY_APP_ID + EBAY_CERT_ID for OAuth2)
 let ebayApi = null;
 try {
     ebayApi = require('./ebay-api');
     if (ebayApi.isConfigured()) {
-        console.log('✅ eBay API configured for market data');
+        console.log('✅ eBay API configured for market data (Browse API + OAuth2)');
     } else {
-        console.warn('⚠️  EBAY_APP_ID not set - eBay market data API disabled. Register at developer.ebay.com');
+        const status = ebayApi.getStatus();
+        const missing = [];
+        if (!status.has_app_id) missing.push('EBAY_APP_ID');
+        if (!status.has_cert_id) missing.push('EBAY_CERT_ID');
+        console.warn(`⚠️  eBay API disabled - missing env vars: ${missing.join(', ')}. Register at developer.ebay.com`);
     }
 } catch (e) {
     console.warn('⚠️  eBay API module not loaded:', e.message);
@@ -18970,7 +18974,7 @@ app.get('/api/admin/ebay-market/diagnostic', requireAuth, async (req, res) => {
     }
     addCheck('module_loaded', 'PASS', 'ebay-api.js loaded successfully');
 
-    // 2. EBAY_APP_ID configured?
+    // 2. EBAY_APP_ID + EBAY_CERT_ID configured?
     const status = ebayApi.getStatus();
     if (!status.has_app_id) {
         addCheck('app_id_configured', 'FAIL', 'EBAY_APP_ID environment variable is not set. Get one from developer.ebay.com');
@@ -18978,6 +18982,13 @@ app.get('/api/admin/ebay-market/diagnostic', requireAuth, async (req, res) => {
         return res.json(results);
     }
     addCheck('app_id_configured', 'PASS', `EBAY_APP_ID is set, marketplace: ${status.marketplace}`);
+
+    if (!status.has_cert_id) {
+        addCheck('cert_id_configured', 'FAIL', 'EBAY_CERT_ID environment variable is not set. This is required for OAuth2 (Browse API). Find it in your eBay developer app keys.');
+        results.overall = 'FAIL';
+        return res.json(results);
+    }
+    addCheck('cert_id_configured', 'PASS', 'EBAY_CERT_ID is set');
 
     // 3. Test API call - simple search
     const testQuery = 'AirPods Pro 2 left earbud';
@@ -19029,8 +19040,9 @@ app.get('/api/admin/ebay-market/diagnostic', requireAuth, async (req, res) => {
             message: 'Exception calling eBay API',
             error_type: err.constructor.name,
             error_message: err.message,
-            hint: err.message.includes('fetch') ? 'Network error - check server can reach svcs.ebay.com' :
-                  err.message.includes('401') || err.message.includes('403') ? 'Authentication failed - check EBAY_APP_ID is valid and not expired' :
+            hint: err.message.includes('OAuth') ? 'OAuth2 error - check EBAY_APP_ID and EBAY_CERT_ID are valid' :
+                  err.message.includes('fetch') ? 'Network error - check server can reach api.ebay.com' :
+                  err.message.includes('401') || err.message.includes('403') ? 'Authentication failed - check EBAY_APP_ID and EBAY_CERT_ID are valid and not expired' :
                   err.message.includes('500') ? 'eBay server error - try again in a few minutes' :
                   'Check the error message for details',
         });
@@ -19110,7 +19122,7 @@ app.get('/api/admin/ebay-market/diagnostic', requireAuth, async (req, res) => {
 app.get('/api/admin/ebay-market/search-sold', requireAuth, async (req, res) => {
     try {
         if (!ebayApi || !ebayApi.isConfigured()) {
-            return res.status(503).json({ success: false, error: 'eBay API not configured. Set EBAY_APP_ID environment variable.' });
+            return res.status(503).json({ success: false, error: 'eBay API not configured. Set EBAY_APP_ID and EBAY_CERT_ID environment variables.' });
         }
 
         const keywords = req.query.q || req.query.keywords;
@@ -19136,7 +19148,7 @@ app.get('/api/admin/ebay-market/search-sold', requireAuth, async (req, res) => {
 app.get('/api/admin/ebay-market/prices', requireAuth, requireDB, async (req, res) => {
     try {
         if (!ebayApi || !ebayApi.isConfigured()) {
-            return res.status(503).json({ success: false, error: 'eBay API not configured. Set EBAY_APP_ID environment variable.' });
+            return res.status(503).json({ success: false, error: 'eBay API not configured. Set EBAY_APP_ID and EBAY_CERT_ID environment variables.' });
         }
 
         const generation = req.query.generation;
@@ -19221,7 +19233,7 @@ app.get('/api/admin/ebay-market/prices', requireAuth, requireDB, async (req, res
 app.post('/api/admin/ebay-market/fetch-all', requireAuth, requireDB, async (req, res) => {
     try {
         if (!ebayApi || !ebayApi.isConfigured()) {
-            return res.status(503).json({ success: false, error: 'eBay API not configured. Set EBAY_APP_ID environment variable.' });
+            return res.status(503).json({ success: false, error: 'eBay API not configured. Set EBAY_APP_ID and EBAY_CERT_ID environment variables.' });
         }
 
         const { generation, connector_type, parts } = req.body;

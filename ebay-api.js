@@ -1,137 +1,176 @@
 /**
  * eBay API Integration for Market Price Data
  *
- * Uses the eBay Finding API (findCompletedItems) to fetch sold listing prices.
- * Used by the bid calculator / price recommender to get real eBay market data
- * instead of requiring manual price entry.
+ * Uses the eBay Browse API (item_summary/search) with OAuth2 client credentials
+ * to fetch current listing prices. The Finding API (findCompletedItems) was
+ * decommissioned by eBay in February 2025.
+ *
+ * Required env vars:
+ *   EBAY_APP_ID     - eBay application client ID
+ *   EBAY_CERT_ID    - eBay application client secret
+ *   EBAY_MARKETPLACE - marketplace ID (default: EBAY_GB)
+ *
+ * The Browse API returns active listings. For sold/completed item data,
+ * the Marketplace Insights API is required (needs eBay business approval).
  */
 
-const FINDING_API_URL = 'https://svcs.ebay.com/services/search/FindingService/v1';
+const BROWSE_API_BASE = 'https://api.ebay.com/buy/browse/v1';
+const OAUTH_TOKEN_URL = 'https://api.ebay.com/identity/v1/oauth2/token';
+const OAUTH_SCOPE = 'https://api.ebay.com/oauth/api_scope';
 
 const config = {
   appId: process.env.EBAY_APP_ID,
-  marketplace: process.env.EBAY_MARKETPLACE || 'EBAY-GB',
+  certId: process.env.EBAY_CERT_ID,
+  marketplace: process.env.EBAY_MARKETPLACE || 'EBAY_GB',
 };
 
+// Cached OAuth token
+let cachedToken = null;
+let tokenExpiresAt = 0;
+
 /**
- * Search eBay completed/sold listings via the Finding API.
- * Returns only items that actually sold (EndedWithSales).
+ * Get an OAuth2 access token using client credentials grant.
+ */
+async function getAccessToken() {
+  // Return cached token if still valid (with 60s buffer)
+  if (cachedToken && Date.now() < tokenExpiresAt - 60000) {
+    return cachedToken;
+  }
+
+  if (!config.appId || !config.certId) {
+    throw new Error('EBAY_APP_ID and EBAY_CERT_ID are required for OAuth2');
+  }
+
+  const credentials = Buffer.from(`${config.appId}:${config.certId}`).toString('base64');
+
+  const response = await fetch(OAUTH_TOKEN_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Authorization': `Basic ${credentials}`,
+    },
+    body: `grant_type=client_credentials&scope=${encodeURIComponent(OAUTH_SCOPE)}`,
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`OAuth token error (${response.status}): ${text}`);
+  }
+
+  const data = await response.json();
+  cachedToken = data.access_token;
+  tokenExpiresAt = Date.now() + (data.expires_in * 1000);
+  return cachedToken;
+}
+
+/**
+ * Search eBay active listings via the Browse API.
+ * Returns currently listed items (not sold items - that requires Marketplace Insights API).
  */
 async function searchSoldListings(keywords, options = {}) {
-  if (!config.appId) {
-    throw new Error('EBAY_APP_ID not configured - register at developer.ebay.com');
+  if (!config.appId || !config.certId) {
+    throw new Error('EBAY_APP_ID and EBAY_CERT_ID not configured');
   }
 
   const {
     maxResults = 50,
-    sortOrder = 'EndTimeSoonest',
+    sortOrder = 'price',
     categoryId = null,
     minPrice = null,
     maxPrice = null,
   } = options;
 
+  const token = await getAccessToken();
+
+  // Build query parameters
   const params = new URLSearchParams({
-    'OPERATION-NAME': 'findCompletedItems',
-    'SERVICE-VERSION': '1.13.0',
-    'SECURITY-APPNAME': config.appId,
-    'RESPONSE-DATA-FORMAT': 'JSON',
-    'REST-PAYLOAD': '',
-    'keywords': keywords,
-    'GLOBAL-ID': config.marketplace,
-    'paginationInput.entriesPerPage': String(Math.min(maxResults, 100)),
-    'sortOrder': sortOrder,
-    'itemFilter(0).name': 'SoldItemsOnly',
-    'itemFilter(0).value': 'true',
+    q: keywords,
+    limit: String(Math.min(maxResults, 200)),
   });
 
-  let filterIndex = 1;
+  // Sort mapping
+  const sortMap = {
+    'EndTimeSoonest': 'endingSoonest',
+    'price': 'price',
+    '-price': '-price',
+    'newlyListed': 'newlyListed',
+  };
+  params.set('sort', sortMap[sortOrder] || 'price');
+
+  // Build filters
+  const filters = [];
+
+  const currency = config.marketplace === 'EBAY_GB' ? 'GBP' : 'USD';
+
+  if (minPrice !== null && maxPrice !== null) {
+    filters.push(`price:[${minPrice}..${maxPrice}],priceCurrency:${currency}`);
+  } else if (minPrice !== null) {
+    filters.push(`price:[${minPrice}],priceCurrency:${currency}`);
+  } else if (maxPrice !== null) {
+    filters.push(`price:[..${maxPrice}],priceCurrency:${currency}`);
+  }
+
+  // Include both Buy It Now and auction
+  filters.push('buyingOptions:{FIXED_PRICE|AUCTION}');
 
   if (categoryId) {
-    params.set('categoryId', categoryId);
+    params.set('category_ids', categoryId);
   }
 
-  const currency = config.marketplace === 'EBAY-GB' ? 'GBP' : 'USD';
-
-  if (minPrice !== null) {
-    params.set(`itemFilter(${filterIndex}).name`, 'MinPrice');
-    params.set(`itemFilter(${filterIndex}).value`, String(minPrice));
-    params.set(`itemFilter(${filterIndex}).paramName`, 'Currency');
-    params.set(`itemFilter(${filterIndex}).paramValue`, currency);
-    filterIndex++;
+  if (filters.length > 0) {
+    params.set('filter', filters.join(','));
   }
 
-  if (maxPrice !== null) {
-    params.set(`itemFilter(${filterIndex}).name`, 'MaxPrice');
-    params.set(`itemFilter(${filterIndex}).value`, String(maxPrice));
-    params.set(`itemFilter(${filterIndex}).paramName`, 'Currency');
-    params.set(`itemFilter(${filterIndex}).paramValue`, currency);
-    filterIndex++;
-  }
-
-  const url = `${FINDING_API_URL}?${params.toString()}`;
+  const url = `${BROWSE_API_BASE}/item_summary/search?${params.toString()}`;
 
   const response = await fetch(url, {
     method: 'GET',
-    headers: { 'Accept': 'application/json' }
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'X-EBAY-C-MARKETPLACE-ID': config.marketplace,
+      'Accept': 'application/json',
+    },
   });
 
   if (!response.ok) {
-    throw new Error(`eBay API error: ${response.status} ${response.statusText}`);
+    const errorText = await response.text();
+    throw new Error(`eBay Browse API error (${response.status}): ${errorText}`);
   }
 
   const data = await response.json();
-  return parseCompletedItemsResponse(data);
+  return parseBrowseSearchResponse(data);
 }
 
 /**
- * Parse the Finding API findCompletedItems response.
+ * Parse the Browse API search response into our standard format.
  */
-function parseCompletedItemsResponse(data) {
-  const response = data?.findCompletedItemsResponse?.[0];
-
-  if (!response) {
-    return { success: false, error: 'Invalid API response', items: [] };
-  }
-
-  const ack = response.ack?.[0];
-  if (ack !== 'Success') {
-    const errorMessage = response.errorMessage?.[0]?.error?.[0]?.message?.[0] || 'Unknown error';
-    return { success: false, error: errorMessage, items: [] };
-  }
-
-  const searchResult = response.searchResult?.[0];
-  const totalResults = parseInt(response.paginationOutput?.[0]?.totalEntries?.[0] || '0');
-
-  const items = (searchResult?.item || []).map(item => {
-    const price = parseFloat(item.sellingStatus?.[0]?.currentPrice?.[0]?.__value__ || '0');
-    const currencyId = item.sellingStatus?.[0]?.currentPrice?.[0]?.['@currencyId'] || 'GBP';
-    const sellingState = item.sellingStatus?.[0]?.sellingState?.[0] || '';
-    const endTime = item.listingInfo?.[0]?.endTime?.[0] || null;
-    const conditionName = item.condition?.[0]?.conditionDisplayName?.[0] || 'Unknown';
-    const title = item.title?.[0] || '';
-    const itemId = item.itemId?.[0] || '';
-    const itemUrl = item.viewItemURL?.[0] || '';
+function parseBrowseSearchResponse(data) {
+  const items = (data.itemSummaries || []).map(item => {
+    const price = parseFloat(item.price?.value || '0');
+    const currencyId = item.price?.currency || 'GBP';
+    const endTime = item.itemEndDate || null;
+    const conditionName = item.condition || item.conditionId || 'Unknown';
+    const title = item.title || '';
+    const itemId = item.itemId || '';
+    const itemUrl = item.itemWebUrl || '';
 
     return {
       item_id: itemId,
       title,
       sold_price: price,
       currency: currencyId,
-      selling_state: sellingState,
-      sold_date: endTime ? new Date(endTime) : null,
+      selling_state: 'Active',
+      sold_date: endTime ? new Date(endTime) : new Date(),
       condition: conditionName,
       url: itemUrl,
     };
   });
 
-  // Only include items that actually sold
-  const soldItems = items.filter(item => item.selling_state === 'EndedWithSales');
-
   return {
     success: true,
-    total_results: totalResults,
-    items_returned: soldItems.length,
-    items: soldItems,
+    total_results: data.total || items.length,
+    items_returned: items.length,
+    items,
   };
 }
 
@@ -155,7 +194,7 @@ function buildAirPodSearchQuery(generation, partType, connectorType) {
 }
 
 /**
- * Fetch sold-listing market prices for a specific AirPod part.
+ * Fetch active listing market prices for a specific AirPod part.
  * Returns price statistics and individual listings.
  */
 async function fetchMarketPrices(generation, partType, options = {}) {
@@ -172,7 +211,7 @@ async function fetchMarketPrices(generation, partType, options = {}) {
     maxResults,
     minPrice,
     maxPrice,
-    sortOrder: 'EndTimeSoonest',
+    sortOrder: 'price',
   });
 
   if (!result.success) {
@@ -180,7 +219,7 @@ async function fetchMarketPrices(generation, partType, options = {}) {
   }
 
   if (result.items.length === 0) {
-    return { success: false, query, error: 'No sold listings found', items_found: 0 };
+    return { success: false, query, error: 'No listings found', items_found: 0 };
   }
 
   const prices = result.items.map(i => i.sold_price);
@@ -189,10 +228,6 @@ async function fetchMarketPrices(generation, partType, options = {}) {
   const median = sorted.length % 2 === 0
     ? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
     : sorted[Math.floor(sorted.length / 2)];
-
-  const dates = result.items.filter(i => i.sold_date).map(i => new Date(i.sold_date));
-  const newest = dates.length > 0 ? new Date(Math.max(...dates)) : null;
-  const oldest = dates.length > 0 ? new Date(Math.min(...dates)) : null;
 
   return {
     success: true,
@@ -209,16 +244,16 @@ async function fetchMarketPrices(generation, partType, options = {}) {
       max_price: Math.round(Math.max(...prices) * 100) / 100,
       currency: result.items[0]?.currency || 'GBP',
     },
-    date_range: { newest, oldest },
+    date_range: { newest: new Date(), oldest: new Date() },
     listings: result.items,
   };
 }
 
 /**
- * Check whether the eBay API is configured.
+ * Check whether the eBay API is configured (both App ID and Cert ID needed for OAuth).
  */
 function isConfigured() {
-  return !!config.appId;
+  return !!(config.appId && config.certId);
 }
 
 function getStatus() {
@@ -226,6 +261,7 @@ function getStatus() {
     configured: isConfigured(),
     marketplace: config.marketplace,
     has_app_id: !!config.appId,
+    has_cert_id: !!config.certId,
   };
 }
 
