@@ -832,6 +832,36 @@
             margin-left: 8px;
         }
 
+        /* Fetch eBay Prices Button */
+        .fetch-ebay-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 18px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .fetch-ebay-btn:hover {
+            background: #1d4ed8;
+        }
+        .fetch-ebay-btn:disabled {
+            background: #9ca3af;
+            cursor: wait;
+        }
+        .ebay-fetch-section {
+            margin-bottom: 20px;
+            padding: 16px;
+            background: #eff6ff;
+            border: 1px solid #2563eb;
+            border-radius: 8px;
+        }
+
         /* eBay Entry Section */
         .ebay-part-row {
             padding: 12px;
@@ -2071,6 +2101,26 @@
                                     <div id="recentSalesStatus" style="display:none;margin-top:12px;"></div>
                                 </div>
 
+                                <!-- Fetch eBay Prices Section -->
+                                <div class="ebay-fetch-section" ${data.ebay_api_available ? '' : 'style="display:none;"'}>
+                                    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+                                        <div>
+                                            <strong style="color:#1d4ed8;">Fetch eBay Sold Prices</strong>
+                                            <p style="margin:4px 0 0;font-size:0.85rem;color:#2563eb;">
+                                                Automatically fetch recent sold listing prices from eBay for missing parts.
+                                            </p>
+                                        </div>
+                                        <button class="fetch-ebay-btn" id="fetchEbayBtn" onclick="fetchEbayPrices()">
+                                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M8 1v6m0 0l3-3m-3 3L5 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" transform="rotate(180 8 8)"/>
+                                                <path d="M1 10v2a2 2 0 002 2h10a2 2 0 002-2v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                            </svg>
+                                            Fetch eBay Prices
+                                        </button>
+                                    </div>
+                                    <div id="ebayFetchStatus" style="display:none;margin-top:12px;"></div>
+                                </div>
+
                                 ${partialDataHtml}
                                 <div>
                                     <h4 style="margin:0 0 12px;color:#374151;">Or Enter Prices Manually:</h4>
@@ -2100,7 +2150,7 @@
                                 </div>
                                 <div style="margin-top:20px;padding:16px;background:#f0f9ff;border-radius:8px;">
                                     <p style="margin:0;font-size:0.85rem;color:#0369a1;">
-                                        <strong>How to use:</strong> Click "Search eBay Sold Listings" to find recent sold prices, then click "Enter 5 Sales Prices" to input them. The calculator will use the average of your entered prices.
+                                        <strong>How to use:</strong> Click "Fetch eBay Prices" to automatically pull sold prices, or "Search eBay Sold Listings" to browse manually, then "Enter 5 Sales Prices" to input them.
                                     </p>
                                 </div>
                             </div>
@@ -2547,6 +2597,183 @@
                     </svg>
                     Load Recent Sales
                 `);
+            }
+        }
+
+        // Fetch eBay sold listing prices via API and apply to bid calculator
+        async function fetchEbayPrices() {
+            if (!currentSelection) {
+                alert('Please select a generation first.');
+                return;
+            }
+
+            const btn = document.getElementById('fetchEbayBtn');
+            const statusDiv = document.getElementById('ebayFetchStatus');
+            const selectedParts = getSelectedParts();
+
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = `
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="animation: spin 1s linear infinite;">
+                        <path d="M2 8C2 4.68629 4.68629 2 8 2C10.0503 2 11.8574 3.00442 12.9554 4.54404M14 8C14 11.3137 11.3137 14 8 14C5.94972 14 4.14265 12.9956 3.04464 11.456" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                    Fetching from eBay...
+                `;
+            }
+
+            if (statusDiv) {
+                statusDiv.style.display = 'none';
+                statusDiv.innerHTML = '';
+            }
+
+            try {
+                if (typeof authenticatedFetch !== 'function') {
+                    throw new Error('Please refresh the page');
+                }
+
+                // Fetch prices for all selected parts
+                const response = await authenticatedFetch('/api/admin/ebay-market/fetch-all', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        generation: currentSelection.generation,
+                        connector_type: currentSelection.connector_type || null,
+                        parts: selectedParts
+                    })
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    throw new Error(errData.error || `API error: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || 'Failed to fetch eBay prices');
+                }
+
+                // Apply fetched prices to manualPriceData and save
+                let appliedParts = [];
+                let appliedDetails = [];
+                let failedParts = [];
+
+                for (const partType of selectedParts) {
+                    const result = data.results[partType];
+                    if (result && result.success && result.price_stats) {
+                        const prices = result.price_stats;
+                        // Use median price as the primary, but store as array for manual-prices format
+                        const priceValues = [prices.avg_price];
+
+                        manualPriceData[partType] = {
+                            avg_sale_price: prices.avg_price,
+                            prices: priceValues,
+                            is_manual: true,
+                            is_from_ebay_api: true,
+                            sales_count: result.items_found
+                        };
+                        appliedParts.push(partType);
+                        appliedDetails.push({
+                            partType,
+                            avgPrice: prices.avg_price,
+                            medianPrice: prices.median_price,
+                            minPrice: prices.min_price,
+                            maxPrice: prices.max_price,
+                            itemsFound: result.items_found,
+                            currency: prices.currency || 'GBP'
+                        });
+
+                        // Save to database for persistence
+                        try {
+                            await authenticatedFetch('/api/admin/price-snapshot/manual-prices', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    generation: currentSelection.generation,
+                                    connector_type: currentSelection.connector_type || null,
+                                    part_type: partType,
+                                    prices: priceValues
+                                })
+                            });
+                        } catch (saveErr) {
+                            console.error('Failed to save eBay prices:', saveErr);
+                        }
+                    } else {
+                        failedParts.push({
+                            partType,
+                            error: result?.error || 'No data returned'
+                        });
+                    }
+                }
+
+                if (statusDiv) {
+                    statusDiv.style.display = 'block';
+
+                    let html = '';
+                    if (appliedParts.length > 0) {
+                        html += `
+                            <div style="padding:12px;background:#d1fae5;border-radius:6px;color:#047857;margin-bottom:${failedParts.length > 0 ? '8px' : '0'};">
+                                <strong>Fetched ${appliedParts.length} part(s) from eBay sold listings:</strong>
+                                <ul style="margin:8px 0 0 20px;padding:0;">
+                                    ${appliedDetails.map(d => `
+                                        <li style="margin-bottom:4px;">
+                                            <span class="part-type-badge ${d.partType}" style="font-size:0.7rem;padding:2px 6px;">${d.partType}</span>
+                                            ${d.currency === 'GBP' ? '£' : '$'}${d.avgPrice.toFixed(2)} avg
+                                            (${d.itemsFound} sold listings,
+                                            range: ${d.currency === 'GBP' ? '£' : '$'}${d.minPrice.toFixed(2)} - ${d.currency === 'GBP' ? '£' : '$'}${d.maxPrice.toFixed(2)})
+                                        </li>
+                                    `).join('')}
+                                </ul>
+                            </div>
+                        `;
+                    }
+
+                    if (failedParts.length > 0) {
+                        html += `
+                            <div style="padding:12px;background:#fef3c7;border-radius:6px;color:#92400e;">
+                                <strong>Could not fetch ${failedParts.length} part(s):</strong>
+                                <ul style="margin:8px 0 0 20px;padding:0;">
+                                    ${failedParts.map(f => `
+                                        <li style="margin-bottom:4px;">
+                                            <span class="part-type-badge ${f.partType}" style="font-size:0.7rem;padding:2px 6px;">${f.partType}</span>
+                                            ${f.error}
+                                        </li>
+                                    `).join('')}
+                                </ul>
+                                <p style="margin:8px 0 0;font-size:0.8rem;">Try searching eBay manually below or enter prices by hand.</p>
+                            </div>
+                        `;
+                    }
+
+                    statusDiv.innerHTML = html;
+                }
+
+                // Re-calculate bid with the new data
+                if (appliedParts.length > 0) {
+                    setTimeout(() => calculateBid(), 100);
+                }
+
+            } catch (err) {
+                console.error('Error fetching eBay prices:', err);
+                if (statusDiv) {
+                    statusDiv.style.display = 'block';
+                    statusDiv.innerHTML = `
+                        <div style="padding:12px;background:#fee2e2;border-radius:6px;color:#b91c1c;">
+                            <strong>Error:</strong> ${err.message}
+                        </div>
+                    `;
+                }
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = `
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M8 1v6m0 0l3-3m-3 3L5 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" transform="rotate(180 8 8)"/>
+                            <path d="M1 10v2a2 2 0 002 2h10a2 2 0 002-2v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                        Fetch eBay Prices
+                    `;
+                }
             }
         }
 
