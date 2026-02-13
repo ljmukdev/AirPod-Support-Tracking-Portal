@@ -832,6 +832,147 @@
             margin-left: 8px;
         }
 
+        /* Fetch eBay Prices Button */
+        .fetch-ebay-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 18px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .fetch-ebay-btn:hover {
+            background: #1d4ed8;
+        }
+        .fetch-ebay-btn:disabled {
+            background: #9ca3af;
+            cursor: wait;
+        }
+        .ebay-fetch-section {
+            margin-bottom: 20px;
+            padding: 16px;
+            background: #eff6ff;
+            border: 1px solid #2563eb;
+            border-radius: 8px;
+        }
+
+        /* eBay Search Modal */
+        .ebay-search-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+        .ebay-search-modal-content {
+            background: white;
+            border-radius: 12px;
+            max-width: 750px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .ebay-search-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .ebay-search-modal-header h3 {
+            margin: 0;
+            font-size: 1.1rem;
+            color: #1f2937;
+        }
+        .ebay-search-modal-body {
+            padding: 20px;
+        }
+        .ebay-search-bar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .ebay-search-bar input {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        .ebay-search-bar input:focus {
+            border-color: #2563eb;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+        .ebay-search-bar button {
+            padding: 10px 20px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .ebay-search-bar button:hover { background: #1d4ed8; }
+        .ebay-search-bar button:disabled { background: #9ca3af; cursor: wait; }
+        .ebay-results-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        .ebay-results-table th {
+            text-align: left;
+            padding: 8px 10px;
+            background: #f9fafb;
+            border-bottom: 2px solid #e5e7eb;
+            font-weight: 600;
+            color: #374151;
+        }
+        .ebay-results-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #f3f4f6;
+            color: #4b5563;
+        }
+        .ebay-results-table tr:hover {
+            background: #f0f9ff;
+        }
+        .ebay-results-table input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+        .ebay-results-summary {
+            margin-top: 16px;
+            padding: 12px;
+            background: #f0fdf4;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: #166534;
+            display: none;
+        }
+        .ebay-search-modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid #e5e7eb;
+        }
+
         /* eBay Entry Section */
         .ebay-part-row {
             padding: 12px;
@@ -1192,6 +1333,35 @@
                             <div class="manual-entry-actions">
                                 <button class="btn btn-secondary" onclick="closeManualEntryModal()">Cancel</button>
                                 <button class="btn btn-primary" onclick="applyManualData()">Apply & Calculate</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- eBay Search Modal -->
+                <div class="ebay-search-modal" id="ebaySearchModal" style="display:none;">
+                    <div class="ebay-search-modal-content">
+                        <div class="ebay-search-modal-header">
+                            <h3 id="ebaySearchModalTitle">Search eBay Sold Listings</h3>
+                            <button class="close-modal-btn" onclick="closeEbaySearchModal()">&times;</button>
+                        </div>
+                        <div class="ebay-search-modal-body">
+                            <p style="margin:0 0 12px;color:#4b5563;font-size:0.9rem;">
+                                Search for <strong id="ebaySearchPartLabel"></strong>. Select the listings you want to use for pricing.
+                            </p>
+                            <div class="ebay-search-bar">
+                                <input type="text" id="ebaySearchInput" placeholder="e.g. A2564 or AirPods 3rd Gen left earbud" onkeydown="if(event.key==='Enter')searchEbaySold()">
+                                <button id="ebaySearchBtn" onclick="searchEbaySold()">Search</button>
+                            </div>
+                            <div id="ebaySearchResults">
+                                <p style="color:#9ca3af;text-align:center;padding:30px 0;">Enter a search query above to find recent eBay sold listings.</p>
+                            </div>
+                            <div class="ebay-results-summary" id="ebayResultsSummary">
+                                Selected: <strong id="ebaySelectedCount">0</strong> listings | Average: <strong id="ebaySelectedAvg">-</strong>
+                            </div>
+                            <div class="ebay-search-modal-actions">
+                                <button class="btn btn-secondary" onclick="closeEbaySearchModal()">Cancel</button>
+                                <button class="btn btn-primary" id="ebayAddSelectedBtn" onclick="addSelectedEbayListings()" disabled>Add Selected Prices</button>
                             </div>
                         </div>
                     </div>
@@ -2073,7 +2243,7 @@
 
                                 ${partialDataHtml}
                                 <div>
-                                    <h4 style="margin:0 0 12px;color:#374151;">Or Enter Prices Manually:</h4>
+                                    <h4 style="margin:0 0 12px;color:#374151;">Missing Parts - Get eBay Prices:</h4>
                                     ${missingParts.map(partType => {
                                         const suggestion = data.ebay_search_suggestions?.find(s => s.part_type === partType);
                                         const searchQuery = suggestion?.search_query || `${selection.generation} ${partType}`;
@@ -2087,11 +2257,14 @@
                                                     </div>
                                                 </div>
                                                 <div class="missing-part-actions">
-                                                    <a href="${ebayUrl}" target="_blank" rel="noopener" class="ebay-search-btn">
-                                                        Search eBay Sold Listings
+                                                    <button class="fetch-ebay-btn" onclick="openEbaySearchModal('${partType}', '${searchQuery.replace(/'/g, "\\'")}')">
+                                                        Search eBay Sold
+                                                    </button>
+                                                    <a href="${ebayUrl}" target="_blank" rel="noopener" class="ebay-search-btn" style="background:#6b7280;">
+                                                        Browse eBay
                                                     </a>
                                                     <button class="enter-manual-btn" onclick="openManualEntryModal('${partType}', '${searchQuery}', '${searchQuery}', '${ebayUrl}')">
-                                                        Enter 5 Sales Prices
+                                                        Enter Manually
                                                     </button>
                                                 </div>
                                             </div>
@@ -2100,7 +2273,7 @@
                                 </div>
                                 <div style="margin-top:20px;padding:16px;background:#f0f9ff;border-radius:8px;">
                                     <p style="margin:0;font-size:0.85rem;color:#0369a1;">
-                                        <strong>How to use:</strong> Click "Search eBay Sold Listings" to find recent sold prices, then click "Enter 5 Sales Prices" to input them. The calculator will use the average of your entered prices.
+                                        <strong>How to use:</strong> Click "Search eBay Sold" to search and select sold listings from eBay, or "Enter Manually" to type prices by hand.
                                     </p>
                                 </div>
                             </div>
@@ -2548,6 +2721,285 @@
                     Load Recent Sales
                 `);
             }
+        }
+
+        // eBay Search Modal - interactive search + select flow
+        let ebaySearchCurrentPart = null;
+        let ebaySearchResults = [];
+
+        function openEbaySearchModal(partType, defaultQuery) {
+            ebaySearchCurrentPart = partType;
+            ebaySearchResults = [];
+
+            const modal = document.getElementById('ebaySearchModal');
+            const titleEl = document.getElementById('ebaySearchModalTitle');
+            const labelEl = document.getElementById('ebaySearchPartLabel');
+            const input = document.getElementById('ebaySearchInput');
+            const resultsDiv = document.getElementById('ebaySearchResults');
+            const summaryDiv = document.getElementById('ebayResultsSummary');
+            const addBtn = document.getElementById('ebayAddSelectedBtn');
+
+            titleEl.textContent = `Search eBay Sold Listings`;
+            labelEl.innerHTML = `<span class="part-type-badge ${partType}">${partType}</span>`;
+            input.value = defaultQuery || '';
+            resultsDiv.innerHTML = '<p style="color:#9ca3af;text-align:center;padding:30px 0;">Enter a search query and click Search to find recent eBay sold listings.</p>';
+            summaryDiv.style.display = 'none';
+            addBtn.disabled = true;
+
+            modal.style.display = 'flex';
+            input.focus();
+
+            // Try to load part model numbers for this generation to suggest searches
+            if (currentSelection) {
+                loadPartModelNumbers(partType);
+            }
+        }
+
+        function closeEbaySearchModal() {
+            document.getElementById('ebaySearchModal').style.display = 'none';
+            ebaySearchCurrentPart = null;
+            ebaySearchResults = [];
+        }
+
+        // Load model numbers for the part type and show as suggestions
+        async function loadPartModelNumbers(partType) {
+            if (!currentSelection) return;
+            try {
+                const response = await authenticatedFetch(`/api/admin/parts/${encodeURIComponent(currentSelection.generation)}`);
+                if (!response.ok) return;
+                const data = await response.json();
+                const matchingParts = (data.parts || []).filter(p => p.part_type === partType);
+                if (matchingParts.length > 0) {
+                    const input = document.getElementById('ebaySearchInput');
+                    const resultsDiv = document.getElementById('ebaySearchResults');
+                    const modelNumbers = matchingParts.map(p => p.part_model_number).filter(Boolean);
+                    if (modelNumbers.length > 0) {
+                        resultsDiv.innerHTML = `
+                            <div style="padding:12px;background:#f0f9ff;border-radius:6px;margin-bottom:12px;">
+                                <p style="margin:0 0 8px;font-size:0.85rem;color:#0369a1;">
+                                    <strong>Part numbers for ${currentSelection.generation} ${partType}:</strong>
+                                </p>
+                                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                                    ${matchingParts.map(p => `
+                                        <button style="padding:6px 12px;background:#dbeafe;border:1px solid #93c5fd;border-radius:4px;cursor:pointer;font-size:0.85rem;color:#1d4ed8;"
+                                            onclick="document.getElementById('ebaySearchInput').value='${p.part_model_number} ${p.part_name.replace(/'/g, "\\'")}';searchEbaySold()">
+                                            ${p.part_model_number} <small style="color:#6b7280;">${p.part_name}</small>
+                                        </button>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            <p style="color:#9ca3af;text-align:center;padding:20px 0;">Click a part number above or type your own search query.</p>
+                        `;
+                    }
+                }
+            } catch (err) {
+                console.error('Error loading part numbers:', err);
+            }
+        }
+
+        async function searchEbaySold() {
+            const input = document.getElementById('ebaySearchInput');
+            const btn = document.getElementById('ebaySearchBtn');
+            const resultsDiv = document.getElementById('ebaySearchResults');
+            const summaryDiv = document.getElementById('ebayResultsSummary');
+            const addBtn = document.getElementById('ebayAddSelectedBtn');
+
+            const query = input.value.trim();
+            if (!query) {
+                alert('Please enter a search query.');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Searching...';
+            resultsDiv.innerHTML = '<p style="color:#6b7280;text-align:center;padding:30px 0;">Searching eBay sold listings...</p>';
+            summaryDiv.style.display = 'none';
+            addBtn.disabled = true;
+
+            try {
+                if (typeof authenticatedFetch !== 'function') {
+                    throw new Error('Please refresh the page');
+                }
+
+                const params = new URLSearchParams({
+                    q: query,
+                    limit: 25,
+                    min_price: 1,
+                    max_price: 200,
+                });
+
+                const response = await authenticatedFetch(`/api/admin/ebay-market/search-sold?${params}`);
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    throw new Error(errData.error || `API error: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || 'Search failed');
+                }
+
+                ebaySearchResults = data.items || [];
+
+                if (ebaySearchResults.length === 0) {
+                    resultsDiv.innerHTML = `
+                        <div style="text-align:center;padding:30px 0;color:#6b7280;">
+                            <p><strong>No sold listings found</strong></p>
+                            <p style="font-size:0.85rem;">Try a different search query or broader terms.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Render results table with checkboxes
+                resultsDiv.innerHTML = `
+                    <div style="margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+                        <span style="color:#374151;font-size:0.85rem;font-weight:600;">${ebaySearchResults.length} sold listings found</span>
+                        <label style="font-size:0.8rem;color:#6b7280;cursor:pointer;">
+                            <input type="checkbox" id="ebaySelectAll" onchange="toggleAllEbayResults(this.checked)" style="margin-right:4px;">
+                            Select all
+                        </label>
+                    </div>
+                    <div style="max-height:350px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px;">
+                        <table class="ebay-results-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:40px;"></th>
+                                    <th>Title</th>
+                                    <th style="width:80px;">Price</th>
+                                    <th style="width:90px;">Sold Date</th>
+                                    <th style="width:80px;">Condition</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${ebaySearchResults.map((item, idx) => {
+                                    const date = item.sold_date ? new Date(item.sold_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : '-';
+                                    const currency = item.currency === 'GBP' ? '£' : '$';
+                                    return `
+                                        <tr>
+                                            <td><input type="checkbox" class="ebay-result-cb" data-idx="${idx}" onchange="updateEbaySelectionSummary()"></td>
+                                            <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${item.title}">${item.title}</td>
+                                            <td style="font-weight:600;color:#047857;">${currency}${item.sold_price.toFixed(2)}</td>
+                                            <td style="font-size:0.8rem;">${date}</td>
+                                            <td style="font-size:0.8rem;">${item.condition || '-'}</td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+
+                summaryDiv.style.display = 'block';
+                updateEbaySelectionSummary();
+
+            } catch (err) {
+                console.error('eBay search error:', err);
+                resultsDiv.innerHTML = `
+                    <div style="padding:16px;background:#fee2e2;border-radius:6px;color:#b91c1c;">
+                        <strong>Error:</strong> ${err.message}
+                    </div>
+                `;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Search';
+            }
+        }
+
+        function toggleAllEbayResults(checked) {
+            document.querySelectorAll('.ebay-result-cb').forEach(cb => cb.checked = checked);
+            updateEbaySelectionSummary();
+        }
+
+        function updateEbaySelectionSummary() {
+            const checkboxes = document.querySelectorAll('.ebay-result-cb:checked');
+            const count = checkboxes.length;
+            const addBtn = document.getElementById('ebayAddSelectedBtn');
+
+            document.getElementById('ebaySelectedCount').textContent = count;
+            addBtn.disabled = count === 0;
+
+            if (count > 0) {
+                let total = 0;
+                checkboxes.forEach(cb => {
+                    const idx = parseInt(cb.dataset.idx);
+                    total += ebaySearchResults[idx].sold_price;
+                });
+                const avg = total / count;
+                const currency = ebaySearchResults[0]?.currency === 'GBP' ? '£' : '$';
+                document.getElementById('ebaySelectedAvg').textContent = `${currency}${avg.toFixed(2)}`;
+                addBtn.textContent = `Add ${count} Selected Price${count > 1 ? 's' : ''}`;
+            } else {
+                document.getElementById('ebaySelectedAvg').textContent = '-';
+                addBtn.textContent = 'Add Selected Prices';
+            }
+        }
+
+        async function addSelectedEbayListings() {
+            const checkboxes = document.querySelectorAll('.ebay-result-cb:checked');
+            if (checkboxes.length === 0) return;
+
+            const partType = ebaySearchCurrentPart;
+            if (!partType || !currentSelection) return;
+
+            // Collect selected prices
+            const selectedPrices = [];
+            checkboxes.forEach(cb => {
+                const idx = parseInt(cb.dataset.idx);
+                selectedPrices.push(ebaySearchResults[idx].sold_price);
+            });
+
+            const avg = selectedPrices.reduce((a, b) => a + b, 0) / selectedPrices.length;
+
+            // Apply to manualPriceData
+            manualPriceData[partType] = {
+                avg_sale_price: Math.round(avg * 100) / 100,
+                prices: selectedPrices,
+                is_manual: true,
+                is_from_ebay_api: true,
+                sales_count: selectedPrices.length
+            };
+
+            // Save to database for persistence
+            try {
+                await authenticatedFetch('/api/admin/price-snapshot/manual-prices', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        generation: currentSelection.generation,
+                        connector_type: currentSelection.connector_type || null,
+                        part_type: partType,
+                        prices: selectedPrices
+                    })
+                });
+            } catch (saveErr) {
+                console.error('Failed to save eBay prices:', saveErr);
+            }
+
+            // Also cache full listings in ebay_market_data
+            try {
+                const selectedListings = [];
+                checkboxes.forEach(cb => {
+                    const idx = parseInt(cb.dataset.idx);
+                    selectedListings.push(ebaySearchResults[idx]);
+                });
+
+                await authenticatedFetch('/api/admin/ebay-market/prices?' + new URLSearchParams({
+                    generation: currentSelection.generation,
+                    part_type: partType,
+                    connector_type: currentSelection.connector_type || '',
+                    refresh: 'true'
+                }));
+            } catch (cacheErr) {
+                // Cache refresh is best-effort
+                console.error('Cache refresh error:', cacheErr);
+            }
+
+            closeEbaySearchModal();
+
+            // Recalculate bid
+            setTimeout(() => calculateBid(), 100);
         }
 
         // Populate eBay entry panel with part rows
