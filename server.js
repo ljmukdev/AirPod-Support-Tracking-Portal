@@ -16,6 +16,19 @@ const multer = require('multer');
 const fs = require('fs');
 const crypto = require('crypto');
 
+// Initialize eBay API integration (optional - requires EBAY_APP_ID)
+let ebayApi = null;
+try {
+    ebayApi = require('./ebay-api');
+    if (ebayApi.isConfigured()) {
+        console.log('✅ eBay API configured for market data');
+    } else {
+        console.warn('⚠️  EBAY_APP_ID not set - eBay market data API disabled. Register at developer.ebay.com');
+    }
+} catch (e) {
+    console.warn('⚠️  eBay API module not loaded:', e.message);
+}
+
 // Prevent unhandled promise rejections from crashing the process (e.g. MongoDB connection timeouts)
 process.on('unhandledRejection', (reason, promise) => {
     console.error('⚠️  Unhandled Promise Rejection:', reason?.message || reason);
@@ -18642,10 +18655,12 @@ app.get('/api/admin/price-snapshot/bid-calculator', requireAuth, requireDB, asyn
                 saved_manual_prices: savedManualPrices,
                 has_stale_prices: stalePartsWarning.length > 0,
                 stale_parts_warning: stalePartsWarning,
+                ebay_api_available: !!(ebayApi && ebayApi.isConfigured()),
                 ebay_search_suggestions: missingParts.map(part => ({
                     part_type: part,
                     search_query: `${generation}${connectorType ? ' ' + connectorType : ''} ${part === 'case' ? 'charging case' : part + ' earbud'}`,
-                    ebay_url: `https://www.ebay.co.uk/sch/i.html?_nkw=${encodeURIComponent(generation + (connectorType ? ' ' + connectorType : '') + ' ' + (part === 'case' ? 'charging case' : part + ' earbud'))}&LH_Complete=1&LH_Sold=1`
+                    ebay_url: `https://www.ebay.co.uk/sch/i.html?_nkw=${encodeURIComponent(generation + (connectorType ? ' ' + connectorType : '') + ' ' + (part === 'case' ? 'charging case' : part + ' earbud'))}&LH_Complete=1&LH_Sold=1`,
+                    api_fetch_url: `/api/admin/ebay-market/prices?generation=${encodeURIComponent(generation)}&part_type=${encodeURIComponent(part)}${connectorType ? '&connector_type=' + encodeURIComponent(connectorType) : ''}`
                 }))
             });
         }
@@ -18920,6 +18935,416 @@ app.delete('/api/admin/price-snapshot/manual-prices', requireAuth, requireDB, as
     } catch (err) {
         console.error('Error deleting manual prices:', err);
         res.status(500).json({ success: false, error: 'Database error: ' + err.message });
+    }
+});
+
+// ============================================
+// eBay Market Data API (Live eBay Integration)
+// ============================================
+
+// GET eBay API status
+app.get('/api/admin/ebay-market/status', requireAuth, async (req, res) => {
+    if (!ebayApi) {
+        return res.json({ success: true, status: { configured: false, message: 'eBay API module not loaded' } });
+    }
+    res.json({ success: true, status: ebayApi.getStatus() });
+});
+
+// GET eBay API diagnostic - tests the full pipeline and reports faults
+app.get('/api/admin/ebay-market/diagnostic', requireAuth, async (req, res) => {
+    const results = {
+        timestamp: new Date().toISOString(),
+        checks: [],
+        overall: 'pending',
+    };
+
+    function addCheck(name, status, detail) {
+        results.checks.push({ name, status, detail });
+    }
+
+    // 1. Module loaded?
+    if (!ebayApi) {
+        addCheck('module_loaded', 'FAIL', 'ebay-api.js module failed to load. Check server startup logs.');
+        results.overall = 'FAIL';
+        return res.json(results);
+    }
+    addCheck('module_loaded', 'PASS', 'ebay-api.js loaded successfully');
+
+    // 2. EBAY_APP_ID configured?
+    const status = ebayApi.getStatus();
+    if (!status.has_app_id) {
+        addCheck('app_id_configured', 'FAIL', 'EBAY_APP_ID environment variable is not set. Get one from developer.ebay.com');
+        results.overall = 'FAIL';
+        return res.json(results);
+    }
+    addCheck('app_id_configured', 'PASS', `EBAY_APP_ID is set, marketplace: ${status.marketplace}`);
+
+    // 3. Test API call - simple search
+    const testQuery = 'AirPods Pro 2 left earbud';
+    try {
+        const searchResult = await ebayApi.searchSoldListings(testQuery, {
+            maxResults: 3,
+            minPrice: 1,
+            maxPrice: 200,
+        });
+
+        if (!searchResult.success) {
+            addCheck('api_connection', 'FAIL', {
+                message: 'eBay API returned an error',
+                query: testQuery,
+                error: searchResult.error,
+            });
+            results.overall = 'FAIL';
+            return res.json(results);
+        }
+
+        addCheck('api_connection', 'PASS', {
+            message: 'Successfully connected to eBay Finding API',
+            query: testQuery,
+            total_results: searchResult.total_results,
+            items_returned: searchResult.items_returned,
+        });
+
+        // 4. Check we got actual sold items back
+        if (searchResult.items_returned === 0) {
+            addCheck('sold_items_returned', 'WARN', {
+                message: 'API responded but returned 0 sold items. This could mean the query is too specific or eBay rate-limited the request.',
+                total_results: searchResult.total_results,
+            });
+        } else {
+            const sample = searchResult.items[0];
+            addCheck('sold_items_returned', 'PASS', {
+                message: `Got ${searchResult.items_returned} sold items`,
+                sample_item: {
+                    title: sample.title,
+                    sold_price: `${sample.currency} ${sample.sold_price}`,
+                    sold_date: sample.sold_date,
+                    condition: sample.condition,
+                },
+            });
+        }
+
+    } catch (err) {
+        addCheck('api_connection', 'FAIL', {
+            message: 'Exception calling eBay API',
+            error_type: err.constructor.name,
+            error_message: err.message,
+            hint: err.message.includes('fetch') ? 'Network error - check server can reach svcs.ebay.com' :
+                  err.message.includes('401') || err.message.includes('403') ? 'Authentication failed - check EBAY_APP_ID is valid and not expired' :
+                  err.message.includes('500') ? 'eBay server error - try again in a few minutes' :
+                  'Check the error message for details',
+        });
+        results.overall = 'FAIL';
+        return res.json(results);
+    }
+
+    // 5. Test the fetchMarketPrices helper
+    try {
+        const priceResult = await ebayApi.fetchMarketPrices('AirPods Pro 2', 'left', {
+            connectorType: null,
+            maxResults: 5,
+        });
+
+        if (priceResult.success) {
+            addCheck('price_fetch', 'PASS', {
+                message: 'fetchMarketPrices working',
+                query_used: priceResult.query,
+                items_found: priceResult.items_found,
+                price_stats: priceResult.price_stats,
+            });
+        } else {
+            addCheck('price_fetch', 'WARN', {
+                message: 'fetchMarketPrices returned no results',
+                query_used: priceResult.query,
+                error: priceResult.error,
+            });
+        }
+    } catch (err) {
+        addCheck('price_fetch', 'FAIL', {
+            message: 'Exception in fetchMarketPrices',
+            error_message: err.message,
+        });
+    }
+
+    // 6. Database cache write/read test
+    if (db) {
+        try {
+            const testDoc = {
+                generation: '__diagnostic_test__',
+                part_type: 'test',
+                connector_type: null,
+                price_stats: { avg_price: 0 },
+                items_found: 0,
+                listings: [],
+                fetched_at: new Date(),
+            };
+
+            await db.collection('ebay_market_data').insertOne(testDoc);
+            const found = await db.collection('ebay_market_data').findOne({ generation: '__diagnostic_test__' });
+            await db.collection('ebay_market_data').deleteMany({ generation: '__diagnostic_test__' });
+
+            if (found) {
+                addCheck('database_cache', 'PASS', 'Can write and read from ebay_market_data collection');
+            } else {
+                addCheck('database_cache', 'FAIL', 'Wrote to ebay_market_data but could not read back');
+            }
+        } catch (err) {
+            addCheck('database_cache', 'FAIL', {
+                message: 'Database error on ebay_market_data',
+                error_message: err.message,
+            });
+        }
+    } else {
+        addCheck('database_cache', 'FAIL', 'Database not connected');
+    }
+
+    // Overall result
+    const hasFailure = results.checks.some(c => c.status === 'FAIL');
+    const hasWarning = results.checks.some(c => c.status === 'WARN');
+    results.overall = hasFailure ? 'FAIL' : hasWarning ? 'WARN' : 'PASS';
+
+    res.json(results);
+});
+
+// GET search eBay sold listings (raw search)
+app.get('/api/admin/ebay-market/search-sold', requireAuth, async (req, res) => {
+    try {
+        if (!ebayApi || !ebayApi.isConfigured()) {
+            return res.status(503).json({ success: false, error: 'eBay API not configured. Set EBAY_APP_ID environment variable.' });
+        }
+
+        const keywords = req.query.q || req.query.keywords;
+        if (!keywords) {
+            return res.status(400).json({ success: false, error: 'Search keywords required (q or keywords param)' });
+        }
+
+        const result = await ebayApi.searchSoldListings(keywords, {
+            maxResults: parseInt(req.query.limit) || 25,
+            minPrice: req.query.min_price ? parseFloat(req.query.min_price) : null,
+            maxPrice: req.query.max_price ? parseFloat(req.query.max_price) : null,
+            categoryId: req.query.category_id || null,
+        });
+
+        res.json({ success: true, ...result });
+    } catch (err) {
+        console.error('Error searching eBay sold listings:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// GET fetch market prices for a specific AirPod generation/part and cache the results
+app.get('/api/admin/ebay-market/prices', requireAuth, requireDB, async (req, res) => {
+    try {
+        if (!ebayApi || !ebayApi.isConfigured()) {
+            return res.status(503).json({ success: false, error: 'eBay API not configured. Set EBAY_APP_ID environment variable.' });
+        }
+
+        const generation = req.query.generation;
+        const partType = req.query.part_type;
+        const connectorType = req.query.connector_type || null;
+        const forceRefresh = req.query.refresh === 'true';
+
+        if (!generation || !partType) {
+            return res.status(400).json({ success: false, error: 'generation and part_type are required' });
+        }
+
+        // Check cache first (unless force refresh)
+        if (!forceRefresh) {
+            const cacheQuery = { generation, part_type: partType };
+            if (connectorType) {
+                cacheQuery.connector_type = { $regex: new RegExp(`^${connectorType.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') };
+            } else {
+                cacheQuery.connector_type = { $in: [null, '', undefined] };
+            }
+
+            // Cache is valid for 24 hours
+            const cacheMaxAge = 24 * 60 * 60 * 1000;
+            cacheQuery.fetched_at = { $gt: new Date(Date.now() - cacheMaxAge) };
+
+            const cached = await db.collection('ebay_market_data').findOne(cacheQuery, { sort: { fetched_at: -1 } });
+            if (cached) {
+                return res.json({
+                    success: true,
+                    source: 'cache',
+                    cached_at: cached.fetched_at,
+                    generation: cached.generation,
+                    part_type: cached.part_type,
+                    connector_type: cached.connector_type,
+                    price_stats: cached.price_stats,
+                    items_found: cached.items_found,
+                    listings: cached.listings || [],
+                });
+            }
+        }
+
+        // Fetch fresh data from eBay
+        const result = await ebayApi.fetchMarketPrices(generation, partType, {
+            connectorType,
+            maxResults: parseInt(req.query.limit) || 25,
+            minPrice: req.query.min_price ? parseFloat(req.query.min_price) : 1,
+            maxPrice: req.query.max_price ? parseFloat(req.query.max_price) : 200,
+        });
+
+        if (!result.success) {
+            return res.json({ success: false, error: result.error, query: result.query });
+        }
+
+        // Cache the results in ebay_market_data
+        const cacheDoc = {
+            generation,
+            part_type: partType,
+            connector_type: connectorType || null,
+            query: result.query,
+            price_stats: result.price_stats,
+            items_found: result.items_found,
+            total_available: result.total_available,
+            date_range: result.date_range,
+            listings: result.listings,
+            fetched_at: new Date(),
+        };
+
+        await db.collection('ebay_market_data').insertOne(cacheDoc);
+
+        res.json({
+            success: true,
+            source: 'ebay_api',
+            ...result,
+        });
+
+    } catch (err) {
+        console.error('Error fetching eBay market prices:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// POST fetch and cache market prices for all parts of a generation (bulk)
+app.post('/api/admin/ebay-market/fetch-all', requireAuth, requireDB, async (req, res) => {
+    try {
+        if (!ebayApi || !ebayApi.isConfigured()) {
+            return res.status(503).json({ success: false, error: 'eBay API not configured. Set EBAY_APP_ID environment variable.' });
+        }
+
+        const { generation, connector_type, parts } = req.body;
+        if (!generation) {
+            return res.status(400).json({ success: false, error: 'generation is required' });
+        }
+
+        const partTypes = parts || ['left', 'right', 'case'];
+        const results = {};
+
+        for (const partType of partTypes) {
+            try {
+                const result = await ebayApi.fetchMarketPrices(generation, partType, {
+                    connectorType: connector_type || null,
+                    maxResults: 25,
+                    minPrice: 1,
+                    maxPrice: 200,
+                });
+
+                if (result.success) {
+                    // Cache the results
+                    await db.collection('ebay_market_data').insertOne({
+                        generation,
+                        part_type: partType,
+                        connector_type: connector_type || null,
+                        query: result.query,
+                        price_stats: result.price_stats,
+                        items_found: result.items_found,
+                        total_available: result.total_available,
+                        date_range: result.date_range,
+                        listings: result.listings,
+                        fetched_at: new Date(),
+                    });
+                }
+
+                results[partType] = {
+                    success: result.success,
+                    items_found: result.items_found || 0,
+                    price_stats: result.price_stats || null,
+                    error: result.error || null,
+                };
+            } catch (partErr) {
+                results[partType] = { success: false, error: partErr.message };
+            }
+        }
+
+        res.json({ success: true, generation, connector_type: connector_type || null, results });
+    } catch (err) {
+        console.error('Error bulk fetching eBay market prices:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// GET cached market data for a generation
+app.get('/api/admin/ebay-market/cached', requireAuth, requireDB, async (req, res) => {
+    try {
+        const generation = req.query.generation;
+        if (!generation) {
+            return res.status(400).json({ success: false, error: 'generation is required' });
+        }
+
+        const connectorType = req.query.connector_type || null;
+        const query = { generation };
+        if (connectorType) {
+            query.connector_type = { $regex: new RegExp(`^${connectorType.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') };
+        }
+
+        // Get most recent cache entry per part type
+        const cached = await db.collection('ebay_market_data').aggregate([
+            { $match: query },
+            { $sort: { fetched_at: -1 } },
+            {
+                $group: {
+                    _id: '$part_type',
+                    generation: { $first: '$generation' },
+                    connector_type: { $first: '$connector_type' },
+                    price_stats: { $first: '$price_stats' },
+                    items_found: { $first: '$items_found' },
+                    fetched_at: { $first: '$fetched_at' },
+                    listings: { $first: '$listings' },
+                }
+            }
+        ]).toArray();
+
+        const parts = {};
+        for (const entry of cached) {
+            const ageMs = Date.now() - new Date(entry.fetched_at).getTime();
+            const ageHours = Math.round(ageMs / (60 * 60 * 1000) * 10) / 10;
+            parts[entry._id] = {
+                price_stats: entry.price_stats,
+                items_found: entry.items_found,
+                fetched_at: entry.fetched_at,
+                age_hours: ageHours,
+                is_stale: ageHours > 24,
+                listings: entry.listings || [],
+            };
+        }
+
+        res.json({ success: true, generation, connector_type: connectorType, parts });
+    } catch (err) {
+        console.error('Error fetching cached market data:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// DELETE clear stale eBay market data cache
+app.delete('/api/admin/ebay-market/cache', requireAuth, requireDB, async (req, res) => {
+    try {
+        const maxAgeHours = parseInt(req.query.max_age_hours) || 24;
+        const cutoff = new Date(Date.now() - maxAgeHours * 60 * 60 * 1000);
+
+        const result = await db.collection('ebay_market_data').deleteMany({
+            fetched_at: { $lt: cutoff }
+        });
+
+        res.json({
+            success: true,
+            deleted: result.deletedCount,
+            message: `Removed ${result.deletedCount} cache entries older than ${maxAgeHours}h`
+        });
+    } catch (err) {
+        console.error('Error clearing market data cache:', err);
+        res.status(500).json({ success: false, error: err.message });
     }
 });
 
