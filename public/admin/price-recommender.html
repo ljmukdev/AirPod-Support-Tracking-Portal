@@ -2726,10 +2726,18 @@
         // eBay Search Modal - interactive search + select flow
         let ebaySearchCurrentPart = null;
         let ebaySearchResults = [];
+        let ebaySearchMode = 'direct'; // 'direct' = save to manualPriceData, 'entry' = fill £ inputs
+
+        // Open from the entry panel (fills £ input boxes)
+        function openEbaySearchModalForEntry(partType, defaultQuery) {
+            ebaySearchMode = 'entry';
+            openEbaySearchModal(partType, defaultQuery);
+        }
 
         function openEbaySearchModal(partType, defaultQuery) {
             ebaySearchCurrentPart = partType;
             ebaySearchResults = [];
+            if (ebaySearchMode !== 'entry') ebaySearchMode = 'direct';
 
             const modal = document.getElementById('ebaySearchModal');
             const titleEl = document.getElementById('ebaySearchModalTitle');
@@ -2759,6 +2767,7 @@
             document.getElementById('ebaySearchModal').style.display = 'none';
             ebaySearchCurrentPart = null;
             ebaySearchResults = [];
+            ebaySearchMode = 'direct';
         }
 
         // Load model numbers for the part type and show as suggestions
@@ -2952,7 +2961,20 @@
 
             const avg = selectedPrices.reduce((a, b) => a + b, 0) / selectedPrices.length;
 
-            // Apply to manualPriceData
+            if (ebaySearchMode === 'entry') {
+                // Fill the £ input boxes in the entry panel
+                for (let i = 0; i < 5; i++) {
+                    const input = document.getElementById(`ebay_${partType}_${i + 1}`);
+                    if (input) {
+                        input.value = i < selectedPrices.length ? selectedPrices[i].toFixed(2) : '';
+                    }
+                }
+                updateEbayPartAverage(partType);
+                closeEbaySearchModal();
+                return;
+            }
+
+            // Direct mode: apply to manualPriceData and save
             manualPriceData[partType] = {
                 avg_sale_price: Math.round(avg * 100) / 100,
                 prices: selectedPrices,
@@ -2977,25 +2999,6 @@
                 console.error('Failed to save eBay prices:', saveErr);
             }
 
-            // Also cache full listings in ebay_market_data
-            try {
-                const selectedListings = [];
-                checkboxes.forEach(cb => {
-                    const idx = parseInt(cb.dataset.idx);
-                    selectedListings.push(ebaySearchResults[idx]);
-                });
-
-                await authenticatedFetch('/api/admin/ebay-market/prices?' + new URLSearchParams({
-                    generation: currentSelection.generation,
-                    part_type: partType,
-                    connector_type: currentSelection.connector_type || '',
-                    refresh: 'true'
-                }));
-            } catch (cacheErr) {
-                // Cache refresh is best-effort
-                console.error('Cache refresh error:', cacheErr);
-            }
-
             closeEbaySearchModal();
 
             // Recalculate bid
@@ -3016,12 +3019,17 @@
             const ebayUrl = `https://www.ebay.co.uk/sch/i.html?_nkw=${encodeURIComponent(searchQuery)}&LH_Complete=1&LH_Sold=1`;
             ebaySearchLink.href = ebayUrl;
 
-            // Build part entry rows
+            // Build part entry rows with search button
             container.innerHTML = parts.map(partType => `
                 <div class="ebay-part-row" id="ebayRow_${partType}">
                     <div class="ebay-part-header">
                         <span class="part-type-badge ${partType}">${partLabels[partType]}</span>
-                        <span class="ebay-part-avg" id="ebayAvg_${partType}">Avg: -</span>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <span class="ebay-part-avg" id="ebayAvg_${partType}">Avg: -</span>
+                            <button class="fetch-ebay-btn" style="padding:6px 12px;font-size:0.8rem;" onclick="openEbaySearchModalForEntry('${partType}', '${currentSelection.generation} ${partLabels[partType]}')">
+                                Search eBay
+                            </button>
+                        </div>
                     </div>
                     <div class="ebay-prices-inputs">
                         <input type="number" class="ebay-price-input" id="ebay_${partType}_1" placeholder="£" step="0.01" min="0" oninput="updateEbayPartAverage('${partType}')">
