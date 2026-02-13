@@ -2114,34 +2114,74 @@
 
                 const calc = data.calculation;
 
-                // Build stale price warning HTML
+                // Build stale/superseded price warning HTML
                 let stalePriceWarningHtml = '';
-                if (data.has_stale_prices && data.stale_parts_warning && data.stale_parts_warning.length > 0) {
-                    const stalePartsList = data.stale_parts_warning.map(p =>
-                        `<strong>${p.part_type}</strong> (${p.days_since_update} days old)`
-                    ).join(', ');
-                    stalePriceWarningHtml = `
-                        <div class="stale-price-warning" style="margin-bottom:20px;padding:16px;background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;">
+
+                // Check for superseded manual prices (5+ new sales have occurred)
+                const supersededParts = [];
+                const supersededNeedsFreshData = []; // Superseded but sales are also old
+                if (data.saved_manual_prices) {
+                    for (const [partType, priceData] of Object.entries(data.saved_manual_prices)) {
+                        if (priceData.is_superseded && selectedParts.includes(partType)) {
+                            if (priceData.needs_fresh_data) {
+                                supersededNeedsFreshData.push({
+                                    part_type: partType,
+                                    new_sales_count: priceData.new_sales_since_update,
+                                    days_since_most_recent_sale: priceData.days_since_most_recent_sale,
+                                    days_since_update: priceData.days_since_update
+                                });
+                            } else {
+                                supersededParts.push({
+                                    part_type: partType,
+                                    new_sales_count: priceData.new_sales_since_update,
+                                    days_since_update: priceData.days_since_update
+                                });
+                            }
+                        }
+                    }
+                }
+
+                // Also check for parts using sales data that is old (no manual data existed)
+                const partsNeedingFreshData = [];
+                for (const partType of selectedParts) {
+                    const part = calc.parts[partType];
+                    if (part && !part.is_manual && !part.is_saved && part.needs_fresh_data) {
+                        // Only add if not already tracked via superseded
+                        if (!supersededNeedsFreshData.some(p => p.part_type === partType)) {
+                            partsNeedingFreshData.push({
+                                part_type: partType,
+                                days_since_newest_sale: part.days_since_newest_sale
+                            });
+                        }
+                    }
+                }
+
+                // Show prompt for parts where ALL data is old (superseded manual + old sales)
+                const allPartsNeedingFresh = [...supersededNeedsFreshData, ...partsNeedingFreshData];
+                if (allPartsNeedingFresh.length > 0) {
+                    const freshDataPartsList = allPartsNeedingFresh.map(p => {
+                        const days = p.days_since_most_recent_sale || p.days_since_newest_sale;
+                        return `<strong>${p.part_type}</strong> (most recent sale: ${days} days ago)`;
+                    }).join(', ');
+                    stalePriceWarningHtml += `
+                        <div style="margin-bottom:20px;padding:16px;background:#fee2e2;border:1px solid #ef4444;border-radius:8px;">
                             <div style="display:flex;align-items:flex-start;gap:12px;">
-                                <span style="font-size:1.5rem;">⚠️</span>
+                                <span style="font-size:1.5rem;">&#x1f6a8;</span>
                                 <div>
-                                    <p style="margin:0 0 8px;color:#92400e;font-weight:600;">
-                                        Price Data Needs Refreshing
+                                    <p style="margin:0 0 8px;color:#991b1b;font-weight:600;">
+                                        Fresh Price Data Needed
                                     </p>
-                                    <p style="margin:0 0 12px;color:#92400e;font-size:0.9rem;">
-                                        The following parts have saved prices older than 3 days: ${stalePartsList}
-                                    </p>
-                                    <p style="margin:0;color:#92400e;font-size:0.85rem;">
-                                        Please search eBay for current sold listings and re-enter prices to ensure accuracy.
+                                    <p style="margin:0 0 12px;color:#991b1b;font-size:0.9rem;">
+                                        ${freshDataPartsList} - no recent sales data available (older than 5 days). Please enter current eBay sold prices for accurate calculations.
                                     </p>
                                     <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;">
-                                        ${data.stale_parts_warning.map(p => {
+                                        ${allPartsNeedingFresh.map(p => {
                                             const searchQuery = `${selection.generation}${selection.connector_type ? ' ' + selection.connector_type : ''} ${p.part_type === 'case' ? 'charging case' : p.part_type + ' earbud'}`;
                                             const ebayUrl = `https://www.ebay.co.uk/sch/i.html?_nkw=${encodeURIComponent(searchQuery)}&LH_Complete=1&LH_Sold=1`;
                                             return `
                                                 <button class="btn btn-sm" onclick="openManualEntryModal('${p.part_type}', '${searchQuery}', '${searchQuery}', '${ebayUrl}')"
-                                                    style="padding:6px 12px;font-size:0.8rem;background:#f59e0b;color:white;border:none;border-radius:4px;cursor:pointer;">
-                                                    Refresh ${p.part_type} prices
+                                                    style="padding:6px 12px;font-size:0.8rem;background:#ef4444;color:white;border:none;border-radius:4px;cursor:pointer;">
+                                                    Enter ${p.part_type} prices
                                                 </button>
                                             `;
                                         }).join('')}
@@ -2150,6 +2190,71 @@
                             </div>
                         </div>
                     `;
+                }
+
+                if (supersededParts.length > 0) {
+                    const supersededPartsList = supersededParts.map(p =>
+                        `<strong>${p.part_type}</strong> (${p.new_sales_count} new sales since last update)`
+                    ).join(', ');
+                    stalePriceWarningHtml += `
+                        <div style="margin-bottom:20px;padding:16px;background:#dbeafe;border:1px solid #3b82f6;border-radius:8px;">
+                            <div style="display:flex;align-items:flex-start;gap:12px;">
+                                <span style="font-size:1.5rem;">&#x1f4c8;</span>
+                                <div>
+                                    <p style="margin:0 0 8px;color:#1e40af;font-weight:600;">
+                                        Using Latest Sales Data
+                                    </p>
+                                    <p style="margin:0 0 12px;color:#1e40af;font-size:0.9rem;">
+                                        ${supersededPartsList} - saved manual prices have been superseded because 5+ new sales have been recorded. The calculator is now using your actual recent sales data.
+                                    </p>
+                                    <p style="margin:0;color:#1e40af;font-size:0.85rem;">
+                                        You can enter new eBay prices to override this at any time.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                if (data.has_stale_prices && data.stale_parts_warning && data.stale_parts_warning.length > 0) {
+                    // Filter out parts already shown in superseded or needs-fresh-data warnings
+                    const alreadyWarned = [...supersededParts, ...supersededNeedsFreshData, ...partsNeedingFreshData].map(p => p.part_type);
+                    const staleOnlyParts = data.stale_parts_warning.filter(p => !alreadyWarned.includes(p.part_type));
+                    if (staleOnlyParts.length > 0) {
+                        const stalePartsList = staleOnlyParts.map(p =>
+                            `<strong>${p.part_type}</strong> (${p.days_since_update} days old)`
+                        ).join(', ');
+                        stalePriceWarningHtml += `
+                            <div class="stale-price-warning" style="margin-bottom:20px;padding:16px;background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;">
+                                <div style="display:flex;align-items:flex-start;gap:12px;">
+                                    <span style="font-size:1.5rem;">&#x26a0;&#xfe0f;</span>
+                                    <div>
+                                        <p style="margin:0 0 8px;color:#92400e;font-weight:600;">
+                                            Price Data Needs Refreshing
+                                        </p>
+                                        <p style="margin:0 0 12px;color:#92400e;font-size:0.9rem;">
+                                            The following parts have saved prices older than 3 days: ${stalePartsList}
+                                        </p>
+                                        <p style="margin:0;color:#92400e;font-size:0.85rem;">
+                                            Please search eBay for current sold listings and re-enter prices to ensure accuracy.
+                                        </p>
+                                        <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;">
+                                            ${staleOnlyParts.map(p => {
+                                                const searchQuery = `${selection.generation}${selection.connector_type ? ' ' + selection.connector_type : ''} ${p.part_type === 'case' ? 'charging case' : p.part_type + ' earbud'}`;
+                                                const ebayUrl = `https://www.ebay.co.uk/sch/i.html?_nkw=${encodeURIComponent(searchQuery)}&LH_Complete=1&LH_Sold=1`;
+                                                return `
+                                                    <button class="btn btn-sm" onclick="openManualEntryModal('${p.part_type}', '${searchQuery}', '${searchQuery}', '${ebayUrl}')"
+                                                        style="padding:6px 12px;font-size:0.8rem;background:#f59e0b;color:white;border:none;border-radius:4px;cursor:pointer;">
+                                                        Refresh ${p.part_type} prices
+                                                    </button>
+                                                `;
+                                            }).join('')}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
                 }
 
                 // Build the result HTML with support for partial parts
@@ -2162,10 +2267,17 @@
                     const isSaved = part?.is_saved;
                     const isStale = part?.is_stale;
                     const daysSinceUpdate = part?.days_since_update;
+                    const isSuperseded = data.saved_manual_prices?.[partType]?.is_superseded;
 
                     if (part) {
                         let badge = '';
-                        if (isManual && !isSaved) {
+                        const needsFreshData = part.needs_fresh_data || (isSuperseded && data.saved_manual_prices?.[partType]?.needs_fresh_data);
+                        if (needsFreshData) {
+                            const days = part.days_since_newest_sale || data.saved_manual_prices?.[partType]?.days_since_most_recent_sale;
+                            badge = ` <span style="background:#ef4444;color:white;font-size:0.7rem;padding:2px 6px;border-radius:3px;margin-left:4px;" title="Most recent sale is ${days} days old - enter fresh eBay prices">Old Data (${days}d)</span>`;
+                        } else if (isSuperseded) {
+                            badge = ` <span style="background:#3b82f6;color:white;font-size:0.7rem;padding:2px 6px;border-radius:3px;margin-left:4px;" title="Manual price superseded by ${data.saved_manual_prices[partType].new_sales_since_update} new sales">Recent Sales</span>`;
+                        } else if (isManual && !isSaved) {
                             badge = ' <span class="manual-data-badge">Manual</span>';
                         } else if (isStale) {
                             badge = ` <span class="stale-data-badge" style="background:#f59e0b;color:white;font-size:0.7rem;padding:2px 6px;border-radius:3px;margin-left:4px;">Stale (${daysSinceUpdate}d)</span>`;
