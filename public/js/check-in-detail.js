@@ -215,6 +215,55 @@ function displaySplitSection() {
     const alreadySplit = checkInData.split_into_products === true;
     
     if (alreadySplit) {
+        // Check if this was disposed rather than split
+        if (checkInData.disposed) {
+            let workflowHtml = '';
+            const workflow = checkInData.resolution_workflow || {};
+
+            if (hasIssues && checkInData.email_sent_at) {
+                workflowHtml = generateWorkflowHtml();
+            } else if (workflow.resolved_at) {
+                workflowHtml = `
+                    <div class="workflow-section" style="margin-top: 24px;">
+                        <div class="workflow-step completed">
+                            <div class="workflow-step-header">
+                                <span class="workflow-step-title">✓ Resolved</span>
+                            </div>
+                            <div class="workflow-step-description">
+                                ${workflow.resolution_type || 'Marked as resolved'}
+                                ${workflow.refund_amount ? `<br>Refund: £${workflow.refund_amount}` : ''}
+                            </div>
+                            <div class="workflow-due-date">
+                                Resolved: ${new Date(workflow.resolved_at).toLocaleString('en-GB')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = `
+                <div class="detail-card">
+                    <div class="disposed-status" style="background: #fef2f2; border-left: 4px solid #ef4444; padding: 15px; border-radius: 4px; color: #991b1b;">
+                        <h3 style="margin-top: 0;">Items Marked as Disposed</h3>
+                        <p>All items from this check-in were marked as disposed on ${new Date(checkInData.disposed_at).toLocaleString('en-GB')}.</p>
+                        <p style="margin-bottom: 0;"><strong>Reason:</strong> ${escapeHtml(checkInData.disposal_reason || 'Item cannot be resold')}</p>
+                        ${checkInData.disposal_notes ? `<p style="margin-bottom: 0;"><strong>Notes:</strong> ${escapeHtml(checkInData.disposal_notes)}</p>` : ''}
+                        <button
+                            onclick="undoDispose('${checkInData._id}')"
+                            class="button"
+                            style="margin-top: 16px; background: #6b7280; color: white;">
+                            Undo Disposal
+                        </button>
+                        <p style="font-size: 0.875rem; color: #6b7280; margin-top: 8px;">
+                            This will reset the check-in so you can split into products or re-dispose.
+                        </p>
+                    </div>
+                </div>
+                ${workflowHtml}
+            `;
+            return;
+        }
+
         // Show workflow section or simple resolution section
         let workflowHtml = '';
         const workflow = checkInData.resolution_workflow || {};
@@ -227,7 +276,7 @@ function displaySplitSection() {
             // Simple resolution section for items without issues
             workflowHtml = `
                 <div class="workflow-section" style="margin-top: 24px;">
-                    <h3>💰 Mark as Resolved</h3>
+                    <h3>Mark as Resolved</h3>
                     <p style="margin: 8px 0 16px 0; font-size: 0.9rem; color: #6b7280;">
                         Record resolution details and update product costs if a refund was received
                     </p>
@@ -473,6 +522,15 @@ function displaySplitSection() {
             <div class="split-actions">
                 <button class="split-button" id="splitButton" disabled onclick="splitIntoProducts()">
                     <span id="splitButtonText">Add Selected Items to Products</span>
+                </button>
+            </div>
+
+            <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #d1d5db;">
+                <p style="font-size: 0.9rem; color: #6b7280; margin: 0 0 10px 0;">
+                    If items cannot be resold (e.g. counterfeit, damaged beyond repair) and the seller does not want them back:
+                </p>
+                <button class="button" id="disposeButton" onclick="markAsDisposed()" style="background: #ef4444; color: white; padding: 10px 20px; border: none; border-radius: 6px; font-size: 0.95rem; font-weight: 500; cursor: pointer;">
+                    Mark All Items as Disposed
                 </button>
             </div>
         </div>
@@ -1157,6 +1215,99 @@ async function undoSplit(checkInId) {
     } catch (error) {
         console.error('[UNDO SPLIT] Error:', error);
         alert('Error undoing split: ' + error.message);
+    }
+}
+
+async function markAsDisposed() {
+    const reason = prompt(
+        'Why are these items being disposed?\n\n' +
+        'Examples: Counterfeit item, Damaged beyond repair, Not genuine\n\n' +
+        'Enter reason:'
+    );
+
+    if (reason === null) {
+        return; // User cancelled
+    }
+
+    const notes = prompt('Any additional notes? (optional)\n\nPress OK to skip.');
+
+    if (!confirm(
+        'MARK AS DISPOSED\n\n' +
+        'This will:\n' +
+        '• Mark all items as disposed (no products will be created)\n' +
+        '• Mark the purchase as completed\n\n' +
+        'Reason: ' + (reason || 'Item cannot be resold') + '\n\n' +
+        'Are you sure?'
+    )) {
+        return;
+    }
+
+    const button = document.getElementById('disposeButton');
+    const originalText = button.textContent;
+    button.disabled = true;
+    button.textContent = 'Marking as disposed...';
+
+    try {
+        const response = await authenticatedFetch(`${window.API_BASE}/api/admin/check-in/${checkInId}/mark-disposed`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                disposal_reason: reason || 'Item cannot be resold',
+                disposal_notes: notes || null
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to mark as disposed');
+        }
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('Items marked as disposed. No products were created.');
+            window.location.reload();
+        } else {
+            throw new Error(data.error || 'Failed to mark as disposed');
+        }
+    } catch (error) {
+        console.error('[DISPOSE] Error:', error);
+        alert('Error: ' + error.message);
+        button.disabled = false;
+        button.textContent = originalText;
+    }
+}
+
+async function undoDispose(checkInId) {
+    if (!confirm(
+        'UNDO DISPOSAL\n\n' +
+        'This will reset the check-in so you can split items into products or re-dispose.\n\n' +
+        'Are you sure?'
+    )) {
+        return;
+    }
+
+    try {
+        const response = await authenticatedFetch(`${window.API_BASE}/api/admin/check-in/${checkInId}/undo-split`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            alert('Disposal undone. You can now split items or re-dispose.');
+            window.location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Failed to undo disposal'));
+        }
+    } catch (error) {
+        console.error('[UNDO DISPOSE] Error:', error);
+        alert('Error undoing disposal: ' + error.message);
     }
 }
 

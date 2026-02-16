@@ -5167,6 +5167,72 @@ app.post('/api/admin/check-in/:id/split', requireAuth, requireDB, async (req, re
     }
 });
 
+// Mark check-in as disposed - skip splitting, items cannot be resold (Admin only)
+app.post('/api/admin/check-in/:id/mark-disposed', requireAuth, requireDB, async (req, res) => {
+    const id = req.params.id;
+    const { disposal_reason, disposal_notes } = req.body;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid check-in ID' });
+    }
+
+    try {
+        const checkIn = await db.collection('check_ins').findOne({ _id: new ObjectId(id) });
+
+        if (!checkIn) {
+            return res.status(404).json({ error: 'Check-in not found' });
+        }
+
+        if (checkIn.split_into_products) {
+            return res.status(400).json({ error: 'This check-in has already been split into products' });
+        }
+
+        if (checkIn.disposed) {
+            return res.status(400).json({ error: 'This check-in has already been marked as disposed' });
+        }
+
+        console.log(`[DISPOSE] Marking check-in ${id} as disposed by ${req.user.email}`);
+
+        // Mark check-in as disposed
+        await db.collection('check_ins').updateOne(
+            { _id: new ObjectId(id) },
+            {
+                $set: {
+                    disposed: true,
+                    disposed_at: new Date(),
+                    disposed_by: req.user.email,
+                    disposal_reason: disposal_reason || 'Item cannot be resold',
+                    disposal_notes: disposal_notes || null,
+                    split_into_products: true, // Prevents the split form from showing
+                    products_created: 0
+                }
+            }
+        );
+
+        // Update purchase status to completed
+        await db.collection('purchases').updateOne(
+            { _id: new ObjectId(checkIn.purchase_id) },
+            {
+                $set: {
+                    status: 'completed',
+                    completed_date: new Date(),
+                    last_updated_at: new Date()
+                }
+            }
+        );
+
+        console.log(`[DISPOSE] Check-in ${id} marked as disposed successfully`);
+
+        res.json({
+            success: true,
+            message: 'Check-in marked as disposed'
+        });
+    } catch (err) {
+        console.error('[DISPOSE] Error:', err);
+        res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+});
+
 // Undo split - delete products and reset check-in (Admin only)
 app.post('/api/admin/check-in/:id/undo-split', requireAuth, requireDB, async (req, res) => {
     const id = req.params.id;
@@ -5207,14 +5273,19 @@ app.post('/api/admin/check-in/:id/undo-split', requireAuth, requireDB, async (re
         await db.collection('check_ins').updateOne(
             { _id: new ObjectId(id) },
             { 
-                $unset: { 
+                $unset: {
                     split_into_products: "",
                     split_date: "",
                     split_by: "",
                     products_created: "",
                     items_split: "",
                     items_not_split: "",
-                    items_not_split_reason: ""
+                    items_not_split_reason: "",
+                    disposed: "",
+                    disposed_at: "",
+                    disposed_by: "",
+                    disposal_reason: "",
+                    disposal_notes: ""
                 }
             }
         );
