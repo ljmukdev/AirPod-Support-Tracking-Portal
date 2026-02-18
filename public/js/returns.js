@@ -508,7 +508,7 @@
                 : sale.products[0];
         }
 
-        const productName = product?.product_name || sale.product_name || 'Unknown';
+        const productName = product?.product_name || product?.generation || sale.product_name || sale.generation || 'Unknown';
         const productSerial = product?.product_serial || sale.product_serial || 'N/A';
         const securityBarcode = product?.security_barcode || sale.security_barcode || 'N/A';
         const productId_final = product?.product_id || sale.product_id;

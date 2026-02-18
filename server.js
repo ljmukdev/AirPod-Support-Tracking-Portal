@@ -13208,6 +13208,37 @@ app.get('/api/admin/returns', requireAuth, requireDB, async (req, res) => {
             .sort({ return_date: -1 })
             .toArray();
 
+        // Enrich returns that have missing product names by looking up from products collection
+        const returnsNeedingNames = returns.filter(r =>
+            r.product_id && (!r.product_name || r.product_name === 'Unknown' || r.product_name === 'Unknown Product')
+        );
+
+        if (returnsNeedingNames.length > 0) {
+            const productIds = returnsNeedingNames
+                .map(r => ObjectId.isValid(r.product_id) ? new ObjectId(r.product_id) : null)
+                .filter(Boolean);
+
+            if (productIds.length > 0) {
+                const products = await db.collection('products').find({
+                    _id: { $in: productIds }
+                }).toArray();
+
+                const productMap = {};
+                products.forEach(p => {
+                    productMap[p._id.toString()] = p.product_name || p.generation || null;
+                });
+
+                returns.forEach(r => {
+                    if (r.product_id && (!r.product_name || r.product_name === 'Unknown' || r.product_name === 'Unknown Product')) {
+                        const name = productMap[r.product_id.toString()];
+                        if (name) {
+                            r.product_name = name;
+                        }
+                    }
+                });
+            }
+        }
+
         const returnsWithIds = returns.map(r => ({
             ...r,
             _id: r._id.toString()
@@ -13334,6 +13365,19 @@ app.get('/api/admin/returns/:id', requireAuth, requireDB, async (req, res) => {
             return res.status(404).json({ error: 'Return not found' });
         }
 
+        // Enrich product name if missing
+        if (returnDoc.product_id && (!returnDoc.product_name || returnDoc.product_name === 'Unknown' || returnDoc.product_name === 'Unknown Product')) {
+            if (ObjectId.isValid(returnDoc.product_id)) {
+                const productDoc = await db.collection('products').findOne({ _id: new ObjectId(returnDoc.product_id) });
+                if (productDoc) {
+                    const name = productDoc.product_name || productDoc.generation;
+                    if (name) {
+                        returnDoc.product_name = name;
+                    }
+                }
+            }
+        }
+
         res.json({ return: { ...returnDoc, _id: returnDoc._id.toString() } });
     } catch (err) {
         console.error('Error fetching return:', err);
@@ -13371,11 +13415,20 @@ app.post('/api/admin/returns', requireAuth, requireDB, async (req, res) => {
             return res.status(400).json({ error: 'Return reason, date, and refund amount are required' });
         }
 
+        // Resolve product name from products collection if not provided
+        let resolvedProductName = product_name;
+        if ((!resolvedProductName || resolvedProductName === 'Unknown' || resolvedProductName === 'Unknown Product') && product_id && ObjectId.isValid(product_id)) {
+            const productDoc = await db.collection('products').findOne({ _id: new ObjectId(product_id) });
+            if (productDoc) {
+                resolvedProductName = productDoc.product_name || productDoc.generation || resolvedProductName;
+            }
+        }
+
         const returnDoc = {
             sale_id: sale_id || null,
             product_id: product_id || null,
             order_number: order_number || null,
-            product_name: product_name || 'Unknown Product',
+            product_name: resolvedProductName || 'Unknown Product',
             product_serial: product_serial || null,
             security_barcode: security_barcode || null,
             platform: platform || null,
