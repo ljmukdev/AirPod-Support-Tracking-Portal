@@ -453,13 +453,35 @@
             margin-bottom: 24px;
         }
 
+        .sn-prefix {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+            font-size: 15px;
+            font-weight: 600;
+            color: #284064;
+            letter-spacing: 2px;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        @media (min-width: 768px) {
+            .sn-prefix {
+                font-size: 16px;
+                letter-spacing: 3px;
+                left: 20px;
+            }
+        }
+
         .security-input {
             width: 100%;
-            padding: 14px 16px;
+            padding: 14px 16px 14px 48px;
             border: 2px solid #e8ecf1;
             border-radius: 12px;
             font-size: 15px;
-            text-align: center;
+            text-align: left;
             letter-spacing: 2px;
             font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
             transition: all 0.3s;
@@ -470,7 +492,7 @@
 
         @media (min-width: 768px) {
             .security-input {
-                padding: 18px 20px;
+                padding: 18px 20px 18px 56px;
                 font-size: 16px;
                 letter-spacing: 3px;
             }
@@ -800,13 +822,14 @@
                         <h3>Activate Your Support Access</h3>
                         <div class="input-wrapper">
                             <span class="input-hint">Security Code</span>
+                            <span class="sn-prefix">SN</span>
                             <input
                                 type="text"
                                 id="securityBarcode"
                                 name="securityBarcode"
                                 class="security-input"
                                 placeholder="XXXX-XXXX-XXXX"
-                                maxlength="20"
+                                maxlength="17"
                                 autocomplete="off"
                                 inputmode="text"
                                 autocapitalize="characters"
@@ -856,12 +879,16 @@
     <script src="js/main.js"></script>
     <script src="js/version.js"></script>
     <script>
-        // Format input as user types
+        // Format input as user types (SN prefix is shown visually, not in the input value)
         document.addEventListener('DOMContentLoaded', function() {
             const securityInput = document.getElementById('securityBarcode');
             if (securityInput) {
                 securityInput.addEventListener('input', function(e) {
+                    // Strip any accidentally typed SN prefix and non-alphanumeric chars
                     let value = e.target.value.replace(/[^\w]/g, '').toUpperCase();
+                    if (value.startsWith('SN')) {
+                        value = value.substring(2);
+                    }
                     let formattedValue = value.match(/.{1,4}/g)?.join('-') || value;
                     e.target.value = formattedValue;
                 });

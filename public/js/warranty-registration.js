@@ -380,6 +380,10 @@ function initializePage() {
                 const securityInput = document.getElementById('securityCodeInput');
                 if (securityInput) {
                     let formatted = barcode.replace(/[^\w]/g, '').toUpperCase();
+                    // Strip SN prefix for display (SN is shown as a visual prefix)
+                    if (formatted.startsWith('SN')) {
+                        formatted = formatted.substring(2);
+                    }
                     formatted = formatted.match(/.{1,4}/g)?.join('-') || formatted;
                     securityInput.value = formatted;
                     securityInput.classList.add('valid');
@@ -627,14 +631,18 @@ function setupEventListeners() {
 // Handle security code input
 function handleSecurityCodeInput(e) {
     let value = e.target.value.replace(/[^\w]/g, '').toUpperCase();
+    // Strip SN prefix if user pasted it (SN is shown as a visual prefix)
+    if (value.startsWith('SN')) {
+        value = value.substring(2);
+    }
     let formattedValue = value.match(/.{1,4}/g)?.join('-') || value;
     e.target.value = formattedValue;
-    
+
     // Validate format
     const isValid = /^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(formattedValue);
     const validationIcon = document.getElementById('validationIcon');
     const continueBtn = document.getElementById('continueBtn1');
-    
+
     if (isValid) {
         e.target.classList.add('valid');
         validationIcon.classList.add('show');
@@ -810,28 +818,33 @@ async function loadProductInfo(securityCode, skipValidation = false) {
 // Validate security code
 async function validateSecurityCode() {
     const securityInput = document.getElementById('securityCodeInput');
-    const securityCode = securityInput.value.trim();
+    let rawValue = securityInput.value.trim();
+    // Strip SN prefix if user pasted it, then prepend it (SN is the visual prefix)
+    if (rawValue.toUpperCase().startsWith('SN')) {
+        rawValue = rawValue.substring(2);
+    }
+    const securityCode = 'SN' + rawValue;
     const continueBtn = document.getElementById('continueBtn1');
     const errorMessage = document.getElementById('errorMessage');
     const supportContact = document.getElementById('supportContact');
-    
-    if (!securityCode) {
+
+    if (!rawValue.replace(/[^A-Z0-9]/gi, '')) {
         showError('Please enter a security code');
         return;
     }
-    
+
     continueBtn.disabled = true;
     continueBtn.textContent = 'Validating...';
-    
+
     try {
         const response = await fetch(`${API_BASE}/api/verify-barcode`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ security_barcode: securityCode })
         });
-        
+
         const data = await response.json();
-        
+
         if (response.ok && data.success) {
             appState.securityCode = securityCode;
             appState.failedAttempts = 0;

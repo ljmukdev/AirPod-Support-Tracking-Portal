@@ -392,14 +392,28 @@
             position: relative;
             margin-bottom: 24px;
         }
-        
+
+        .sn-prefix {
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-family: 'SF Mono', 'Monaco', monospace;
+            font-size: 18px;
+            font-weight: 600;
+            color: #284064;
+            letter-spacing: 3px;
+            pointer-events: none;
+            z-index: 1;
+        }
+
         .security-input {
             width: 100%;
-            padding: 18px 20px;
+            padding: 18px 20px 18px 56px;
             border: 2px solid #e8ecf1;
             border-radius: 12px;
             font-size: 18px;
-            text-align: center;
+            text-align: left;
             letter-spacing: 3px;
             font-family: 'SF Mono', 'Monaco', monospace;
             text-transform: uppercase;
@@ -895,10 +909,15 @@
             /* Ensure consistent input alignment on mobile */
             .security-input {
                 padding: 14px !important;
-                padding-left: 14px !important;
+                padding-left: 48px !important;
                 padding-right: 14px !important;
                 font-size: 16px !important;
                 box-sizing: border-box !important;
+            }
+
+            .sn-prefix {
+                font-size: 16px;
+                left: 14px;
             }
 
             /* Override any inline padding styles for form inputs */
@@ -1316,12 +1335,13 @@
                             <p class="subtitle">Enter the security code from your product packaging to begin warranty registration</p>
                             
                             <div class="security-input-wrapper">
+                                <span class="sn-prefix">SN</span>
                                 <input
                                     type="text"
                                     id="securityCodeInput"
                                     class="security-input"
                                     placeholder="XXXX-XXXX-XXXX"
-                                    maxlength="20"
+                                    maxlength="17"
                                     autocomplete="off"
                                     inputmode="text"
                                     autocapitalize="characters"
