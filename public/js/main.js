@@ -56,13 +56,20 @@ if (barcodeForm) {
                 barcodeInput.value = barcodeInput.value.toUpperCase();
             });
         }
-        // Convert to uppercase automatically
-        const securityBarcode = barcodeInput.value.trim().toUpperCase();
-        
-        // Update the input field to show uppercase
-        barcodeInput.value = securityBarcode;
-        
-        if (!securityBarcode) {
+        // Convert to uppercase and prepend SN prefix (shown visually as a fixed prefix)
+        let rawValue = barcodeInput.value.trim().toUpperCase();
+        // Strip SN prefix if user pasted it, then re-add it
+        if (rawValue.startsWith('SN')) {
+            rawValue = rawValue.substring(2);
+        }
+        // Remove hyphens/separators for the raw digits check
+        const digitsOnly = rawValue.replace(/[^A-Z0-9]/g, '');
+        const securityBarcode = 'SN' + rawValue;
+
+        // Update the input field to show uppercase (without SN, as it's displayed as a visual prefix)
+        barcodeInput.value = rawValue;
+
+        if (!digitsOnly) {
             showError('Please enter a security code');
             return;
         }
