@@ -6,6 +6,7 @@ let checkInData = null;
 let purchaseData = null;
 let emailTemplate = null;
 let availableGenerations = [];
+let generationsPromise = null;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
@@ -16,8 +17,9 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
 
+    // Start both requests in parallel, but store promise so we can await it before rendering
+    generationsPromise = loadAvailableGenerations();
     loadCheckInDetails();
-    loadAvailableGenerations();
     
     // Sidebar toggle
     document.getElementById('sidebarToggle').addEventListener('click', function() {
@@ -45,6 +47,10 @@ async function loadCheckInDetails() {
             checkInData = data.check_in;
             purchaseData = data.purchase;
             emailTemplate = data.email_template || null;
+            // Ensure generations are loaded before rendering the split section
+            if (generationsPromise) {
+                await generationsPromise;
+            }
             displayCheckInDetails();
         } else {
             showError(data.error || 'Failed to load check-in');
