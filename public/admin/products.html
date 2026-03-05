@@ -388,6 +388,7 @@
                             class="search-input"
                             placeholder="Search serial / barcode"
                             autocomplete="off"
+                            data-barcode-scannable
                         >
                     </div>
                     <a href="add-product.html" class="btn-primary">
@@ -411,6 +412,7 @@
                             class="sidebar-input"
                             placeholder="Serial / Barcode"
                             autocomplete="off"
+                            data-barcode-scannable
                         >
                     </div>
 
@@ -561,14 +563,15 @@
                         You can type, paste (Ctrl+V / Cmd+V), or scan a shipping tracking number
                     </p>
                     <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                        <input 
-                            type="text" 
-                            id="trackingNumber" 
-                            name="trackingNumber" 
+                        <input
+                            type="text"
+                            id="trackingNumber"
+                            name="trackingNumber"
                             placeholder="Paste or enter tracking number here"
                             style="flex: 1; padding: 12px; font-size: 1rem; text-transform: uppercase;"
                             autocomplete="off"
                             oninput="this.value = this.value.toUpperCase()"
+                            data-barcode-scannable
                         >
                         <button type="button" class="button button-secondary" id="scanTrackingBarcode" style="min-width: 120px;">
                             📷 Scan
@@ -607,6 +610,7 @@
     <script src="../js/products-filter.js?v=1.3.0"></script>
     <script src="../js/products-render.js?v=1.2.5.032"></script>
     <script src="../js/version.js?v=1.2.5.032"></script>
+    <script src="../js/barcode-scanner.js"></script>
     <script>
         // Quick search handler
         function handleQuickSearch(event) {

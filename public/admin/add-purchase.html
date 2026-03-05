@@ -370,7 +370,7 @@
                         <!-- Order Number -->
                         <div class="form-group">
                             <label for="orderNumber">Order Number *</label>
-                            <input type="text" id="orderNumber" name="orderNumber" required placeholder="e.g., 01-12345-67890">
+                            <input type="text" id="orderNumber" name="orderNumber" required placeholder="e.g., 01-12345-67890" data-barcode-scannable>
                         </div>
 
                         <!-- Seller Name -->
@@ -551,7 +551,7 @@
                         <!-- Tracking Number -->
                         <div class="form-group">
                             <label for="trackingNumber">Tracking Number</label>
-                            <input type="text" id="trackingNumber" name="trackingNumber" placeholder="Enter tracking number" style="text-transform: uppercase;" oninput="this.value = this.value.toUpperCase()">
+                            <input type="text" id="trackingNumber" name="trackingNumber" placeholder="Enter tracking number" style="text-transform: uppercase;" oninput="this.value = this.value.toUpperCase()" data-barcode-scannable>
                         </div>
 
                         <!-- Serial Numbers (Full width) -->
@@ -823,5 +823,6 @@
             this.classList.remove('active');
         });
     </script>
+    <script src="../js/barcode-scanner.js"></script>
 </body>
 </html>

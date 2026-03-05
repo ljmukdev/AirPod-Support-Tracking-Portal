@@ -544,7 +544,7 @@
                         <!-- Tracking Number -->
                         <div class="form-group">
                             <label for="trackingNumber">Tracking Number</label>
-                            <input type="text" id="trackingNumber" name="trackingNumber" placeholder="Enter tracking number" style="text-transform: uppercase;" oninput="this.value = this.value.toUpperCase()">
+                            <input type="text" id="trackingNumber" name="trackingNumber" placeholder="Enter tracking number" style="text-transform: uppercase;" oninput="this.value = this.value.toUpperCase()" data-barcode-scannable>
                         </div>
 
                         <!-- Serial Numbers (Full width) -->
@@ -1126,5 +1126,6 @@
             }, 500);
         }
     </script>
+    <script src="../js/barcode-scanner.js"></script>
 </body>
 </html>

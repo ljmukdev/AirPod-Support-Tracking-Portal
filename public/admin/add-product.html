@@ -466,20 +466,22 @@
                     <form id="productForm">
                         <div class="form-group">
                             <label for="serialNumber">Item Serial Number</label>
-                            <input 
-                                type="text" 
-                                id="serialNumber" 
+                            <input
+                                type="text"
+                                id="serialNumber"
                                 name="serialNumber"
                                 placeholder="Enter serial number (or use N/A if skipping)"
+                                data-barcode-scannable
                             >
                         </div>
                         <div class="form-group">
                             <label for="securityBarcode">Security Barcode</label>
-                            <input 
-                                type="text" 
-                                id="securityBarcode" 
+                            <input
+                                type="text"
+                                id="securityBarcode"
                                 name="securityBarcode"
                                 placeholder="Enter security barcode (or use N/A if skipping)"
+                                data-barcode-scannable
                             >
                         </div>
                         <div class="form-group">
@@ -487,12 +489,13 @@
                             <p style="font-size: 0.85rem; color: #666; margin-bottom: 10px;">
                                 Enter part number (e.g., A2968) to auto-fill all fields, or select generation/part below
                             </p>
-                            <input 
-                                type="text" 
-                                id="partModelNumber" 
-                                name="partModelNumber" 
+                            <input
+                                type="text"
+                                id="partModelNumber"
+                                name="partModelNumber"
                                 placeholder="Enter part number (e.g., A2968)"
                                 autocomplete="off"
+                                data-barcode-scannable
                             >
                         </div>
                         <div class="form-group">
@@ -545,11 +548,12 @@
                         </div>
                         <div class="form-group">
                             <label for="ebayOrderNumber">eBay Purchase Order Number (optional)</label>
-                            <input 
-                                type="text" 
-                                id="ebayOrderNumber" 
-                                name="ebayOrderNumber" 
+                            <input
+                                type="text"
+                                id="ebayOrderNumber"
+                                name="ebayOrderNumber"
                                 placeholder="Order number from when you purchased this item"
+                                data-barcode-scannable
                             >
                         </div>
                     </form>
@@ -653,6 +657,7 @@
     <script src="../js/dashboard-parts.js?v=1.2.5.030"></script>
     <script src="../js/image-scan.js"></script>
     <script src="../js/version.js"></script>
+    <script src="../js/barcode-scanner.js"></script>
     <script>
         // Quick search handler
         function handleQuickSearch(event) {

@@ -540,6 +540,7 @@
                             class="sidebar-input"
                             placeholder="Order # / Serial / Barcode"
                             autocomplete="off"
+                            data-barcode-scannable
                         >
                     </div>
 
@@ -694,7 +695,7 @@
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="returnTrackingNumber">Return Tracking Number</label>
-                                <input type="text" id="returnTrackingNumber" placeholder="Enter tracking number..." style="text-transform: uppercase;">
+                                <input type="text" id="returnTrackingNumber" placeholder="Enter tracking number..." style="text-transform: uppercase;" data-barcode-scannable>
                             </div>
                             <div class="form-group">
                                 <label for="returnTrackingProvider">Carrier</label>
@@ -909,6 +910,7 @@
     <script src="../js/main.js?v=1.0.0"></script>
     <script src="../js/returns.js?v=1.0.0"></script>
     <script src="../js/version.js"></script>
+    <script src="../js/barcode-scanner.js"></script>
 
     <!-- Sidebar Overlay for Mobile -->
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
