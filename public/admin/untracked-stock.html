@@ -540,7 +540,7 @@
                         </div>
                         <div class="form-group">
                             <label for="security_barcode">Security Barcode</label>
-                            <input type="text" id="security_barcode" name="security_barcode" placeholder="Enter security barcode (or leave blank to auto-generate)">
+                            <input type="text" id="security_barcode" name="security_barcode" placeholder="Enter security barcode (or leave blank to auto-generate)" data-barcode-scannable>
                         </div>
                         <div class="form-group">
                             <label for="condition">Condition</label>
@@ -987,5 +987,6 @@
             loadItems();
         });
     </script>
+    <script src="../js/barcode-scanner.js"></script>
 </body>
 </html>

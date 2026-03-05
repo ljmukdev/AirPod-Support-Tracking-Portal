@@ -814,7 +814,7 @@
                             <label style="display: block; font-weight: 600; margin-bottom: 8px;">
                                 Return Tracking Number *
                             </label>
-                            <input type="text" id="returnTrackingNumber" name="return_tracking_number" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 0.95rem; text-transform: uppercase;" placeholder="e.g., 1Z999AA10123456784" oninput="this.value = this.value.toUpperCase()">
+                            <input type="text" id="returnTrackingNumber" name="return_tracking_number" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 0.95rem; text-transform: uppercase;" placeholder="e.g., 1Z999AA10123456784" oninput="this.value = this.value.toUpperCase()" data-barcode-scannable>
                         </div>
                         
                         <div style="margin-bottom: 16px;">
@@ -892,6 +892,7 @@
     <script src="../js/admin.js"></script>
     <script src="../js/main.js?v=1.0.0"></script>
     <script src="../js/check-in-detail.js?v=1.3.0"></script>
+    <script src="../js/barcode-scanner.js"></script>
     <script>
         // Style radio buttons when selected
         document.addEventListener('change', (e) => {
