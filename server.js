@@ -11147,6 +11147,234 @@ app.get('/api/admin/downloads', requireAuth, async (req, res) => {
     }
 });
 
+// ============================================================
+// Data Export (CSV)
+// ============================================================
+
+// Collections that should never be exported (session store, internal/transient data)
+const EXPORT_EXCLUDED_COLLECTIONS = new Set([
+    'sessions',                 // express-session / connect-mongo store
+    'photo_upload_sessions'     // transient phone-upload handshakes
+]);
+
+// Convert a single MongoDB value into a flat string suitable for a CSV cell
+function csvFlattenValue(value) {
+    if (value === null || value === undefined) return '';
+    if (value instanceof Date) return value.toISOString();
+    // Mongo ObjectId and similar BSON types expose toHexString / toString
+    if (typeof value === 'object') {
+        if (typeof value.toHexString === 'function') return value.toHexString();
+        try {
+            return JSON.stringify(value);
+        } catch (e) {
+            return String(value);
+        }
+    }
+    return String(value);
+}
+
+// Escape a value per RFC 4180 CSV rules
+function csvEscape(str) {
+    const s = String(str);
+    if (/[",\r\n]/.test(s)) {
+        return '"' + s.replace(/"/g, '""') + '"';
+    }
+    return s;
+}
+
+// Convert an array of documents into a CSV string.
+// Headers are the union of all top-level keys across documents, preserving
+// first-seen order (with _id forced first when present).
+function documentsToCsv(documents) {
+    const headers = [];
+    const seen = new Set();
+    if (documents.some(doc => doc && Object.prototype.hasOwnProperty.call(doc, '_id'))) {
+        headers.push('_id');
+        seen.add('_id');
+    }
+    for (const doc of documents) {
+        if (!doc || typeof doc !== 'object') continue;
+        for (const key of Object.keys(doc)) {
+            if (!seen.has(key)) {
+                seen.add(key);
+                headers.push(key);
+            }
+        }
+    }
+
+    const lines = [headers.map(csvEscape).join(',')];
+    for (const doc of documents) {
+        const row = headers.map(h => csvEscape(csvFlattenValue(doc ? doc[h] : '')));
+        lines.push(row.join(','));
+    }
+    // Prepend a UTF-8 BOM so Excel opens non-ASCII characters correctly
+    return '﻿' + lines.join('\r\n');
+}
+
+// List the collections available for export (with document counts)
+async function listExportableCollections() {
+    const collections = await db.listCollections().toArray();
+    const names = collections
+        .map(c => c.name)
+        .filter(name => !EXPORT_EXCLUDED_COLLECTIONS.has(name) && !name.startsWith('system.'))
+        .sort((a, b) => a.localeCompare(b));
+
+    const result = [];
+    for (const name of names) {
+        let count = 0;
+        try {
+            count = await db.collection(name).countDocuments();
+        } catch (e) {
+            count = 0;
+        }
+        result.push({ name, count });
+    }
+    return result;
+}
+
+// CRC-32 (used for ZIP entries)
+function crc32(buf) {
+    let crc = ~0;
+    for (let i = 0; i < buf.length; i++) {
+        crc ^= buf[i];
+        for (let j = 0; j < 8; j++) {
+            crc = (crc >>> 1) ^ (0xEDB88320 & -(crc & 1));
+        }
+    }
+    return (~crc) >>> 0;
+}
+
+// Build a ZIP archive (store / no compression) from [{ name, data: Buffer }]
+function buildZip(files) {
+    const localParts = [];
+    const centralParts = [];
+    let offset = 0;
+
+    for (const file of files) {
+        const nameBuf = Buffer.from(file.name, 'utf8');
+        const data = file.data;
+        const crc = crc32(data);
+
+        const local = Buffer.alloc(30);
+        local.writeUInt32LE(0x04034b50, 0);   // local file header signature
+        local.writeUInt16LE(20, 4);            // version needed to extract
+        local.writeUInt16LE(0x0800, 6);        // general purpose flag (UTF-8 names)
+        local.writeUInt16LE(0, 8);             // compression method: store
+        local.writeUInt16LE(0, 10);            // mod time
+        local.writeUInt16LE(0, 12);            // mod date
+        local.writeUInt32LE(crc, 14);          // crc-32
+        local.writeUInt32LE(data.length, 18);  // compressed size
+        local.writeUInt32LE(data.length, 22);  // uncompressed size
+        local.writeUInt16LE(nameBuf.length, 26);
+        local.writeUInt16LE(0, 28);            // extra field length
+        localParts.push(local, nameBuf, data);
+
+        const central = Buffer.alloc(46);
+        central.writeUInt32LE(0x02014b50, 0);  // central directory header signature
+        central.writeUInt16LE(20, 4);          // version made by
+        central.writeUInt16LE(20, 6);          // version needed
+        central.writeUInt16LE(0x0800, 8);      // general purpose flag
+        central.writeUInt16LE(0, 10);          // compression method
+        central.writeUInt16LE(0, 12);          // mod time
+        central.writeUInt16LE(0, 14);          // mod date
+        central.writeUInt32LE(crc, 16);
+        central.writeUInt32LE(data.length, 20);
+        central.writeUInt32LE(data.length, 24);
+        central.writeUInt16LE(nameBuf.length, 28);
+        central.writeUInt16LE(0, 30);          // extra field length
+        central.writeUInt16LE(0, 32);          // comment length
+        central.writeUInt16LE(0, 34);          // disk number start
+        central.writeUInt16LE(0, 36);          // internal attributes
+        central.writeUInt32LE(0, 38);          // external attributes
+        central.writeUInt32LE(offset, 42);     // offset of local header
+        centralParts.push(Buffer.concat([central, nameBuf]));
+
+        offset += local.length + nameBuf.length + data.length;
+    }
+
+    const centralBuf = Buffer.concat(centralParts);
+    const end = Buffer.alloc(22);
+    end.writeUInt32LE(0x06054b50, 0);          // end of central dir signature
+    end.writeUInt16LE(0, 4);                   // disk number
+    end.writeUInt16LE(0, 6);                   // disk with central dir
+    end.writeUInt16LE(files.length, 8);        // entries on this disk
+    end.writeUInt16LE(files.length, 10);       // total entries
+    end.writeUInt32LE(centralBuf.length, 12);  // central dir size
+    end.writeUInt32LE(offset, 16);             // central dir offset
+    end.writeUInt16LE(0, 20);                  // comment length
+
+    return Buffer.concat([...localParts, centralBuf, end]);
+}
+
+function exportTimestamp() {
+    return new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+}
+
+// List exportable collections and their document counts
+app.get('/api/admin/export/collections', requireAuth, requireDB, async (req, res) => {
+    try {
+        const collections = await listExportableCollections();
+        res.json({ collections });
+    } catch (err) {
+        console.error('Error listing exportable collections:', err);
+        res.status(500).json({ error: 'Failed to list collections: ' + err.message });
+    }
+});
+
+// Export a single collection as CSV
+app.get('/api/admin/export/csv', requireAuth, requireDB, async (req, res) => {
+    try {
+        const name = req.query.collection;
+        if (!name) {
+            return res.status(400).json({ error: 'Missing "collection" query parameter' });
+        }
+        if (EXPORT_EXCLUDED_COLLECTIONS.has(name) || name.startsWith('system.')) {
+            return res.status(403).json({ error: 'This collection cannot be exported' });
+        }
+
+        const existing = (await db.listCollections({ name }).toArray()).length > 0;
+        if (!existing) {
+            return res.status(404).json({ error: 'Collection not found' });
+        }
+
+        const documents = await db.collection(name).find({}).toArray();
+        const csv = documentsToCsv(documents);
+
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="${name}-${exportTimestamp()}.csv"`);
+        res.send(csv);
+    } catch (err) {
+        console.error('Error exporting collection CSV:', err);
+        res.status(500).json({ error: 'Failed to export collection: ' + err.message });
+    }
+});
+
+// Export every collection as a single ZIP archive of CSV files
+app.get('/api/admin/export/all', requireAuth, requireDB, async (req, res) => {
+    try {
+        const collections = await listExportableCollections();
+        const files = [];
+
+        for (const { name } of collections) {
+            const documents = await db.collection(name).find({}).toArray();
+            const csv = documentsToCsv(documents);
+            files.push({ name: `${name}.csv`, data: Buffer.from(csv, 'utf8') });
+        }
+
+        if (files.length === 0) {
+            return res.status(404).json({ error: 'No data available to export' });
+        }
+
+        const zip = buildZip(files);
+        res.setHeader('Content-Type', 'application/zip');
+        res.setHeader('Content-Disposition', `attachment; filename="ljm-data-export-${exportTimestamp()}.zip"`);
+        res.send(zip);
+    } catch (err) {
+        console.error('Error exporting all data:', err);
+        res.status(500).json({ error: 'Failed to export all data: ' + err.message });
+    }
+});
+
 // Get product info by barcode (for confirmation page)
 app.get('/api/product-info/:barcode', requireDB, async (req, res) => {
     const { barcode } = req.params;
