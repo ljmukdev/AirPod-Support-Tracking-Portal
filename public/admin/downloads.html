@@ -95,6 +95,34 @@
             margin-bottom: 10px;
             color: var(--primary-navy);
         }
+        .export-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .export-table th,
+        .export-table td {
+            text-align: left;
+            padding: 12px 10px;
+            border-bottom: 1px solid #eee;
+            font-size: 0.95rem;
+        }
+        .export-table th {
+            color: var(--primary-navy);
+            font-weight: 600;
+        }
+        .export-table td.count {
+            color: #666;
+            white-space: nowrap;
+        }
+        .export-table .download-button {
+            width: auto;
+            padding: 7px 16px;
+            font-size: 0.9rem;
+        }
+        .download-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
     </style>
     <script>
         // Inline version display - always runs immediately
@@ -408,6 +436,24 @@
         <!-- Page Content -->
         <div class="admin-content">
             <div class="admin-container">
+                <div class="downloads-container">
+                    <div class="downloads-list">
+                        <h2>Export Data (CSV)</h2>
+                        <p style="color: #666; margin-bottom: 20px;">
+                            Download a complete copy of the portal's data. Use <strong>Export All Data</strong>
+                            for a single ZIP containing one CSV file per data set, or download an individual
+                            data set below.
+                        </p>
+                        <button id="exportAllButton" class="download-button" style="width:auto; padding:12px 28px; margin-bottom:25px;">
+                            ⬇ Export All Data (ZIP of CSVs)
+                        </button>
+                        <div id="exportStatus" style="margin-bottom:20px; color:#666;"></div>
+                        <div id="exportList">
+                            <div class="spinner active" id="exportSpinner"></div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="downloads-container">
                     <div class="downloads-list">
                         <h2>Available Graphics</h2>
