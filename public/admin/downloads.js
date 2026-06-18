@@ -203,6 +203,7 @@ async function loadExportCollections() {
             <table class="export-table">
                 <thead>
                     <tr>
+                        <th style="width:36px;"><input type="checkbox" id="exportSelectAll" title="Select all"></th>
                         <th>Data Set</th>
                         <th>Records</th>
                         <th></th>
@@ -211,6 +212,7 @@ async function loadExportCollections() {
                 <tbody>
                     ${collections.map(c => `
                         <tr>
+                            <td><input type="checkbox" class="export-select" data-collection="${c.name}"></td>
                             <td>${prettifyCollectionName(c.name)}</td>
                             <td class="count">${(c.count || 0).toLocaleString()}</td>
                             <td>
@@ -234,6 +236,25 @@ async function loadExportCollections() {
                 );
             });
         });
+
+        const selectAll = document.getElementById('exportSelectAll');
+        const rowBoxes = Array.from(exportList.querySelectorAll('.export-select'));
+        if (selectAll) {
+            selectAll.addEventListener('change', () => {
+                rowBoxes.forEach(box => { box.checked = selectAll.checked; });
+                updateSelectedButton();
+            });
+        }
+        rowBoxes.forEach(box => {
+            box.addEventListener('change', () => {
+                if (selectAll) {
+                    selectAll.checked = rowBoxes.every(b => b.checked);
+                    selectAll.indeterminate = !selectAll.checked && rowBoxes.some(b => b.checked);
+                }
+                updateSelectedButton();
+            });
+        });
+        updateSelectedButton();
     } catch (error) {
         console.error('Error loading export collections:', error);
         if (spinner) spinner.classList.remove('active');
@@ -245,6 +266,23 @@ async function loadExportCollections() {
     }
 }
 
+// Return the collection names of the currently ticked rows
+function getSelectedCollections() {
+    return Array.from(document.querySelectorAll('.export-select:checked'))
+        .map(box => box.getAttribute('data-collection'));
+}
+
+// Enable/disable the "Download Selected" button based on the current selection
+function updateSelectedButton() {
+    const button = document.getElementById('exportSelectedButton');
+    if (!button) return;
+    const count = getSelectedCollections().length;
+    button.disabled = count === 0;
+    button.textContent = count > 0
+        ? `⬇ Download Selected (${count}) (ZIP)`
+        : '⬇ Download Selected (ZIP)';
+}
+
 function initDataExport() {
     const allButton = document.getElementById('exportAllButton');
     if (allButton) {
@@ -252,6 +290,21 @@ function initDataExport() {
             downloadFromEndpoint('/api/admin/export/all', 'ljm-data-export.zip', allButton);
         });
     }
+
+    const selectedButton = document.getElementById('exportSelectedButton');
+    if (selectedButton) {
+        selectedButton.addEventListener('click', () => {
+            const selected = getSelectedCollections();
+            if (selected.length === 0) return;
+            const query = selected.map(encodeURIComponent).join(',');
+            downloadFromEndpoint(
+                `/api/admin/export/all?collections=${query}`,
+                'ljm-data-export.zip',
+                selectedButton
+            );
+        });
+    }
+
     loadExportCollections();
 }
 
