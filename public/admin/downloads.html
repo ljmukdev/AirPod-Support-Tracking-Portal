@@ -444,9 +444,14 @@
                             for a single ZIP containing one CSV file per data set, or download an individual
                             data set below.
                         </p>
-                        <button id="exportAllButton" class="download-button" style="width:auto; padding:12px 28px; margin-bottom:25px;">
-                            ⬇ Export All Data (ZIP of CSVs)
-                        </button>
+                        <div style="display:flex; flex-wrap:wrap; gap:12px; margin-bottom:25px;">
+                            <button id="exportSelectedButton" class="download-button" style="width:auto; padding:12px 28px;" disabled>
+                                ⬇ Download Selected (ZIP)
+                            </button>
+                            <button id="exportAllButton" class="download-button" style="width:auto; padding:12px 28px;">
+                                ⬇ Export All Data (ZIP of CSVs)
+                            </button>
+                        </div>
                         <div id="exportStatus" style="margin-bottom:20px; color:#666;"></div>
                         <div id="exportList">
                             <div class="spinner active" id="exportSpinner"></div>

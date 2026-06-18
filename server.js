@@ -11349,13 +11349,29 @@ app.get('/api/admin/export/csv', requireAuth, requireDB, async (req, res) => {
     }
 });
 
-// Export every collection as a single ZIP archive of CSV files
+// Export collections as a single ZIP archive of CSV files.
+// By default every collection is included; pass ?collections=a,b,c to export
+// only a chosen subset.
 app.get('/api/admin/export/all', requireAuth, requireDB, async (req, res) => {
     try {
-        const collections = await listExportableCollections();
-        const files = [];
+        const available = await listExportableCollections();
+        const availableNames = new Set(available.map(c => c.name));
 
-        for (const { name } of collections) {
+        let selected = available.map(c => c.name);
+        if (req.query.collections) {
+            const requested = String(req.query.collections)
+                .split(',')
+                .map(s => s.trim())
+                .filter(Boolean);
+            const invalid = requested.filter(name => !availableNames.has(name));
+            if (invalid.length > 0) {
+                return res.status(400).json({ error: 'Unknown collection(s): ' + invalid.join(', ') });
+            }
+            selected = requested;
+        }
+
+        const files = [];
+        for (const name of selected) {
             const documents = await db.collection(name).find({}).toArray();
             const csv = documentsToCsv(documents);
             files.push({ name: `${name}.csv`, data: Buffer.from(csv, 'utf8') });
